@@ -14,11 +14,13 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "maatwebsite/excel": "^4.0",
+        "sentry/sentry-laravel": "^4.27",
         "spatie/laravel-pdf": "^2.13",
         "spatie/laravel-permission": "^8.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "laravel/boost": "^2.8",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.32",
