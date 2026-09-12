@@ -21,8 +21,9 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-011](ADR-011-dezactivare-membru-fara-blocare.md) | Dezactivarea unui membru nu e blocată de înregistrările pe care le deține | Accepted | 2026-09-12 | Faza 2 |
 | [ADR-012](ADR-012-retentie-30-zile-post-anulare.md) | Fereastră de retenție de 30 de zile după anularea abonamentului | Accepted | 2026-09-12 | Faza 5 |
 | [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | Apelurile externe ies din cererea HTTP, în cozi | Accepted | 2026-09-12 | Faza 5 |
-| [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Contextul de tenant — o singură poartă, două variabile de sesiune, politică proprie pentru `memberships` | Accepted | 2026-09-12 | Faza 1 |
+| [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Contextul de tenant — o singură poartă, două variabile de sesiune, politică proprie pentru `memberships` | Accepted · forma SQL din pct. 2 superseded parțial de [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | 2026-09-12 | Faza 1 |
 | [ADR-015](ADR-015-laravel-13-si-inertia-3.md) | Laravel 13 și Inertia 3, nu Laravel 12 și Inertia 2 — supersedează versiunile din [ADR-001](ADR-001-stack-tehnic.md) | Accepted | 2026-09-12 | Sprint 0 |
+| [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | Politicile RLS pun cast-ul pe setare, nu pe coloană — supersedează parțial forma SQL din [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Accepted | 2026-09-12 | Faza 1 |
 
 ## Convenții
 

@@ -34,6 +34,18 @@ fără context eșuează cu `new row violates row-level security policy`. Seeder
 sistem iterează tenanții explicit cu `TenantContext::run()`, pe conexiunea aplicației — **nu**
 pe cea cu `BYPASSRLS`, care rămâne exclusiv pentru `artisan migrate`.
 
+## Politicile RLS: cast pe setare, nu pe coloană
+
+Orice politică se construiește cu `EnablesRowLevelSecurity::matchesSetting()`, care produce
+`tenant_id = current_setting('app.tenant_id', true)::bpchar`. **Nu** scrie
+`tenant_id::text = current_setting(...)`, și nici `tenant_id = current_setting(...)` fără cast:
+în ambele cazuri cast-ul ajunge pe coloană, iar indexul compus cu `tenant_id` pe prima poziție
+iese din joc. Izolarea rămâne corectă, deci niciun test funcțional nu vede diferența. Se vede
+doar planul de execuție: `Seq Scan` pe 50.000 de comenzi, măsurat. Global scope-ul Eloquent
+ascunde problema, fiindcă adaugă `tenant_id = ?` fără cast, așa că plătesc doar SQL-ul brut,
+agregatele și joburile. `IsolationTest::test_no_policy_casts_the_indexed_column` citește
+`pg_policies`. Vezi [ADR-016](../../docs/adr/ADR-016-cast-rls-pe-setare-nu-pe-coloana.md).
+
 ## Două familii de joburi
 
 - **De tenant**: primesc `tenantId` serializat explicit și îl restaurează în `handle()`.

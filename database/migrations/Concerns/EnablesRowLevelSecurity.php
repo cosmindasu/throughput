@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
  * nimic — nu se poate nici scrie, `new row violates row-level security policy`. De aici
  * regula din ADR-014, pct. 4: până și seed-ul iterează tenanții cu un context per tenant.
  *
- * `current_setting(..., true)` (missing_ok) întoarce NULL când `app.tenant_id` nu e setat,
- * deci politica devine `tenant_id = NULL` — zero rânduri, nu eroare SQL. Eroarea explicită
- * și inteligibilă rămâne treaba stratului Eloquent (TenantContextMissingException).
+ * `current_setting(..., true)` (missing_ok) întoarce NULL când `app.tenant_id` n-a fost setat
+ * niciodată pe conexiune, și '' după ce o tranzacție anterioară l-a setat (verificat, ADR-016).
+ * În ambele cazuri politica nu potrivește niciun rând — zero rânduri, nu eroare SQL. Eroarea
+ * explicită și inteligibilă rămâne treaba stratului Eloquent (TenantContextMissingException).
  *
  * Fără `FORCE ROW LEVEL SECURITY`: `throughput_app` nu e proprietarul tabelelor
  * (proprietar e `throughput_migrator`, care are BYPASSRLS și ignoră politica oricum),
@@ -33,12 +34,14 @@ trait EnablesRowLevelSecurity
     /**
      * Cast-ul stă pe SETARE, nu pe COLOANĂ — și asta decide dacă RLS folosește indexul.
      *
-     * Forma din plan §7.2 era `tenant_id::text = current_setting(...)`. Măsurat pe seed-ul
-     * complet, ca `throughput_app`, după ANALYZE: cu cast pe coloană, interogarea de listă a
-     * comenzilor făcea `Seq Scan` peste toate cele 50.000 de rânduri (45.520 aruncate de
-     * filtru, estimare de 37 rânduri față de 4.480 reale), deși indexul compus
-     * `(tenant_id, status, created_at)` exista. Coloana e `character(26)`; învelită într-un
-     * cast, nu mai corespunde indexului de btree, iar planificatorul nu mai are nici
+     * Decizia, cu cele trei forme măsurate (inclusiv „fără cast", la fel de lentă): ADR-016.
+     *
+     * Forma inițială din plan §7.2 și ADR-014 era `tenant_id::text = current_setting(...)`.
+     * Măsurat pe seed-ul complet, ca `throughput_app`, după ANALYZE: cu cast pe coloană,
+     * interogarea de listă a comenzilor făcea `Seq Scan` peste toate cele 50.000 de rânduri
+     * (45.520 aruncate de filtru, estimare de 37 rânduri față de 4.480 reale), deși indexul
+     * compus `(tenant_id, status, created_at)` exista. Coloana e `character(26)`; învelită
+     * într-un cast, nu mai corespunde indexului de btree, iar planificatorul nu mai are nici
      * statistici pe ea. Fără cast pe coloană: `Index Scan Backward`, sub 1 ms.
      *
      * Exact capcana din addendumul ADR-003 („tenant_id coloană de lider, altfel RLS poate fi

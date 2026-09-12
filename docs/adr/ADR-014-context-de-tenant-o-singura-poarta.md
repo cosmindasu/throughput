@@ -1,6 +1,6 @@
 # ADR-014: Contextul de tenant — o singură poartă, două variabile de sesiune, politică proprie pentru `memberships`
 
-- **Status**: Accepted
+- **Status**: Accepted — **forma SQL a comparației din politicile RLS (pct. 2) e superseded parțial de [[ADR-016]]**
 - **Date**: 2026-09-12
 - **Deciders**: Proprietar
 - **Related**: [[ADR-003]] (izolarea în două straturi), [[ADR-013]] (apelurile externe în cozi), [[ADR-002]]
