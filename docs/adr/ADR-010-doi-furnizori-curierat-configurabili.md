@@ -1,10 +1,18 @@
 # ADR-010: Doi furnizori de curierat, selectabili per tenant, plus un furnizor de demonstrație
 
-- **Status**: Accepted
+- **Status**: Accepted — **supapa de scop a fost trasă la 2026-09-12** (vezi nota de mai jos)
 - **Date**: 2026-09-12
 - **Deciders**: Proprietar
 - **Related**: [[ADR-001]] (componente proprii, nu configurare)
 - **Tags**: curierat, integrari, multi-tenancy, adaptoare, sprint-5
+
+> **Supapa trasă — EasyPost iese, 2026-09-12.** Acest ADR prevedea explicit că adaptorul EasyPost se poate amâna „fără a atinge arhitectura". Declanșatorul nu a fost lipsa de timp, ci o constatare la înscriere: **EasyPost condiționează accesul la cheile de API — inclusiv cele de test — de un abonament lunar.** Un furnizor cu plată recurentă pentru al treilea tenant al unui demo de portofoliu nu se justifică.
+>
+> **Ce rămâne:** interfața `ShippingCarrier`, suita de teste de contract rulată identic pe fiecare implementare, ecranul de setări per tenant cu credențiale criptate, și **două** implementări — `demo` și `shippo`. Enumul `provider` are acum doar valorile implementate (`shippo`, `demo`): o valoare fără adaptor ar fi cod mort pe care un reviewer o vede imediat.
+>
+> **Ce se pierde, explicit:** demonstrația „două integrări externe diferite, aceeași interfață". Ce rămâne demonstrat e „furnizorul se configurează **per tenant**, cu credențiale proprii" — Cascade și Northgate pornesc amândouă pe `shippo`, cu rânduri separate în `tenant_carrier_settings`. Argumentul central al deciziei (configurabilitate per tenant peste o interfață stabilă) nu depinde de numărul de furnizori; costul real al unui al treilea e acum documentat ca **o valoare în enum + un adaptor + aceeași suită de contract**, ceea ce e chiar dovada că abstracția ține.
+>
+> **Câștig secundar, nu neglijabil:** Faza 5 era marcată supraîncărcată de audit (P2-002). Pierde ~o zi de muncă, exact pe faza cea mai strânsă. Supapa a funcționat cum a fost gândită.
 
 ## Context și problema
 
@@ -42,7 +50,9 @@ Fiecare tenant din seed pornește cu alt furnizor, astfel încât un vizitator v
 |---|---|---|
 | 1 (implicit la intrare) | `demo` | Fluxul complet, fără dependență externă |
 | 2 | `shippo` (sandbox) | Integrare reală |
-| 3 | `easypost` (sandbox) | A doua integrare reală, aceeași interfață |
+| 3 | `shippo` (sandbox, credențiale proprii) | Configurare **per tenant**: același furnizor, rând separat, credențiale separate |
+
+*(Rândul 3 cerea `easypost` până la 2026-09-12 — vezi nota de supapă din capul documentului. „Toate cele trei stări" devine „ambele stări": fără dependență externă și cu integrare reală.)*
 
 ## Consecințe
 

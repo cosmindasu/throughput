@@ -62,7 +62,7 @@ class DemoDatasetSeeder extends Seeder
             'industry' => 'Foodservice Equipment & Supplies',
             'vertical' => 'foodservice',
             'code' => 'NGT',
-            'carrier' => 'easypost',
+            'carrier' => 'shippo',   // era `easypost`, scos la 2026-09-12 — vezi CarrierSettingsSeeder
             'accounts' => 1500,
             'orders' => 5000,
             'products' => 90,

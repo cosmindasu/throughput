@@ -33,11 +33,4 @@ class TenantCarrierSettingFactory extends Factory
         ]);
     }
 
-    public function easypost(?string $apiKey): static
-    {
-        return $this->state(fn () => [
-            'provider' => 'easypost',
-            'credentials' => $apiKey ? ['api_key' => $apiKey] : [],
-        ]);
-    }
 }

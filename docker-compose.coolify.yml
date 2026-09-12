@@ -42,7 +42,6 @@ x-app-env: &app-env
   # Curieratul e per tenant, in `tenant_carrier_settings` (ADR-010) — cheile de mai jos
   # sunt folosite DOAR de seeder, ca sa populeze tenantii 2 si 3.
   SHIPPO_SANDBOX_KEY: "${SHIPPO_SANDBOX_KEY}"
-  EASYPOST_SANDBOX_KEY: "${EASYPOST_SANDBOX_KEY}"
   SENTRY_LARAVEL_DSN: "${SENTRY_LARAVEL_DSN}"
   # Migrațiile/seed-ul rulează DOAR din containerul `app`, la deploy — celelalte suprascriu cu false.
   APP_RUN_MIGRATIONS: "${APP_RUN_MIGRATIONS:-false}"

@@ -7,9 +7,15 @@ use App\Models\TenantCarrierSetting;
 use Database\Factories\TenantCarrierSettingFactory;
 
 /**
- * `tenant_carrier_settings` (ADR-010, task brief pct. f): Marlin → `demo` (fără
- * credențiale), Cascade → `shippo`, Northgate → `easypost`, ambele cu credențiale din
- * `SHIPPO_SANDBOX_KEY`/`EASYPOST_SANDBOX_KEY` (pot fi goale local).
+ * `tenant_carrier_settings` (ADR-010): Marlin → `demo` (fără credențiale, deci fluxul de
+ * onorare merge fără dependență externă), Cascade și Northgate → `shippo`, cu credențiale
+ * din `SHIPPO_SANDBOX_KEY` (pot fi goale local).
+ *
+ * Northgate primea `easypost` până la 2026-09-12, când furnizorul a fost scos: EasyPost
+ * condiționează accesul la chei, inclusiv cele de test, de un abonament lunar — supapa
+ * pre-autorizată de ADR-010 a fost trasă. Cele două rânduri de `shippo` rămân utile: arată
+ * că furnizorul se configurează **per tenant**, cu credențiale proprii, care e chiar ideea
+ * deciziei; nu arată două integrări diferite, ceea ce e pierderea asumată.
  *
  * Scris prin Eloquent `create()`, NICIODATĂ prin `insert()` în bloc: `credentials` are
  * cast `encrypted:array` — criptarea trece prin encrypter-ul Laravel, invizibil pentru
@@ -21,7 +27,6 @@ final class CarrierSettingsSeeder
     {
         $credentials = match ($config['carrier']) {
             'shippo' => array_filter(['api_key' => (string) env('SHIPPO_SANDBOX_KEY')]),
-            'easypost' => array_filter(['api_key' => (string) env('EASYPOST_SANDBOX_KEY')]),
             default => [],
         };
 

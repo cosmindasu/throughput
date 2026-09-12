@@ -39,4 +39,4 @@ Toate deciziile deschise de la 2026-09-12 au fost luate (ADR-005…015). Se scri
 Rămâne de reevaluat pe parcurs:
 
 - **Unificarea generării de PDF** — [[ADR-006]] folosește `spatie/laravel-pdf` pentru facturile de abonament; dacă facturile către clienți ([[ADR-005]]) ajung pe alt mecanism, se unifică.
-- **Amânarea celei de-a doua integrări de curierat** dacă auditul confirmă Faza 5 supraîncărcată — [[ADR-010]] prevede explicit că `easypost` se poate amâna fără a atinge arhitectura.
+- ~~**Amânarea celei de-a doua integrări de curierat**~~ — **rezolvat la 2026-09-12: supapa a fost trasă.** EasyPost condiționează accesul la cheile de API, inclusiv cele de test, de un abonament lunar, deci adaptorul iese din MVP. Rămân `demo` + `shippo`; interfața, testele de contract și ecranul de setări per tenant nu se schimbă. Vezi nota din capul lui [[ADR-010]].
