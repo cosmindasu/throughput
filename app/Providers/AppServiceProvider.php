@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Tenant;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Cashier\Cashier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,7 +14,27 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Billable e TENANTUL, nu utilizatorul (ADR-006): abonamentul e al organizației
+        // și nu trebuie să dispară când pleacă persoana care a introdus cardul.
+        Cashier::useCustomerModel(Tenant::class);
+
+        // Cashier își înregistrează singur două rute, în afara oricărui grup de middleware:
+        // `GET /stripe/payment/{id}` (pagina de confirmare SCA) și `POST /stripe/webhook`.
         //
+        // Amândouă sunt nepotrivite aici, din motive diferite: prima e o pagină HTML publică
+        // fără `noindex` (încalcă FR-PUB-04, prins de NoIndexTest), a doua e un endpoint
+        // deschis — `VerifyWebhookSignature` se atașează doar când `cashier.webhook.secret`
+        // e setat, iar în Faza 1 nu e. Oricum avem nevoie de handler propriu: §12.3 cere
+        // deduplicare pe `webhook_events` cu idempotență, nu comportamentul implicit.
+        //
+        // Se re-înregistrează explicit, în grupul `web`, în Faza 5.
+        Cashier::ignoreRoutes();
+
+        // Notă, verificată în vendor (nu presupusă): Cashier 16 și Sanctum 4 doar
+        // PUBLICĂ migrațiile, nu le încarcă din pachet — deci nu există `ignoreMigrations()`
+        // de chemat și nici risc ca variantele lor (cu chei auto-incrementate, și cu
+        // coloanele Stripe puse pe `users`) să ruleze în paralel cu ale noastre din
+        // `database/migrations/`, rescrise pe chei ULID (BR-DATA-01).
     }
 
     /**
@@ -19,6 +42,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Fără învelișul `{"data": …}` al lui JsonResource.
         //
+        // Regula 1 din plan §1.2 cere ca fiecare prop Inertia să treacă printr-un Resource —
+        // dar învelișul implicit face ca `WorkspaceResource::make($tenant)` să ajungă în
+        // React ca `workspace.data.name`, nu `workspace.name`. Contractul de props (și
+        // componentele scrise după el) citesc forma fără înveliș, așa că React primea
+        // `undefined` fără nicio eroare: comutator de workspace gol, feed de activitate gol.
+        // Prins de DashboardTest, nu la review.
+        //
+        // Când API-ul public din §18 va avea nevoie de un înveliș, acesta se declară
+        // explicit acolo (`public static $wrap`), pe resursele lui — nu global, pe toate.
+        JsonResource::withoutWrapping();
     }
 }

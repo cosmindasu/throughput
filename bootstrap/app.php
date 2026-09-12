@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\NoIndexHeaders;
+use App\Http\Middleware\ResolveWorkspace;
+use App\Http\Middleware\SetSessionContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,6 +19,31 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             HandleInertiaRequests::class,
+
+            // FR-PUB-04 — jumătatea de antet (`X-Robots-Tag`); meta tag-ul e în
+            // resources/views/app.blade.php. Amândouă, pe toate paginile, inclusiv cele
+            // autentificate: un demo public indexat de Google e o problemă de reputație,
+            // nu una de trafic.
+            NoIndexHeaders::class,
+
+            // Cerut de FR-PUB-05 (specs.md §4.5): la resetarea parolei se apelează
+            // `Auth::logoutOtherDevices()` NECONDIȚIONAT. Fără AuthenticateSession activ
+            // global, apelul rulează dar nu invalidează nimic — celelalte sesiuni rămân
+            // valide, tăcut. Adică fix genul de „securitate care pare implementată".
+            AuthenticateSession::class,
+        ]);
+
+        // ADR-014, pct. 3 — ordinea e semnificativă: `Authenticate → SetSessionContext →
+        // ResolveWorkspace`. Inversarea ultimelor două NU dă nicio eroare; dă un comutator
+        // de workspace gol, pentru că `memberships` devine invizibil fără `app.user_id`.
+        // De aceea ordinea e verificată de MiddlewareOrderTest, nu doar de comentariul ăsta.
+        //
+        // Aliasuri, nu un grup global: tranzacția deschisă de SetSessionContext n-are ce
+        // căuta pe rutele publice (landing, login), unde nu există nici utilizator, nici
+        // tenant de scopat.
+        $middleware->alias([
+            'session.context' => SetSessionContext::class,
+            'workspace' => ResolveWorkspace::class,
         ]);
 
         // Cookie-ul `theme` trebuie citit/scris în clar din JS
