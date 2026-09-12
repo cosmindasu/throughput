@@ -24,8 +24,21 @@ workspace era imposibil de implementat. Măsurat, nu presupus.
 
 ## Ordinea middleware-ului e semnificativă
 
-`SetSessionContext` → `ResolveWorkspace`. Inversarea **nu dă eroare**: dă un comutator de
-workspace gol. Există un test dedicat (`MiddlewareOrderTest`) exact pentru că simptomul e mut.
+`SetSessionContext` → `ResolveWorkspace` → `SubstituteBindings`. Ordinea e impusă de **lista de
+prioritate** a framework-ului (`prependToPriorityList` în `bootstrap/app.php`), nu de felul în
+care e declarată ruta — o declarație inversată e reordonată. Fără cele două intrări,
+`SetSessionContext` după `ResolveWorkspace` dă un comutator de workspace gol (mut), iar
+`SubstituteBindings` (din grupul `web`) rulează înaintea contextului: orice parametru tipizat
+(`show(Account $account)`) dă 500 cu `TenantContextMissingException`. `MiddlewareOrderTest`
+acoperă ambele.
+
+`ResolveWorkspace` scoate `{workspace}` din parametrii rutei (`forgetParameter`): dispatcher-ul
+Laravel pasează parametrii **pozițional**, deci altfel `show(Account $account)` ar primi
+slug-ul. Nu pune `string $workspace` în semnăturile de controller; tenantul curent e
+`app('tenant')`, iar `route()` propagă segmentul singur, prin `URL::defaults`.
+
+Rutele de modul stau în `routes/web/{modul}.php`, incluse din grupul cu workspace din
+`routes/web.php` — nu înregistra o rută de workspace în afara acelui grup.
 
 ## Politicile RLS se aplică și la INSERT
 

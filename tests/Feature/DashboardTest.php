@@ -101,8 +101,8 @@ class DashboardTest extends TestCase
 
         $this->clearDatabaseTenantContext();
 
-        // Cheile lui `can` CONȚIN puncte („billing.view"), deci nu pot fi adresate cu
-        // notația cu punct a aserțiunilor Inertia — ea ar căuta `can → billing → view`.
+        // Cheile lui `navigation` CONȚIN puncte („billing.view"), deci nu pot fi adresate
+        // cu notația cu punct a aserțiunilor Inertia — ea ar căuta `navigation → billing → view`.
         $this->assertNavigationPermissions($this->owner, ['billing.view' => true, 'members.view' => true]);
 
         // Criteriul de acceptanță din §7.3: Managerul NU vede „Billing & Subscription".
@@ -124,9 +124,9 @@ class DashboardTest extends TestCase
         $this->assertSame(200, $response->getStatusCode(), 'Status pentru '.$user->email.': '.$response->getStatusCode().' '.substr(strip_tags($response->getContent()), 0, 300));
         $response
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('can', function ($can) use ($expected): bool {
+                ->where('navigation', function ($navigation) use ($expected): bool {
                     foreach ($expected as $permission => $allowed) {
-                        if (($can[$permission] ?? null) !== $allowed) {
+                        if (($navigation[$permission] ?? null) !== $allowed) {
                             return false;
                         }
                     }

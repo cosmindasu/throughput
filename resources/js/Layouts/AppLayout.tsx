@@ -1,6 +1,10 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import DemoBanner from '@/Components/DemoBanner';
+import FlashMessages from '@/Components/FlashMessages';
+import GlobalSearch from '@/Components/GlobalSearch';
+import HelpPanel from '@/Components/HelpPanel';
+import ThemeToggle from '@/Components/ThemeToggle';
 import WorkspaceSwitcher from '@/Components/WorkspaceSwitcher';
 
 interface NavItem {
@@ -11,7 +15,7 @@ interface NavItem {
 
 /**
  * Etichete TEXT, nu iconițe fără text (specs.md §21.3, FR-DEMO-01). Fiecare
- * intrare e conditionată de `can` — un buton fără drept e ABSENT, nu
+ * intrare e conditionată de `navigation` — un buton fără drept e ABSENT, nu
  * dezactivat (FR-RBAC-01, §7.3). Căile sunt literale (nu există Ziggy în
  * proiect — vezi nota din raport), construite după convenția de rute web din
  * plan-implementare.md §0 (`/{workspace}/{modul}`).
@@ -30,12 +34,12 @@ const NAV_ITEMS: NavItem[] = [
 /**
  * Shell de aplicație pentru paginile autentificate (plan-implementare.md
  * §7.4). Header cu comutator de workspace + navigație principală, ambele
- * randate din props comune (`workspace`, `workspaces`, `can`) — nimic
+ * randate din props comune (`workspace`, `workspaces`, `navigation`) — nimic
  * recalculat din rolul brut al utilizatorului (§1.2 regula 2, FR-RBAC-01).
  */
 export default function AppLayout({ children }: PropsWithChildren) {
     const page = usePage();
-    const { auth, workspace, workspaces, can } = page.props;
+    const { auth, workspace, workspaces, navigation } = page.props;
     const { url } = page;
 
     const logout = () => {
@@ -62,6 +66,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
                     {auth.user && (
                         <div className="flex items-center gap-3">
+                            <GlobalSearch />
+                            <HelpPanel />
+                            <ThemeToggle />
                             <span
                                 aria-hidden="true"
                                 className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-tint text-xs font-medium text-accent-text"
@@ -82,7 +89,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
                 <nav aria-label="Primary" className="border-t border-border-soft">
                     <div className="mx-auto flex max-w-7xl flex-wrap gap-1 px-4 sm:px-6 lg:px-8">
-                        {NAV_ITEMS.filter((item) => can[item.permission]).map((item) => {
+                        {NAV_ITEMS.filter((item) => navigation[item.permission]).map((item) => {
                             const href = workspace ? item.href(workspace.slug) : '#';
                             const active = workspace ? url.startsWith(item.href(workspace.slug)) : false;
 
@@ -90,6 +97,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                 <Link
                                     key={item.permission}
                                     href={href}
+                                    // FR-PERF-02 — pagina e deja pe drum când cursorul ajunge pe link.
+                                    prefetch
                                     className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
                                         active
                                             ? 'border-accent-fill text-accent-text'
@@ -105,6 +114,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             </header>
 
             <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <FlashMessages />
                 {children}
             </main>
         </div>

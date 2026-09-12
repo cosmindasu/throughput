@@ -41,8 +41,24 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 Route::middleware(['auth', 'session.context'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'redirectToDefaultWorkspace'])->name('dashboard');
 
+    // Preferințele sunt ale persoanei, nu ale organizației (FR-PREF-02, BR-HELP-02): fără
+    // segment de workspace, deci neafectate de comutare.
+    require __DIR__.'/web/preferences.php';
+    require __DIR__.'/web/hints.php';
+
     // Cu workspace în cale (ADR-002).
     Route::middleware('workspace')->prefix('{workspace}')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'show'])->name('workspace.dashboard');
+
+        // Faza 2: un fișier per modul. Grupul (auth → session.context → workspace) și
+        // prefixul se moștenesc de aici, deci niciun fișier de modul nu poate ajunge pe
+        // grupul greșit — regresia pe care MiddlewareOrderTest o urmărește.
+        require __DIR__.'/web/accounts.php';
+        require __DIR__.'/web/contacts.php';
+        require __DIR__.'/web/deals.php';
+        require __DIR__.'/web/pipeline.php';
+        require __DIR__.'/web/search.php';
+        require __DIR__.'/web/settings.php';
+        require __DIR__.'/web/exports.php';
     });
 });

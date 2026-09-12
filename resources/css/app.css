@@ -56,6 +56,12 @@
     --info: #4152c0;
     --info-tint: #e8eaf7;
     --focus: #0b6b79;
+    /*
+     * Fundalul din spatele unui dialog modal (Faza 2). Nu vine din urls.md: nu e o
+     * culoare de text sau de suprafață, deci nu intră în auditul de contrast — dar e
+     * token, nu `bg-black/50` scris în componentă (regula „niciun cod de culoare literal").
+     */
+    --scrim: rgb(13 27 36 / 0.45);
 }
 
 /*
@@ -89,6 +95,7 @@
     --info: #8b9bf5;
     --info-tint: #212c3f;
     --focus: #56d4e0;
+    --scrim: rgb(0 0 0 / 0.6);
 }
 
 /*
@@ -129,6 +136,7 @@
     --color-info: var(--info);
     --color-info-tint: var(--info-tint);
     --color-focus: var(--focus);
+    --color-scrim: var(--scrim);
 }
 
 /*

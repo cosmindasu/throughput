@@ -63,6 +63,13 @@ class ResolveWorkspace
         // fie repetat manual în fiecare componentă React (ADR-002).
         URL::defaults(['workspace' => $tenant->slug]);
 
+        // Segmentul și-a făcut treaba, deci iese din parametrii rutei. Dispatcher-ul Laravel
+        // îi pasează metodei de controller POZIȚIONAL (`...array_values()`), așa că
+        // `show(Account $account)` ar primi slug-ul workspace-ului în locul contului —
+        // TypeError pe fiecare rută cu parametru. `URL::defaults` de mai sus acoperă în
+        // continuare generarea de linkuri.
+        $request->route()->forgetParameter('workspace');
+
         return $next($request);
     }
 }

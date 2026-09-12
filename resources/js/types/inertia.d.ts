@@ -4,11 +4,14 @@ import '@inertiajs/core';
  * Augmentare a tipurilor Inertia pentru props-urile comune partajate din
  * `App\Http\Middleware\HandleInertiaRequests::share()`.
  *
- * Faza 1: `auth.user`, `workspace`, `workspaces` și `can` se adaugă acum, o
- * dată cu tenancy/RBAC (§1.2 regula 3 din plan-implementare.md). `can` rămâne
- * `Record<string, boolean>` — nu un union de chei literale — pentru că
- * fazele următoare adaugă permisiuni noi (`accounts.create`, etc.) fără să
- * atingă acest fișier.
+ * Faza 1: `auth.user`, `workspace`, `workspaces` și `navigation` se adaugă
+ * acum, o dată cu tenancy/RBAC (§1.2 regula 3 din plan-implementare.md).
+ * `navigation` rămâne `Record<string, boolean>` — nu un union de chei literale
+ * — pentru că fazele următoare adaugă module noi fără să atingă acest fișier.
+ *
+ * `can` NU e aici: e propul fiecărei pagini (§1.2 regula 2), declarat în
+ * interfața `*PageProps` din `generated.d.ts`. Partajat global, s-ar fi bătut
+ * cu cel al paginii — Inertia combină cele două niveluri superficial.
  */
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
@@ -31,7 +34,7 @@ declare module '@inertiajs/core' {
                 slug: string;
                 name: string;
             }>;
-            can: Record<string, boolean>;
+            navigation: Record<string, boolean>;
             flash: {
                 success: string | null;
                 error: string | null;

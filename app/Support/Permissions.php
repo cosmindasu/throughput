@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\User;
+
 /**
  * Catalogul de permisiuni și maparea rol → permisiuni, transcrisă din matricea §7.4 din
  * specs.md. Sursă unică: seeder-ul, testele de RBAC și propul `can` din Inertia citesc de
@@ -30,6 +32,18 @@ final class Permissions
     public static function roles(): array
     {
         return [self::OWNER, self::MANAGER, self::AGENT, self::VIEWER];
+    }
+
+    /**
+     * Steluța din matricea §7.4: „doar înregistrări proprii/asignate".
+     *
+     * Nu e o permisiune (vezi docblock-ul clasei), ci îngustarea aplicată de Policies peste
+     * permisiunea care dă dreptul. Un singur loc știe că e vorba de Agent, ca Policies-urile
+     * și listele să nu întrebe fiecare de rol pe cont propriu.
+     */
+    public static function restrictedToOwnRecords(User $user): bool
+    {
+        return $user->hasRole(self::AGENT);
     }
 
     /**

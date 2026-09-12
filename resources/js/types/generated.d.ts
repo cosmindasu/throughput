@@ -81,3 +81,40 @@ export interface DashboardPageProps {
     activity: ActivityItem[];
     [key: string]: unknown;
 }
+
+// Liste — plan §1.2 regulile 6-7: `App\Support\ListQuery` + paginare pe cursor.
+export interface CursorPage<T> {
+    data: T[];
+    nextCursor: string | null;
+    prevCursor: string | null;
+}
+
+// `ListQuery::toArray()` — starea canonică a unei liste, fără cursor.
+export interface ListState {
+    filter: Record<string, string>;
+    sort: string;
+}
+
+// ── Accounts — FR-CRM-01…04, US-CRM-01…03 ────────────────────────────────────────
+
+
+// ── Contacts — FR-CRM-02 ─────────────────────────────────────────────────────────
+
+
+// ── Deals și kanban — FR-DEAL-01, FR-DEAL-03 ─────────────────────────────────────
+
+
+// ── Pipeline și etape — FR-DEAL-02 ───────────────────────────────────────────────
+
+
+// ── Settings și preferințe — FR-PREF-01…03 ───────────────────────────────────────
+
+
+// ── Căutare globală — FR-SEARCH-01 ───────────────────────────────────────────────
+
+
+// ── Ajutor contextual — FR-HELP-01…04 ────────────────────────────────────────────
+
+
+// ── Exporturi — US-CRM-03, §13.2 ─────────────────────────────────────────────────
+

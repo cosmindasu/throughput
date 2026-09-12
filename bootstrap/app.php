@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -45,6 +46,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'session.context' => SetSessionContext::class,
             'workspace' => ResolveWorkspace::class,
         ]);
+
+        // Aceeași ordine, față de `SubstituteBindings`: un parametru de rută tipizat
+        // (`show(Account $account)`) se rezolvă printr-o interogare Eloquent, deci are
+        // nevoie de tranzacție și de tenant. Framework-ul sortează doar middleware-urile din
+        // lista lui de prioritate; `SubstituteBindings` e acolo și stă în grupul `web`,
+        // ale noastre nu — deci, fără liniile de mai jos, binding-ul ar rula ÎNAINTEA lor
+        // și fiecare pagină de detaliu ar da 500 (TenantContextMissingException).
+        $middleware->prependToPriorityList(SubstituteBindings::class, SetSessionContext::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, ResolveWorkspace::class);
 
         // Cookie-ul `theme` trebuie citit/scris în clar din JS
         // (document.cookie, resources/js/Pages/Welcome.tsx) ȘI din Blade

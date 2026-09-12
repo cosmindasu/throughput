@@ -1,0 +1,80 @@
+<?php
+
+namespace App\Support\Lists;
+
+use App\Models\Account;
+use App\Models\Membership;
+use App\Models\User;
+use App\Support\ListQuery;
+use App\Support\Permissions;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
+
+/**
+ * Lista de conturi — FR-CRM-03, US-CRM-02.
+ */
+final class AccountList extends ResourceList
+{
+    public const STATUSES = [Account::STATUS_PROSPECT, Account::STATUS_ACTIVE, Account::STATUS_INACTIVE];
+
+    protected function filterKeys(): array
+    {
+        return ['q', 'status', 'owner'];
+    }
+
+    protected function sortableColumns(): array
+    {
+        return ['name', 'created_at'];
+    }
+
+    protected function defaultSort(): string
+    {
+        return 'name';
+    }
+
+    /**
+     * US-CRM-02: Agentul pornește pe „My accounts". Doar ca implicit — `filter[owner]=all`
+     * îl scoate, iar un link trimis de un Manager se deschide cu filtrul din link.
+     */
+    protected function defaultFilters(User $user): array
+    {
+        return Permissions::restrictedToOwnRecords($user) ? ['owner' => 'me'] : [];
+    }
+
+    protected function accepts(string $key, string $value): bool
+    {
+        return match ($key) {
+            'status' => in_array($value, self::STATUSES, true),
+            'owner' => in_array($value, ['me', 'all', 'unassigned'], true) || Str::isUlid($value),
+            default => true,
+        };
+    }
+
+    protected function baseQuery(): Builder
+    {
+        return Account::query()->with('owner:id,name');
+    }
+
+    protected function applyFilters(Builder $query, ListQuery $list, User $user): void
+    {
+        if (($search = $list->filter('q')) !== null) {
+            $query->where('name', 'ilike', '%'.addcslashes($search, '%_\\').'%');
+        }
+
+        if (($status = $list->filter('status')) !== null) {
+            $query->where('status', $status);
+        }
+
+        match ($owner = $list->filter('owner')) {
+            null, 'all' => null,
+            'me' => $query->where('owner_user_id', $user->getKey()),
+            // Vederea „Unassigned" din ADR-011: fără responsabil SAU cu un responsabil care nu
+            // mai e membru activ. Dezactivarea nu reatribuie nimic (BR-TEN-03), deci conturile
+            // unui coleg plecat ajung aici, nu se pierd.
+            'unassigned' => $query->where(fn (Builder $unassigned) => $unassigned
+                ->whereNull('owner_user_id')
+                ->orWhereNotIn('owner_user_id', Membership::query()->where('status', Membership::STATUS_ACTIVE)->select('user_id'))),
+            default => $query->where('owner_user_id', Str::lower($owner)),
+        };
+    }
+}

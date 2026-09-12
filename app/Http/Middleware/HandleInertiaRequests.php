@@ -60,7 +60,7 @@ class HandleInertiaRequests extends Middleware
             'theme' => $request->cookie('theme') === 'light' ? 'light' : 'dark',
 
             // Plan §1.2 regula 3 — sursă unică pentru `auth.user`, `workspace`,
-            // `workspaces`, `can`. TOATE patru sunt închise în closures, NU calculate
+            // `workspaces`, `navigation`. TOATE patru sunt închise în closures, NU calculate
             // eager aici: `Inertia\Middleware::handle()` apelează `share()` ÎNAINTE de
             // `$next($request)` (verificat în vendor), adică înainte ca
             // `ResolveWorkspace` să lege `tenant`/`memberships` în container și să
@@ -85,7 +85,12 @@ class HandleInertiaRequests extends Middleware
             // tenant de verificat, deci array gol — nu o eroare tăcută pe tenantul
             // greșit. `(object)` pe ramura goală: JSON gol din `[]` ar ieși `[]`, nu
             // `{}`, și ar rupe `Record<string, boolean>` din contractul de props.
-            'can' => fn () => $this->navigationPermissions($request),
+            //
+            // Sub `navigation`, NU sub `can`: `can` e propul PER PAGINĂ din §1.2 regula 2
+            // (`can.edit`, `can.move_stage`), iar Inertia combină props-urile comune cu
+            // cele ale paginii superficial. Primul `can` de pagină ar fi înlocuit tot
+            // obiectul, iar meniul principal ar fi dispărut exact pe ecranele cu acțiuni.
+            'navigation' => fn () => $this->navigationPermissions($request),
         ];
     }
 

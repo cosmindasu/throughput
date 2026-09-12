@@ -4,9 +4,14 @@ namespace Tests\Feature\Tenancy;
 
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SetSessionContext;
+use App\Models\Account;
 use App\Models\Membership;
+use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Permissions;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -35,6 +40,41 @@ class MiddlewareOrderTest extends TestCase
         $this->assertLessThan($workspace, $session, 'SetSessionContext trebuie să ruleze ÎNAINTEA lui ResolveWorkspace (ADR-014).');
     }
 
+    public function test_route_model_binding_runs_inside_the_tenant_context(): void
+    {
+        $marlin = $this->makeTenant('marlin', 'Marlin Fasteners & Supply Co.');
+        $cascade = $this->makeTenant('cascade', 'Cascade Hydraulic Components');
+        $user = $this->makeMember($marlin, 'demo.owner@throughput.dev', Permissions::OWNER);
+
+        $own = TenantContext::run($marlin, fn () => $this->createAccount('Marlin Industrial Fasteners LLC', $user));
+        $foreign = TenantContext::run($cascade, fn () => $this->createAccount('Cascade Hydraulics Group Inc.', $user));
+
+        $route = Route::middleware(['web', 'auth', 'session.context', 'workspace'])
+            ->get('/{workspace}/binding-probe/{account}', fn (Account $account) => response($account->name))
+            ->name('probe.binding');
+
+        // `SubstituteBindings` stă în grupul `web`, deci fără intrarea din lista de
+        // prioritate (bootstrap/app.php) ar rula înaintea contextului: 500 cu
+        // TenantContextMissingException pe fiecare pagină de detaliu.
+        $middleware = app(Router::class)->gatherRouteMiddleware($route);
+        $this->assertLessThan(
+            array_search(SubstituteBindings::class, $middleware, true),
+            array_search(ResolveWorkspace::class, $middleware, true),
+            'Binding-ul de rută trebuie să ruleze DUPĂ ResolveWorkspace.'
+        );
+
+        $this->clearDatabaseTenantContext();
+
+        // Parametrul tipizat primește contul, nu slug-ul workspace-ului: ResolveWorkspace
+        // scoate segmentul din parametrii rutei, iar dispatcher-ul îi pasează pozițional.
+        $this->actingAs($user)->get("/marlin/binding-probe/{$own->id}")
+            ->assertOk()
+            ->assertSee('Marlin Industrial Fasteners LLC');
+
+        // Contul altui tenant nu există pentru binding: 404, nu 500 și nu datele lui.
+        $this->actingAs($user)->get("/marlin/binding-probe/{$foreign->id}")->assertNotFound();
+    }
+
     public function test_every_workspace_route_carries_both_middlewares(): void
     {
         // Regresia realistă nu e reordonarea, ci ruta nouă adăugată în Faza 3 direct pe
@@ -52,33 +92,52 @@ class MiddlewareOrderTest extends TestCase
         }
     }
 
-    public function test_with_the_order_reversed_the_workspace_becomes_unreachable(): void
+    public function test_a_reversed_declaration_is_reordered_by_the_priority_list(): void
     {
         $tenant = $this->makeTenant('marlin', 'Marlin Fasteners & Supply Co.');
         $user = $this->makeMember($tenant, 'demo.owner@throughput.dev');
 
-        Route::middleware(['web', 'auth', 'workspace', 'session.context'])
+        // Declarate INVERS pe rută. Până în Faza 2 asta dădea 404: `ResolveWorkspace` rula
+        // fără `app.user_id` și nu găsea niciun membership. De când ambele stau în lista de
+        // prioritate a framework-ului (bootstrap/app.php — necesar pentru binding-ul de rută),
+        // framework-ul reface ordinea indiferent cum e scrisă ruta. Garanția s-a mutat din
+        // declarație în lista de prioritate, iar testul o fixează acolo: dacă cele două
+        // `prependToPriorityList` sunt inversate sau șterse, cererea de mai jos redevine 404.
+        $route = Route::middleware(['web', 'auth', 'workspace', 'session.context'])
             ->get('/{workspace}/reversed-order-probe', fn () => response('ok'))
             ->name('probe.reversed');
 
+        $middleware = app(Router::class)->gatherRouteMiddleware($route);
+        $this->assertLessThan(
+            array_search(ResolveWorkspace::class, $middleware, true),
+            array_search(SetSessionContext::class, $middleware, true),
+        );
+
         $this->clearDatabaseTenantContext();
 
-        $response = $this->actingAs($user)->get("/{$tenant->slug}/reversed-order-probe");
+        $this->actingAs($user)->get("/{$tenant->slug}/reversed-order-probe")->assertOk();
 
-        // Planul prevedea „niciun mesaj de eroare, doar un comutator gol". Cu implementarea
-        // de față eșecul e mai zgomotos — `ResolveWorkspace` nu găsește niciun membership
-        // (nu există `app.user_id`) și dă 404 în loc să continue cu o listă goală. Mai bine
-        // așa: un 404 se observă, un comutator gol se ignoră. Testul fixează comportamentul
-        // ca să nu redevină tăcut printr-o „îmbunătățire" ulterioară.
-        $this->assertSame(404, $response->getStatusCode());
+        // Premisa pentru care ordinea contează rămâne adevărată: fără `app.user_id`,
+        // membership-ul e invizibil (0), cu el — exact ce setează `SetSessionContext` — e
+        // vizibil (1). Diferența dintre un 404 și pagină e fix această variabilă.
+        $this->clearDatabaseTenantContext();
 
-        // Iar cu ordinea corectă — adică exact ce face `SetSessionContext` înainte de
-        // `ResolveWorkspace`: deschide tranzacția și setează `app.user_id` — aceeași
-        // pereche user/tenant chiar vede membership-ul. Diferența dintre 404 și pagină
-        // e fix linia asta.
+        $this->assertSame(0, DB::transaction(
+            fn () => Membership::forCurrentUserAcrossTenants($user->getKey())->count()
+        ));
+
         $this->assertSame(1, TenantContext::openFor(
             $user->getKey(),
             fn () => Membership::forCurrentUserAcrossTenants($user->getKey())->count()
         ));
+    }
+
+    private function createAccount(string $name, User $creator): Account
+    {
+        $account = new Account(['name' => $name]);
+        $account->created_by = $creator->getKey();
+        $account->save();
+
+        return $account;
     }
 }
