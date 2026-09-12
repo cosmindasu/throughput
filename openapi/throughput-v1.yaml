@@ -1,0 +1,61 @@
+# Sursa de adevăr a contractului API public (FR-API-04).
+#
+# Schelet de la Sprint 0, deliberat: jobul de lint Spectral din CI (§5.2) trebuie să
+# aibă mereu ce valida, nu condiționat de existența fișierului abia din Faza 5. Căile
+# se adaugă pe măsură ce endpoint-urile apar (Faza 5, §11) — documentul se scrie
+# înaintea implementării, nu generat din cod după.
+#
+# Versionarea e pe cale, `/api/v1/...`, fără segment de workspace (ADR-008, §18.2):
+# tenantul rezultă din tokenul de acces, nu din URL.
+openapi: 3.1.0
+
+info:
+  title: Throughput API
+  version: 1.0.0
+  summary: Multi-tenant B2B sales and operations console — public API.
+  description: |
+    Read and write access to accounts, contacts, deals, orders and stock for a single
+    workspace. The workspace is derived from the access token, not from the URL
+    (ADR-008). All endpoints are rate limited (`API_RATE_LIMIT_PER_MINUTE`, FR-API-05)
+    and every write is recorded in the activity log (ADR-007).
+
+    Paths land in Phase 5. This document is the contract source of truth: it is edited
+    by hand before the endpoint exists, and CI lints it on every push.
+  contact:
+    name: Throughput
+    url: https://throughput.dbg.ro
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
+servers:
+  - url: https://throughput.dbg.ro/api/v1
+    description: Public demo (write-enabled, reset daily at 03:00 UTC)
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+tags:
+  - name: Accounts
+    description: Companies you sell to.
+  - name: Contacts
+    description: People at those companies.
+  - name: Deals
+    description: Opportunities moving through the pipeline.
+  - name: Orders
+    description: Confirmed sales and their fulfilment.
+  - name: Stock
+    description: Append-only stock ledger (ADR-004).
+
+components:
+  securitySchemes:
+    sanctumToken:
+      type: http
+      scheme: bearer
+      description: |
+        Personal access token issued by Laravel Sanctum. The token carries the
+        workspace and the abilities derived from the member's role (§7 din specs.md).
+
+security:
+  - sanctumToken: []
+
+paths: {}

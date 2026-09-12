@@ -1,0 +1,196 @@
+# CI — plan-implementare.md §5.
+#
+# Cota de minute GitHub Actions e comună pentru toate cele 12 proiecte private
+# (2.000/lună, plan free), deci fiecare regulă de mai jos e deliberată:
+#   - `concurrency` cu anulare: un push nou omoară run-ul învechit;
+#   - `push` doar pe `main` și tag-uri (branch-urile de feature se testează prin PR),
+#     cu `paths-ignore` pe documentație;
+#   - job-urile ieftine (`quality`, `assets`) rulează pe orice PR, inclusiv draft;
+#     jobul scump (`e2e`) stă în spatele lor și sare pe draft-uri;
+#   - exclusiv `ubuntu-latest` (1×), niciodată macOS (10×) sau Windows (2×);
+#   - fără micro-job-uri: fiecare job se facturează rotunjit la minutul întreg, deci
+#     axe-core și Lighthouse sunt pași în `e2e`, nu job-uri separate.
+#
+# Precauție, dacă se activează branch protection pe `main` mai târziu: cu
+# `paths-ignore`, un PR doar-documentație nu declanșează niciun check, iar un
+# required status check ar rămâne etern „pending" și ar bloca merge-ul. De
+# confirmat explicit înainte de a porni protecția, nu implicit.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/**"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: "PHP — lint, teste, izolare tenant"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ["8.3"]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: throughput_test
+          # Superuser de bootstrap, NU un rol aplicativ: imaginea îl creează la
+          # `initdb`, înaintea scripturilor de init, deci un `CREATE ROLE` pe el ar
+          # eșua cu `role already exists` (capcana 1 din §3.3).
+          POSTGRES_USER: throughput
+          POSTGRES_PASSWORD: secret
+        options: >-
+          --health-cmd "pg_isready -U throughput -d throughput_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "${{ matrix.php }}"
+          extensions: "pdo_pgsql, pgsql, redis, gd, intl, zip, bcmath"
+          coverage: pcov
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      # Exact același script ca dev și producție (§3.3), ca să nu existe derivă
+      # între bootstrap-ul de CI și realitate. E un script shell, nu SQL: se
+      # EXECUTĂ, nu se dă lui `psql -f` (are nevoie de variabilele de mediu cu
+      # parolele, pe care `psql -f` nu le poate pasa).
+      - name: "Bootstrap roluri Postgres (același script ca dev/prod)"
+        run: bash docker/postgres/init/01-roles-and-extensions.sh
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: throughput
+          PGPASSWORD: secret
+          POSTGRES_USER: throughput
+          POSTGRES_DB: throughput_test
+          APP_DB_PASSWORD: secret
+          MIGRATOR_DB_PASSWORD: secret
+
+      # Testele rulează ca `throughput_app` (fără BYPASSRLS), migrațiile ca
+      # `throughput_migrator`. Fără separarea asta, RLS e inert în CI: rolul
+      # serviciului Postgres e proprietarul tabelelor, iar politicile nu se aplică
+      # proprietarului — testul de izolare ar trece verde fără să testeze nimic.
+      - name: "Mediu de testare"
+        run: |
+          cp .env.example .env.testing
+          php artisan key:generate --env=testing
+          {
+            echo "APP_ENV=testing"
+            # Serviciile CI sunt pe localhost, nu pe numele de host din docker-compose.
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=5432"
+            echo "DB_DATABASE=throughput_test"
+            echo "DB_USERNAME=throughput_app"
+            echo "DB_PASSWORD=secret"
+            echo "DB_MIGRATIONS_USERNAME=throughput_migrator"
+            echo "DB_MIGRATIONS_PASSWORD=secret"
+            echo "REDIS_HOST=127.0.0.1"
+            echo "REDIS_PASSWORD=null"
+          } >> .env.testing
+
+      - run: ./vendor/bin/pint --test
+
+      # Fără `--parallel` la Sprint 0, deliberat: testarea paralelă creează o bază
+      # per proces (`throughput_test_test_1`, …), iar fiecare ar avea nevoie de
+      # bootstrap-ul celor două roluri + `ALTER DEFAULT PRIVILEGES`, altfel testele
+      # de izolare cad cu `permission denied`. Se reevaluează în Faza 1, când suita
+      # devine suficient de mare ca paralelizarea să merite setup-ul.
+      - run: ./vendor/bin/pest
+        env:
+          APP_ENV: testing
+
+      - name: "Lint OpenAPI (Spectral)"
+        run: npx --yes @stoplight/spectral-cli lint openapi/throughput-v1.yaml
+
+      - run: composer audit --no-dev --format=plain --locked
+
+  assets:
+    name: "Node — typecheck, lint, build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx eslint resources/js
+      - run: npm run build
+
+  e2e:
+    name: "Playwright — fluxuri critice, axe-core, Lighthouse CI"
+    needs: [quality, assets]
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Suita Playwright apare în Faza 2, împreună cu primele ecrane care merită
+      # testate end-to-end. Până atunci jobul se oprește aici, în loc să cadă pe
+      # „No tests found": forma jobului (gate-uri, cache, draft) e deja scrisă și
+      # revizuită, ca să nu fie improvizată sub presiune în Faza 2. Garda dispare
+      # când `e2e/playwright.config.ts` intră în repo.
+      - name: "Există suita E2E?"
+        id: suite
+        run: |
+          if [ -f e2e/playwright.config.ts ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Suita Playwright nu există încă (Faza 2) — jobul se oprește aici."
+          fi
+
+      - if: steps.suite.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - if: steps.suite.outputs.ready == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - if: steps.suite.outputs.ready == 'true'
+        run: npm ci && npx playwright install --with-deps chromium
+
+      # PR: subset critic de fluxuri. Push pe main: suită completă + axe + Lighthouse.
+      - if: steps.suite.outputs.ready == 'true'
+        run: npx playwright test ${{ github.ref == 'refs/heads/main' && '' || '--grep @smoke' }}
+
+      - if: steps.suite.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        run: npx @axe-core/cli http://localhost:8000 --exit
+
+      - if: steps.suite.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        run: npx @lhci/cli autorun

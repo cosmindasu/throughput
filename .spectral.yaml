@@ -1,0 +1,10 @@
+# Ruleset pentru `npx @stoplight/spectral-cli lint openapi/throughput-v1.yaml` (CI, §5.2).
+# Fără acest fișier, Spectral iese cu „No ruleset has been found" și jobul `quality` cade
+# pe un pas fără nicio legătură cu codul scris.
+extends: ["spectral:oas"]
+
+rules:
+  # Scheletul de la Sprint 0 declară componente înaintea căilor care le folosesc
+  # (`securitySchemes` există, `paths` e încă gol). Regula redevine utilă când
+  # apar endpoint-urile, în Faza 5 — până atunci ar semnala fiecare schemă ca nefolosită.
+  oas3-unused-component: off
