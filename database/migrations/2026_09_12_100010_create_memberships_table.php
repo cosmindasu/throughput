@@ -44,10 +44,15 @@ return new class extends Migration
             $table->index(['tenant_id', 'status']);
         });
 
-        $this->enableRlsWithPolicy('memberships', <<<'SQL'
-                user_id::text   = current_setting('app.user_id',   true)
-             OR tenant_id::text = current_setting('app.tenant_id', true)
-            SQL, 'membership_visibility');
+        // Cast pe setare, nu pe coloană — altfel indexurile pe `user_id`/`tenant_id` devin
+        // inutilizabile pentru politică. Argumentația măsurată e în
+        // EnablesRowLevelSecurity::matchesSetting().
+        $this->enableRlsWithPolicy(
+            'memberships',
+            self::matchesSetting('user_id', 'app.user_id')
+                .' OR '.self::matchesSetting('tenant_id', 'app.tenant_id'),
+            'membership_visibility'
+        );
     }
 
     public function down(): void

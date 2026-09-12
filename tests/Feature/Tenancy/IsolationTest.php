@@ -58,6 +58,21 @@ class IsolationTest extends TestCase
         }
     }
 
+    public function test_no_policy_casts_the_indexed_column(): void
+    {
+        // Regresia măsurată pe seed-ul complet: `tenant_id::text = current_setting(...)`
+        // face indexul compus inutilizabil pentru politică — `Seq Scan` pe 50.000 de comenzi,
+        // deși indexul `(tenant_id, status, created_at)` exista. Izolarea rămâne corectă,
+        // deci niciun test funcțional n-ar fi observat; doar performanța cade, tăcut.
+        // Vezi EnablesRowLevelSecurity::matchesSetting().
+        $castingColumn = DB::table('pg_policies')
+            ->where('schemaname', 'public')
+            ->where('qual', 'like', '%)::text = current_setting%')
+            ->pluck('tablename');
+
+        $this->assertSame([], $castingColumn->all(), 'Politici cu cast pe coloană (index inutilizabil): '.$castingColumn->implode(', '));
+    }
+
     public function test_eloquent_global_scope_hides_another_tenants_rows(): void
     {
         $this->createAccount($this->marlin, 'Marlin Industrial Fasteners LLC');
