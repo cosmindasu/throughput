@@ -1,0 +1,188 @@
+# docker-compose.coolify.yml — stack producție, Coolify v4
+# Compose Location: /docker-compose.coolify.yml · Base Dir: / · Auto-deploy: dezactivat (deploy manual din UI)
+# Toate valorile ${...} vin din Coolify → Environment Variables (§2) — niciun .env cu date reale.
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+x-app-env: &app-env
+  APP_NAME: "Throughput"
+  APP_ENV: production
+  APP_KEY: "${APP_KEY}"
+  APP_DEBUG: "false"
+  APP_URL: "${APP_URL}"
+  APP_LOCALE: en
+  DEMO_MODE: "${DEMO_MODE:-true}"
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_DATABASE: "${DB_DATABASE:-throughput}"
+  DB_USERNAME: "${DB_USERNAME:-throughput_app}"
+  DB_PASSWORD: "${DB_PASSWORD}"
+  DB_MIGRATIONS_CONNECTION: pgsql_migrations
+  DB_MIGRATIONS_USERNAME: "${DB_MIGRATIONS_USERNAME:-throughput_migrator}"
+  DB_MIGRATIONS_PASSWORD: "${DB_MIGRATIONS_PASSWORD}"
+  SESSION_DRIVER: redis
+  SESSION_SECURE_COOKIE: "true"
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: redis
+  REDIS_HOST: redis
+  REDIS_PASSWORD: "${REDIS_PASSWORD}"
+  # Cu două puncte la final: prefixul se concatenează direct la numele cheii Redis,
+  # iar `throughput_horizon` fără ele produce chei de forma `throughput_horizonjobs:...`.
+  HORIZON_PREFIX: "throughput_horizon:"
+  MAIL_MAILER: "${MAIL_MAILER:-smtp}"
+  MAIL_HOST: "${MAIL_HOST}"
+  MAIL_USERNAME: "${MAIL_USERNAME}"
+  MAIL_PASSWORD: "${MAIL_PASSWORD}"
+  DEMO_EMAIL_ALLOWLIST: "${DEMO_EMAIL_ALLOWLIST}"
+  STRIPE_KEY: "${STRIPE_KEY}"
+  STRIPE_SECRET: "${STRIPE_SECRET}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+  # Curieratul e per tenant, in `tenant_carrier_settings` (ADR-010) — cheile de mai jos
+  # sunt folosite DOAR de seeder, ca sa populeze tenantii 2 si 3.
+  SHIPPO_SANDBOX_KEY: "${SHIPPO_SANDBOX_KEY}"
+  EASYPOST_SANDBOX_KEY: "${EASYPOST_SANDBOX_KEY}"
+  SENTRY_LARAVEL_DSN: "${SENTRY_LARAVEL_DSN}"
+  # Migrațiile/seed-ul rulează DOAR din containerul `app`, la deploy — celelalte suprascriu cu false.
+  APP_RUN_MIGRATIONS: "${APP_RUN_MIGRATIONS:-false}"
+  APP_RUN_SEEDERS: "${APP_RUN_SEEDERS:-false}"
+
+services:
+  nginx:
+    build: { context: ., dockerfile: docker/nginx/Dockerfile }
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    memswap_limit: 64m
+    expose: ["80"]
+    environment:
+      - SERVICE_FQDN_NGINX_80=https://throughput.dbg.ro
+    depends_on: { app: { condition: service_healthy } }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  app:
+    build: { context: ., dockerfile: docker/app/Dockerfile, target: production }
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment: *app-env
+    volumes: [app_storage:/var/www/html/storage]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  horizon:
+    build: { context: ., dockerfile: docker/app/Dockerfile, target: production }
+    command: ["php", "artisan", "horizon"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 384m
+    memswap_limit: 384m
+    environment:
+      <<: *app-env
+      APP_RUN_MIGRATIONS: "false"
+      APP_RUN_SEEDERS: "false"
+    volumes: [app_storage:/var/www/html/storage]
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status | grep -q running"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+
+  scheduler:
+    build: { context: ., dockerfile: docker/app/Dockerfile, target: production }
+    command: ["php", "artisan", "schedule:work"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      <<: *app-env
+      APP_RUN_MIGRATIONS: "false"
+      APP_RUN_SEEDERS: "false"
+    volumes: [app_storage:/var/www/html/storage]
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 320m
+    memswap_limit: 320m
+    command: >
+      postgres -c shared_buffers=64MB -c max_connections=30
+               -c work_mem=4MB -c maintenance_work_mem=32MB
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-throughput}"
+      POSTGRES_USER: "postgres"        # superuser de bootstrap, NU un rol aplicativ — vezi §3.3
+      POSTGRES_PASSWORD: "${POSTGRES_BOOTSTRAP_PASSWORD}"
+      APP_DB_PASSWORD: "${DB_PASSWORD}"
+      MIGRATOR_DB_PASSWORD: "${DB_MIGRATIONS_PASSWORD}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_MIGRATIONS_USERNAME:-throughput_migrator} -d ${DB_DATABASE:-throughput}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 160m
+    memswap_limit: 160m
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD}
+                   --maxmemory 96mb --maxmemory-policy noeviction --appendonly yes
+    volumes: [redis_data:/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  app_storage: { driver: local }
+  postgres_data: { driver: local }
+  redis_data: { driver: local }
+
+networks:
+  internal: { driver: bridge }

@@ -1,0 +1,8 @@
+node_modules
+vendor
+.git
+storage/logs
+.env
+docs/
+tests/
+e2e/
