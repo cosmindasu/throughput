@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureDemoModeGuardrails;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndexHeaders;
 use App\Http\Middleware\ResolveWorkspace;
@@ -32,6 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // global, apelul rulează dar nu invalidează nimic — celelalte sesiuni rămân
             // valide, tăcut. Adică fix genul de „securitate care pare implementată".
             AuthenticateSession::class,
+
+            // §22.2 — acțiunile distructive oprite în DEMO_MODE, după numele rutei. Global pe
+            // `web`, nu pe grupul cu workspace: un guardrail care depinde de grupul pe care
+            // ajunge o rută nouă e un guardrail care se poate uita.
+            EnsureDemoModeGuardrails::class,
         ]);
 
         // ADR-014, pct. 3 — ordinea e semnificativă: `Authenticate → SetSessionContext →
