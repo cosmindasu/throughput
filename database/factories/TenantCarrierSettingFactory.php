@@ -32,5 +32,4 @@ class TenantCarrierSettingFactory extends Factory
             'credentials' => $apiKey ? ['api_key' => $apiKey] : [],
         ]);
     }
-
 }
