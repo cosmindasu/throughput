@@ -16,9 +16,68 @@
  *      );
  *
  * Code review respinge orice PR care schimbă un Resource fără să actualizeze
- * ambele. Sprint 0 nu are încă niciun `App\Http\Resources\*` — fișierul e
- * intenționat gol de tipuri de entități: nu se inventează forme care nu
- * există încă în cod (Accounts/Deals/Orders etc. vin în Faza 1+).
+ * ambele.
+ *
+ * Interfețele `*PageProps` de mai jos primesc explicit `[key: string]: unknown`
+ * — nu din neglijență, ci pentru că `usePage<T>()` din `@inertiajs/react`
+ * cere `T extends PageProps` (adică `{ [key: string]: unknown }`); fără
+ * semnătura de index, `tsc` respinge orice interfață cu forma închisă
+ * (verificat direct: eroare TS2344 „Index signature ... is missing").
+ * Props-urile comune (`auth`, `workspace`, `workspaces`, `can`, `flash`,
+ * `demoMode`, `theme`) NU sunt repetate aici — sunt augmentate o singură
+ * dată în `inertia.d.ts` (§1.2 regula 3) și se adună automat la orice
+ * `usePage<XPageProps>()`.
  */
 
-export {};
+// Auth/Login — FR-PUB-02.
+export type DemoAccountRole = 'owner' | 'manager' | 'agent' | 'viewer';
+
+export interface DemoAccount {
+    role: DemoAccountRole;
+    name: string;
+    description: string;
+}
+
+export interface LoginPageProps {
+    canResetPassword: boolean;
+    status?: string;
+    demoAccounts: DemoAccount[];
+    [key: string]: unknown;
+}
+
+// Auth/ForgotPassword — FR-PUB-05.
+export interface ForgotPasswordPageProps {
+    status?: string;
+    [key: string]: unknown;
+}
+
+// Auth/ResetPassword — FR-PUB-05.
+export interface ResetPasswordPageProps {
+    token: string;
+    email: string;
+    [key: string]: unknown;
+}
+
+// Dashboard — FR-DEMO-01.
+export interface DashboardKpis {
+    openPipelineValue: number;
+    ordersThisMonth: number;
+    overdueInvoices: {
+        count: number;
+        amount: number;
+    };
+    lowStockAlerts: number;
+}
+
+export interface ActivityItem {
+    id: string;
+    description: string;
+    actor: string;
+    at: string;
+}
+
+export interface DashboardPageProps {
+    kpis: DashboardKpis;
+    activity: ActivityItem[];
+    [key: string]: unknown;
+}

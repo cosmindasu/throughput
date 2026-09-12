@@ -2,6 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Resources\UserResource;
+use App\Http\Resources\WorkspaceResource;
+use App\Models\Membership;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -54,8 +59,78 @@ class HandleInertiaRequests extends Middleware
             // Inertia, pentru clasa de pe <html>.
             'theme' => $request->cookie('theme') === 'light' ? 'light' : 'dark',
 
-            // auth.user, workspace, workspaces, can — Faza 1 (§1.2 regula 3
-            // din plan-implementare.md): nu există încă tenancy/RBAC.
+            // Plan §1.2 regula 3 — sursă unică pentru `auth.user`, `workspace`,
+            // `workspaces`, `can`. TOATE patru sunt închise în closures, NU calculate
+            // eager aici: `Inertia\Middleware::handle()` apelează `share()` ÎNAINTE de
+            // `$next($request)` (verificat în vendor), adică înainte ca
+            // `ResolveWorkspace` să lege `tenant`/`memberships` în container și să
+            // cheme `setPermissionsTeamId()`. Un closure se evaluează abia la
+            // rezolvarea finală a paginii Inertia — după controller, ca și `flash` mai
+            // sus. Fără closure, `workspace`/`can` ar ieși mereu goale pe orice rută cu
+            // `{workspace}` în cale.
+            'auth' => [
+                'user' => fn () => $request->user() ? UserResource::make($request->user()) : null,
+            ],
+
+            'workspace' => fn () => app()->bound('tenant')
+                ? WorkspaceResource::make(app('tenant'))
+                : null,
+
+            'workspaces' => fn () => $this->workspaces($request),
+
+            // Permisiunile de NAVIGAȚIE (plan §7.4), calculate server-side cu
+            // `$user->can()` — niciodată recalculate în React din rolul brut (§1.2
+            // regula 2). Rolurile Spatie sunt per tenant (`setPermissionsTeamId`,
+            // apelat de `ResolveWorkspace`): fără workspace rezolvat nu există niciun
+            // tenant de verificat, deci array gol — nu o eroare tăcută pe tenantul
+            // greșit. `(object)` pe ramura goală: JSON gol din `[]` ar ieși `[]`, nu
+            // `{}`, și ar rupe `Record<string, boolean>` din contractul de props.
+            'can' => fn () => $this->navigationPermissions($request),
         ];
+    }
+
+    /**
+     * @return list<array{slug: string, name: string}>
+     */
+    private function workspaces(Request $request): array
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if ($user === null) {
+            return [];
+        }
+
+        /** @var Collection<int, Membership> $memberships */
+        $memberships = app()->bound('memberships')
+            ? app('memberships')
+            : Membership::forCurrentUserAcrossTenants($user->getAuthIdentifier());
+
+        return $memberships
+            ->map(fn (Membership $membership) => WorkspaceResource::summary($membership->tenant))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, bool>|object
+     */
+    private function navigationPermissions(Request $request): array|object
+    {
+        $user = $request->user();
+
+        if ($user === null || ! app()->bound('tenant')) {
+            return (object) [];
+        }
+
+        $permissions = [
+            'accounts.view', 'contacts.view', 'deals.view', 'products.view', 'orders.view',
+            'invoices.view', 'reports.view', 'settings.view', 'billing.view', 'members.view',
+            'api_tokens.view',
+        ];
+
+        return collect($permissions)
+            ->mapWithKeys(fn (string $permission) => [$permission => $user->can($permission)])
+            ->all();
     }
 }
