@@ -7,6 +7,10 @@
 #     cu `paths-ignore` pe documentație;
 #   - job-urile ieftine (`quality`, `assets`) rulează pe orice PR, inclusiv draft;
 #     jobul scump (`e2e`) stă în spatele lor și sare pe draft-uri;
+#   - build-ul Vite se face o singură dată, în `assets`, și ajunge ca artefact în
+#     `quality`: Pest randează `app.blade.php`, care cere manifestul. De aici
+#     `quality` → `needs: assets`, deci `assets` (~25 s) e poarta jobului cu
+#     Postgres + Redis, iar un build dublat în ambele joburi ar costa un minut în plus;
 #   - exclusiv `ubuntu-latest` (1×), niciodată macOS (10×) sau Windows (2×);
 #   - fără micro-job-uri: fiecare job se facturează rotunjit la minutul întreg, deci
 #     axe-core și Lighthouse sunt pași în `e2e`, nu job-uri separate.
@@ -36,6 +40,10 @@ permissions:
 jobs:
   quality:
     name: "PHP — lint, teste, izolare tenant"
+    # Așteaptă build-ul Vite din `assets` (pasul de artefact de mai jos). Costul e
+    # ~25 s de ceas, nu minute facturate; în schimb, un tsc/eslint/build picat nu mai
+    # pornește degeaba Postgres + Redis.
+    needs: assets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -63,6 +71,17 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+
+      # Fără manifestul Vite, orice pagină Inertia răspunde 500
+      # (`ViteManifestNotFoundException`). Primele run-uri pe `main` au picat exact
+      # așa, iar local nu se vedea, fiindcă `public/build` exista pe disc.
+      # `withoutVite()` în TestCase ar fi fost mai ieftin, dar ar fi orbit testul de
+      # preload de fonturi din AppShellTest, care verifică tocmai căile din manifestul
+      # REAL (un bump de @fontsource care mută fișierul).
+      - uses: actions/download-artifact@v4
+        with:
+          name: vite-build
+          path: public/build
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -146,6 +165,15 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx eslint resources/js
       - run: npm run build
+
+      # Consumat de `quality` (pasul pereche de acolo). O zi de retenție: artefactul
+      # servește doar run-ului curent, nu ține spațiu de stocare pe cont.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: public/build
+          retention-days: 1
+          if-no-files-found: error
 
   e2e:
     name: "Playwright — fluxuri critice, axe-core, Lighthouse CI"
