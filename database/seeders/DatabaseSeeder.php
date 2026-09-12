@@ -2,24 +2,18 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * NU folosește `WithoutModelEvents`: `DemoDatasetSeeder` are nevoie de evenimentele
+ * Eloquent pornite (BelongsToTenant completează `tenant_id`, HasUlids generează `id`)
+ * pentru toate entitățile persistate prin `create()` — dezactivarea lor global ar lăsa
+ * acele rânduri fără tenant/id.
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $this->call(DemoDatasetSeeder::class);
     }
 }
