@@ -1,0 +1,147 @@
+@import 'tailwindcss';
+
+/*
+ * Fonturi auto-găzduite — @fontsource, subset latin, NU Google Fonts / alt CDN
+ * (specs_si_design/urls.md, secțiunea „Tipografie"). Fiecare fișier importat mai
+ * jos are `font-display: swap` deja inclus de @fontsource.
+ * Greutăți: Sans 400/500/600 (tot textul de interfață), Mono 400/500 (cifre,
+ * identificatori — vezi regula 4 mai jos, niciodată proză).
+ */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * Strategia de temă e pe clasă, nu pe media query — FR-PREF-01: utilizatorul
+ * poate suprascrie preferința sistemului. Clasa `.dark` e randată direct pe
+ * <html> de resources/views/app.blade.php, citind cookie-ul `theme` server-side
+ * (implicit închisă) — asta evită licărirea interzisă de FR-PREF-03.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Tokens — tema deschisă (implicite pe :root, active când <html> NU are .dark).
+ * Copiate 1:1 din specs_si_design/urls.md (liniile 60-82) — nu se rotunjesc,
+ * nu se „armonizează", nu se înlocuiește nicio culoare.
+ */
+:root {
+    --bg: #ebf0f4;
+    --surface: #ffffff;
+    --raised: #f6f9fb;
+    --overlay: #ffffff;
+    --row-hover: #f5f6f6;
+    --row-selected: #e9f3f5;
+    --border: #dce4e9;
+    --border-soft: #e7edf0;
+    --control: #6a8494;
+    --text: #0d1b24;
+    --text-2: #3e5462;
+    --text-3: #566a78;
+    --accent-text: #06697a;
+    --accent-fill: #0e7c8c;
+    --accent-fill-hover: #0b6b79;
+    --accent-on: #ffffff;
+    --accent-tint: #e6f2f4;
+    --success: #37722e;
+    --success-tint: #e7eee6;
+    --warning: #87590a;
+    --warning-tint: #f1ebe2;
+    --danger: #b4322f;
+    --danger-tint: #f6e6e6;
+    --info: #4152c0;
+    --info-tint: #e8eaf7;
+    --focus: #0b6b79;
+}
+
+/*
+ * Tokens — tema închisă (implicită la prima vizită — vezi app.blade.php).
+ * Copiate 1:1 din specs_si_design/urls.md (liniile 33-59).
+ */
+.dark {
+    --bg: #0a1015;
+    --surface: #101a21;
+    --raised: #16232c;
+    --overlay: #1b2c37;
+    --row-hover: #1a242b;
+    --row-selected: #172d34;
+    --border: #1e2e38;
+    --border-soft: #17242c;
+    --control: #6786a3;
+    --text: #dee9ef;
+    --text-2: #93a7b4;
+    --text-3: #8397a6;
+    --accent-text: #56d4e0;
+    --accent-fill: #0e7c8c;
+    --accent-fill-hover: #0b6b79;
+    --accent-on: #ffffff;
+    --accent-tint: #1a343c;
+    --success: #7bc96f;
+    --success-tint: #1f332c;
+    --warning: #e9a23b;
+    --warning-tint: #2e2d25;
+    --danger: #f0706d;
+    --danger-tint: #2f262c;
+    --info: #8b9bf5;
+    --info-tint: #212c3f;
+    --focus: #56d4e0;
+}
+
+/*
+ * Expunere pentru Tailwind 4. `@theme inline` păstrează expresia `var(--x)` ca
+ * atare în loc s-o rezolve static la build — altfel comutarea de temă la
+ * runtime (clasa .dark) nu ar mai avea niciun efect. Regula 5 din urls.md:
+ * nicio culoare definită doar într-un bloc de temă — cele două seturi de mai
+ * sus sunt complete, tokenii de aici doar le expun ca utilitare Tailwind
+ * (bg-bg, text-text, border-border, ring-focus etc).
+ */
+@theme inline {
+    --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-raised: var(--raised);
+    --color-overlay: var(--overlay);
+    --color-row-hover: var(--row-hover);
+    --color-row-selected: var(--row-selected);
+    --color-border: var(--border);
+    --color-border-soft: var(--border-soft);
+    --color-control: var(--control);
+    --color-text: var(--text);
+    --color-text-2: var(--text-2);
+    --color-text-3: var(--text-3);
+    --color-accent-text: var(--accent-text);
+    --color-accent-fill: var(--accent-fill);
+    --color-accent-fill-hover: var(--accent-fill-hover);
+    --color-accent-on: var(--accent-on);
+    --color-accent-tint: var(--accent-tint);
+    --color-success: var(--success);
+    --color-success-tint: var(--success-tint);
+    --color-warning: var(--warning);
+    --color-warning-tint: var(--warning-tint);
+    --color-danger: var(--danger);
+    --color-danger-tint: var(--danger-tint);
+    --color-info: var(--info);
+    --color-info-tint: var(--info-tint);
+    --color-focus: var(--focus);
+}
+
+/*
+ * Utilitar de coloană numerică (regula 4 din urls.md): mono + cifre tabulare,
+ * numai pe cifre și identificatori (sume, cantități, ID-uri, timestamp-uri),
+ * niciodată pe proză — altfel densitatea vizuală se pierde.
+ */
+@utility numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
