@@ -21,7 +21,7 @@ final class ImportFixtureSeeder
         $path = database_path('seeders/fixtures/import-products-with-errors.csv');
 
         if (File::exists($path)) {
-            $command?->components->info('Import fixture already exists — skipped (static by design).');
+            $command?->info('Import fixture already exists — skipped (static by design).');
 
             return;
         }
@@ -77,6 +77,6 @@ final class ImportFixtureSeeder
 
         fclose($handle);
 
-        $command?->components->info('Generated import fixture: 200 planted errors on '.self::TOTAL_ROWS.' rows.');
+        $command?->info('Generated import fixture: 200 planted errors on '.self::TOTAL_ROWS.' rows.');
     }
 }

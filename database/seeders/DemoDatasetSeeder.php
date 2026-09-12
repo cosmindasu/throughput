@@ -77,7 +77,7 @@ class DemoDatasetSeeder extends Seeder
 
         $tenants = (new TenantsSeeder)->run(self::TENANTS);
 
-        $this->command?->components->info('Users & memberships');
+        $this->command?->info('Users & memberships');
         $usersByTenant = (new UsersAndMembershipsSeeder)->run($tenants, self::TENANTS);
 
         $this->call(RoleAndPermissionSeeder::class);
@@ -89,7 +89,7 @@ class DemoDatasetSeeder extends Seeder
             $staff = $usersByTenant[$slug];
 
             TenantContext::run($tenant, function () use ($tenant, $config, $staff): void {
-                $this->command?->components->info("Tenant: {$config['name']} ({$config['accounts']} accounts / {$config['orders']} orders)");
+                $this->command?->info("Tenant: {$config['name']} ({$config['accounts']} accounts / {$config['orders']} orders)");
 
                 $activityLog = new ActivityLogRecorder(
                     new ChunkedWriter(ActivityLog::class, 1000, $this->command, 'Activity log', $config['orders'] * 2)
@@ -112,6 +112,6 @@ class DemoDatasetSeeder extends Seeder
         }
 
         $elapsed = round(microtime(true) - $start, 1);
-        $this->command?->components->info("Demo dataset seeded in {$elapsed}s.");
+        $this->command?->info("Demo dataset seeded in {$elapsed}s.");
     }
 }

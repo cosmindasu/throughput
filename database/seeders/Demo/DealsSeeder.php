@@ -37,7 +37,8 @@ final class DealsSeeder
         $target = (int) round(count($accounts) * 0.55);
         $dealFactory = new DealFactory;
         $writer = new ChunkedWriter(Deal::class, 1000, $command, 'Deals', $target);
-        $eventWriter = new ChunkedWriter(DealStageEvent::class, 1000, $command, 'Deal stage events', (int) ($target * 1.8));
+        $eventWriter = (new ChunkedWriter(DealStageEvent::class, 1000, $command, 'Deal stage events', (int) ($target * 1.8)))
+            ->dependsOn($writer);   // FK deal_stage_events.deal_id
 
         $ownerIds = array_column($staff['pool'], 'id');
 

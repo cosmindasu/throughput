@@ -45,7 +45,8 @@ final class BillingSeeder
         $estimatedInvoices = (int) (count($eligible) * 0.7);
 
         $invoiceWriter = new ChunkedWriter(Invoice::class, 1000, $command, 'Invoices', max(1, $estimatedInvoices));
-        $paymentWriter = new ChunkedWriter(Payment::class, 1000, $command, 'Payments', max(1, (int) ($estimatedInvoices * 0.8)));
+        $paymentWriter = (new ChunkedWriter(Payment::class, 1000, $command, 'Payments', max(1, (int) ($estimatedInvoices * 0.8))))
+            ->dependsOn($invoiceWriter);   // FK payments.invoice_id
 
         $invoiceFactory = new InvoiceFactory;
         $paymentFactory = new PaymentFactory;

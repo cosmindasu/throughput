@@ -37,7 +37,8 @@ final class AccountsAndContactsSeeder
 
         $total = $config['accounts'];
         $writer = new ChunkedWriter(Account::class, 1000, $command, 'Accounts', $total);
-        $contactWriter = new ChunkedWriter(Contact::class, 1000, $command, 'Contacts', (int) ($total * 1.3));
+        $contactWriter = (new ChunkedWriter(Contact::class, 1000, $command, 'Contacts', (int) ($total * 1.3)))
+            ->dependsOn($writer);   // FK contacts.account_id — vezi ChunkedWriter::dependsOn()
 
         $agents = array_values(array_filter($staff['pool'], fn ($m) => $m['role'] === 'Agent'));
         $managers = array_values(array_filter($staff['pool'], fn ($m) => $m['role'] === 'Manager'));

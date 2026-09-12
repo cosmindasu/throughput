@@ -66,9 +66,12 @@ final class StockAndOrdersSeeder
 
         $orderTotal = $config['orders'];
         $orderWriter = new ChunkedWriter(Order::class, 1000, $command, 'Orders', $orderTotal);
-        $lineWriter = new ChunkedWriter(OrderLine::class, 1000, $command, 'Order lines', (int) ($orderTotal * 2.2));
-        $shipmentWriter = new ChunkedWriter(Shipment::class, 1000, $command, 'Shipments', (int) ($orderTotal * 0.7));
-        $shipmentLineWriter = new ChunkedWriter(ShipmentLine::class, 1000, $command, 'Shipment lines', (int) ($orderTotal * 1.3));
+        $lineWriter = (new ChunkedWriter(OrderLine::class, 1000, $command, 'Order lines', (int) ($orderTotal * 2.2)))
+            ->dependsOn($orderWriter);   // FK order_lines.order_id
+        $shipmentWriter = (new ChunkedWriter(Shipment::class, 1000, $command, 'Shipments', (int) ($orderTotal * 0.7)))
+            ->dependsOn($orderWriter);   // FK shipments.order_id
+        $shipmentLineWriter = (new ChunkedWriter(ShipmentLine::class, 1000, $command, 'Shipment lines', (int) ($orderTotal * 1.3)))
+            ->dependsOn($shipmentWriter, $lineWriter);   // FK shipment_id + order_line_id
 
         $orderFactory = new OrderFactory;
         $lineFactory = new OrderLineFactory;
