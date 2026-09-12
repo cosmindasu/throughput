@@ -35,7 +35,19 @@
             `pgsql_migrations` — identic cu dezvoltarea și cu producția.
         -->
         <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
+        <!--
+            Coadă `database`, NU `sync` (plan §7.9, ADR-003 addendum pct. 4).
+
+            Cu `sync` (sau cu `Queue::fake()`) jobul rulează în procesul care l-a
+            dispecerizat, cu contextul de tenant al cererii încă în viață — adică exact
+            condiția în care bug-ul de serializare din §6.3 e INVIZIBIL. Un job care
+            primește un model Eloquent tenant-scoped ar trece verde în teste și ar pica
+            în producție, unde workerul îl deserializează fără niciun context.
+
+            `database`, nu `redis`: suita nu trebuie să depindă de încă un serviciu pornit
+            local ca să verifice izolarea. Tabela `jobs` există din Sprint 0.
+        -->
+        <env name="QUEUE_CONNECTION" value="database"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
