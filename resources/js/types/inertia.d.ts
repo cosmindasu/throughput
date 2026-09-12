@@ -15,6 +15,16 @@ import '@inertiajs/core';
  */
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
+        // Flash-ul Inertia 3 (`Inertia::flash()`), distinct de propul comun `flash`
+        // (success/error): nu intră în starea din istoric, deci nu reapare la „Back".
+        flashDataType: {
+            // App\Support\Contacts\DuplicateContactEmail — US-CRM-01.
+            duplicateEmail?: {
+                field: string;
+                accountId: string;
+                accountName: string;
+            };
+        };
         sharedPageProps: {
             auth: {
                 user: {
