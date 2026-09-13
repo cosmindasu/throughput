@@ -154,6 +154,33 @@ class PrimaryContactTest extends TestCase
     }
 
     /**
+     * P3-b (code review) — ștergerea unui contact primary NU trebuie să eșueze și nu
+     * trebuie să lase contul cu alt primary „ales" pe ascuns: contul rămâne pur și
+     * simplu fără primary, ca utilizatorul să aleagă următorul explicit.
+     */
+    public function test_deleting_a_primary_contact_leaves_the_account_without_one(): void
+    {
+        [$accountId, $primaryId] = TenantContext::run($this->marlin, function (): array {
+            $account = $this->account('Northwind Industrial Supply LLC');
+            $primary = $this->contact($account, 'Jane', 'Doe', primary: true);
+            $this->contact($account, 'John', 'Smith', primary: false);
+
+            return [$account->id, $primary->id];
+        });
+
+        $this->actingAs($this->owner)
+            ->delete("/marlin/contacts/{$primaryId}")
+            ->assertRedirect('/marlin/contacts')
+            ->assertSessionHas('success');
+
+        TenantContext::run($this->marlin, function () use ($accountId, $primaryId): void {
+            $this->assertNull(Contact::query()->find($primaryId));
+            $this->assertSame(0, Contact::query()->where('account_id', $accountId)->where('is_primary', true)->count());
+            $this->assertSame(1, Contact::query()->where('account_id', $accountId)->count());
+        });
+    }
+
+    /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
