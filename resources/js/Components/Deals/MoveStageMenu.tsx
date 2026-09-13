@@ -10,7 +10,7 @@ interface MoveStageMenuProps {
     currentStageId: string;
     stages: DealStage[];
     onError: (message: string) => void;
-    onMoved?: () => void;
+    onMoved?: (stage: DealStage) => void;
 }
 
 /**
@@ -74,7 +74,7 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                 preserveScroll: true,
                 onSuccess: () => {
                     setPendingLostStage(null);
-                    onMoved?.();
+                    onMoved?.(stage);
                 },
                 onError: (errors) => {
                     setPendingLostStage(null);
