@@ -265,6 +265,146 @@ export interface ContactsEditPageProps {
 
 // ── Deals și kanban — FR-DEAL-01, FR-DEAL-03 ─────────────────────────────────────
 
+export type DealStatus = 'open' | 'won' | 'lost';
+
+export type LostReason = 'price' | 'competition' | 'timing' | 'other';
+
+// `App\Http\Resources\DealStageResource` — numit `DealStage`, nu `Stage`: configurarea
+// de pipeline/etape (`/{w}/pipeline`, FR-DEAL-02) e alt pachet și își declară propriile
+// tipuri fără coliziune de nume.
+export interface DealStage {
+    id: string;
+    name: string;
+    position: number;
+    isWon: boolean;
+    isLost: boolean;
+    probability: number | null;
+}
+
+export interface DealPartyRef {
+    id: string;
+    name: string;
+}
+
+export interface DealStageRef {
+    id: string;
+    name: string;
+    isWon: boolean;
+    isLost: boolean;
+}
+
+// `App\Http\Resources\DealSummaryResource` — un rând din `Deals/Index` sau un card din
+// `Deals/Kanban` (aceeași formă pentru amândouă). `can` e PER RÂND (US-CRM-02): un Agent
+// vede toate deal-urile, dar butoanele de scriere apar doar pe ale lui.
+export interface DealSummary {
+    id: string;
+    title: string;
+    value: number | null;
+    currency: string;
+    expectedCloseDate: string | null;
+    status: DealStatus;
+    lostReason: LostReason | null;
+    createdAt: string | null;
+    account: DealPartyRef;
+    owner: DealPartyRef;
+    stage: DealStageRef;
+    can: {
+        edit: boolean;
+        moveStage: boolean;
+    };
+}
+
+// `App\Http\Resources\DealResource` — detaliul complet (`Deals/Show`, `Deals/Edit`).
+export interface Deal {
+    id: string;
+    title: string;
+    value: number | null;
+    currency: string;
+    expectedCloseDate: string | null;
+    status: DealStatus;
+    lostReason: LostReason | null;
+    account: DealPartyRef;
+    primaryContact: DealPartyRef | null;
+    pipeline: DealPartyRef;
+    stage: DealStageRef;
+    owner: DealPartyRef;
+    createdAt: string | null;
+    updatedAt: string | null;
+}
+
+// `App\Http\Resources\DealStageEventResource` — istoricul de tranziții (§9.1).
+export interface DealStageEvent {
+    id: string;
+    fromStage: DealPartyRef | null;
+    toStage: DealPartyRef;
+    changedBy: DealPartyRef | null;
+    changedAt: string | null;
+    durationInPreviousStageSeconds: number | null;
+}
+
+export interface DealsIndexPageProps {
+    deals: CursorPage<DealSummary>;
+    filters: ListState;
+    can: {
+        create: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export type DealOwnerFilter = 'me' | 'all';
+
+export interface DealsBoardColumn {
+    stage: DealStage;
+    deals: DealSummary[];
+    total: number;
+    hasMore: boolean;
+}
+
+export interface DealsKanbanPageProps {
+    pipeline: DealPartyRef;
+    columns: DealsBoardColumn[];
+    ownerFilter: DealOwnerFilter;
+    can: {
+        create: boolean;
+        managePipeline: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface DealsShowPageProps {
+    deal: Deal;
+    stageEvents: DealStageEvent[];
+    stages: DealStage[];
+    can: {
+        edit: boolean;
+        delete: boolean;
+        moveStage: boolean;
+        changeOwner: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface DealsCreatePageProps {
+    account: DealPartyRef;
+    contacts: DealPartyRef[];
+    owners: DealPartyRef[];
+    can: {
+        changeOwner: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface DealsEditPageProps {
+    deal: Deal;
+    contacts: DealPartyRef[];
+    owners: DealPartyRef[];
+    can: {
+        changeOwner: boolean;
+        delete: boolean;
+    };
+    [key: string]: unknown;
+}
+
 
 // ── Pipeline și etape — FR-DEAL-02 ───────────────────────────────────────────────
 
