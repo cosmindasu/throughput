@@ -15,16 +15,24 @@ use Illuminate\Http\Request;
  *
  * Izolarea de tenant NU e treaba acestei clase (§1.2 regula din `App\Support\Lists\ResourceList`,
  * aceeași regulă aici): global scope-ul Eloquent + RLS se aplică deja pe fiecare `Model::query()`,
- * deci niciun `where tenant_id` manual. RBAC-ul e verificat o dată per grup, cu `$user->can()` —
- * exact ce citește deja `HandleInertiaRequests::navigationPermissions()` — nu o cale de acces
- * separată (§7.3): un Agent vede orice cont/contact/deal din tenant (permisiunea `.view` nu are
- * îngustarea „doar ale mele", asta se aplică doar mutațiilor, în Policies — vezi `AccountPolicy`).
+ * deci niciun `where tenant_id` manual. RBAC-ul e verificat o dată per grup, prin Policies
+ * (`$user->can('viewAny', Account::class)` etc.) — FR-SEARCH-01 cere „aceleași Policies" cu
+ * restul aplicației, nu o citire directă a permisiunii care ar ocoli `AccountPolicy`/
+ * `ContactPolicy`/`DealPolicy`: un Agent vede orice cont/contact/deal din tenant (permisiunea
+ * `.view` nu are îngustarea „doar ale mele", asta se aplică doar mutațiilor, în Policies).
  *
  * Motorul e `pg_trgm`, nu un serviciu extern (FR-SEARCH-02): operatorul `%` (prag implicit 0.3,
- * NECONFIGURAT — nicio `SET pg_trgm.similarity_threshold`) combinat cu `ILIKE`, pe ACELAȘI index
- * GIN — `gin_trgm_ops` accelerează amândouă operațiile, deci un singur index (migrația
- * `2026_09_13_100000_create_search_trigram_indexes`) susține și potrivirea aproximativă
- * (typo-tolerant) și substring-ul literal.
+ * NECONFIGURAT — nicio `SET pg_trgm.similarity_threshold`) combinat cu `ILIKE` rămân logica de
+ * potrivire — toleranța la greșeli de tastare și potrivirea pe subșiruri.
+ *
+ * FĂRĂ index GIN trigram (ADR-018): `%`, `similarity()` și `ILIKE` (`texticlike`) nu sunt
+ * LEAKPROOF (`proleakproof = false`), deci sub RLS PostgreSQL le evaluează DUPĂ condiția de
+ * tenant și nu le poate folosi drept condiție de index — planificatorul cade pe indexul de
+ * tenant cu filtru (`accounts`/`deals`) sau pe Seq Scan (`contacts`), măsurat pe tenantul
+ * Marlin. Interogările de aici rămân neschimbate față de ce ar rula cu index: filtrul e
+ * oricum evaluat pe toate rândurile tenantului curent. Vezi ADR-018 și
+ * `ExplainCriticalQueries`, care acceptă explicit acest plan pentru intrările de căutare,
+ * sub un buget de timp.
  */
 final class GlobalSearchService
 {
@@ -85,7 +93,7 @@ final class GlobalSearchService
     {
         $groups = [];
 
-        if ($user->can('accounts.view')) {
+        if ($user->can('viewAny', Account::class)) {
             $results = $this->accountResults($term);
 
             if ($results !== []) {
@@ -93,7 +101,7 @@ final class GlobalSearchService
             }
         }
 
-        if ($user->can('contacts.view')) {
+        if ($user->can('viewAny', Contact::class)) {
             $results = $this->contactResults($term);
 
             if ($results !== []) {
@@ -101,7 +109,7 @@ final class GlobalSearchService
             }
         }
 
-        if ($user->can('deals.view')) {
+        if ($user->can('viewAny', Deal::class)) {
             $results = $this->dealResults($term);
 
             if ($results !== []) {
@@ -200,15 +208,15 @@ final class GlobalSearchService
     {
         $actions = [];
 
-        if ($user->can('accounts.create')) {
+        if ($user->can('create', Account::class)) {
             $actions[] = $this->action('create-account', 'Create account', "/{$this->tenantSlug()}/accounts/create");
         }
 
-        if ($user->can('contacts.create')) {
+        if ($user->can('create', Contact::class)) {
             $actions[] = $this->action('create-contact', 'Create contact', "/{$this->tenantSlug()}/contacts/create");
         }
 
-        if ($user->can('deals.create')) {
+        if ($user->can('create', Deal::class)) {
             $actions[] = $this->action('create-deal', 'Create deal', "/{$this->tenantSlug()}/deals/create");
         }
 
@@ -228,7 +236,7 @@ final class GlobalSearchService
     {
         $actions = [];
 
-        if ($user->can('accounts.create')) {
+        if ($user->can('create', Account::class)) {
             $actions[] = $this->action(
                 'create-account',
                 sprintf('Create account named "%s"', $term),
@@ -236,11 +244,11 @@ final class GlobalSearchService
             );
         }
 
-        if ($user->can('contacts.create')) {
+        if ($user->can('create', Contact::class)) {
             $actions[] = $this->action('create-contact', 'Create contact', "/{$this->tenantSlug()}/contacts/create");
         }
 
-        if ($user->can('deals.create')) {
+        if ($user->can('create', Deal::class)) {
             $actions[] = $this->action('create-deal', 'Create deal', "/{$this->tenantSlug()}/deals/create");
         }
 

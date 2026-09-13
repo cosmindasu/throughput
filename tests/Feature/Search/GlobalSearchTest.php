@@ -12,7 +12,6 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -234,14 +233,46 @@ class GlobalSearchTest extends TestCase
         $this->assertSame('Cascade Only Item', $cascadeRecent['results'][0]['label']);
     }
 
-    public function test_a_percent_or_underscore_in_the_query_does_not_break_the_search(): void
+    /**
+     * P2-003 (code review): fostul test verifica doar `assertOk()` — o interogare care
+     * ignora `%`/`_` ca metacaractere LIKE (bug-ul pe care `likePattern()` îl previne) tot
+     * ar fi dat 200, doar cu rezultate greșite. Aici verificăm rezultatul, nu doar statusul:
+     * un `%` TASTAT DE UTILIZATOR trebuie citit literal (potrivire pe textul „50%"), nu ca
+     * wildcard SQL.
+     */
+    public function test_a_literal_percent_in_the_query_finds_the_account_containing_it(): void
     {
-        $this->createAccount($this->marlin, 'Percent Account');
+        $this->createAccount($this->marlin, 'Save 50% Now');
+        $this->createAccount($this->marlin, 'Regular Price Supplies');
         $this->clearDatabaseTenantContext();
 
-        $response = $this->actingAs($this->owner)->getJson('/marlin/search?q='.urlencode('50% off_deal'));
+        $response = $this->actingAs($this->owner)->getJson('/marlin/search?q='.urlencode('50%'));
 
         $response->assertOk();
+        $this->assertSame(['Save 50% Now'], $this->groupLabels($response, 'accounts'));
+    }
+
+    /**
+     * P2-003 (code review): un termen făcut DOAR din metacaractere LIKE (`%`/`_`, fără
+     * escapare ar potrivi orice rând) nu trebuie să se comporte ca un wildcard care
+     * întoarce tot tenantul — `likePattern()` le escapează, deci termenul e citit literal
+     * și nu se potrivește cu nume care nu conțin chiar acele caractere.
+     */
+    public function test_a_query_of_only_like_metacharacters_does_not_return_the_whole_tenant(): void
+    {
+        foreach (range(1, 6) as $i) {
+            $this->createAccount($this->marlin, "Unrelated Account {$i}");
+        }
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($this->owner)->getJson('/marlin/search?q='.urlencode('%%%'));
+
+        $response->assertOk();
+        $this->assertSame(
+            [],
+            $this->groupLabels($response, 'accounts'),
+            'Un termen din doar `%` nu trebuie să se comporte ca un wildcard care întoarce tot tenantul.'
+        );
     }
 
     public function test_a_query_longer_than_the_maximum_is_truncated_not_rejected(): void
@@ -254,16 +285,36 @@ class GlobalSearchTest extends TestCase
         $this->assertSame(100, mb_strlen((string) $response->json('query')));
     }
 
-    public function test_the_trigram_gin_indexes_from_br_search_01_exist(): void
+    /**
+     * P3 (code review): `?q[]=x` fait `$request->query('q')` să întoarcă un array —
+     * `(string) $array` (și, la fel, `Illuminate\Support\Stringable`) dă „Array to string
+     * conversion". `SearchController` tratează explicit acest caz cu `is_string`, deci
+     * termenul devine gol (sub `MIN_QUERY_LENGTH`) în loc să arunce.
+     */
+    public function test_an_array_query_parameter_does_not_crash_the_search(): void
     {
-        $indexes = DB::table('pg_indexes')->whereIn('indexname', [
-            'accounts_name_trgm', 'contacts_name_trgm', 'deals_title_trgm',
-        ])->pluck('indexname');
+        $this->clearDatabaseTenantContext();
 
-        $this->assertEqualsCanonicalizing(
-            ['accounts_name_trgm', 'contacts_name_trgm', 'deals_title_trgm'],
-            $indexes->all()
-        );
+        $response = $this->actingAs($this->owner)->getJson('/marlin/search?q[]=x&q[]=y');
+
+        $response->assertOk()->assertJson(['query' => '']);
+    }
+
+    /**
+     * P3 (code review): `GET /{workspace}/search` e apelat la fiecare tastă (debounced),
+     * deci are nevoie de o limită — generoasă (120/minut), ca să nu încetinească tastarea
+     * normală, dar prezentă împotriva unui client rupt sau al unui script automat.
+     */
+    public function test_search_requests_are_rate_limited_per_user(): void
+    {
+        $this->clearDatabaseTenantContext();
+        $this->actingAs($this->owner);
+
+        foreach (range(1, 120) as $_) {
+            $this->getJson('/marlin/search?q=rate')->assertOk();
+        }
+
+        $this->getJson('/marlin/search?q=rate')->assertStatus(429);
     }
 
     private function createAccount(Tenant $tenant, string $name, ?string $ownerId = null): Account

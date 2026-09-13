@@ -18,7 +18,12 @@ class SearchController extends Controller
 {
     public function index(Request $request, GlobalSearchService $search): JsonResponse
     {
-        $term = mb_substr(trim((string) $request->query('q', '')), 0, GlobalSearchService::MAX_QUERY_LENGTH);
+        // `?q[]=x` face `query('q')` să întoarcă un array: `(string) $array` dă „Array to
+        // string conversion" (P3) — și `Illuminate\Support\Stringable` (deci și
+        // `$request->string()`) face EXACT același cast intern, nu evită problema. Verificarea
+        // explicită `is_string` e singura formă care nu aruncă pe acest input.
+        $raw = $request->query('q', '');
+        $term = mb_substr(trim(is_string($raw) ? $raw : ''), 0, GlobalSearchService::MAX_QUERY_LENGTH);
 
         $payload = mb_strlen($term) < GlobalSearchService::MIN_QUERY_LENGTH
             ? $search->initialState($request)
