@@ -20,6 +20,7 @@ use App\Support\Exports\CsvExporter;
 use App\Support\Lists\AccountList;
 use App\Support\Lists\CursorPage;
 use App\Support\RecentlyViewed;
+use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -35,9 +36,15 @@ use Inertia\Response;
  */
 final class AccountController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $this->authorize('viewAny', Account::class);
+
+        // FR-VIEW-02 — o vedere salvată setată ca implicit câștigă în fața filtrului de rol
+        // (`owner=me` pentru Agent, mai jos) când URL-ul nu are NIMIC explicit încă.
+        if (($redirect = SavedViewDefaultRedirect::resolve($request, 'accounts')) !== null) {
+            return $redirect;
+        }
 
         $list = new AccountList;
         $listQuery = $list->parse($request);
