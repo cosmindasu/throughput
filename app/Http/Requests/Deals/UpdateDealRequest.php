@@ -2,23 +2,33 @@
 
 namespace App\Http\Requests\Deals;
 
-use App\Models\Deal;
 use App\Models\Membership;
 use App\Models\Scopes\TenantScope;
+use App\Support\Contacts\AccountBelongsToTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Edit: titlu, valoare, dată estimată, contact principal, owner (doar cu `changeOwner`).
- * `stage_id` NU e aici — etapa nu se schimbă din formular (§9 task), doar din
- * `DealStageController::move()`.
+ * Edit: cont, titlu, valoare, dată estimată, contact principal, owner (doar cu
+ * `changeOwner`). `stage_id` NU e aici — etapa nu se schimbă din formular (§9 task),
+ * doar din `DealStageController::move()`.
  *
- * Abatere de scop, semnalată explicit: task-ul Pachetului C listează și „cont" printre
- * câmpurile editabile din Edit. NU e acceptat aici — pagina de Accounts (căutare/listă)
- * e alt pachet, încă nemerge în acest branch, iar un selector de cont fără căutare
- * (ULID tastat de mână) ar fi inutilizabil și netestabil. Contul unui deal existent
- * rămâne fix după creare; schimbarea contului, dacă va fi cerută, ar trebui să fie o
- * acțiune explicită („Move to account…"), nu un câmp tăcut într-un formular general.
+ * `account_id` a devenit editabil (cerință explicită a proprietarului, care înlocuiește
+ * abaterea anterioară — pagina de Accounts e acum pe branch și `AccountCombobox` există):
+ * aceleași reguli ca la `StoreDealRequest`, prin `AccountBelongsToTenant` — global scope
+ * Eloquent (ADR-003) + RLS, ambele straturi, nu doar validarea de client din combobox.
+ *
+ * §7.5: nu există o îngustare ABAC separată pe „ce cont poate folosi un Agent" —
+ * `AccountPolicy::view()`/`viewAny()` nu se îngustează pentru Agent (doar `update()` și
+ * `delete()` ale CONTULUI se îngustează la înregistrările proprii), deci orice cont din
+ * tenantul curent e un cont „pe care utilizatorul are voie să-l folosească" pentru un
+ * deal. Restricția de proprietate rămâne pe DEAL (`DealPolicy::isWithinOwnRecords()`,
+ * verificată în `Gate::authorize('update', $deal)` din controller), nu pe cont.
+ *
+ * `primary_contact_id` se validează față de `account_id`-ul TRIMIS în cererea curentă,
+ * nu față de `$deal->account_id` (vechiul cont) — altfel un contact valid pentru contul
+ * NOU ar fi respins pe baza contului VECHI, iar un contact al contului vechi ar trece
+ * din greșeală lângă un cont nou greșit.
  */
 class UpdateDealRequest extends FormRequest
 {
@@ -33,10 +43,9 @@ class UpdateDealRequest extends FormRequest
     public function rules(): array
     {
         $tenantId = TenantScope::requireCurrentTenantId();
-        /** @var Deal $deal */
-        $deal = $this->route('deal');
 
         return [
+            'account_id' => ['required', 'string', new AccountBelongsToTenant],
             'title' => ['required', 'string', 'max:255'],
             'value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -45,7 +54,7 @@ class UpdateDealRequest extends FormRequest
                 'nullable', 'string',
                 Rule::exists('contacts', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $tenantId)
-                    ->where('account_id', $deal->account_id)),
+                    ->where('account_id', $this->input('account_id'))),
             ],
             'owner_user_id' => [
                 'nullable', 'string',

@@ -388,7 +388,9 @@ export interface DealsShowPageProps {
 }
 
 export interface DealsCreatePageProps {
-    account: DealPartyRef;
+    // `null` fără `?account=` (§9 task): câmpul „Account" pornește gol în
+    // `AccountCombobox`, nu mai există `findOrFail` pe un query param absent.
+    account: DealPartyRef | null;
     contacts: DealPartyRef[];
     owners: DealPartyRef[];
     can: {

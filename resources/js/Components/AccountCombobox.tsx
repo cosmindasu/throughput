@@ -64,7 +64,7 @@ export default function AccountCombobox({
     const base = workspace ? `/${workspace.slug}` : NO_WORKSPACE_BASE;
 
     useEffect(() => {
-        if (value === null || query.trim() === '') {
+        if (value !== null || query.trim() === '') {
             // Nimic de căutat: fie un cont e deja ales, fie câmpul e gol — golirea
             // rezultatelor pentru cazul gol se face sincron în `onChange`-ul
             // inputului, nu aici (regula `react-hooks/set-state-in-effect`: un efect

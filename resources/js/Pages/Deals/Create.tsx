@@ -1,5 +1,6 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
@@ -17,22 +18,46 @@ interface DealFormData {
 }
 
 /**
- * US-DEAL-01 — precompletat din `?account=` (§9 task). Contul e fix (deal-urile se
- * creează DIN pagina unui cont); etapa nu se alege aici — `CreateDealAction` pune deal-ul
- * pe prima etapă a pipeline-ului implicit.
+ * US-DEAL-01 — precompletat din `?account=` când link-ul „New deal" vine din pagina unui
+ * cont (`Accounts/Show.tsx`), dar nu mai e IMPUS: contul e ales prin `AccountCombobox`
+ * (același tipar reutilizat din `Contacts/ContactForm.tsx`, P2-001), obligatoriu la
+ * submit. Fără `?account=`, câmpul pornește gol, nu 404 (§9 task).
+ *
+ * Etapa nu se alege aici — `CreateDealAction` pune deal-ul pe prima etapă a
+ * pipeline-ului implicit.
  */
 export default function Create() {
     const { account, contacts, owners, can, workspace } = usePage<DealsCreatePageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
+    const basePath = `/${workspaceSlug}/deals/create`;
 
     const { data, setData, post, processing, errors } = useForm<DealFormData>({
-        account_id: account.id,
+        account_id: account?.id ?? '',
         title: '',
         value: '',
         expected_close_date: '',
         primary_contact_id: '',
         owner_user_id: '',
     });
+
+    // Contactul principal depinde de cont (§9 task): la schimbarea contului, contactul
+    // ales se golește imediat (nu poate mai fi valid pentru contul nou) și pagina cere o
+    // reîncărcare parțială a acestei rute — `DealController::create()` recalculează
+    // `contacts` pentru noul `?account=`, exact mecanismul deja folosit de
+    // `useListFilters` pentru filtre de listă (`router.get` + `preserveState`).
+    const handleAccountChange = (accountId: string | null) => {
+        setData((current) => ({
+            ...current,
+            account_id: accountId ?? '',
+            primary_contact_id: '',
+        }));
+
+        router.get(basePath, accountId ? { account: accountId } : {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -44,9 +69,20 @@ export default function Create() {
             <Head title="New deal" />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="New deal" description={`For ${account.name}`} />
+                <PageHeader title="New deal" description={account ? `For ${account.name}` : undefined} />
 
                 <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+                    <Field label="Account" error={errors.account_id} required>
+                        {(control) => (
+                            <AccountCombobox
+                                {...control}
+                                value={data.account_id.trim() === '' ? null : data.account_id}
+                                initialLabel={account?.name ?? null}
+                                onChange={handleAccountChange}
+                            />
+                        )}
+                    </Field>
+
                     <Field label="Title" error={errors.title} required>
                         {(control) => (
                             <input
@@ -126,7 +162,9 @@ export default function Create() {
                         <Button type="submit" variant="primary" disabled={processing}>
                             Create deal
                         </Button>
-                        <ButtonLink href={`/${workspaceSlug}/accounts/${account.id}`}>Cancel</ButtonLink>
+                        <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/deals`}>
+                            Cancel
+                        </ButtonLink>
                     </div>
                 </form>
             </div>
