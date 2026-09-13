@@ -105,6 +105,49 @@ class DealListTest extends TestCase
         $this->assertContains('No value B', $allTitles);
     }
 
+    /**
+     * Aceeași capcană, pe cealaltă coloană sortabilă nullabilă. Crescător, Postgres pune
+     * NULL-urile la final, deci granița de pagină cade pe un deal fără dată, iar cursorul
+     * construit din el (`expected_close_date > NULL`) nu mai găsește niciun rând.
+     */
+    public function test_sorting_by_expected_close_date_carries_undated_deals_across_the_cursor_boundary(): void
+    {
+        TenantContext::run($this->tenant, function (): void {
+            $now = now();
+            $rows = [];
+
+            for ($i = 1; $i <= 49; $i++) {
+                $rows[] = $this->rowFor(sprintf('Dated deal %02d', $i), 1000.0, $now, $now->copy()->addDays($i)->toDateString());
+            }
+
+            $rows[] = $this->rowFor('No close date A', 1000.0, $now);
+            $rows[] = $this->rowFor('No close date B', 1000.0, $now);
+
+            Deal::query()->insert($rows);
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        $firstPageTitles = $this->deferredDealTitlesFor('/marlin/deals?sort=expected_close_date', $nextCursor);
+
+        $this->assertCount(50, $firstPageTitles);
+        $this->assertNotNull($nextCursor, 'Ar trebui să mai rămână un rând pe a doua pagină.');
+
+        // Cea mai apropiată dată întâi; deal-urile fără dată vin după toate cele datate.
+        $this->assertSame(
+            array_map(fn (int $i) => sprintf('Dated deal %02d', $i), range(1, 49)),
+            array_slice($firstPageTitles, 0, 49)
+        );
+
+        $secondPageTitles = $this->deferredDealTitlesFor('/marlin/deals?sort=expected_close_date&cursor='.$nextCursor, $unusedCursor);
+
+        $this->assertCount(1, $secondPageTitles, 'Al doilea deal fără dată nu trebuie să dispară dintre pagini.');
+
+        $allTitles = [...$firstPageTitles, ...$secondPageTitles];
+        $this->assertContains('No close date A', $allTitles);
+        $this->assertContains('No close date B', $allTitles);
+    }
+
     public function test_filters_by_status_and_owner(): void
     {
         $agent = $this->makeMember($this->tenant, 'agent@throughput.dev', Permissions::AGENT);
@@ -188,7 +231,7 @@ class DealListTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function rowFor(string $title, ?float $value, Carbon $now): array
+    private function rowFor(string $title, ?float $value, Carbon $now, ?string $expectedCloseDate = null): array
     {
         return [
             'id' => (string) Str::ulid(),
@@ -199,6 +242,7 @@ class DealListTest extends TestCase
             'owner_user_id' => $this->owner->getKey(),
             'title' => $title,
             'value' => $value,
+            'expected_close_date' => $expectedCloseDate,
             'currency' => 'USD',
             'status' => Deal::STATUS_OPEN,
             'created_by' => $this->owner->getKey(),

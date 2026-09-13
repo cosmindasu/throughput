@@ -90,15 +90,24 @@ final class DealList extends ResourceList
     }
 
     /**
+     * Coloanele sortabile nullabile și coloana generată, NOT NULL, pe care se sortează de fapt.
+     * Numele din stânga rămân singurele nume publice din URL.
+     */
+    private const GENERATED_SORT_COLUMNS = [
+        'value' => 'value_sort',
+        'expected_close_date' => 'expected_close_date_sort',
+    ];
+
+    /**
      * Suprascrie orchestrarea din `ResourceList::query()` DOAR pentru sortare, ca să nu
      * ating `App\Support\ListQuery::applySort()` (folosit de `AccountList` și de orice
      * listă viitoare scrisă de alt agent în paralel — plan §1.2 regula 6).
      *
-     * Capcana (e) din task: `deals.value` e nullabil, iar `cursorPaginate()` compară
-     * strict pe coloana de sortare — o comparație SQL cu NULL nu e niciodată adevărată,
-     * deci un deal necalificat ar dispărea din TOATE paginile pe `sort=-value`, nu doar
-     * din ordine. `value_sort` (migrația dedicată) e coloana REALĂ de sortare, NOT NULL
-     * prin construcție; `value` rămâne singurul nume public în URL.
+     * Capcana (e) din task: `deals.value` și `deals.expected_close_date` sunt nullabile, iar
+     * `cursorPaginate()` compară strict pe coloana de sortare. O comparație SQL cu NULL nu e
+     * niciodată adevărată, deci un deal fără valoare dispărea din TOATE paginile pe
+     * `sort=-value`, iar pe `sort=expected_close_date` a doua pagină dădea 500. Coloanele din
+     * `GENERATED_SORT_COLUMNS` (migrațiile dedicate) sunt NOT NULL prin construcție.
      */
     public function query(ListQuery $list, User $user): Builder
     {
@@ -107,7 +116,7 @@ final class DealList extends ResourceList
         $this->applyFilters($query, $list, $user);
 
         $direction = $list->sortDirection();
-        $column = $list->sortColumn() === 'value' ? 'value_sort' : $list->sortColumn();
+        $column = self::GENERATED_SORT_COLUMNS[$list->sortColumn()] ?? $list->sortColumn();
 
         return $query
             ->orderBy($column, $direction)

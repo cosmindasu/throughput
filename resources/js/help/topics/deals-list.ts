@@ -8,7 +8,7 @@ import type { HelpTopic } from '@/help/types';
  * Reconciliat cu codul la 2026-09-13: `Pages/Deals/Index.tsx` (căutare, „Status", „My deals"/
  * „All deals", antete sortabile, `SavedViewPicker`, `ViewSwitcher` „List"/„Board" — fără export
  * CSV și fără buton de creare), `DealList` (implicit `owner=me` pentru Agent, sortarea pe
- * `value_sort`). Formularul de deal cu câmp „Account" căutabil e schimbarea paralelă descrisă
+ * `value_sort` și `expected_close_date_sort`). Formularul de deal cu câmp „Account" căutabil e schimbarea paralelă descrisă
  * în `deal-detail.ts`.
  */
 const dealsList: HelpTopic = {
@@ -32,7 +32,7 @@ const dealsList: HelpTopic = {
     ],
     howItsBuilt: {
         summary:
-            'Same cursor-paginated `ListQuery` foundation as Accounts and Contacts, with one twist: a deal\'s value can be empty, and cursor paging compares on the sort column, so sorting by value runs on a generated, never-empty `value_sort` column (an empty value counts as -1). Sorting on the raw column would make deals without a value drop out of every page instead of just sorting to one end. See the Kanban topic\'s "How it\'s built" for why deal-stage history itself is stored the way it is (append-only, not a mutable column).',
+            'Same cursor-paginated `ListQuery` foundation as Accounts and Contacts, with one twist: a deal\'s value and expected close date can both be empty, and cursor paging compares on the sort column, so each of those sorts runs on a generated, never-empty column — `value_sort` (an empty value counts as -1) and `expected_close_date_sort` (a missing date counts as the farthest one, 9999-12-31). Sorting on the raw columns would make deals without a value or date drop out of later pages instead of just sorting to one end. See the Kanban topic\'s "How it\'s built" for why deal-stage history itself is stored the way it is (append-only, not a mutable column).',
     },
 };
 
