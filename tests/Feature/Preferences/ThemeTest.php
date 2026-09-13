@@ -141,7 +141,29 @@ class ThemeTest extends TestCase
             ->patch('/preferences/theme', ['theme' => 'purple'])
             ->assertSessionHasErrors('theme');
 
-        $this->assertSame('system', $this->owner->fresh()->theme);
+        // Ajustat (2026-09-13, decizia proprietarului §15.6): `$this->owner` intră în
+        // acest test fără nicio scriere explicită pe `theme` (`TestCase::makeMember()`
+        // nu trece coloana), deci valoarea e implicitul din migrație — `dark`, nu
+        // `system` de dinainte de `2026_09_13_120000_change_users_theme_default_to_dark`.
+        // Ce verifică testul rămâne neschimbat: o valoare respinsă nu atinge coloana.
+        $this->assertSame('dark', $this->owner->fresh()->theme);
+    }
+
+    public function test_a_new_user_defaults_to_dark_when_no_choice_was_ever_made(): void
+    {
+        // Decizia proprietarului (2026-09-13, specs.md §15.6): implicitul coloanei
+        // `users.theme` e acum `dark`, FIX, pentru cine n-a ales nimic — inclusiv cele 4
+        // conturi demo, recreate ca rânduri noi la fiecare `demo:reset`
+        // (`migrate:fresh` + reseed, niciun seeder din `database/seeders/Demo` nu trece
+        // `theme` explicit). `User::factory()` nu setează `theme`, deci verifică exact
+        // implicitul de coloană, nu un cod aplicativ.
+        //
+        // `fresh()`, nu instanța din `create()`: Eloquent nu re-citește rândul după
+        // INSERT, deci `theme` ar rămâne `null` în memorie — DEFAULT-ul e vizibil doar
+        // dintr-o citire reală.
+        $user = User::factory()->create()->fresh();
+
+        $this->assertSame('dark', $user->theme);
     }
 
     public function test_a_guest_is_redirected_to_login(): void

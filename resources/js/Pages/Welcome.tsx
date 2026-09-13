@@ -1,17 +1,16 @@
 import { Head } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-import { useThemeSync } from '@/hooks/useThemeSync';
 
 export default function Welcome() {
-    // Vizitator anonim: nicio alegere persistată (fără `users.theme`), deci mereu,
-    // implicit, „System" (specs.md §15.6) — corectează un prim-paint greșit pe un
-    // dispozitiv nou și urmărește schimbările reale ale sistemului de operare.
-    // Comutatorul cu trei stări (resources/js/Components/ThemeToggle.tsx) nu apare
-    // aici: FR-PREF-01 îl cere doar pe ecranele AUTENTIFICATE — AppLayout îl ascunde
-    // deja pentru vizitatori, la fel ca restul barei de sus.
-    useThemeSync(true);
-
+    // Decizia proprietarului (2026-09-13): vizitatorul anonim NU mai urmează
+    // `prefers-color-scheme` — tema închisă e implicită FIX pentru cine n-a ales
+    // nimic (specs.md §15.6, „pe ea se fac captura de portofoliu și demo-ul public").
+    // Randarea vine strict server-side din App\Support\ThemePreference (cookie, dacă
+    // există, altfel închis) — niciun `useThemeSync` aici. „System" rămâne o opțiune
+    // reală, dar doar pentru cine o alege explicit din comutator, pe un ecran
+    // AUTENTIFICAT (resources/js/Components/ThemeToggle.tsx); un vizitator anonim n-are
+    // cum să o aleagă, deci n-are ce sincroniza.
     return (
         <>
             {/*
