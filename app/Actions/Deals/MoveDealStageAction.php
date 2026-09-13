@@ -30,7 +30,13 @@ final class MoveDealStageAction
         return DB::transaction(function () use ($deal, $to, $by, $lostReason): Deal {
             // `lockForUpdate`: două request-uri concurente pe același deal (dublu-clic,
             // sau drag urmat imediat de „Move to stage…") nu trebuie să insereze două
-            // evenimente pe baza aceleiași stări „dinainte".
+            // evenimente pe baza aceleiași stări „dinainte". Garanția vine STRICT din
+            // acest lock, în tranzacția cererii (al doilea request așteaptă la rândul
+            // lui `firstOrFail()` până la commit-ul primului, apoi vede `stage_id` deja
+            // actualizat). Nu există test automat care exercită real concurența (P3-e,
+            // code review): două request-uri simultane pe același deal nu sunt practice
+            // într-un singur fir Pest — ar cere două conexiuni DB separate, coordonate
+            // manual în jurul lock-ului, ceea ce testele acestui pachet nu fac.
             /** @var Deal $locked */
             $locked = Deal::query()->whereKey($deal->getKey())->lockForUpdate()->firstOrFail();
 
