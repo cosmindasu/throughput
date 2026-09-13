@@ -92,6 +92,38 @@ class DealStageHttpTest extends TestCase
         });
     }
 
+    public function test_a_manager_can_move_a_colleagues_deal(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'agent3@throughput.dev', Permissions::AGENT);
+        $manager = $this->makeMember($this->marlin, 'manager@throughput.dev', Permissions::MANAGER);
+        $deal = $this->dealOn('New', $agent);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($manager)
+            ->patch("/marlin/deals/{$deal->getKey()}/stage", ['to_stage_id' => $this->stages['Qualified']->getKey()])
+            ->assertRedirect();
+
+        TenantContext::run($this->marlin, function () use ($deal): void {
+            $this->assertSame($this->stages['Qualified']->getKey(), $deal->fresh()->stage_id);
+        });
+    }
+
+    public function test_an_owner_can_move_a_colleagues_deal(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'agent4@throughput.dev', Permissions::AGENT);
+        $owner = $this->makeMember($this->marlin, 'owner6@throughput.dev', Permissions::OWNER);
+        $deal = $this->dealOn('New', $agent);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->patch("/marlin/deals/{$deal->getKey()}/stage", ['to_stage_id' => $this->stages['Qualified']->getKey()])
+            ->assertRedirect();
+
+        TenantContext::run($this->marlin, function () use ($deal): void {
+            $this->assertSame($this->stages['Qualified']->getKey(), $deal->fresh()->stage_id);
+        });
+    }
+
     public function test_a_manager_moving_a_deal_to_won_without_a_value_is_rejected_with_the_exact_message(): void
     {
         $manager = $this->makeMember($this->marlin, 'manager@throughput.dev', Permissions::MANAGER);
