@@ -106,6 +106,30 @@ export interface ListState {
 
 // ── Pipeline și etape — FR-DEAL-02 ───────────────────────────────────────────────
 
+// App\Http\Resources\StageResource. `canDelete` reflectă STRICT `pipelines.manage` (dreptul,
+// §1.2 regula 2) — `deletionBlockedReason` e o STARE (BR-DEAL-01, §7.5): butonul „Delete"
+// rămâne prezent cât timp userul are dreptul, iar motivul explică refuzul, nu-l ascunde.
+export interface PipelineStage {
+    id: string;
+    name: string;
+    position: number;
+    isWon: boolean;
+    isLost: boolean;
+    probability: number | null;
+    dealsCount: number;
+    canDelete: boolean;
+    deletionBlockedReason: string | null;
+}
+
+// Pipeline/Index — FR-DEAL-02.
+export interface PipelinePageProps {
+    pipelineName: string;
+    stages: PipelineStage[];
+    can: {
+        manage: boolean;
+    };
+    [key: string]: unknown;
+}
 
 // ── Settings și preferințe — FR-PREF-01…03 ───────────────────────────────────────
 
