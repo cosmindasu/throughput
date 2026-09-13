@@ -4,12 +4,12 @@ import type { HelpTopic } from '@/help/types';
  * `Contacts/Show`, `Contacts/Create`, `Contacts/Edit` — specs.md §8.1/8.2/8.3
  * (FR-CRM-02, US-CRM-01, BR-CRM-02).
  *
- * Reconciliat cu codul la 2026-09-13: `Pages/Contacts/Show.tsx` („Edit", „Delete", „Marketing",
+ * Reconciliat cu codul la 2026-09-14: `Pages/Contacts/Show.tsx` („Edit", „Delete", „Marketing",
  * „Deals as primary contact"), `Components/Contacts/ContactForm.tsx` (etichetele câmpurilor,
  * `AccountCombobox`, „Create contact"/„Save changes"), `StoreContactRequest`/
  * `UpdateContactRequest` (primary cere cont), `PrimaryContactAssignment`, `ContactPolicy` și
- * `ContactController::destroy()` — ștergerea NU e blocată de deals/comenzi (FK-uri
- * `nullOnDelete`), exact cum spune dialogul de confirmare.
+ * `App\Support\Contacts\ContactErasure` — ștergerea anonimizează în loc să șteargă fizic dacă
+ * există deals (inclusiv șterse) sau orders (§20.5), exact cum spune dialogul de confirmare.
  */
 const contactDetail: HelpTopic = {
     id: 'contact-detail',
@@ -27,7 +27,8 @@ const contactDetail: HelpTopic = {
         'Only one contact per account can be primary — saving this one as primary automatically un-marks whichever contact held that spot before.',
         'A primary contact must belong to an account: the checkbox stays disabled until an account is chosen, and clearing the account un-ticks it.',
         'If the email already belongs to another contact linked to an account, saving is blocked with a warning and a link to that account instead of silently going through — tick "Save anyway" if it\'s intentional.',
-        "Deleting is allowed even when deals or orders reference this contact: they keep their history but lose the link, and it can't be undone. Opting out, by contrast, keeps the contact.",
+        "Deleting is allowed even when deals or orders reference this contact, and it can't be undone: with none, the row is deleted; with any, the contact's name, email, phone and title are anonymized instead and the row stays, so deal and order history keeps its link. Opting out, by contrast, keeps the contact as-is.",
+        'An anonymized contact no longer has a page: its detail, edit and delete links stop working, and it drops out of lists, search and the "Primary contact" options on deals.',
         'An Agent can edit or delete only contacts they created, or contacts at accounts they own.',
     ],
     howItsBuilt: {

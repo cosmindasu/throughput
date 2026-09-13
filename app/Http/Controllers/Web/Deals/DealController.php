@@ -16,6 +16,7 @@ use App\Models\Account;
 use App\Models\Deal;
 use App\Models\Membership;
 use App\Models\Pipeline;
+use App\Models\Scopes\NotAnonymizedContactScope;
 use App\Models\Stage;
 use App\Support\Lists\DealList;
 use App\Support\Permissions;
@@ -124,7 +125,13 @@ class DealController extends Controller
 
         $deal->load([
             'account:id,name',
-            'primaryContact:id,first_name,last_name',
+            // §20.5 — contactul principal anonimizat rămâne vizibil AICI (text neutru, fără
+            // link, `Deals/Show.tsx`), spre deosebire de restul aplicației: bypass explicit al
+            // `NotAnonymizedContactScope`, altfel un deal cu istoric ar arăta „—", identic cu
+            // „n-a avut niciodată contact principal", ceea ce pierde informația.
+            'primaryContact' => fn ($query) => $query
+                ->withoutGlobalScope(NotAnonymizedContactScope::class)
+                ->select(['id', 'first_name', 'last_name', 'anonymized_at']),
             'pipeline:id,name',
             'stage:id,name,is_won,is_lost',
             'owner:id,name',
@@ -183,7 +190,18 @@ class DealController extends Controller
     {
         Gate::authorize('update', $deal);
 
-        $deal->load(['account:id,name', 'primaryContact:id,first_name,last_name']);
+        // §20.5 — același bypass ca `show()`: fără el, un contact principal anonimizat
+        // NU se încarcă deloc (`null`), formularul pornește cu `primary_contact_id` GOL, iar
+        // salvarea de rutină (ex. doar „Value") ar goli tăcut `deals.primary_contact_id` —
+        // exact integritatea referențială pe care anonimizarea trebuie s-o păstreze. Contactul
+        // rămâne exclus din `contacts` (opțiunile din dropdown, `contactsForAccount()`);
+        // `Deals/Edit.tsx` îi arată o opțiune informativă separată, pe baza `isAnonymized`.
+        $deal->load([
+            'account:id,name',
+            'primaryContact' => fn ($query) => $query
+                ->withoutGlobalScope(NotAnonymizedContactScope::class)
+                ->select(['id', 'first_name', 'last_name', 'anonymized_at']),
+        ]);
 
         $raw = $request->query('account');
         $accountId = is_string($raw) ? $raw : null;

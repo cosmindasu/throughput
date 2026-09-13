@@ -40,9 +40,12 @@ class StoreDealRequest extends FormRequest
             'primary_contact_id' => [
                 'nullable', 'string',
                 // §9 task: contactul principal trebuie să fie DINTRE contactele contului ales.
+                // `whereNull('anonymized_at')` — §20.5: un contact anonimizat nu mai e o
+                // opțiune validă, nici măcar trimis direct (forjat), nu doar ascuns din listă.
                 Rule::exists('contacts', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $tenantId)
-                    ->where('account_id', $this->input('account_id'))),
+                    ->where('account_id', $this->input('account_id'))
+                    ->whereNull('anonymized_at')),
             ],
             'title' => ['required', 'string', 'max:255'],
             'value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],

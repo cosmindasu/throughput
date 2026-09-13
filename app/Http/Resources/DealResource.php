@@ -32,11 +32,17 @@ class DealResource extends JsonResource
                 'id' => $this->account->id,
                 'name' => $this->account->name,
             ]),
+            // `isAnonymized` (§20.5) — controllerul (`show()`/`edit()`) încarcă acest contact
+            // cu bypass explicit al `NotAnonymizedContactScope`: un contact principal
+            // anonimizat rămâne vizibil AICI (istoric), chiar dacă a dispărut din restul
+            // aplicației. Interfața decide singură ce face cu steagul — text neutru fără
+            // link pe `Deals/Show`, opțiune informativă pe `Deals/Edit`.
             'primaryContact' => $this->whenLoaded(
                 'primaryContact',
                 fn () => $this->primaryContact ? [
                     'id' => $this->primaryContact->id,
                     'name' => trim($this->primaryContact->first_name.' '.$this->primaryContact->last_name),
+                    'isAnonymized' => $this->primaryContact->isAnonymized(),
                 ] : null
             ),
             'pipeline' => $this->whenLoaded('pipeline', fn () => [

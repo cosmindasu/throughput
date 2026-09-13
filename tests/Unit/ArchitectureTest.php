@@ -21,7 +21,24 @@ class ArchitectureTest extends TestCase
         $offenders = [];
 
         foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
-            if (str_contains($this->codeWithoutComments($file), 'withoutGlobalScope')) {
+            $code = $this->codeWithoutComments($file);
+
+            // Listă ALBĂ, nu neagră: orice `withoutGlobalScope(...)` numără ca ofensator, cu o
+            // singură excepție, `NotAnonymizedContactScope::class` (specs.md §20.5, contactul
+            // principal anonimizat afișat pe deal). O listă neagră pe `TenantScope::class` ar fi
+            // lăsat să treacă forma cu namespace complet sau un alias de import.
+            // `withoutGlobalScopes()` le scoate pe TOATE, deci și pe cel de tenant.
+            $bypassesTenantScope = str_contains($code, 'withoutGlobalScopes(');
+
+            preg_match_all('/withoutGlobalScope\s*\(([^)]*)\)/', $code, $matches);
+
+            foreach ($matches[1] as $argument) {
+                if (trim($argument) !== 'NotAnonymizedContactScope::class') {
+                    $bypassesTenantScope = true;
+                }
+            }
+
+            if ($bypassesTenantScope) {
                 $offenders[] = $this->relative($file);
             }
         }

@@ -9,6 +9,7 @@ use App\Http\Resources\ContactResource;
 use App\Models\Account;
 use App\Models\Contact;
 use App\Models\User;
+use App\Support\Contacts\ContactErasure;
 use App\Support\Contacts\PrimaryContactAssignment;
 use App\Support\Exports\ListExport;
 use App\Support\ListQuery;
@@ -155,13 +156,22 @@ class ContactController extends Controller
             ->with('success', 'Contact updated.');
     }
 
+    /**
+     * FR-GDPR/BR-CRM-01, specs.md §20.5 — fără deals/orders asociate, ștergere fizică;
+     * altfel, `ContactErasure` anonimizează (păstrează rândul pentru istoricul lor).
+     */
     public function destroy(Contact $contact): RedirectResponse
     {
         Gate::authorize('delete', $contact);
 
-        $contact->delete();
+        $anonymized = ContactErasure::erase($contact->getKey());
 
-        return redirect()->route('contacts.index')->with('success', 'Contact deleted.');
+        return redirect()->route('contacts.index')->with(
+            'success',
+            $anonymized
+                ? 'Contact anonymized — it is referenced by deals or orders, so its personal data was removed and the record kept.'
+                : 'Contact deleted.',
+        );
     }
 
     /**

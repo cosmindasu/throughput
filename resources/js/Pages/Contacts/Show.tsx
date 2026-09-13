@@ -113,7 +113,9 @@ export default function ContactsShow() {
                     confirmLabel="Delete"
                     confirmVariant="danger"
                 >
-                    This can’t be undone. Deals and orders that reference {contact.fullName} keep their history but lose the link.
+                    This can’t be undone. If {contact.fullName} isn’t referenced by any deals or orders, the contact is deleted.
+                    Otherwise, its personal data (name, email, phone, title) is removed and the record is kept, so deal and order
+                    history stays intact.
                 </ConfirmDialog>
             </div>
         </>

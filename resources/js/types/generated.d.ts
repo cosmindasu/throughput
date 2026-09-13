@@ -290,6 +290,16 @@ export interface DealPartyRef {
     name: string;
 }
 
+// `primaryContact` al lui `Deal` — distinct de `DealPartyRef`: un contact anonimizat
+// (§20.5) rămâne legat de deal pentru integritatea istoricului, dar `isAnonymized`
+// spune interfeței să-l arate ca text neutru, fără link (`Deals/Show.tsx`) și ca
+// opțiune informativă, nu aleasă din nou, în select-ul de pe `Deals/Edit.tsx`.
+export interface DealContactRef {
+    id: string;
+    name: string;
+    isAnonymized: boolean;
+}
+
 export interface DealStageRef {
     id: string;
     name: string;
@@ -328,7 +338,7 @@ export interface Deal {
     status: DealStatus;
     lostReason: LostReason | null;
     account: DealPartyRef;
-    primaryContact: DealPartyRef | null;
+    primaryContact: DealContactRef | null;
     pipeline: DealPartyRef;
     stage: DealStageRef;
     owner: DealPartyRef;

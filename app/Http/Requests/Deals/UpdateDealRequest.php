@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deals;
 
+use App\Models\Deal;
 use App\Models\Membership;
 use App\Models\Scopes\TenantScope;
 use App\Support\Contacts\AccountBelongsToTenant;
@@ -52,9 +53,14 @@ class UpdateDealRequest extends FormRequest
             'expected_close_date' => ['nullable', 'date'],
             'primary_contact_id' => [
                 'nullable', 'string',
+                // §20.5 — un contact anonimizat nu mai e o opțiune NOUĂ validă, dar
+                // `keepsExistingPrimaryContact()` lasă neatinsă legătura deja existentă a
+                // deal-ului cu unul (anonimizat DUPĂ ce a fost legat), ca o editare de rutină
+                // care nu atinge deloc acest câmp să nu o rupă tăcut.
                 Rule::exists('contacts', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $tenantId)
-                    ->where('account_id', $this->input('account_id'))),
+                    ->where('account_id', $this->input('account_id'))
+                    ->when(! $this->keepsExistingPrimaryContact(), fn ($q) => $q->whereNull('anonymized_at'))),
             ],
             'owner_user_id' => [
                 'nullable', 'string',
@@ -63,5 +69,22 @@ class UpdateDealRequest extends FormRequest
                     ->where('status', Membership::STATUS_ACTIVE)),
             ],
         ];
+    }
+
+    /**
+     * „Existentă" înseamnă STRICT id-ul deja pe deal ȘI același cont — id-ul unui contact
+     * anonimizat, chiar dacă a fost vreodată legitim pe alt deal sau pe acest deal înainte
+     * de o schimbare de cont, rămâne respins de ramura `whereNull('anonymized_at')` de mai
+     * sus. `Deals/Edit.tsx` retrimite mereu `deal.primaryContact.id`, neschimbat, cât timp
+     * utilizatorul nu alege alt contact și nu schimbă contul.
+     */
+    private function keepsExistingPrimaryContact(): bool
+    {
+        /** @var Deal $deal */
+        $deal = $this->route('deal');
+
+        return $deal->primary_contact_id !== null
+            && $this->input('primary_contact_id') === $deal->primary_contact_id
+            && $this->input('account_id') === $deal->account_id;
     }
 }

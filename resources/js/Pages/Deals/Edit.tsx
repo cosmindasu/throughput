@@ -39,6 +39,7 @@ export default function Edit() {
     const { deal, account, contacts, owners, can, workspace } = usePage<DealsEditPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/deals/${deal.id}/edit`;
+    const primaryContact = deal.primaryContact;
 
     const { data, setData, put, processing, errors } = useForm<DealFormData>({
         account_id: account?.id ?? '',
@@ -142,6 +143,18 @@ export default function Edit() {
                                 onChange={(event) => setData('primary_contact_id', event.target.value)}
                             >
                                 <option value="">None</option>
+                                {/*
+                                    §20.5 — un contact principal anonimizat NU apare în `contacts`
+                                    (opțiunile normale, `contactsForAccount()`), dar legătura încă
+                                    există pe deal: o opțiune separată, informativă, arată asta în
+                                    loc să lase select-ul fără nicio valoare selectată (care ar fi
+                                    citit, la salvare, ca „niciun contact"). Dispare singură dacă
+                                    utilizatorul alege alt contact sau schimbă contul — condiția e
+                                    `data.primary_contact_id`, nu un steag separat.
+                                */}
+                                {primaryContact?.isAnonymized && data.primary_contact_id === primaryContact.id && (
+                                    <option value={primaryContact.id}>Anonymized contact</option>
+                                )}
                                 {contacts.map((contact) => (
                                     <option key={contact.id} value={contact.id}>
                                         {contact.name}
