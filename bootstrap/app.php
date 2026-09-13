@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureDemoModeGuardrails;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndexHeaders;
 use App\Http\Middleware\ResolveWorkspace;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetSessionContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -38,6 +39,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // `web`, nu pe grupul cu workspace: un guardrail care depinde de grupul pe care
             // ajunge o rută nouă e un guardrail care se poate uita.
             EnsureDemoModeGuardrails::class,
+
+            // §20.2 — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy.
+            SecurityHeaders::class,
         ]);
 
         // ADR-014, pct. 3 — ordinea e semnificativă: `Authenticate → SetSessionContext →
