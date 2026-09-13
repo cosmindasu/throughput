@@ -43,6 +43,15 @@ class ContactPolicy
         return $user->can('contacts.delete') && $this->isWithinOwnRecords($user, $contact);
     }
 
+    /**
+     * Exportul e o CITIRE (§7.4 nota ³, BR-BULK-03; §13.5 „Contacte: export CSV"), deci îl are
+     * și Viewer-ul — aceeași regulă ca la conturi.
+     */
+    public function export(User $user): bool
+    {
+        return $user->can('contacts.view') && $user->can('bulk.export');
+    }
+
     private function isWithinOwnRecords(User $user, Contact $contact): bool
     {
         if (! Permissions::restrictedToOwnRecords($user)) {

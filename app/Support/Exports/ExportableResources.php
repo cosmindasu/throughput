@@ -3,18 +3,18 @@
 namespace App\Support\Exports;
 
 use App\Support\Lists\AccountList;
+use App\Support\Lists\ContactList;
 use App\Support\Lists\ResourceList;
 use InvalidArgumentException;
 
 /**
  * Harta `resource_type` (coloana de pe `bulk_operations`) → clasa `ResourceList` care știe
- * s-o interogheze și s-o exporte (§13.2). Sursă unică pentru controllerul de declanșare
- * (export sincron) și pentru `ExportListJob` (export în coadă) — amândoi rezolvă lista
- * prin același nume, deci nu pot ajunge să interogheze lucruri diferite pentru aceeași
- * operație.
+ * s-o interogheze și s-o exporte (§13.2). Sursă unică pentru declanșarea exportului
+ * (`ListExport`) și pentru `ExportListJob` (exportul în coadă) — amândoi rezolvă lista prin
+ * același nume, deci nu pot ajunge să interogheze lucruri diferite pentru aceeași operație.
  *
- * O singură intrare acum (`accounts`); celelalte resurse din specs.md §13.5 (Contacte,
- * Deals, Comenzi, Produse, Facturi) își adaugă câte o linie aici, în pachetele lor.
+ * Celelalte resurse din specs.md §13.5 (Comenzi, Produse, Facturi) își adaugă câte o linie
+ * aici, în fazele care le construiesc.
  */
 final class ExportableResources
 {
@@ -23,6 +23,7 @@ final class ExportableResources
     {
         return [
             'accounts' => AccountList::class,
+            'contacts' => ContactList::class,
         ];
     }
 

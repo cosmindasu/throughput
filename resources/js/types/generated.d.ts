@@ -241,6 +241,7 @@ export interface ContactsIndexPageProps {
     list: ListState;
     can: {
         create: boolean;
+        export: boolean;
     };
     [key: string]: unknown;
 }

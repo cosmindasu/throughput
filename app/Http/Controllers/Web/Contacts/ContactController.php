@@ -10,11 +10,13 @@ use App\Models\Account;
 use App\Models\Contact;
 use App\Models\User;
 use App\Support\Contacts\PrimaryContactAssignment;
+use App\Support\Exports\ListExport;
 use App\Support\ListQuery;
 use App\Support\Lists\ContactList;
 use App\Support\RecentlyViewed;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -43,8 +45,19 @@ class ContactController extends Controller
             'list' => $listQuery->toArray(),
             'can' => [
                 'create' => Gate::forUser($user)->allows('create', Contact::class),
+                'export' => Gate::forUser($user)->allows('export', Contact::class),
             ],
         ]);
+    }
+
+    /**
+     * §13.5 — export CSV al listei filtrate curent, prin mecanismul comun (`ListExport`).
+     */
+    public function export(Request $request): RedirectResponse|HttpResponse
+    {
+        Gate::authorize('export', Contact::class);
+
+        return app(ListExport::class)->respond($request, 'contacts');
     }
 
     public function create(Request $request): Response

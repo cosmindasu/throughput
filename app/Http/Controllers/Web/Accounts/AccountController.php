@@ -9,14 +9,11 @@ use App\Http\Resources\Accounts\AccountContactResource;
 use App\Http\Resources\Accounts\AccountDealResource;
 use App\Http\Resources\Accounts\AccountDetailResource;
 use App\Http\Resources\Accounts\AccountResource;
-use App\Jobs\Exports\ExportListJob;
 use App\Models\Account;
-use App\Models\BulkOperation;
 use App\Models\Contact;
 use App\Models\Membership;
 use App\Support\Accounts\AccountActivityTimeline;
-use App\Support\DemoMode;
-use App\Support\Exports\CsvExporter;
+use App\Support\Exports\ListExport;
 use App\Support\Lists\AccountList;
 use App\Support\Lists\CursorPage;
 use App\Support\RecentlyViewed;
@@ -166,47 +163,7 @@ final class AccountController extends Controller
     {
         $this->authorize('export', Account::class);
 
-        $list = new AccountList;
-        $listQuery = $list->parse($request);
-        $user = $request->user();
-        $query = $list->query($listQuery, $user);
-
-        $total = (clone $query)->toBase()->getCountForPagination();
-        $threshold = (int) config('throughput.limits.export_sync_max_rows');
-
-        if ($total <= $threshold) {
-            // NU `response()->streamDownload()`: callback-ul lui rulează DUPĂ ce
-            // răspunsul a fost trimis, adică după închiderea tranzacției cererii — fără
-            // context de tenant (capcană cunoscută, `.ai/rules/tenancy.md`). Sub prag,
-            // fișierul e mic — se construiește întreg în memorie, ca orice alt răspuns.
-            $csv = CsvExporter::toString($list, $query);
-
-            return response($csv, 200, [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="accounts-'.now()->format('Y-m-d-His').'.csv"',
-            ]);
-        }
-
-        if (DemoMode::exceedsBulkRowCap($total)) {
-            return back()->with('error', 'This export exceeds the demo limit and cannot be started.');
-        }
-
-        $tenantId = app('tenant')->getKey();
-
-        $operation = BulkOperation::create([
-            'user_id' => $user->getKey(),
-            'resource_type' => 'accounts',
-            'action' => 'export',
-            // P3-b: `user_id` (mai jos) e sursa de adevăr pentru autorul operației —
-            // `filter_snapshot` nu mai duplică `userId`, doar starea filtrului/sortării.
-            'filter_snapshot' => $listQuery->toArray(),
-            'total_rows' => $total,
-            'status' => BulkOperation::STATUS_PENDING,
-        ]);
-
-        ExportListJob::dispatch($tenantId, $operation->getKey())->onQueue('bulk');
-
-        return redirect()->route('exports.show', $operation)->with('success', 'Export started — this page will update automatically.');
+        return app(ListExport::class)->respond($request, 'accounts');
     }
 
     /**

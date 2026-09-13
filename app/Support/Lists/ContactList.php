@@ -4,8 +4,10 @@ namespace App\Support\Lists;
 
 use App\Models\Contact;
 use App\Models\User;
+use App\Support\Exports\ExportableList;
 use App\Support\ListQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
@@ -15,7 +17,7 @@ use Illuminate\Support\Str;
  * restrânge doar EDITAREA/ȘTERGEREA la Agent (`ContactPolicy`), nu și citirea — un
  * Agent vede tot tenantul de contacte, exact ca Manager/Owner/Viewer.
  */
-final class ContactList extends ResourceList
+final class ContactList extends ResourceList implements ExportableList
 {
     protected function filterKeys(): array
     {
@@ -67,5 +69,32 @@ final class ContactList extends ResourceList
         if (($accountId = $list->filter('account')) !== null) {
             $query->where('account_id', $accountId);
         }
+    }
+
+    /** @return list<string> */
+    public function exportHeaders(): array
+    {
+        return ['First name', 'Last name', 'Email', 'Phone', 'Title', 'Account', 'Primary contact', 'Marketing opt-out', 'Created at'];
+    }
+
+    /**
+     * @param  Contact  $row
+     * @return list<string|int|float|null>
+     */
+    public function exportRow(Model $row): array
+    {
+        return [
+            $row->first_name,
+            $row->last_name,
+            $row->email,
+            $row->phone,
+            $row->title,
+            $row->account?->name,
+            $row->is_primary ? 'yes' : 'no',
+            // BR-CRM-02: opțiunea suprimă doar marketingul, deci exportul o arată explicit —
+            // e exact coloana de care are nevoie cine lucrează lista offline.
+            $row->opt_out ? 'yes' : 'no',
+            $row->created_at?->toIso8601String(),
+        ];
     }
 }

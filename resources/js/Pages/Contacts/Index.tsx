@@ -1,6 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { type FormEvent, type ReactNode } from 'react';
-import Button, { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
@@ -22,7 +22,9 @@ const SORT_OPTIONS = [
  * (`ContactPolicy::viewAny`), doar editarea se îngustează per rând (`can.edit`).
  */
 export default function ContactsIndex() {
-    const { list, can, workspace } = usePage<ContactsIndexPageProps>().props;
+    const page = usePage<ContactsIndexPageProps>();
+    const { list, can, workspace } = page.props;
+    const { url } = page;
     const { setFilter, setSort } = useListFilters(list);
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -40,11 +42,22 @@ export default function ContactsIndex() {
                     title="Contacts"
                     description="People at your accounts — and leads without one yet."
                     actions={
-                        can.create ? (
-                            <ButtonLink variant="primary" href={workspace ? `/${workspace.slug}/contacts/create` : '#'}>
-                                New contact
-                            </ButtonLink>
-                        ) : null
+                        <>
+                            {/* Link simplu, nu Inertia: răspunsul e un fișier CSV sau un redirect către
+                                pagina exportului în coadă. Exportul e o citire, deci îl are și Viewer-ul
+                                (§7.4 nota ³). Query string-ul curent trece neschimbat: exportul conține
+                                exact rândurile de pe ecran. */}
+                            {can.export && workspace && (
+                                <a href={exportHref(url, `/${workspace.slug}/contacts/export`)} className={buttonClass('secondary')}>
+                                    Export CSV
+                                </a>
+                            )}
+                            {can.create && (
+                                <ButtonLink variant="primary" href={workspace ? `/${workspace.slug}/contacts/create` : '#'}>
+                                    New contact
+                                </ButtonLink>
+                            )}
+                        </>
                     }
                 />
 
@@ -205,6 +218,12 @@ function ContactsTable() {
 
 function clearFilters(setFilter: (key: string, value: string | null) => void): void {
     ['q', 'account'].forEach((key) => setFilter(key, null));
+}
+
+function exportHref(currentUrl: string, exportPath: string): string {
+    const query = currentUrl.split('?')[1];
+
+    return query ? `${exportPath}?${query}` : exportPath;
 }
 
 ContactsIndex.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;
