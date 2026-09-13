@@ -77,13 +77,32 @@ export default function AccountForm({ mode, account, owners, prefillName, action
         // `tags` circulă în formular ca text („comma-separated", mai simplu de tastat
         // decât un editor de chip-uri) — transformat în array doar la trimitere, ca
         // serverul (`tags.*` => string) să nu vadă niciodată diferența.
-        transform((current) => ({
-            ...current,
-            tags: current.tags
-                .split(',')
-                .map((tag: string) => tag.trim())
-                .filter(Boolean),
-        }));
+        //
+        // `contact` — bug găsit prin E2E (`e2e/specs/global-search.spec.ts`), reparat aici:
+        // `data.contact` e mereu un obiect (chiar și necompletat, cu string-uri goale),
+        // deci `contact` ajunge mereu PREZENT în payload. `StoreAccountRequest` cere
+        // `contact.first_name`/`contact.last_name` cu `required_with:contact` — regula
+        // citește corect „secțiunea de contact a fost atinsă", dar „prezent" pentru
+        // `FormRequest` înseamnă „cheia există", nu „are o valoare utilă". Rezultat: orice
+        // creare de cont FĂRĂ contact principal (calea comună, contactul e opțional)
+        // eșua cu 422 direct din formularul real — nu dintr-o eroare de test. Cheia
+        // `contact` se omite acum din payload când ambele nume sunt goale, exact cazul
+        // „nu completez contactul", ca `required_with:contact` să nu se mai declanșeze.
+        const { first_name: contactFirstName, last_name: contactLastName } = data.contact;
+        const hasContact = mode === 'create' && (contactFirstName.trim() !== '' || contactLastName.trim() !== '');
+
+        transform((current) => {
+            const { contact, ...withoutContact } = current;
+
+            return {
+                ...withoutContact,
+                ...(hasContact ? { contact } : {}),
+                tags: current.tags
+                    .split(',')
+                    .map((tag: string) => tag.trim())
+                    .filter(Boolean),
+            };
+        });
 
         if (mode === 'create') {
             post(action);

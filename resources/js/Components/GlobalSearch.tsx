@@ -41,6 +41,8 @@ export default function GlobalSearch() {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    /** Vezi fix-ul din efectul de `open` mai jos — citit DUPĂ `dialog.close()` nativ, nu înainte. */
+    const shouldFocusTriggerOnCloseRef = useRef(false);
     const abortRef = useRef<AbortController | null>(null);
     const debounceRef = useRef<number | undefined>(undefined);
 
@@ -82,6 +84,20 @@ export default function GlobalSearch() {
             dialog.showModal();
         } else if (!open && dialog.open) {
             dialog.close();
+
+            // FIX (bug găsit prin E2E, `e2e/specs/global-search.spec.ts`): `close()` pe un
+            // `<dialog>` deschis prin `showModal()` restaurează focusul, NECONDIȚIONAT, pe
+            // elementul care îl avea ÎNAINTE de `showModal()` — nu doar „dacă focusul mai e
+            // încă în interiorul dialogului", cum ar sugera o citire superficială a
+            // specificației. `close()` (funcția de mai jos) muta focusul pe declanșator
+            // ÎNAINTE ca acest efect să apuce să cheme `dialog.close()` nativ — restaurarea
+            // nativă câștiga mereu ULTIMA, trimițând focusul înapoi la orice era focusat
+            // înainte de Cmd+K (adesea `<body>`), nu pe declanșator. Mutat aici, DUPĂ
+            // `dialog.close()`, focusarea manuală chiar e ultimul cuvânt.
+            if (shouldFocusTriggerOnCloseRef.current) {
+                shouldFocusTriggerOnCloseRef.current = false;
+                triggerRef.current?.focus();
+            }
         }
     }, [open]);
 
@@ -184,11 +200,8 @@ export default function GlobalSearch() {
     );
 
     const close = (focusTrigger = true) => {
+        shouldFocusTriggerOnCloseRef.current = focusTrigger;
         setOpen(false);
-
-        if (focusTrigger) {
-            triggerRef.current?.focus();
-        }
     };
 
     const select = (result: SearchResult) => {

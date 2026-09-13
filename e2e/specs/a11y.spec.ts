@@ -55,6 +55,16 @@ const TARGETS: AxeTarget[] = [
         path: '/marlin/pipeline',
         waitFor: (page) => page.getByRole('heading', { level: 1 }).waitFor(),
     },
+    {
+        label: 'Deals kanban',
+        path: '/marlin/deals/board',
+        // Coloanele reale, nu un skeleton: `Deals/Kanban.tsx` NU e deferred (spre
+        // deosebire de listele Accounts/Contacts) — `columns` vine sincron din
+        // `DealController::board()` — dar prima coloană a pipeline-ului implicit
+        // (`New`, poziția 1, `CatalogSeeder::run()`) tot trebuie așteptată explicit:
+        // fără asta, axe ar putea scana un `<main>` gol pe randarea inițială.
+        waitFor: (page) => page.getByRole('heading', { name: 'New', level: 2 }).waitFor(),
+    },
 ];
 
 test.use({ storageState: authFile('manager') });
@@ -94,7 +104,7 @@ for (const theme of THEMES) {
         for (const target of TARGETS) {
             // Subset @smoke (PR-uri): un singur ecran, tema implicită (închisă) —
             // suficient să prindă o regresie de accesibilitate introdusă de un PR,
-            // fără costul întregii matrice de 4 ecrane × 2 teme pe fiecare push.
+            // fără costul întregii matrice de 5 ecrane × 2 teme pe fiecare push.
             const tag = theme === 'dark' && target.label === 'Dashboard' ? ['@smoke'] : [];
 
             test(`${target.label} — 0 violări critice (axe, WCAG 2.x A/AA)`, { tag }, async ({ page }, testInfo) => {
@@ -124,13 +134,3 @@ for (const theme of THEMES) {
         }
     });
 }
-
-/**
- * Ecranul de kanban (`/{workspace}/deals`, pachetul de deals) nu există încă pe
- * `main` la data scrierii acestei suite (2026-09-13) — `resources/js/Pages` nu
- * are un ecran de kanban, doar configurarea de pipeline/etape (`Pipeline/Index.tsx`,
- * deja acoperită mai sus). Când pachetul de deals aterizează pe `main`, se extinde
- * `TARGETS` de mai sus cu ruta de kanban (probabil `/{workspace}/deals/board` sau
- * echivalent) și acest `test.fixme` se șterge.
- */
-test.fixme('Kanban board — axe pe ambele teme (blocat pe pachetul de deals, încă nemerged pe main)', async () => {});
