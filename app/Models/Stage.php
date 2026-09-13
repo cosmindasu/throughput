@@ -43,4 +43,28 @@ class Stage extends Model
     {
         return $this->hasMany(DealStageEvent::class, 'to_stage_id');
     }
+
+    /**
+     * BR-DEAL-01: o etapă cu deals asociate nu se poate șterge — indiferent dacă e marcată
+     * Won/Lost sau nu, fiindcă `deals.stage_id` e o FK FĂRĂ cascadă (migrația deals). Ca la
+     * `Account::deletionBlockedReason()` (§7.5), regula e o stare a înregistrării, nu un
+     * drept al utilizatorului: amestecată în policy, `can.delete` ar fi ascuns butonul, iar
+     * utilizatorul n-ar fi aflat niciodată DE CE nu poate șterge.
+     *
+     * Acceptă un `$dealsCount` precalculat (StageResource randează liste întregi cu
+     * `withCount('deals')`, ca să nu repete interogarea pe fiecare rând — N+1 pe ecranul de
+     * configurare).
+     */
+    public function deletionBlockedReason(?int $dealsCount = null): ?string
+    {
+        $dealsCount ??= $this->deals()->count();
+
+        if ($dealsCount === 0) {
+            return null;
+        }
+
+        return $dealsCount === 1
+            ? 'This stage has 1 deal on it. Move that deal to another stage before deleting it.'
+            : "This stage has {$dealsCount} deals on it. Move them to another stage before deleting it.";
+    }
 }

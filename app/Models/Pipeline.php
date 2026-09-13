@@ -29,4 +29,14 @@ class Pipeline extends Model
     {
         return $this->hasMany(Deal::class);
     }
+
+    /**
+     * MVP: un singur pipeline per tenant (specs.md §9.2, pipeline-uri multiple = FR-DEAL-04,
+     * Faza 2 viitoare). Ecranul de configurare (Pachetul D) și acțiunile lui rezolvă mereu
+     * pipeline-ul implicit prin acest punct unic — nicio rută nu poartă `{pipeline}` în cale.
+     */
+    public static function resolveDefault(): self
+    {
+        return static::query()->where('is_default', true)->firstOrFail();
+    }
 }
