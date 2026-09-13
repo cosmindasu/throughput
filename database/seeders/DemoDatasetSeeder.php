@@ -69,22 +69,58 @@ class DemoDatasetSeeder extends Seeder
         ],
     ];
 
+    private float $scale = 1.0;
+
+    /**
+     * Fracțiunea din volumul §21.1 de generat — 1 pentru demo, sub 1 pentru suita E2E.
+     */
+    public function scaledTo(float $scale): static
+    {
+        $this->scale = $scale;
+
+        return $this;
+    }
+
+    /**
+     * Volumele §21.1, la scara cerută. Sub scara completă, fiecare volum are un minim care ține
+     * fluxurile E2E posibile (conturi pentru fiecare responsabil, deals pe mai multe etape,
+     * comenzi pe toate stările), nu doar o fracțiune aritmetică: 0,1% din cele 1.500 de conturi
+     * Northgate ar fi un singur cont.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function tenantConfigs(): array
+    {
+        if ($this->scale >= 1.0) {
+            return self::TENANTS;
+        }
+
+        return array_map(fn (array $config): array => [
+            ...$config,
+            'accounts' => max(40, (int) round($config['accounts'] * $this->scale)),
+            'orders' => max(60, (int) round($config['orders'] * $this->scale)),
+            'products' => max(12, (int) round($config['products'] * $this->scale)),
+        ], self::TENANTS);
+    }
+
     public function run(): void
     {
         $start = microtime(true);
 
+        $configs = $this->tenantConfigs();
+
         (new ImportFixtureSeeder)->run($this->command);
 
-        $tenants = (new TenantsSeeder)->run(self::TENANTS);
+        $tenants = (new TenantsSeeder)->run($configs);
 
         $this->command?->info('Users & memberships');
-        $usersByTenant = (new UsersAndMembershipsSeeder)->run($tenants, self::TENANTS);
+        $usersByTenant = (new UsersAndMembershipsSeeder)->run($tenants, $configs);
 
         $this->call(RoleAndPermissionSeeder::class);
 
         (new UsersAndMembershipsSeeder)->assignRoles($tenants, $usersByTenant);
 
-        foreach (self::TENANTS as $slug => $config) {
+        foreach ($configs as $slug => $config) {
             $tenant = $tenants[$slug];
             $staff = $usersByTenant[$slug];
 

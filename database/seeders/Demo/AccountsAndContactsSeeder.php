@@ -63,7 +63,10 @@ final class AccountsAndContactsSeeder
 
         for ($i = 1; $i <= $total; $i++) {
             $id = (string) Str::ulid();
-            $accountOwner = $pickOwner();
+            // Primele conturi merg garantat la Agentul demo: „My accounts" (US-CRM-02) trebuie să
+            // aibă ce arăta la orice scară. La scara E2E (40 de conturi, 5 agenți), distribuția
+            // aleatoare l-ar lăsa ocazional fără niciunul — un demo gol și un test instabil.
+            $accountOwner = $i <= 5 && $staff['demo_agent_id'] !== null ? $staff['demo_agent_id'] : $pickOwner();
             $createdAt = DemoClock::historicalDate(24);
             $name = DemoNames::company($config['vertical']);
             $domain = DemoNames::domain($name, $i);
