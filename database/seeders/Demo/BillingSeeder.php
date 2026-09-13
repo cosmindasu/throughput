@@ -31,7 +31,7 @@ final class BillingSeeder
     ];
 
     /**
-     * @param  list<array{id: string, account_id: string, status: string, grand_total: float, currency: string, created_at: Carbon, placed_at: ?Carbon, owner_user_id: string}>  $orders
+     * @param  list<array{id: string, account_id: string, status: string, grand_total: float, currency: string, created_at: int, placed_at: ?int, owner_user_id: string}>  $orders  timestamp-uri Unix, UTC
      * @param  array{accounts: list<array{id: string, credit_terms: string}>, contacts_by_account: array<string, list<string>>}  $accountsResult
      */
     public function run(Tenant $tenant, array $config, array $orders, array $accountsResult, ?Command $command, ActivityLogRecorder $activityLog): void
@@ -68,7 +68,10 @@ final class BillingSeeder
             $creditTerms = $creditTermsByAccount[$order['account_id']] ?? 'net_30';
             $termDays = self::CREDIT_TERM_DAYS[$creditTerms] ?? 30;
 
-            $issueDate = ($order['placed_at'] ?? $order['created_at'])->copy();
+            // Rezumatele poartă timestamp-uri, nu Carbon (vezi StockAndOrdersSeeder — memoria
+            // lui `demo:reset`). UTC explicit: aceeași zonă ca `DemoClock` și `app.timezone`,
+            // deci `issue_date` iese identic cu varianta pe obiecte.
+            $issueDate = Carbon::createFromTimestamp($order['placed_at'] ?? $order['created_at'], 'UTC');
             $dueDate = $issueDate->copy()->addDays($termDays);
 
             $statusBucket = Rand::weightedKey(['draft' => 3, 'void' => 2, 'paid' => 67, 'sent' => 18, 'overdue' => 10]);

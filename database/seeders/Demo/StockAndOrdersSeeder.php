@@ -41,7 +41,7 @@ final class StockAndOrdersSeeder
      * @param  array{accounts: list<array>, contacts_by_account: array<string, list<string>>}  $accountsResult
      * @param  array{won_deal_ids_by_account: array<string, list<string>>}  $dealsResult
      * @param  array{owner_id: string, demo_agent_id: ?string, pool: list<array{id: string, role: string}>}  $staff
-     * @return list<array{id: string, account_id: string, status: string, grand_total: float, currency: string, created_at: Carbon, placed_at: ?Carbon, owner_user_id: string}>
+     * @return list<array{id: string, account_id: string, status: string, grand_total: float, currency: string, created_at: int, placed_at: ?int, owner_user_id: string}> timestamp-uri Unix, UTC
      */
     public function run(Tenant $tenant, array $config, array $catalog, array $accountsResult, array $dealsResult, array $staff, ?Command $command, ActivityLogRecorder $activityLog): array
     {
@@ -92,8 +92,8 @@ final class StockAndOrdersSeeder
                 : $accounts[random_int(0, $accountCount - 1)];
 
             $createdAt = DemoClock::historicalDate(24);
-            if ($createdAt->lessThan($account['created_at'])) {
-                $createdAt = Carbon::parse($account['created_at'])->addDays(random_int(0, 5));
+            if ($createdAt->getTimestamp() < $account['created_at']) {
+                $createdAt = Carbon::createFromTimestamp($account['created_at'], 'UTC')->addDays(random_int(0, 5));
             }
 
             $bucket = Rand::weightedKey([
@@ -318,14 +318,19 @@ final class StockAndOrdersSeeder
                 $shipmentWriter->push($shipmentRow);
             }
 
+            // Timestamp-uri întregi, nu obiecte Carbon: lista ține TOATE comenzile tenantului
+            // până la facturare. Măsurat pe 30.000 de rânduri (Marlin): 134,6 MB cu două
+            // Carbon pe rând, 16,1 MB cu întregi. Diferența decide dacă `demo:reset` încape în
+            // `memory_limit` 128M din containerul `scheduler` sau moare după ce `migrate:fresh`
+            // a șters deja schema — cu demo-ul public gol până a doua zi.
             $summaries[] = [
                 'id' => $orderId,
                 'account_id' => $account['id'],
                 'status' => $status,
                 'grand_total' => $grandTotal,
                 'currency' => $orderRow['currency'],
-                'created_at' => $createdAt,
-                'placed_at' => $placedAt,
+                'created_at' => $createdAt->getTimestamp(),
+                'placed_at' => $placedAt?->getTimestamp(),
                 'owner_user_id' => $ownerId,
             ];
         }

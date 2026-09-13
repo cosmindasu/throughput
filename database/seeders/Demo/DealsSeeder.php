@@ -56,9 +56,10 @@ final class DealsSeeder
             $dealId = (string) Str::ulid();
             $ownerId = $ownerIds[array_rand($ownerIds)];
 
+            // `created_at` al contului e timestamp, nu Carbon — vezi AccountsAndContactsSeeder.
             $createdAt = DemoClock::historicalDate(24);
-            if ($createdAt->lessThan($account['created_at'])) {
-                $createdAt = Carbon::parse($account['created_at'])->addDays(random_int(0, 5));
+            if ($createdAt->getTimestamp() < $account['created_at']) {
+                $createdAt = Carbon::createFromTimestamp($account['created_at'], 'UTC')->addDays(random_int(0, 5));
             }
 
             $outcome = Rand::weightedKey(['won' => 35, 'lost' => 15, 'open' => 50]);

@@ -26,7 +26,7 @@ final class AccountsAndContactsSeeder
     /**
      * @param  array{owner_id: string, demo_agent_id: ?string, pool: list<array{id: string, role: string}>}  $staff
      * @return array{
-     *   accounts: list<array{id: string, owner_user_id: string, created_at: Carbon, credit_terms: string, status: string}>,
+     *   accounts: list<array{id: string, owner_user_id: string, created_at: int, credit_terms: string, status: string}>,
      *   contacts_by_account: array<string, list<string>>,
      * }
      */
@@ -85,10 +85,13 @@ final class AccountsAndContactsSeeder
             $writer->push($row);
             $activityLog->record($tenant->id, $accountOwner, 'created', Account::class, $id, $createdAt, null, ['name' => $name]);
 
+            // Timestamp, nu Carbon: lista trăiește cât tot seed-ul tenantului (deals, comenzi,
+            // facturare), iar un obiect Carbon costă ~2 KB — aceeași economie de memorie ca la
+            // rezumatele de comenzi din StockAndOrdersSeeder.
             $accounts[] = [
                 'id' => $id,
                 'owner_user_id' => $accountOwner,
-                'created_at' => $createdAt,
+                'created_at' => $createdAt->getTimestamp(),
                 'credit_terms' => $row['credit_terms'],
                 'status' => $row['status'],
             ];
