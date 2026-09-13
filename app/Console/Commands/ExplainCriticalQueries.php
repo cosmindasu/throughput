@@ -16,14 +16,29 @@ use Illuminate\Support\Facades\DB;
  * să fie coloana de LIDER a indexului, altfel RLS poate fi cu ordine de mărime mai lent.
  * Asta e ușor de greșit la a treia migrație dintr-o zi lungă și imposibil de observat pe un
  * seed mic — un criteriu citit cu ochiul e un criteriu care se pierde.
+ *
+ * Intrările de căutare globală (BR-SEARCH-01) NU cad sub regula de mai sus (ADR-018): `%`,
+ * `similarity()` și `ILIKE` nu sunt LEAKPROOF, deci sub RLS PostgreSQL le evaluează DUPĂ
+ * politica de tenant — niciun index nu le poate accelera, iar planificatorul poate alege
+ * legitim Seq Scan pe `contacts` (tenantul vitrină are ~jumătate din tabelă). Regula pentru
+ * ele e alta: Seq Scan e ACCEPTAT explicit, cu notă în output, dar timpul de execuție e
+ * verificat contra unui buget (implicit 200 ms — pragul p95 din specs §20.1 pentru citiri
+ * simple). Restul interogărilor păstrează regula strictă de index.
  */
 class ExplainCriticalQueries extends Command
 {
     protected $signature = 'db:explain-critical
         {--tenant= : Slug-ul tenantului de analizat (implicit: cel cu cele mai multe comenzi)}
-        {--threshold=10000 : Numărul de rânduri de la care un Seq Scan devine eroare}';
+        {--threshold=10000 : Numărul de rânduri de la care un Seq Scan devine eroare (regula de index)}
+        {--search-budget-ms=200 : Bugetul de execuție (ms) pentru intrările de căutare sub RLS (ADR-018)}';
 
-    protected $description = 'EXPLAIN ANALYZE pe interogările critice; eșuează la Seq Scan pe tabele mari.';
+    protected $description = 'EXPLAIN ANALYZE pe interogările critice; index strict, buget de timp pe căutare (ADR-018).';
+
+    /**
+     * Prefixul de etichetă (§ convenția din `queries()`) care marchează o intrare drept
+     * căutare globală — regula de buget (ADR-018), nu regula de index.
+     */
+    private const SEARCH_LABEL_PREFIX = 'search — ';
 
     public function handle(): int
     {
@@ -36,11 +51,15 @@ class ExplainCriticalQueries extends Command
         }
 
         $threshold = (int) $this->option('threshold');
+        $searchBudgetMs = (float) $this->option('search-budget-ms');
         $sizes = $this->tableSizes();
 
-        $this->components->info("Tenant: {$tenant->name} ({$tenant->slug}) · prag Seq Scan: {$threshold} rânduri");
+        $this->components->info(
+            "Tenant: {$tenant->name} ({$tenant->slug}) · prag Seq Scan: {$threshold} rânduri · buget căutare: {$searchBudgetMs} ms (ADR-018)"
+        );
 
-        $failures = [];
+        $indexFailures = [];
+        $budgetFailures = [];
 
         foreach ($this->queries($tenant) as $label => $query) {
             [$sql, $bindings] = $query;
@@ -57,38 +76,101 @@ class ExplainCriticalQueries extends Command
             $root = $decoded[0]['Plan'] ?? [];
             $duration = $decoded[0]['Execution Time'] ?? 0.0;
 
-            $offending = collect($this->sequentialScans($root))
-                ->filter(fn (string $table) => ($sizes[$table] ?? 0) >= $threshold)
-                ->unique()
-                ->values();
-
-            if ($offending->isNotEmpty()) {
-                $failures[$label] = $offending->all();
-                $this->components->twoColumnDetail(
-                    "<fg=red>✗</> {$label}",
-                    sprintf('%.1f ms · Seq Scan pe %s', $duration, $offending->implode(', '))
-                );
+            if (str_starts_with($label, self::SEARCH_LABEL_PREFIX)) {
+                $this->reportSearchEntry($label, $root, $duration, $searchBudgetMs, $budgetFailures);
 
                 continue;
             }
 
-            $this->components->twoColumnDetail("<fg=green>✓</> {$label}", sprintf('%.1f ms', $duration));
+            $this->reportIndexedEntry($label, $root, $duration, $threshold, $sizes, $indexFailures);
         }
 
-        if ($failures !== []) {
+        if ($indexFailures !== [] || $budgetFailures !== []) {
             $this->newLine();
-            $this->components->error(sprintf(
-                '%d interogări critice fac Seq Scan pe tabele mari. Remediul e un index compus cu `tenant_id` pe prima poziție (§7.7), nu relaxarea pragului.',
-                count($failures)
-            ));
+
+            if ($indexFailures !== []) {
+                $this->components->error(sprintf(
+                    '%d interogări critice fac Seq Scan pe tabele mari. Remediul e un index compus cu `tenant_id` pe prima poziție (§7.7), nu relaxarea pragului.',
+                    count($indexFailures)
+                ));
+            }
+
+            if ($budgetFailures !== []) {
+                $this->components->error(sprintf(
+                    '%d intrări de căutare depășesc bugetul de %s ms sub RLS (ADR-018). Seq Scan e acceptat pentru ele; timpul, nu.',
+                    count($budgetFailures),
+                    $searchBudgetMs
+                ));
+            }
 
             return self::FAILURE;
         }
 
         $this->newLine();
-        $this->components->info('Toate interogările critice folosesc indexuri.');
+        $this->components->info('Toate interogările critice respectă regula lor: index strict, sau buget de timp pentru căutare (ADR-018).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Regula de INDEX (§7.7): eșec dacă planul conține `Seq Scan` pe o tabelă la sau peste
+     * `$threshold` rânduri. Neschimbată de ADR-018 — se aplică tuturor intrărilor, mai puțin
+     * căutării globale.
+     *
+     * @param  array<string, mixed>  $root
+     * @param  array<string, int>  $sizes
+     * @param  array<string, list<string>>  $failures
+     */
+    private function reportIndexedEntry(string $label, array $root, float $duration, int $threshold, array $sizes, array &$failures): void
+    {
+        $offending = collect($this->sequentialScans($root))
+            ->filter(fn (string $table) => ($sizes[$table] ?? 0) >= $threshold)
+            ->unique()
+            ->values();
+
+        if ($offending->isNotEmpty()) {
+            $failures[$label] = $offending->all();
+            $this->components->twoColumnDetail(
+                "<fg=red>✗</> {$label}",
+                sprintf('%.1f ms · Seq Scan pe %s · regulă: index (§7.7)', $duration, $offending->implode(', '))
+            );
+
+            return;
+        }
+
+        $this->components->twoColumnDetail("<fg=green>✓</> {$label}", sprintf('%.1f ms · regulă: index (§7.7)', $duration));
+    }
+
+    /**
+     * Regula de BUGET (ADR-018), pentru căutarea globală: Seq Scan e ACCEPTAT explicit (notă
+     * vizibilă în output), pentru că sub RLS niciun index nu poate accelera `%`/`similarity()`/
+     * `ILIKE` — nu sunt LEAKPROOF, deci sunt evaluate după politica de tenant. Ce contează în
+     * schimb e timpul de execuție, contra `$budgetMs`.
+     *
+     * @param  array<string, mixed>  $root
+     * @param  array<string, float>  $failures
+     */
+    private function reportSearchEntry(string $label, array $root, float $duration, float $budgetMs, array &$failures): void
+    {
+        $scannedTables = collect($this->sequentialScans($root))->unique()->values();
+        $seqScanNote = $scannedTables->isNotEmpty()
+            ? sprintf(' · Seq Scan acceptat pe %s — căutare sub RLS, ADR-018', $scannedTables->implode(', '))
+            : '';
+
+        if ($duration > $budgetMs) {
+            $failures[$label] = $duration;
+            $this->components->twoColumnDetail(
+                "<fg=red>✗</> {$label}",
+                sprintf('%.1f ms peste bugetul de %s ms%s · regulă: buget (ADR-018)', $duration, $budgetMs, $seqScanNote)
+            );
+
+            return;
+        }
+
+        $this->components->twoColumnDetail(
+            "<fg=green>✓</> {$label}",
+            sprintf('%.1f ms%s · regulă: buget %s ms (ADR-018)', $duration, $seqScanNote, $budgetMs)
+        );
     }
 
     private function resolveTenant(): ?Tenant
@@ -164,19 +246,21 @@ class ExplainCriticalQueries extends Command
                 'select * from activity_log order by created_at desc limit 10', [],
             ],
 
-            // Căutare globală (FR-SEARCH-01/02, BR-SEARCH-01) — termen cu o greșeală de
-            // tastare deliberată („fastners" în loc de „fasteners"), ca planul măsurat să
-            // fie cel al cazului pe care indexul trigram există să-l rezolve, nu al unei
-            // potriviri exacte pe care orice index ar rezolva-o oricum.
-            'search — accounts (trigram, BR-SEARCH-01)' => [
+            // Căutare globală (FR-SEARCH-01/02, BR-SEARCH-01, ADR-018) — termen cu o greșeală
+            // de tastare deliberată („fastners" în loc de „fasteners"), ca planul măsurat să
+            // fie cel al cazului pe care `%`/`similarity()` există să-l rezolve, nu al unei
+            // potriviri exacte pe care un `=` ar rezolva-o oricum. FĂRĂ index GIN (ADR-018):
+            // eticheta nu mai spune „trigram" ca să nu sugereze unul — `pg_trgm` rămâne
+            // extensia care oferă operatorul și funcția, nu un index folosibil sub RLS.
+            'search — accounts (BR-SEARCH-01, ADR-018)' => [
                 'select id, name, domain, status from accounts where (name % ? or name ilike ?) order by similarity(name, ?) desc limit 5',
                 ['fastners', '%fastners%', 'fastners'],
             ],
-            'search — contacts (trigram, nume complet)' => [
+            'search — contacts (nume complet, ADR-018)' => [
                 "select id, first_name, last_name from contacts where ((first_name || ' ' || last_name) % ? or (first_name || ' ' || last_name) ilike ?) order by similarity(first_name || ' ' || last_name, ?) desc limit 5",
                 ['jon smth', '%jon smth%', 'jon smth'],
             ],
-            'search — deals (trigram, titlu)' => [
+            'search — deals (titlu, ADR-018)' => [
                 'select id, title from deals where (title % ? or title ilike ?) order by similarity(title, ?) desc limit 5',
                 ['anual suply', '%anual suply%', 'anual suply'],
             ],
