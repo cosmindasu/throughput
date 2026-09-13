@@ -111,6 +111,61 @@ class ThemeTest extends TestCase
             );
     }
 
+    public function test_the_current_users_explicit_choice_wins_over_a_cookie_left_by_a_previous_account(): void
+    {
+        // P2-004 (review 2026-09-13) — §7.3, login succesiv cu conturi demo pe ACELAȘI
+        // browser: Owner alege Dark (cookie-ul browser-ului rămâne `dark`), se
+        // delogează; Managerul, cu `users.theme = light` ALES EXPLICIT, trebuie să-și
+        // vadă PROPRIA temă chiar în PRIMUL răspuns server-side — nu cookie-ul moștenit
+        // de la contul anterior. Înainte de remediere, `resolveForRequest()` citea
+        // cookie-ul înaintea alegerii utilizatorului curent, deci Managerul vedea Dark.
+        $manager = $this->makeMember($this->tenant, 'demo.manager@throughput.dev', Permissions::MANAGER);
+        $manager->forceFill(['theme' => 'light'])->save();
+
+        $response = $this->withUnencryptedCookie('theme', 'dark')
+            ->actingAs($manager)
+            ->get('/marlin/dashboard');
+
+        $response->assertSee('color-scheme: light', false);
+        $response->assertDontSee('<html lang="en" class="dark"', false);
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('theme', 'light')
+            ->where('auth.user.theme', 'light')
+        );
+
+        // Simetric, ca regula să nu fie o coincidență a unei singure direcții: Owner cu
+        // `dark` ales explicit, cookie de browser moștenit `light` de la un alt cont —
+        // tot alegerea LUI câștigă.
+        $this->owner->forceFill(['theme' => 'dark'])->save();
+
+        $response = $this->withUnencryptedCookie('theme', 'light')
+            ->actingAs($this->owner)
+            ->get('/marlin/dashboard');
+
+        $response->assertSee('<html lang="en" class="dark"', false);
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('theme', 'dark')
+            ->where('auth.user.theme', 'dark')
+        );
+    }
+
+    public function test_a_user_with_the_system_choice_still_resolves_from_the_browser_cookie(): void
+    {
+        // Complementar testului de mai sus: cookie-ul rămâne sursa pentru „System"
+        // (alegerea utilizatorului NU fixează light/dark), exact pasul 2 din
+        // `ThemePreference::resolveForRequest()` — remedierea P2-004 nu trebuia să-l
+        // strice pe acesta.
+        $this->owner->forceFill(['theme' => 'system'])->save();
+
+        $response = $this->withUnencryptedCookie('theme', 'light')
+            ->actingAs($this->owner)
+            ->get('/marlin/dashboard');
+
+        $response->assertSee('color-scheme: light', false);
+        $response->assertDontSee('<html lang="en" class="dark"', false);
+        $response->assertInertia(fn (AssertableInertia $page) => $page->where('theme', 'light'));
+    }
+
     public function test_a_viewer_can_switch_theme(): void
     {
         // BR-PREF-02 — comutarea temei nu e o acțiune de scriere de business: nu
@@ -141,7 +196,27 @@ class ThemeTest extends TestCase
             ->patch('/preferences/theme', ['theme' => 'purple'])
             ->assertSessionHasErrors('theme');
 
-        $this->assertSame('system', $this->owner->fresh()->theme);
+        // Ajustat (2026-09-13, decizia proprietarului §15.6): `$this->owner` intră în
+        // acest test fără nicio scriere explicită pe `theme` (`TestCase::makeMember()`
+        // nu trece coloana), deci valoarea e implicitul din migrație — `dark`, nu
+        // `system` de dinainte de `2026_09_13_120000_change_users_theme_default_to_dark`.
+        // Ce verifică testul rămâne neschimbat: o valoare respinsă nu atinge coloana.
+        $this->assertSame('dark', $this->owner->fresh()->theme);
+    }
+
+    public function test_a_new_user_defaults_to_dark_when_no_choice_was_ever_made(): void
+    {
+        // Decizia proprietarului (2026-09-13, specs.md §15.6): implicitul coloanei
+        // `users.theme` e acum `dark`, FIX, pentru cine n-a ales nimic — inclusiv cele 4
+        // conturi demo, recreate ca rânduri noi la fiecare `demo:reset`
+        // (`migrate:fresh` + reseed, niciun seeder din `database/seeders/Demo` nu trece
+        // `theme` explicit). `User::factory()` nu setează `theme`, deci verifică exact
+        // implicitul de coloană, nu un cod aplicativ. `fresh()`, nu instanța din
+        // `create()`: Eloquent nu re-citește rândul după INSERT, deci `theme` ar rămâne
+        // `null` în memorie — DEFAULT-ul e vizibil doar dintr-o citire reală.
+        $user = User::factory()->create()->fresh();
+
+        $this->assertSame('dark', $user->theme);
     }
 
     public function test_a_guest_is_redirected_to_login(): void
