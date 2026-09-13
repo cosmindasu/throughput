@@ -1,10 +1,12 @@
 import type { HelpTopic } from '@/help/types';
 
 /**
- * `Settings/Index` — specs.md §7.1/7.3/7.4 (matricea de permisiuni), hub-ul din
- * care pornesc Preferences, Members, Billing etc. Doar Preferences există în
- * această fază (§3.2) — restul secțiunilor sosesc cu fazele lor, fără să atingă
- * acest subiect.
+ * `Settings/Index` — specs.md §7.1/7.3/7.4 (matricea de permisiuni), hub-ul din care pornesc
+ * Preferences, Pipeline, Members, Billing etc.
+ *
+ * Reconciliat cu codul la 2026-09-13: cardurile din `Pages/Settings/Index.tsx` (`SECTIONS`,
+ * insigna „Coming in a later phase", butonul „Open") și `can` din
+ * `SettingsController::index()`, calculat din `App\Support\Permissions::forRoles()`.
  */
 const settings: HelpTopic = {
     id: 'settings',
@@ -13,12 +15,14 @@ const settings: HelpTopic = {
         "This is the hub for everything about how your workspace and your account are configured — not customer data, just setup.",
     whatCanYouDo: [
         'Open "Preferences" to change your theme (System, Light or Dark).',
-        "See the sections your role has access to — the list itself changes depending on who you are.",
+        'Open "Pipeline" to see the stages used by the deals board — and change them, if you are an Owner or Manager.',
+        'See which workspace sections your role has: cards marked "Coming in a later phase" have no "Open" button yet.',
     ],
     rules: [
-        'Only Owner sees "Billing & Subscription" here — Manager has full operational access everywhere else, but not to billing.',
-        "What you see on this page is computed from your role's actual permissions, not hidden with CSS — a link you can't use doesn't appear at all, rather than appearing and then refusing you.",
-        "More sections (Members, Carrier settings, API tokens, Export data) arrive with the phases that build them — this hub doesn't need to change when they do.",
+        'Every role sees "Preferences". "Pipeline" shows for Owner, Manager and Viewer; "Members" and "API Tokens" for Owner and Manager; "Billing & Subscription" only for Owner — so an Agent sees just "Preferences".',
+        'Manager has full operational access everywhere else, but not to billing: the "Billing & Subscription" card never appears for them.',
+        "What you see on this page is computed from your role's actual permissions on the server, not hidden with CSS — a section you can't use doesn't appear at all, rather than appearing and then refusing you.",
+        '"Members", "Billing & Subscription" and "API Tokens" are placeholders for now: they show the "Coming in a later phase" badge instead of a link.',
     ],
     howItsBuilt: {
         summary:
