@@ -57,6 +57,52 @@ class AccountCrudTest extends TestCase
         $this->assertSame('jane.doe@northwind.test', $contact->email, 'Emailul se normalizează la litere mici.');
     }
 
+    /**
+     * P2-001 (code review, al doilea strat) — `AccountForm.tsx` trimite mereu cheia
+     * `contact`, chiar necompletată: un `contact` cu TOATE câmpurile goale (string-uri, nu
+     * `null`/absente) trebuie tratat ca „nu vreau contact", nu ca o cerere de contact fără
+     * nume. `StoreAccountRequest::prepareForValidation()` scoate cheia înainte de validare
+     * — verificat direct la nivel de HTTP (payload brut), nu doar prin formular, ca regula
+     * să nu depindă de faptul că React omite cheia.
+     */
+    public function test_an_all_blank_contact_is_treated_as_no_contact(): void
+    {
+        $response = $this->actingAs($this->owner)->post('/marlin/accounts', [
+            'name' => 'Blank Contact Co',
+            'status' => 'prospect',
+            'credit_terms' => 'net_30',
+            'contact' => ['first_name' => '', 'last_name' => '', 'email' => '', 'phone' => '', 'title' => ''],
+        ]);
+
+        $response->assertSessionHasNoErrors()->assertRedirect();
+
+        $account = TenantContext::run($this->marlin, fn () => Account::query()->where('name', 'Blank Contact Co')->firstOrFail());
+        $this->assertFalse(
+            TenantContext::run($this->marlin, fn () => Contact::query()->where('account_id', $account->getKey())->exists()),
+            'Niciun contact nu se creează pentru un `contact` complet gol.'
+        );
+    }
+
+    /**
+     * P2-001 — un `contact` completat PARȚIAL (doar email, fără nume) rămâne o cerere reală
+     * de a salva un contact — `required_with:contact` trebuie să ceară numele, nu să
+     * dispară tăcut. Diferă de testul de mai sus prin exact un câmp non-gol.
+     */
+    public function test_a_partially_filled_contact_requires_first_and_last_name(): void
+    {
+        $this->actingAs($this->owner)->post('/marlin/accounts', [
+            'name' => 'Partial Contact Co',
+            'status' => 'prospect',
+            'credit_terms' => 'net_30',
+            'contact' => ['first_name' => '', 'last_name' => '', 'email' => 'someone@partial.test', 'phone' => '', 'title' => ''],
+        ])->assertSessionHasErrors(['contact.first_name', 'contact.last_name']);
+
+        $this->assertFalse(
+            TenantContext::run($this->marlin, fn () => Account::query()->where('name', 'Partial Contact Co')->exists()),
+            'Nimic nu se salvează cât timp contactul parțial nu trece validarea.'
+        );
+    }
+
     public function test_a_duplicate_contact_email_stops_the_save_until_confirmed(): void
     {
         TenantContext::run($this->marlin, function (): void {

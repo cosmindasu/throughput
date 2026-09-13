@@ -86,10 +86,13 @@ export default function AccountForm({ mode, account, owners, prefillName, action
         // `FormRequest` înseamnă „cheia există", nu „are o valoare utilă". Rezultat: orice
         // creare de cont FĂRĂ contact principal (calea comună, contactul e opțional)
         // eșua cu 422 direct din formularul real — nu dintr-o eroare de test. Cheia
-        // `contact` se omite acum din payload când ambele nume sunt goale, exact cazul
-        // „nu completez contactul", ca `required_with:contact` să nu se mai declanșeze.
-        const { first_name: contactFirstName, last_name: contactLastName } = data.contact;
-        const hasContact = mode === 'create' && (contactFirstName.trim() !== '' || contactLastName.trim() !== '');
+        // `contact` se omite acum din payload doar când TOATE câmpurile sunt goale, exact
+        // cazul „nu completez contactul deloc" — P2-001 (code review): un `hasContact`
+        // uitat-doar-la-nume pierdea TĂCUT un contact completat doar cu email/phone/title
+        // (fără eroare, fără contact salvat). `StoreAccountRequest::prepareForValidation()`
+        // aplică ACEEAȘI regulă ca al doilea strat, server-side — front-end-ul nu e singura
+        // apărare (ex: un client care trimite direct payload-ul HTTP, fără acest formular).
+        const hasContact = mode === 'create' && Object.values(data.contact).some((value) => value.trim() !== '');
 
         transform((current) => {
             const { contact, ...withoutContact } = current;
