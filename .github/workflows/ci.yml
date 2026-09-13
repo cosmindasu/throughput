@@ -299,6 +299,12 @@ jobs:
       # PR (non-draft): subset `@smoke`. Push pe `main`/tag: suită completă (RBAC,
       # comutare workspace, axe-core pe ambele teme).
       - name: "Playwright"
+        # `e2eEnv()` (e2e/support/env.ts) citește DB_HOST/DB_PORT din mediul procesului, nu din
+        # `.env`, cu implicitul local 55432. Fără ele aici, serverul și `migrate:fresh` ar căuta
+        # Postgres pe 55432, nu pe serviciul jobului; local nu se vede, fiindcă acolo chiar există.
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
         run: npx playwright test -c e2e/playwright.config.ts ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && '' || '--grep @smoke' }}
 
       # DOAR la eșec — un run verde n-are nimic de arătat, iar retenția scurtă
