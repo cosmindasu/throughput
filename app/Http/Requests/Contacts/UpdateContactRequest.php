@@ -3,16 +3,17 @@
 namespace App\Http\Requests\Contacts;
 
 use App\Models\Contact;
+use App\Support\Contacts\AccountBelongsToTenant;
 use App\Support\Contacts\DuplicateContactEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
  * FR-CRM-02 — editare de contact, inclusiv mutarea între conturi (`account_id`
  * schimbat față de valoarea curentă). Vezi `StoreContactRequest` pentru motivul
- * pentru care `Rule::exists('accounts', 'id')` respinge singur un cont din alt tenant.
+ * pentru care `AccountBelongsToTenant` respinge singur un cont din alt tenant, pe
+ * ambele straturi (ADR-003, P1-001).
  */
 final class UpdateContactRequest extends FormRequest
 {
@@ -38,7 +39,7 @@ final class UpdateContactRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_id' => ['nullable', 'string', Rule::exists('accounts', 'id')],
+            'account_id' => ['nullable', 'string', new AccountBelongsToTenant],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -47,13 +48,6 @@ final class UpdateContactRequest extends FormRequest
             'is_primary' => ['sometimes', 'boolean'],
             'opt_out' => ['sometimes', 'boolean'],
             'confirm_duplicate_email' => ['sometimes', 'boolean'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'account_id.exists' => 'Select an account from this workspace.',
         ];
     }
 

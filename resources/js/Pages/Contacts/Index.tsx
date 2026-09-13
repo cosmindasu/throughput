@@ -1,6 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { type FormEvent, type ReactNode } from 'react';
-import { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
@@ -108,16 +108,25 @@ export default function ContactsIndex() {
 }
 
 function ContactsTable() {
-    const { contacts, can, workspace } = usePage<ContactsIndexPageProps>().props;
+    const { contacts, list, can, workspace } = usePage<ContactsIndexPageProps>().props;
+    const { setFilter } = useListFilters(list);
+
+    // P2-002 (code review) — aliniat la `Pages/Accounts/Index.tsx`: o listă goală
+    // DIN CAUZA unui filtru nu e aceeași stare ca o listă goală de-adevăratelea, iar
+    // acțiunea oferită diferă («Clear filters» vs. «Create your first contact»).
+    const hasFilters = Object.keys(list.filter).length > 0;
 
     if (contacts.data.length === 0) {
         return (
             <EmptyState
-                message="No contacts match this filter."
+                message={hasFilters ? 'No contacts match this filter.' : 'No contacts yet.'}
                 action={
-                    can.create && workspace ? (
-                        <ButtonLink href={`/${workspace.slug}/contacts/create`}>Create your first contact</ButtonLink>
-                    ) : undefined
+                    hasFilters ? (
+                        <Button onClick={() => clearFilters(setFilter)}>Clear filters</Button>
+                    ) : (
+                        can.create &&
+                        workspace && <ButtonLink variant="primary" href={`/${workspace.slug}/contacts/create`}>Create your first contact</ButtonLink>
+                    )
                 }
             />
         );
@@ -192,6 +201,10 @@ function ContactsTable() {
             <CursorPagination nextCursor={contacts.nextCursor} prevCursor={contacts.prevCursor} />
         </div>
     );
+}
+
+function clearFilters(setFilter: (key: string, value: string | null) => void): void {
+    ['q', 'account'].forEach((key) => setFilter(key, null));
 }
 
 ContactsIndex.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;
