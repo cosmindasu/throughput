@@ -1,9 +1,10 @@
 @php
     // FR-PREF-03 — fără licărire de temă: clasa se randează direct pe <html>
-    // la primul răspuns, citită din cookie-ul `theme` server-side. Implicit:
-    // tema închisă. Un useEffect care aplică tema după hidratare ar produce
-    // exact licărirea pe care cerința o interzice — de asta nu se face acolo.
-    $theme = request()->cookie('theme') === 'light' ? 'light' : 'dark';
+    // la primul răspuns, ÎNAINTE de orice JS. Rezoluția (cookie → users.theme
+    // explicit → implicit închis) e în App\Support\ThemePreference, sursă unică
+    // cu propul `theme` din HandleInertiaRequests::share() — un useEffect care
+    // ar aplica tema după hidratare ar produce exact licărirea interzisă aici.
+    $theme = \App\Support\ThemePreference::resolveForRequest(request());
 
     // Preload pe cele două fețe din primul paint (urls.md, „Tipografie"): Sans 400
     // pentru tot textul, Mono 400 pentru cifre. Fără el, fonturile se descoperă abia

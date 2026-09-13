@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Support\Permissions;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -64,6 +65,28 @@ class AppShellTest extends TestCase
 
         $response->assertSee('color-scheme: light', false);
         $response->assertDontSee('<html lang="en" class="dark"', false);
+        $response->assertInertia(fn (AssertableInertia $page) => $page->where('theme', 'light'));
+    }
+
+    /**
+     * FR-PREF-03, cazul explicit din plan §8: „dispozitiv nou fără cookie" — fallback
+     * pe `users.theme` pentru un utilizator autentificat cu alegere EXPLICITĂ
+     * (light/dark, nu System — vezi App\Support\ThemePreference::resolveForRequest()).
+     */
+    public function test_an_authenticated_user_without_a_cookie_falls_back_to_their_stored_explicit_theme(): void
+    {
+        $tenant = $this->makeTenant('marlin', 'Marlin Fasteners & Supply Co.');
+        $user = $this->makeMember($tenant, 'demo.owner@throughput.dev', Permissions::OWNER);
+        $user->forceFill(['theme' => 'light'])->save();
+
+        $this->clearDatabaseTenantContext();
+
+        // Ruta publică `/` — fără workspace, deci fără nevoie de context de tenant —
+        // dar utilizatorul E autentificat, exact scenariul „cont vechi, dispozitiv nou".
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertDontSee('<html lang="en" class="dark"', false);
+        $response->assertSee('color-scheme: light', false);
         $response->assertInertia(fn (AssertableInertia $page) => $page->where('theme', 'light'));
     }
 

@@ -6,6 +6,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Resources\WorkspaceResource;
 use App\Models\Membership;
 use App\Models\User;
+use App\Support\ThemePreference;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -53,11 +54,11 @@ class HandleInertiaRequests extends Middleware
             // bannerul de demo s-ar fi stins tăcut exact în producție (§22).
             'demoMode' => config('throughput.demo.mode'),
 
-            // Cookie-ul `theme` e sursa de adevăr pentru randarea fără
-            // licărire (FR-PREF-03) — vezi și resources/views/app.blade.php,
-            // care citește același cookie direct, înaintea oricărui prop
-            // Inertia, pentru clasa de pe <html>.
-            'theme' => $request->cookie('theme') === 'light' ? 'light' : 'dark',
+            // Sursă unică cu resources/views/app.blade.php (care citește același
+            // cookie direct, înaintea oricărui prop Inertia, pentru clasa de pe
+            // <html>): App\Support\ThemePreference — FR-PREF-03, nu o duplicare
+            // a regulii de rezoluție în două locuri care se pot desincroniza.
+            'theme' => ThemePreference::resolveForRequest($request),
 
             // Plan §1.2 regula 3 — sursă unică pentru `auth.user`, `workspace`,
             // `workspaces`, `navigation`. TOATE patru sunt închise în closures, NU calculate
