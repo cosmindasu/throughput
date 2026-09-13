@@ -70,22 +70,25 @@ class DealController extends Controller
     }
 
     /**
-     * US-DEAL-01 — precompletat din `?account=`. Deal-urile se creează DIN pagina unui
-     * cont (URL convenit: `/{w}/deals/create?account={id}`), nu dintr-un formular
-     * generic cu selector de cont — Accounts (căutare/listă) e alt pachet, încă
-     * nemerge în acest branch.
+     * US-DEAL-01 — precompletat din `?account=` când parametrul există (link „New deal"
+     * din pagina unui cont, `Accounts/Show.tsx`). Acum că pagina de Accounts e pe branch,
+     * câmpul „Account" e un `AccountCombobox` obligatoriu, nu un cont impus: fără
+     * `?account=`, pagina se deschide cu câmpul gol (nu 404) și utilizatorul alege contul
+     * din combobox înainte de submit.
+     *
+     * Un `?account=` PREZENT dar invalid (ULID din alt tenant sau inexistent) rămâne
+     * `findOrFail` → 404, ca înainte — doar ABSENȚA parametrului nu mai e o eroare.
      */
     public function create(Request $request): Response
     {
         Gate::authorize('create', Deal::class);
 
-        $account = Account::query()->findOrFail($request->query('account'));
+        $accountId = $request->query('account');
+        $account = $accountId !== null && $accountId !== '' ? Account::query()->findOrFail($accountId) : null;
 
         return Inertia::render('Deals/Create', [
-            'account' => ['id' => $account->id, 'name' => $account->name],
-            'contacts' => DealContactOptionResource::collection(
-                $account->contacts()->orderBy('first_name')->get(['id', 'first_name', 'last_name'])
-            ),
+            'account' => $account !== null ? ['id' => $account->id, 'name' => $account->name] : null,
+            'contacts' => $this->contactsForAccount($account?->id),
             'can' => ['changeOwner' => Gate::allows('changeOwner', Deal::class)],
             'owners' => Gate::allows('changeOwner', Deal::class) ? $this->ownerOptions() : [],
         ]);
@@ -138,17 +141,25 @@ class DealController extends Controller
         ]);
     }
 
-    public function edit(Deal $deal): Response
+    /**
+     * `?account=` e opțional AICI și diferit de rolul lui pe `create()`: nu precompletează
+     * nimic, doar spune cărui cont să-i afișeze contactele când formularul cere o
+     * reîncărcare parțială (`AccountCombobox` → `router.get` pe aceeași pagină, cu noul
+     * `account_id` ales) — vezi `resources/js/Pages/Deals/Edit.tsx`. Absența lui (prima
+     * încărcare a paginii) cade pe contul curent al deal-ului. Deal-ul propriu-zis NU se
+     * schimbă aici — doar la `update()`, după submit.
+     */
+    public function edit(Request $request, Deal $deal): Response
     {
         Gate::authorize('update', $deal);
 
         $deal->load(['account:id,name', 'primaryContact:id,first_name,last_name']);
 
+        $accountId = $request->has('account') ? $request->query('account') : $deal->account_id;
+
         return Inertia::render('Deals/Edit', [
             'deal' => DealResource::make($deal),
-            'contacts' => DealContactOptionResource::collection(
-                $deal->account->contacts()->orderBy('first_name')->get(['id', 'first_name', 'last_name'])
-            ),
+            'contacts' => $this->contactsForAccount($accountId),
             'can' => [
                 'changeOwner' => Gate::allows('changeOwner', $deal),
                 'delete' => Gate::allows('delete', $deal),
@@ -157,12 +168,21 @@ class DealController extends Controller
         ]);
     }
 
+    /**
+     * §9 task (Pachetul „AccountCombobox pe deal") — `account_id` e acum editabil, cu
+     * aceleași reguli ca la creare (`UpdateDealRequest`: tenant curent + policy de cont).
+     * Mutarea pe alt cont NU atinge `stage_id`, nu inserează `deal_stage_events` și nu
+     * schimbă `owner_user_id` decât dacă `changeOwner` e permis ȘI câmpul e trimis —
+     * exact ca înainte. `DealStageController::move()` rămâne singurul loc care schimbă
+     * etapa.
+     */
     public function update(UpdateDealRequest $request, Deal $deal): RedirectResponse
     {
         Gate::authorize('update', $deal);
 
         $data = $request->validated();
 
+        $deal->account_id = $data['account_id'];
         $deal->title = $data['title'];
         $deal->value = $data['value'] ?? null;
         $deal->expected_close_date = $data['expected_close_date'] ?? null;
@@ -279,6 +299,25 @@ class DealController extends Controller
     {
         return DealOwnerOptionResource::collection(
             Membership::query()->where('status', Membership::STATUS_ACTIVE)->with('user:id,name')->get()
+        );
+    }
+
+    /**
+     * Contactele disponibile pentru „Primary contact", scopate la contul ales în
+     * `AccountCombobox` (Create ȘI Edit — §9 task: „contactul principal depinde de
+     * cont"). `find()`, nu `findOrFail()`: id-ul poate fi tranzitoriu (utilizatorul tocmai
+     * a șters selecția din combobox) — o listă goală e răspunsul corect, nu un 404.
+     */
+    private function contactsForAccount(?string $accountId): AnonymousResourceCollection
+    {
+        $account = $accountId !== null && $accountId !== '' ? Account::query()->find($accountId) : null;
+
+        if ($account === null) {
+            return DealContactOptionResource::collection(collect());
+        }
+
+        return DealContactOptionResource::collection(
+            $account->contacts()->orderBy('first_name')->get(['id', 'first_name', 'last_name'])
         );
     }
 

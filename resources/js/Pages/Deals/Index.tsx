@@ -148,7 +148,11 @@ function DealsTable({
         return (
             <EmptyState
                 message="No deals match this filter."
-                action={canCreate ? <p className="text-xs text-text-3">Create a deal from an account page.</p> : undefined}
+                action={
+                    canCreate ? (
+                        <p className="text-xs text-text-3">You can create a deal directly, or from an account page.</p>
+                    ) : undefined
+                }
             />
         );
     }

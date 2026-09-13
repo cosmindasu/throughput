@@ -1,5 +1,6 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
@@ -7,6 +8,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import type { DealsEditPageProps } from '@/types/generated';
 
 interface DealFormData {
+    account_id: string;
     title: string;
     value: string;
     expected_close_date: string;
@@ -16,24 +18,47 @@ interface DealFormData {
 }
 
 /**
- * Titlu, valoare, dată estimată, contact principal, owner (doar cu `can.changeOwner`).
+ * Cont (via `AccountCombobox`, aceeași componentă ca `Create.tsx`/`ContactForm.tsx`),
+ * titlu, valoare, dată estimată, contact principal, owner (doar cu `can.changeOwner`).
  * ETAPA NU se schimbă din acest formular (§9 task) — doar din `Deals/Show` sau
  * `Deals/Kanban`, prin `MoveStageMenu`/drag & drop.
  *
- * Contul nu e editabil aici — vezi comentariul din `App\Http\Requests\Deals\UpdateDealRequest`
- * pentru motiv (Accounts, cu propriul selector/căutare, e alt pachet).
+ * Contul a devenit editabil (cerință explicită, care înlocuiește restricția anterioară —
+ * vezi `App\Http\Requests\Deals\UpdateDealRequest`): mutarea pe alt cont nu schimbă etapa,
+ * istoricul `deal_stage_events` sau owner-ul — validarea și scrierea reală sunt server-side
+ * (`UpdateDealRequest` + `DealController::update()`).
  */
 export default function Edit() {
     const { deal, contacts, owners, can, workspace } = usePage<DealsEditPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
+    const basePath = `/${workspaceSlug}/deals/${deal.id}/edit`;
 
     const { data, setData, put, processing, errors } = useForm<DealFormData>({
+        account_id: deal.account.id,
         title: deal.title,
         value: deal.value !== null ? String(deal.value) : '',
         expected_close_date: deal.expectedCloseDate ?? '',
         primary_contact_id: deal.primaryContact?.id ?? '',
         owner_user_id: deal.owner.id,
     });
+
+    // Contactul principal depinde de cont (§9 task): la schimbarea contului, contactul
+    // ales se golește imediat, iar `DealController::edit()` recalculează `contacts`
+    // pentru noul cont, printr-o reîncărcare parțială a aceleiași pagini — deal-ul
+    // propriu-zis (etapă, istoric, owner) rămâne neschimbat până la submit.
+    const handleAccountChange = (accountId: string | null) => {
+        setData((current) => ({
+            ...current,
+            account_id: accountId ?? '',
+            primary_contact_id: '',
+        }));
+
+        router.get(basePath, accountId ? { account: accountId } : {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -48,6 +73,17 @@ export default function Edit() {
                 <PageHeader title={`Edit ${deal.title}`} description={deal.account.name} />
 
                 <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+                    <Field label="Account" error={errors.account_id} required>
+                        {(control) => (
+                            <AccountCombobox
+                                {...control}
+                                value={data.account_id.trim() === '' ? null : data.account_id}
+                                initialLabel={deal.account.name}
+                                onChange={handleAccountChange}
+                            />
+                        )}
+                    </Field>
+
                     <Field label="Title" error={errors.title} required>
                         {(control) => (
                             <input
