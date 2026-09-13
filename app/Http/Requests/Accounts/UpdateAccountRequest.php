@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Accounts;
 
 use App\Models\Membership;
+use App\Models\Scopes\TenantScope;
 use App\Support\Lists\AccountList;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -23,6 +24,10 @@ final class UpdateAccountRequest extends FormRequest
      */
     public function rules(): array
     {
+        // P2-001: vezi StoreAccountRequest — `Rule::exists()` ocolește global scope-ul
+        // Eloquent, deci tenantul se filtrează explicit aici.
+        $tenantId = TenantScope::requireCurrentTenantId();
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'domain' => ['nullable', 'string', 'max:255', 'regex:/^(([a-z0-9-]+)\.)+[a-z]{2,}$/i'],
@@ -31,7 +36,9 @@ final class UpdateAccountRequest extends FormRequest
             'owner_user_id' => [
                 'nullable',
                 'string',
-                Rule::exists('memberships', 'user_id')->where('status', Membership::STATUS_ACTIVE),
+                Rule::exists('memberships', 'user_id')->where(fn ($query) => $query
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', Membership::STATUS_ACTIVE)),
             ],
             'status' => ['required', Rule::in(AccountList::STATUSES)],
             'credit_terms' => ['required', Rule::in(['net_15', 'net_30', 'net_60', 'prepaid'])],

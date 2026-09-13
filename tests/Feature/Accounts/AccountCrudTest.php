@@ -150,4 +150,24 @@ class AccountCrudTest extends TestCase
             'owner_user_id' => $formerMember->getKey(),
         ])->assertSessionHasErrors('owner_user_id');
     }
+
+    /**
+     * P2-001 — `Rule::exists('memberships', 'user_id')` rulează SQL brut, care ocolește
+     * global scope-ul Eloquent (`BelongsToTenant`): fără clauza `tenant_id` explicită, un
+     * membru activ dintr-un ALT tenant trecea validarea. Cross-tenant: membrul e activ,
+     * doar nu în `marlin`.
+     */
+    public function test_the_owner_validation_rejects_an_active_member_of_another_tenant(): void
+    {
+        $cascade = $this->makeTenant('cascade', 'Cascade Hydraulic Components');
+        $foreignMember = $this->makeMember($cascade, 'demo.stranger@throughput.dev', Permissions::AGENT);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->post('/marlin/accounts', [
+            'name' => 'Cross-tenant owner test',
+            'status' => 'prospect',
+            'credit_terms' => 'net_30',
+            'owner_user_id' => $foreignMember->getKey(),
+        ])->assertSessionHasErrors('owner_user_id');
+    }
 }

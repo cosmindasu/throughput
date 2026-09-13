@@ -49,7 +49,11 @@ export default function Show() {
             <div className="flex max-w-xl flex-col gap-6">
                 <PageHeader title="Export" description={`${exportStatus.totalRows.toLocaleString('en-US')} rows`} />
 
-                <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4">
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4"
+                >
                     <StatusBadge tone={TONES[exportStatus.status]}>{LABELS[exportStatus.status]}</StatusBadge>
                     {!isTerminal && <span className="text-sm text-text-2">This page updates automatically.</span>}
                     {exportStatus.status === 'failed' && (

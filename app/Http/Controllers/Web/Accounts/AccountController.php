@@ -197,7 +197,9 @@ final class AccountController extends Controller
             'user_id' => $user->getKey(),
             'resource_type' => 'accounts',
             'action' => 'export',
-            'filter_snapshot' => [...$listQuery->toArray(), 'userId' => $user->getKey()],
+            // P3-b: `user_id` (mai jos) e sursa de adevăr pentru autorul operației —
+            // `filter_snapshot` nu mai duplică `userId`, doar starea filtrului/sortării.
+            'filter_snapshot' => $listQuery->toArray(),
             'total_rows' => $total,
             'status' => BulkOperation::STATUS_PENDING,
         ]);
