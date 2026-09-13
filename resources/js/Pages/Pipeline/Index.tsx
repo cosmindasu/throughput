@@ -1,5 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import EmptyState from '@/Components/EmptyState';
@@ -28,6 +28,26 @@ export default function PipelineIndex() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    // P2-004: un mesaj explicit, local pe pagină — un "snap back" tăcut al ordinii (după un
+    // 422/403) se citea ca "n-am apăsat destul de tare", nu ca un refuz de server (§9.3).
+    const [orderError, setOrderError] = useState<string | null>(null);
+    // P2-005: „Move up”/„Move down” pot muta rândul curent pe marginea listei, unde BUTONUL
+    // apăsat devine `disabled` — un element dezactivat pierde focusul spre `<body>`. Mutăm
+    // focusul explicit pe rândul mutat (stabil, indiferent de poziție) și anunțăm noua poziție
+    // într-o regiune `aria-live`, ca cititoarele de ecran să nu piardă contextul (WCAG 2.2 SC
+    // 2.5.7 — deja citat mai sus pentru drag/tastatură).
+    const [announcement, setAnnouncement] = useState('');
+    const lastMovedIdRef = useRef<string | null>(null);
+    const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+
+    useEffect(() => {
+        const id = lastMovedIdRef.current;
+        if (!id) {
+            return;
+        }
+        lastMovedIdRef.current = null;
+        rowRefs.current.get(id)?.focus();
+    }, [order]);
 
     // `stages` (props) e sursa de adevăr; `order` e doar starea optimistă de afișare între
     // click/drop și răspunsul serverului. La orice reîncărcare Inertia (după un
@@ -42,15 +62,32 @@ export default function PipelineIndex() {
     function commitOrder(nextOrder: string[]) {
         const previous = currentOrder;
         setOrder(nextOrder);
+        setOrderError(null);
 
         router.put(
             `${stagesPath}/order`,
             { stage_ids: nextOrder },
             {
                 preserveScroll: true,
-                onError: () => setOrder(previous),
+                onSuccess: () => setOrderError(null),
+                onError: (errors) => {
+                    setOrder(previous);
+                    // `errors.stage_ids` vine din `ReorderStagesAction` (422 — duplicat, set
+                    // incomplet, id străin). Un 403 (drept pierdut între randare și click) sau
+                    // un 500 nu populează `stage_ids`, de-aici textul generic de rezervă.
+                    setOrderError(errors.stage_ids ?? 'Could not save the new stage order. Please try again.');
+                },
             },
         );
+    }
+
+    function announceMove(stageId: string, nextOrder: string[]) {
+        const stage = stagesById.get(stageId);
+        if (!stage) {
+            return;
+        }
+        lastMovedIdRef.current = stageId;
+        setAnnouncement(`${stage.name} moved to position ${nextOrder.indexOf(stageId) + 1} of ${nextOrder.length}`);
     }
 
     function moveUp(stageId: string) {
@@ -60,6 +97,7 @@ export default function PipelineIndex() {
         }
         const next = [...currentOrder];
         [next[index - 1], next[index]] = [next[index], next[index - 1]];
+        announceMove(stageId, next);
         commitOrder(next);
     }
 
@@ -70,6 +108,7 @@ export default function PipelineIndex() {
         }
         const next = [...currentOrder];
         [next[index + 1], next[index]] = [next[index], next[index + 1]];
+        announceMove(stageId, next);
         commitOrder(next);
     }
 
@@ -111,6 +150,12 @@ export default function PipelineIndex() {
         <>
             <Head title="Pipeline" />
 
+            {/* P2-005: anunț pentru cititoarele de ecran la fiecare "Move up"/"Move down" —
+                singurul semnal de reordonare pentru cineva care nu vede tabelul mișcându-se. */}
+            <div aria-live="polite" role="status" className="sr-only">
+                {announcement}
+            </div>
+
             <div className="flex flex-col gap-6">
                 <PageHeader
                     title="Pipeline stages"
@@ -121,6 +166,12 @@ export default function PipelineIndex() {
                         </>
                     }
                 />
+
+                {orderError && (
+                    <p role="alert" className="rounded-md bg-danger-tint px-3 py-2 text-sm text-danger">
+                        {orderError}
+                    </p>
+                )}
 
                 {orderedStages.length === 0 ? (
                     <EmptyState
@@ -174,6 +225,13 @@ export default function PipelineIndex() {
                                         onDragOver={allowDrop}
                                         onDrop={handleDrop(stage.id)}
                                         stagesPath={stagesPath}
+                                        rowRef={(node) => {
+                                            if (node) {
+                                                rowRefs.current.set(stage.id, node);
+                                            } else {
+                                                rowRefs.current.delete(stage.id);
+                                            }
+                                        }}
                                     />
                                 ))}
                             </tbody>
@@ -219,6 +277,7 @@ interface StageRowProps {
     onDragOver: (event: DragEvent<HTMLTableRowElement>) => void;
     onDrop: () => void;
     stagesPath: string;
+    rowRef: (node: HTMLTableRowElement | null) => void;
 }
 
 function StageRow({
@@ -236,6 +295,7 @@ function StageRow({
     onDragOver,
     onDrop,
     stagesPath,
+    rowRef,
 }: StageRowProps) {
     const editForm = useForm({
         name: stage.name,
@@ -350,11 +410,17 @@ function StageRow({
 
     return (
         <tr
+            ref={rowRef}
+            // P2-005: cible de focus stabilă — indiferent unde ajunge etapa (primă, ultimă,
+            // la mijloc), rândul ei rămâne mereu focusabil PROGRAMATIC (`tabIndex={-1}`, deci
+            // absent din ordinea Tab normală), spre deosebire de butonul "Move up"/"Move down"
+            // care poate deveni `disabled` chiar sub focus și-l arunca pe `<body>`.
+            tabIndex={-1}
             draggable={canManage}
             onDragStart={canManage ? onDragStart : undefined}
             onDragOver={canManage ? onDragOver : undefined}
             onDrop={canManage ? onDrop : undefined}
-            className="text-text"
+            className="text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
             {canManage && (
                 <td className="px-3 py-2">

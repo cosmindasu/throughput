@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Pipeline;
 
+use App\Models\Stage;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -33,11 +34,18 @@ class UpdateStageRequest extends FormRequest
      */
     public function stageData(): array
     {
+        /** @var Stage $stage */
+        $stage = $this->route('stage');
+
+        // P2-001: un PATCH e parțial de drept — o cheie absentă din payload NU înseamnă
+        // "setează la false/null", înseamnă "nu se schimbă". `boolean()`/`validated()` fără
+        // `has()` întorc `false`/`null` pentru o cheie lipsă, deci un PATCH cu doar `{name}`
+        // ar fi dezactivat tăcut Won/Lost și ar fi șters probabilitatea etapei.
         return [
             'name' => (string) $this->validated('name'),
-            'probability' => $this->validated('probability'),
-            'is_won' => $this->boolean('is_won'),
-            'is_lost' => $this->boolean('is_lost'),
+            'probability' => $this->has('probability') ? $this->validated('probability') : $stage->probability,
+            'is_won' => $this->has('is_won') ? $this->boolean('is_won') : $stage->is_won,
+            'is_lost' => $this->has('is_lost') ? $this->boolean('is_lost') : $stage->is_lost,
         ];
     }
 }

@@ -45,8 +45,20 @@ final class ReorderStagesAction
         }
 
         DB::transaction(function () use ($orderedStageIds): void {
+            // P2-003: dacă UPDATE-urile rulează în ordinea din payload, două reordonări
+            // concurente cu payload-uri "în oglindă" pot bloca rândurile în ordine inversă
+            // una față de cealaltă și aștepta reciproc — Postgres detectează asta cu
+            // `40P01 deadlock_detected` și una dintre cereri primește 500. Construim harta
+            // id → poziție și aplicăm UPDATE-urile sortate după id, ca ordinea de achiziție a
+            // lock-urilor să fie ACEEAȘI pentru orice cerere, indiferent de ordinea din payload.
+            $positionByStageId = [];
             foreach (array_values($orderedStageIds) as $index => $stageId) {
-                Stage::query()->whereKey($stageId)->update(['position' => $index + 1]);
+                $positionByStageId[$stageId] = $index + 1;
+            }
+            ksort($positionByStageId, SORT_STRING);
+
+            foreach ($positionByStageId as $stageId => $position) {
+                Stage::query()->whereKey($stageId)->update(['position' => $position]);
             }
         });
     }

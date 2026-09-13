@@ -126,6 +126,29 @@ class PipelineConfigurationTest extends TestCase
             );
     }
 
+    /**
+     * P2-001 — regresie: un PATCH e parțial de drept. Trimițând DOAR `name`, absența
+     * `is_won`/`is_lost`/`probability` din payload NU înseamnă „dezactivează-le" —
+     * `UpdateStageRequest::stageData()` trebuie să păstreze valorile curente ale etapei.
+     * `test_owner_can_edit_a_stage` de mai sus nu acoperea bug-ul: edita o etapă deja fără
+     * marcaj, deci trecea din motivul greșit.
+     */
+    public function test_partial_patch_with_only_name_preserves_won_flag_and_probability(): void
+    {
+        $won = $this->stages['Won'];
+
+        $this->actingAs($this->owner)->patch("/marlin/pipeline/stages/{$won->id}", [
+            'name' => 'Closed Won',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->actingAs($this->owner)->get('/marlin/pipeline')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('stages.2.name', 'Closed Won')
+                ->where('stages.2.isWon', true)
+                ->where('stages.2.probability', 100)
+            );
+    }
+
     public function test_viewer_is_forbidden_from_every_write_action(): void
     {
         $stage = $this->stages['New'];
@@ -134,6 +157,25 @@ class PipelineConfigurationTest extends TestCase
         $this->actingAs($this->viewer)->patch("/marlin/pipeline/stages/{$stage->id}", ['name' => 'Nope'])->assertForbidden();
         $this->actingAs($this->viewer)->delete("/marlin/pipeline/stages/{$stage->id}")->assertForbidden();
         $this->actingAs($this->viewer)->put('/marlin/pipeline/stages/order', [
+            'stage_ids' => array_map(fn (Stage $s) => $s->id, array_values($this->stages)),
+        ])->assertForbidden();
+    }
+
+    /**
+     * P3 — Agentul e deja acoperit la ecran (`test_agent_cannot_view_the_pipeline_configuration_screen`),
+     * dar asta nu garantează refuzul pe fiecare endpoint de scriere: policy-ul e verificat per
+     * acțiune (`StagePolicy`), nu doar la `index`. Un Agent care ghicește/reia un URL de
+     * mutație trebuie respins la fel de explicit ca Viewer-ul, nu doar redirecționat de pe
+     * ecranul de listare.
+     */
+    public function test_agent_is_forbidden_from_every_write_action(): void
+    {
+        $stage = $this->stages['New'];
+
+        $this->actingAs($this->agent)->post('/marlin/pipeline/stages', ['name' => 'Nope'])->assertForbidden();
+        $this->actingAs($this->agent)->patch("/marlin/pipeline/stages/{$stage->id}", ['name' => 'Nope'])->assertForbidden();
+        $this->actingAs($this->agent)->delete("/marlin/pipeline/stages/{$stage->id}")->assertForbidden();
+        $this->actingAs($this->agent)->put('/marlin/pipeline/stages/order', [
             'stage_ids' => array_map(fn (Stage $s) => $s->id, array_values($this->stages)),
         ])->assertForbidden();
     }

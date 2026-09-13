@@ -32,17 +32,26 @@ final class SaveStageAction
             ]);
         }
 
-        $this->ensureNameIsUnique($pipeline, $data['name'], $stage);
-
-        if ($data['is_won']) {
-            $this->ensureNoOtherStageHasFlag($pipeline, 'is_won', $stage, 'Won');
-        }
-
-        if ($data['is_lost']) {
-            $this->ensureNoOtherStageHasFlag($pipeline, 'is_lost', $stage, 'Lost');
-        }
-
         return DB::transaction(function () use ($pipeline, $data, $stage): Stage {
+            // P2-002: verificare-apoi-scriere (nume unic, cel mult un Won/un Lost,
+            // `max('position')`) rulând fără lock lasă o fereastră de cursă — două cereri
+            // concurente pot trece amândouă de "nu există deja un Won" înainte ca vreuna să
+            // scrie, și pipeline-ul rămâne cu două etape Won. Blocăm rândul PIPELINE-ului
+            // (resursa comună a tuturor etapelor lui), nu etapa în sine — o etapă nouă încă
+            // nu are rând de blocat. Verificările trebuie mutate DUPĂ acest lock: a doua
+            // cerere concurentă așteaptă commit-ul primei și vede deja rezultatul ei.
+            Pipeline::query()->whereKey($pipeline->getKey())->lockForUpdate()->first();
+
+            $this->ensureNameIsUnique($pipeline, $data['name'], $stage);
+
+            if ($data['is_won']) {
+                $this->ensureNoOtherStageHasFlag($pipeline, 'is_won', $stage, 'Won');
+            }
+
+            if ($data['is_lost']) {
+                $this->ensureNoOtherStageHasFlag($pipeline, 'is_lost', $stage, 'Lost');
+            }
+
             if ($stage === null) {
                 // Etapă nouă: se adaugă la finalul ordinii curente. Reordonarea propriu-zisă
                 // e responsabilitatea endpoint-ului dedicat (`ReorderStagesAction`), nu a
