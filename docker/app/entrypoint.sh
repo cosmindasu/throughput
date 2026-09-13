@@ -22,6 +22,14 @@ if [ "${APP_RUN_SEEDERS:-false}" = "true" ]; then
     php artisan db:seed --force
 fi
 
+# Checklist plan §15: cache-ul de permisiuni spatie se golește la fiecare deploy. Matricea
+# rol → permisiuni vine din cod (App\Support\Permissions, prin seeder), dar spatie o ține în
+# Redis; fără golire, aplicația nouă ar citi matricea deploy-ului anterior — un rol corect în
+# cod și greșit în interfață, fără nicio eroare. Rulează în toate cele trei containere, deci de
+# trei ori per deploy: idempotent și ieftin.
+echo "==> Golesc cache-ul de permisiuni spatie"
+php artisan permission:cache-reset
+
 if [ "${APP_ENV:-}" = "production" ]; then
     echo "==> APP_ENV=production — config:cache / route:cache / view:cache"
     php artisan config:cache
