@@ -24,6 +24,7 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Contextul de tenant — o singură poartă, două variabile de sesiune, politică proprie pentru `memberships` | Accepted · forma SQL din pct. 2 superseded parțial de [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | 2026-09-12 | Faza 1 |
 | [ADR-015](ADR-015-laravel-13-si-inertia-3.md) | Laravel 13 și Inertia 3, nu Laravel 12 și Inertia 2 — supersedează versiunile din [ADR-001](ADR-001-stack-tehnic.md) | Accepted | 2026-09-12 | Sprint 0 |
 | [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | Politicile RLS pun cast-ul pe setare, nu pe coloană — supersedează parțial forma SQL din [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Accepted | 2026-09-12 | Faza 1 |
+| [ADR-017](ADR-017-reset-demo-ca-job-pe-horizon.md) | Resetul zilnic al demo-ului rulează ca job pe Horizon, nu în containerul `scheduler` | Accepted | 2026-09-13 | Faza 2 |
 
 ## Convenții
 

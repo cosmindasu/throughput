@@ -81,7 +81,11 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Peste timeout-ul celui mai lung job (ResetDemoDataJob, 600 s — ADR-017). Sub el,
+            // Redis ar considera jobul abandonat cât încă rulează și l-ar pune înapoi în coadă:
+            // un al doilea `migrate:fresh` peste primul. Costul: un job al unui worker mort
+            // așteaptă până la 15 minute înainte de reluare — acceptabil pentru un demo.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 900),
             'block_for' => null,
             'after_commit' => true,
         ],
