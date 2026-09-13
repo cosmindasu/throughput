@@ -1,5 +1,6 @@
-import { Link, useForm, usePage } from '@inertiajs/react';
-import { type FormEvent } from 'react';
+import { useForm } from '@inertiajs/react';
+import { useId, type FormEvent } from 'react';
+import AccountCombobox from '@/Components/AccountCombobox';
 import Button from '@/Components/Button';
 import DuplicateEmailNotice from '@/Components/DuplicateEmailNotice';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -31,13 +32,14 @@ interface ContactFormProps {
 /**
  * Formular comun Create/Edit — FR-CRM-02, US-CRM-01.
  *
- * `account_id` e un câmp text (nu un selector de conturi): modulul de Conturi, cu
- * lista/căutarea lui de 4.000-8.000 rânduri, e un pachet separat în lucru în paralel
- * (vezi raportul de livrare) — legarea/mutarea contactului pe un alt cont se face
- * aici lipind ID-ul, iar contul deja legat rămâne un link către pagina lui.
+ * `account_id` se alege prin `AccountCombobox` (code review P2-001) — Marlin are
+ * ~4.000 de conturi, un „Account ID" text liber în care se lipește un ULID era
+ * inutilizabil într-un demo public. Legarea/mutarea contactului pe un alt cont se
+ * face alegând din listă, nu lipind id-ul.
  */
 export default function ContactForm({ contact, initialAccount = null, submitLabel, action, method }: ContactFormProps) {
-    const { workspace } = usePage().props;
+    const primaryCheckboxId = useId();
+    const primaryErrorId = `${primaryCheckboxId}-error`;
     const { data, setData, post, put, processing, errors } = useForm<ContactFormValues>({
         account_id: contact?.accountId ?? initialAccount?.id ?? '',
         first_name: contact?.firstName ?? '',
@@ -50,7 +52,9 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
         confirm_duplicate_email: false,
     });
 
-    const linkedAccount = contact?.account ?? initialAccount;
+    // Eticheta inițială a `AccountCombobox` — numele contului deja legat la editare, sau
+    // cel precompletat din `?account=` la creare (US-CRM-01).
+    const initialAccountName = contact?.account?.name ?? initialAccount?.name ?? null;
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -135,48 +139,50 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                 )}
             </Field>
 
+            <Field
+                label="Account"
+                error={errors.account_id}
+                hint="Leave empty for a lead without a company yet. Search by name to link or move this contact."
+            >
+                {(control) => (
+                    <AccountCombobox
+                        {...control}
+                        value={data.account_id.trim() === '' ? null : data.account_id}
+                        initialLabel={initialAccountName}
+                        onChange={(accountId) =>
+                            setData((current) => ({
+                                ...current,
+                                account_id: accountId ?? '',
+                                // P2-003 (code review) — un contact fără cont nu poate fi
+                                // primary: golirea contului debifează, altfel checkbox-ul
+                                // rămâne bifat și dezactivat, fără cale de reparare.
+                                is_primary: accountId === null ? false : current.is_primary,
+                            }))
+                        }
+                    />
+                )}
+            </Field>
+
             <div className="flex flex-col gap-1">
-                <Field
-                    label="Account ID"
-                    error={errors.account_id}
-                    hint="Leave empty for a lead without a company yet. Paste an account's ID to link or move this contact."
-                >
-                    {(control) => (
-                        <input
-                            {...control}
-                            type="text"
-                            value={data.account_id}
-                            onChange={(event) => setData('account_id', event.target.value)}
-                            className={`${controlClass} font-mono`}
-                        />
-                    )}
-                </Field>
-                {linkedAccount && workspace && (
-                    <p className="text-xs text-text-2">
-                        Currently linked to{' '}
-                        <Link href={`/${workspace.slug}/accounts/${linkedAccount.id}`} className="underline underline-offset-2">
-                            {linkedAccount.name}
-                        </Link>
-                        .
+                <label htmlFor={primaryCheckboxId} className="flex items-center gap-2 text-sm text-text">
+                    <input
+                        id={primaryCheckboxId}
+                        type="checkbox"
+                        checked={data.is_primary}
+                        disabled={data.account_id.trim() === ''}
+                        aria-describedby={errors.is_primary ? primaryErrorId : undefined}
+                        aria-invalid={errors.is_primary ? true : undefined}
+                        onChange={(event) => setData('is_primary', event.target.checked)}
+                        className="h-4 w-4 accent-[var(--accent-fill)] disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                    Primary contact for this account
+                </label>
+                {errors.is_primary && (
+                    <p id={primaryErrorId} role="alert" className="text-xs text-danger">
+                        {errors.is_primary}
                     </p>
                 )}
             </div>
-
-            <label className="flex items-center gap-2 text-sm text-text">
-                <input
-                    type="checkbox"
-                    checked={data.is_primary}
-                    disabled={data.account_id.trim() === ''}
-                    onChange={(event) => setData('is_primary', event.target.checked)}
-                    className="h-4 w-4 accent-[var(--accent-fill)] disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                Primary contact for this account
-            </label>
-            {errors.is_primary && (
-                <p role="alert" className="-mt-2 text-xs text-danger">
-                    {errors.is_primary}
-                </p>
-            )}
 
             <label className="flex items-center gap-2 text-sm text-text">
                 <input
