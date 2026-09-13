@@ -32,17 +32,17 @@ class LoginController extends Controller
         [
             'role' => 'manager',
             'name' => 'Manager',
-            'description' => 'Full operational access, without billing or members.',
+            'description' => 'Full operational access and management of Agents and Viewers, without billing.',
         ],
         [
             'role' => 'agent',
             'name' => 'Agent',
-            'description' => 'Restricted visibility to your own accounts, deals, and orders.',
+            'description' => 'Lists open on your own accounts and deals; you edit only your own records and read the rest.',
         ],
         [
             'role' => 'viewer',
             'name' => 'Viewer',
-            'description' => 'Read-only interface, with no action buttons.',
+            'description' => 'Read-only everywhere, but can still export lists to CSV and save personal views.',
         ],
     ];
 
