@@ -217,6 +217,27 @@ class DealCrudHttpTest extends TestCase
     }
 
     /**
+     * §9.1/§9.2: `deal_stage_events` nu se șterge. Deal-ul șters dispare din aplicație, dar
+     * tranzițiile lui rămân pentru raportul de viteză pe etape (§16.3).
+     */
+    public function test_deleting_a_deal_hides_it_but_keeps_its_stage_history(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner-history@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->delete("/marlin/deals/{$deal->getKey()}")
+            ->assertRedirect('/marlin/deals');
+
+        $this->actingAs($owner)->get("/marlin/deals/{$deal->getKey()}")->assertNotFound();
+
+        TenantContext::run($this->marlin, function () use ($deal): void {
+            $this->assertSame(1, DealStageEvent::query()->where('deal_id', $deal->getKey())->count());
+        });
+    }
+
+    /**
      * §9 task — câmpul „Account" cu `AccountCombobox`: fără `?account=` pagina se
      * deschide cu câmpul gol, nu 404.
      */

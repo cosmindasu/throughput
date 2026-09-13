@@ -110,30 +110,32 @@ class AccountShowTest extends TestCase
 
     public function test_deletion_is_blocked_with_an_explicit_reason_when_deals_or_orders_exist(): void
     {
-        $account = TenantContext::run($this->marlin, function (): Account {
-            $account = (new AccountFactory)->create(['created_by' => $this->owner->getKey()]);
-
-            $pipeline = Pipeline::query()->create(['name' => 'Standard']);
-            $stage = Stage::query()->create(['pipeline_id' => $pipeline->getKey(), 'name' => 'Qualification', 'position' => 1]);
-
-            $deal = new Deal([
-                'account_id' => $account->getKey(),
-                'pipeline_id' => $pipeline->getKey(),
-                'stage_id' => $stage->getKey(),
-                'owner_user_id' => $this->owner->getKey(),
-                'title' => 'Blocking deal',
-                'status' => Deal::STATUS_OPEN,
-            ]);
-            $deal->created_by = $this->owner->getKey();
-            $deal->save();
-
-            return $account;
-        });
-        $this->clearDatabaseTenantContext();
+        $account = $this->accountWithOneDeal();
 
         $this->actingAs($this->owner)->get("/marlin/accounts/{$account->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('deletionBlockedReason', 'This account cannot be deleted: it has 1 deal.')
+            );
+
+        $this->actingAs($this->owner)->delete("/marlin/accounts/{$account->id}")
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertNotNull($account->fresh());
+    }
+
+    /**
+     * Un deal șters rămâne în bază pentru istoricul lui de etape (§9.2), deci încă referă
+     * contul prin `deals.account_id`. Dacă garda nu l-ar număra, ștergerea contului ar ajunge
+     * la FK și ar da 500.
+     */
+    public function test_a_deleted_deal_still_blocks_deleting_its_account(): void
+    {
+        $account = $this->accountWithOneDeal(deleteTheDeal: true);
+
+        $this->actingAs($this->owner)->get("/marlin/accounts/{$account->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('deletionBlockedReason', 'This account cannot be deleted: it has 1 deal (1 deleted, kept for pipeline history).')
             );
 
         $this->actingAs($this->owner)->delete("/marlin/accounts/{$account->id}")
@@ -151,5 +153,35 @@ class AccountShowTest extends TestCase
         $this->actingAs($this->owner)->delete("/marlin/accounts/{$account->id}")
             ->assertRedirect('/marlin/accounts')
             ->assertSessionHas('success');
+    }
+
+    private function accountWithOneDeal(bool $deleteTheDeal = false): Account
+    {
+        $account = TenantContext::run($this->marlin, function () use ($deleteTheDeal): Account {
+            $account = (new AccountFactory)->create(['created_by' => $this->owner->getKey()]);
+
+            $pipeline = Pipeline::query()->create(['name' => 'Standard']);
+            $stage = Stage::query()->create(['pipeline_id' => $pipeline->getKey(), 'name' => 'Qualification', 'position' => 1]);
+
+            $deal = new Deal([
+                'account_id' => $account->getKey(),
+                'pipeline_id' => $pipeline->getKey(),
+                'stage_id' => $stage->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'title' => 'Blocking deal',
+                'status' => Deal::STATUS_OPEN,
+            ]);
+            $deal->created_by = $this->owner->getKey();
+            $deal->save();
+
+            if ($deleteTheDeal) {
+                $deal->delete();
+            }
+
+            return $account;
+        });
+        $this->clearDatabaseTenantContext();
+
+        return $account;
     }
 }

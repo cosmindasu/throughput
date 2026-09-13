@@ -63,10 +63,14 @@ class Account extends Model
      *
      * O stare a contului, nu un drept al utilizatorului: NU ține în `AccountPolicy`, ca
      * `can.delete` să nu ascundă butonul fără explicație (§7.3 — „aplicația stricată").
+     *
+     * Deal-urile șterse se numără și ele: rămân în bază pentru istoricul lor de etape (§9.2),
+     * deci încă referă contul prin `deals.account_id`, iar DELETE-ul ar ajunge la FK.
      */
     public function deletionBlockedReason(): ?string
     {
-        $deals = $this->deals()->count();
+        $deals = $this->deals()->withTrashed()->count();
+        $deletedDeals = $deals > 0 ? $this->deals()->onlyTrashed()->count() : 0;
         $orders = $this->orders()->count();
 
         if ($deals === 0 && $orders === 0) {
@@ -76,7 +80,8 @@ class Account extends Model
         $parts = [];
 
         if ($deals > 0) {
-            $parts[] = $deals.' '.Str::plural('deal', $deals);
+            $parts[] = $deals.' '.Str::plural('deal', $deals)
+                .($deletedDeals > 0 ? " ({$deletedDeals} deleted, kept for pipeline history)" : '');
         }
 
         if ($orders > 0) {

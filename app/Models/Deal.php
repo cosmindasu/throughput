@@ -8,14 +8,20 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * `SoftDeletes`: istoricul de etape nu se șterge (§9.1/§9.2), iar `deal_stage_events.deal_id`
+ * e o FK fără cascadă, deci un deal șters rămâne rândul spre care trimite istoricul lui.
+ * Scope-ul îl scoate din liste, kanban, căutare și KPI-uri.
+ */
 #[Fillable([
     'account_id', 'primary_contact_id', 'pipeline_id', 'stage_id', 'owner_user_id',
     'title', 'value', 'currency', 'expected_close_date', 'status', 'lost_reason',
 ])]
 class Deal extends Model
 {
-    use BelongsToTenant, HasUlids;
+    use BelongsToTenant, HasUlids, SoftDeletes;
 
     public const STATUS_OPEN = 'open';
 
