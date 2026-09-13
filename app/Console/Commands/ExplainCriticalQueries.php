@@ -124,7 +124,9 @@ class ExplainCriticalQueries extends Command
     }
 
     /**
-     * Cele zece interogări din tabelul §7.7, în aceeași ordine.
+     * Cele zece interogări din tabelul §7.7, plus căutarea globală (BR-SEARCH-01, Faza 2)
+     * — aceleași forme SQL ca `App\Services\Search\GlobalSearchService`, ca planul măsurat
+     * aici să fie chiar cel pe care îl execută cererea reală, nu o aproximare.
      *
      * @return array<string, array{0: string, 1: array<int, mixed>}>
      */
@@ -160,6 +162,23 @@ class ExplainCriticalQueries extends Command
             ],
             'activity_log — feed de dashboard' => [
                 'select * from activity_log order by created_at desc limit 10', [],
+            ],
+
+            // Căutare globală (FR-SEARCH-01/02, BR-SEARCH-01) — termen cu o greșeală de
+            // tastare deliberată („fastners" în loc de „fasteners"), ca planul măsurat să
+            // fie cel al cazului pe care indexul trigram există să-l rezolve, nu al unei
+            // potriviri exacte pe care orice index ar rezolva-o oricum.
+            'search — accounts (trigram, BR-SEARCH-01)' => [
+                'select id, name, domain, status from accounts where (name % ? or name ilike ?) order by similarity(name, ?) desc limit 5',
+                ['fastners', '%fastners%', 'fastners'],
+            ],
+            'search — contacts (trigram, nume complet)' => [
+                "select id, first_name, last_name from contacts where ((first_name || ' ' || last_name) % ? or (first_name || ' ' || last_name) ilike ?) order by similarity(first_name || ' ' || last_name, ?) desc limit 5",
+                ['jon smth', '%jon smth%', 'jon smth'],
+            ],
+            'search — deals (trigram, titlu)' => [
+                'select id, title from deals where (title % ? or title ilike ?) order by similarity(title, ?) desc limit 5',
+                ['anual suply', '%anual suply%', 'anual suply'],
             ],
         ];
     }
