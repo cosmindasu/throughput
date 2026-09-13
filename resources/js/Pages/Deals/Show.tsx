@@ -95,14 +95,14 @@ export default function Show() {
                     </p>
                 )}
 
-                <section className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
+                <dl className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="Value" value={<span className="numeric">{formatMoney(deal.value, deal.currency)}</span>} />
                     <Field label="Expected close date" value={deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'} />
                     <Field label="Owner" value={deal.owner.name} />
                     <Field label="Primary contact" value={deal.primaryContact?.name ?? '—'} />
                     <Field label="Pipeline" value={deal.pipeline.name} />
                     {deal.status === 'lost' && <Field label="Lost reason" value={deal.lostReason ?? '—'} />}
-                </section>
+                </dl>
 
                 <section aria-label="Stage history" className="rounded-lg border border-border bg-surface p-4">
                     <h2 className="text-sm font-medium text-text-2">Stage history</h2>
