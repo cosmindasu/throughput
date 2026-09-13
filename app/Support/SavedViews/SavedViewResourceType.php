@@ -13,11 +13,12 @@ use InvalidArgumentException;
  * (enum-ul din schema §15.1) e mai larg — orders/products/invoices intră aici abia când
  * fazele care le construiesc adaugă un rând, fără să schimbe restul clasei.
  *
- * `columns` — listele Accounts/Deals încă nu au selector de coloane (task-ul acestei faze,
- * §8, nu îl cere). Coloana e totuși NOT NULL în schema Faza 1 (`saved_views.columns`), deci
- * o vedere salvată tot are nevoie de o valoare — nu o stare pe jumătate scrisă. Alegerea:
- * coloanele EXACT randate azi de `Accounts/Index.tsx`/`Deals/Index.tsx` (verificate acolo,
- * nu presupuse), gata pentru ziua în care un selector de coloane le va putea citi/rescrie.
+ * `columns` — listele Accounts/Deals încă nu au selector de coloane: se construiește generic
+ * în Faza 3, odată cu Orders/Products (plan §9, specs v1.18 §15.1, decizia proprietarului).
+ * Coloana e totuși NOT NULL în schema Faza 1 (`saved_views.columns`), deci o vedere salvată
+ * tot are nevoie de o valoare — nu o stare pe jumătate scrisă. Alegerea: coloanele EXACT
+ * randate azi de `Accounts/Index.tsx`/`Deals/Index.tsx` (verificate acolo, nu presupuse), gata
+ * pentru selectorul care le va citi/rescrie.
  */
 final class SavedViewResourceType
 {
