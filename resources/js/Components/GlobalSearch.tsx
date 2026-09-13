@@ -47,13 +47,24 @@ export default function GlobalSearch() {
     const listboxId = useId();
     const isMac = useMemo(() => isApplePlatform(), []);
 
-    // Cmd/Ctrl+K global — disponibil din orice ecran autentificat (FR-SEARCH-01).
+    // Cmd/Ctrl+K global — disponibil din orice ecran autentificat (FR-SEARCH-01). Ignorată
+    // dacă un ALT `<dialog>` modal e deja deschis (ex: `ConfirmDialog`), la fel ca `?` din
+    // `HelpPanel.tsx` — altfel paleta s-ar deschide vizual PESTE dialogul modal curent, fără
+    // să-l închidă (fundalul lui rămâne inert, dar tastatura ajunge acum la paletă).
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-                event.preventDefault();
-                setOpen((wasOpen) => !wasOpen);
+            if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') {
+                return;
             }
+
+            const openDialog = document.querySelector('dialog[open]');
+
+            if (openDialog && openDialog !== dialogRef.current) {
+                return;
+            }
+
+            event.preventDefault();
+            setOpen((wasOpen) => !wasOpen);
         };
 
         document.addEventListener('keydown', onKeyDown);
@@ -80,7 +91,12 @@ export default function GlobalSearch() {
     // începutul. „Se încarcă" e deci DERIVAT: adevărat cât timp răspunsul cunoscut nu e
     // pentru termenul curent — devine fals abia în `.then()`, adică exact „setState într-un
     // callback declanșat de sistemul extern", tiparul pe care regula îl cere.
-    const loading = response === null || response.query !== query;
+    //
+    // `settledResponse` ÎNGUSTEAZĂ tipul, nu doar un boolean `loading`: oriunde e non-null,
+    // TypeScript știe și că `query` corespunde răspunsului — fără asta, fiecare citire a lui
+    // `response` sub „nu se mai încarcă" ar cere o afirmație non-null (P3, code review) pe
+    // care compilatorul n-o poate verifica singur. „Se încarcă" e deci `settledResponse === null`.
+    const settledResponse = response !== null && response.query === query ? response : null;
 
     const fetchResults = useCallback(
         (term: string) => {
@@ -209,13 +225,14 @@ export default function GlobalSearch() {
         }
     };
 
-    const statusText = loading
-        ? 'Searching…'
-        : response!.groups.length === 0
-          ? response!.query
-              ? `No results for "${response!.query}"`
-              : 'Nothing here yet — start typing to search.'
-          : `${flatResults.length} result${flatResults.length === 1 ? '' : 's'}`;
+    const statusText =
+        settledResponse === null
+            ? 'Searching…'
+            : settledResponse.groups.length === 0
+              ? settledResponse.query
+                  ? `No results for "${settledResponse.query}"`
+                  : 'Nothing here yet — start typing to search.'
+              : `${flatResults.length} result${flatResults.length === 1 ? '' : 's'}`;
 
     return (
         <>
@@ -242,8 +259,10 @@ export default function GlobalSearch() {
                 onClose={() => close(false)}
                 onClick={(event) => {
                     // Click pe `::backdrop` ajunge cu `target` = elementul `<dialog>` însuși.
+                    // Aceeași cale ca Esc (`close()`, focus pe declanșator) — un click în afara
+                    // paletei nu e mai puțin „o închidere" decât tasta Esc.
                     if (event.target === dialogRef.current) {
-                        close(false);
+                        close();
                     }
                 }}
                 // Fără tranziție de intrare/ieșire: `<dialog>` nativ apare/dispare instant,
@@ -269,7 +288,7 @@ export default function GlobalSearch() {
                         onChange={(event) => onQueryChange(event.target.value)}
                         onKeyDown={onInputKeyDown}
                         placeholder="Search accounts, contacts, deals…"
-                        className="w-full bg-transparent text-sm text-text placeholder:text-text-3 focus:outline-none"
+                        className="w-full bg-transparent text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     />
                 </div>
 
@@ -278,11 +297,11 @@ export default function GlobalSearch() {
                 </span>
 
                 <div id={listboxId} role="listbox" aria-label="Search results" className="max-h-96 overflow-y-auto py-2">
-                    {!loading && response!.groups.length === 0 && (
+                    {settledResponse !== null && settledResponse.groups.length === 0 && (
                         <p className="px-4 py-6 text-center text-sm text-text-3">{statusText}</p>
                     )}
 
-                    {!loading &&
+                    {settledResponse !== null &&
                         groupsWithOffsets.map(({ group, startIndex }) => (
                             <SearchGroupList
                                 key={group.type}
