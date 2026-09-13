@@ -3,6 +3,7 @@
 namespace Tests\Feature\Deals;
 
 use App\Models\Account;
+use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\DealStageEvent;
 use App\Models\Stage;
@@ -170,6 +171,7 @@ class DealCrudHttpTest extends TestCase
 
         $this->actingAs($owner)
             ->put("/marlin/deals/{$deal->getKey()}", [
+                'account_id' => $deal->account_id,
                 'title' => 'Renewed supply agreement',
                 'value' => 20000,
             ])
@@ -190,7 +192,7 @@ class DealCrudHttpTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         $this->actingAs($agent)
-            ->put("/marlin/deals/{$deal->getKey()}", ['title' => 'Hijacked'])
+            ->put("/marlin/deals/{$deal->getKey()}", ['account_id' => $deal->account_id, 'title' => 'Hijacked'])
             ->assertForbidden();
     }
 
@@ -212,6 +214,223 @@ class DealCrudHttpTest extends TestCase
         TenantContext::run($this->marlin, function () use ($deal): void {
             $this->assertNull(Deal::query()->find($deal->getKey()));
         });
+    }
+
+    /**
+     * §9 task — câmpul „Account" cu `AccountCombobox`: fără `?account=` pagina se
+     * deschide cu câmpul gol, nu 404.
+     */
+    public function test_create_without_an_account_query_parameter_shows_an_empty_field(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner8@throughput.dev', Permissions::OWNER);
+
+        $this->actingAs($owner)
+            ->get('/marlin/deals/create')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Deals/Create')
+                ->where('account', null)
+                ->where('contacts', [])
+            );
+    }
+
+    public function test_storing_a_deal_without_an_account_is_rejected(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner9@throughput.dev', Permissions::OWNER);
+
+        $response = $this->actingAs($owner)
+            ->from('/marlin/deals/create')
+            ->post('/marlin/deals', ['title' => 'No account deal']);
+
+        $response->assertRedirect('/marlin/deals/create');
+        $response->assertSessionHasErrors('account_id');
+
+        TenantContext::run($this->marlin, function (): void {
+            $this->assertDatabaseMissing('deals', ['title' => 'No account deal']);
+        });
+    }
+
+    public function test_storing_a_deal_with_an_account_from_another_tenant_is_rejected(): void
+    {
+        $cascade = $this->makeTenant('cascade-store', 'Cascade Hydraulic Components');
+        $foreignAccountId = TenantContext::run($cascade, function () use ($cascade) {
+            $cascadeOwner = $this->makeMember($cascade, 'cascade.owner1@throughput.dev', Permissions::OWNER);
+            $account = new Account(['name' => 'Cascade Bearing Co.']);
+            $account->created_by = $cascadeOwner->getKey();
+            $account->save();
+
+            return $account->id;
+        });
+
+        $owner = $this->makeMember($this->marlin, 'owner10@throughput.dev', Permissions::OWNER);
+
+        $response = $this->actingAs($owner)
+            ->from('/marlin/deals/create')
+            ->post('/marlin/deals', ['account_id' => $foreignAccountId, 'title' => 'Cross tenant deal']);
+
+        $response->assertRedirect('/marlin/deals/create');
+        $response->assertSessionHasErrors('account_id');
+
+        TenantContext::run($this->marlin, function (): void {
+            $this->assertDatabaseMissing('deals', ['title' => 'Cross tenant deal']);
+        });
+    }
+
+    public function test_updating_a_deal_with_an_account_from_another_tenant_is_rejected(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner11@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $originalAccountId = $deal->account_id;
+        $this->clearDatabaseTenantContext();
+
+        $cascade = $this->makeTenant('cascade-update', 'Cascade Hydraulic Components');
+        $foreignAccountId = TenantContext::run($cascade, function () use ($cascade) {
+            $cascadeOwner = $this->makeMember($cascade, 'cascade.owner2@throughput.dev', Permissions::OWNER);
+            $account = new Account(['name' => 'Cascade Bearing Co.']);
+            $account->created_by = $cascadeOwner->getKey();
+            $account->save();
+
+            return $account->id;
+        });
+
+        $response = $this->actingAs($owner)
+            ->from("/marlin/deals/{$deal->getKey()}/edit")
+            ->put("/marlin/deals/{$deal->getKey()}", [
+                'account_id' => $foreignAccountId,
+                'title' => $deal->title,
+            ]);
+
+        $response->assertRedirect("/marlin/deals/{$deal->getKey()}/edit");
+        $response->assertSessionHasErrors('account_id');
+
+        TenantContext::run($this->marlin, function () use ($deal, $originalAccountId): void {
+            $this->assertSame($originalAccountId, $deal->fresh()->account_id);
+        });
+    }
+
+    public function test_storing_a_deal_with_a_contact_from_a_different_account_is_rejected(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner12@throughput.dev', Permissions::OWNER);
+
+        $foreignContactId = TenantContext::run($this->marlin, function () use ($owner): string {
+            $otherAccount = new Account(['name' => 'Other Account LLC']);
+            $otherAccount->created_by = $owner->getKey();
+            $otherAccount->save();
+
+            $contact = new Contact([
+                'account_id' => $otherAccount->getKey(),
+                'first_name' => 'Jamie',
+                'last_name' => 'Smith',
+            ]);
+            $contact->created_by = $owner->getKey();
+            $contact->save();
+
+            return $contact->getKey();
+        });
+
+        $response = $this->actingAs($owner)
+            ->from('/marlin/deals/create')
+            ->post('/marlin/deals', [
+                'account_id' => $this->account->getKey(),
+                'primary_contact_id' => $foreignContactId,
+                'title' => 'Deal with wrong contact',
+            ]);
+
+        $response->assertRedirect('/marlin/deals/create');
+        $response->assertSessionHasErrors('primary_contact_id');
+
+        TenantContext::run($this->marlin, function (): void {
+            $this->assertDatabaseMissing('deals', ['title' => 'Deal with wrong contact']);
+        });
+    }
+
+    public function test_updating_a_deal_with_a_contact_from_a_different_account_is_rejected(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner13@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+
+        $foreignContactId = TenantContext::run($this->marlin, function () use ($owner): string {
+            $otherAccount = new Account(['name' => 'Other Account LLC 2']);
+            $otherAccount->created_by = $owner->getKey();
+            $otherAccount->save();
+
+            $contact = new Contact([
+                'account_id' => $otherAccount->getKey(),
+                'first_name' => 'Jamie',
+                'last_name' => 'Smith',
+            ]);
+            $contact->created_by = $owner->getKey();
+            $contact->save();
+
+            return $contact->getKey();
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($owner)
+            ->from("/marlin/deals/{$deal->getKey()}/edit")
+            ->put("/marlin/deals/{$deal->getKey()}", [
+                'account_id' => $deal->account_id,
+                'primary_contact_id' => $foreignContactId,
+                'title' => $deal->title,
+            ]);
+
+        $response->assertRedirect("/marlin/deals/{$deal->getKey()}/edit");
+        $response->assertSessionHasErrors('primary_contact_id');
+    }
+
+    /**
+     * §9 task — mutarea pe alt cont, cu un contact valid al noului cont, reușește;
+     * etapa și owner-ul rămân neschimbate (nicio inserare nouă în `deal_stage_events`).
+     */
+    public function test_updating_a_deal_moves_it_to_another_account_with_a_valid_contact(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner14@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $originalStageId = $deal->stage_id;
+        $originalOwnerId = $deal->owner_user_id;
+
+        [$newAccountId, $newContactId] = TenantContext::run($this->marlin, function () use ($owner): array {
+            $newAccount = new Account(['name' => 'New Account Destination LLC']);
+            $newAccount->created_by = $owner->getKey();
+            $newAccount->save();
+
+            $contact = new Contact([
+                'account_id' => $newAccount->getKey(),
+                'first_name' => 'Robin',
+                'last_name' => 'Lee',
+            ]);
+            $contact->created_by = $owner->getKey();
+            $contact->save();
+
+            return [$newAccount->getKey(), $contact->getKey()];
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->put("/marlin/deals/{$deal->getKey()}", [
+                'account_id' => $newAccountId,
+                'primary_contact_id' => $newContactId,
+                'title' => $deal->title,
+            ])
+            ->assertRedirect("/marlin/deals/{$deal->getKey()}");
+
+        TenantContext::run(
+            $this->marlin,
+            function () use ($deal, $newAccountId, $newContactId, $originalStageId, $originalOwnerId): void {
+                $fresh = $deal->fresh();
+                $this->assertSame($newAccountId, $fresh->account_id);
+                $this->assertSame($newContactId, $fresh->primary_contact_id);
+                $this->assertSame($originalStageId, $fresh->stage_id);
+                $this->assertSame($originalOwnerId, $fresh->owner_user_id);
+
+                // Mutarea de cont NU e o tranziție de etapă (§9 task) — rămâne un
+                // singur eveniment, cel de creare.
+                $events = DealStageEvent::query()->where('deal_id', $deal->getKey())->get();
+                $this->assertCount(1, $events);
+            }
+        );
     }
 
     private function createDeal(User $owner): Deal
