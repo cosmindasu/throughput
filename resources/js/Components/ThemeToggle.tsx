@@ -11,11 +11,19 @@ const OPTIONS: Array<{ value: ThemeChoice; label: string }> = [
 ];
 
 /**
- * FR-PREF-01…03, BR-PREF-01…03 — comutator de temă cu trei stări, montat o singură
- * dată și folosit din DOUĂ locuri: bara de sus (AppLayout.tsx) și Settings →
- * Preferences (Settings/Preferences.tsx). Disponibil tuturor rolurilor, inclusiv
- * Viewer, și neafectat de `DEMO_MODE` — nu verifică niciun `can`, comutarea temei nu e
- * o acțiune de scriere de business (BR-PREF-02).
+ * FR-PREF-01…03, BR-PREF-01…03 — comutator de temă cu trei stări, folosit din DOUĂ
+ * locuri: bara de sus (AppLayout.tsx) și Settings → Preferences
+ * (Settings/Preferences.tsx). Pe `/settings/preferences` cele DOUĂ sunt montate
+ * SIMULTAN (P3, review 2026-09-13; docblock-ul anterior spunea „o singură dată" — era
+ * greșit): AppLayout randează bara de sus pe orice ecran autentificat, deci pagina de
+ * Preferences vede și instanța din header, și pe a ei. Inofensiv, nu doar din
+ * întâmplare: fiecare instanță e propriul `<fieldset>` necontrolat, care își citește
+ * starea din `auth.user.theme` (props Inertia, aceeași valoare pentru amândouă) și, cât
+ * timp alegerea e „System", pornește propriul `useThemeSync` — două `matchMedia`
+ * separate, dar care calculează și scriu exact aceeași valoare rezolvată; niciuna nu
+ * depinde de starea celeilalte. Disponibil tuturor rolurilor, inclusiv Viewer, și
+ * neafectat de `DEMO_MODE` — nu verifică niciun `can`, comutarea temei nu e o acțiune de
+ * scriere de business (BR-PREF-02).
  *
  * `<fieldset>` + `<input type="radio">` REALE, nu un `role="radiogroup"` simulat:
  * navigarea cu săgețile, Tab, Space și inelul de focus vin gratis de la browser —
