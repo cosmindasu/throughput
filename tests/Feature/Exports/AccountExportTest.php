@@ -206,7 +206,7 @@ class AccountExportTest extends TestCase
             'user_id' => $this->owner->getKey(),
             'resource_type' => 'accounts',
             'action' => 'export',
-            'filter_snapshot' => ['filter' => [], 'sort' => 'name', 'userId' => $this->owner->getKey()],
+            'filter_snapshot' => ['filter' => [], 'sort' => 'name'],
             'total_rows' => 0,
             'status' => BulkOperation::STATUS_COMPLETED,
             'result_path' => 'exports/'.$this->marlin->getKey().'/'.Str::ulid().'.csv',
