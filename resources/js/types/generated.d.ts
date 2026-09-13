@@ -498,6 +498,35 @@ export interface SearchResponse {
 // ── Ajutor contextual — FR-HELP-01…04 ────────────────────────────────────────────
 
 
+// ── Vizualizări salvate — specs.md §15, FR-VIEW-01…02 ────────────────────────────
+// Mirror manual al `App\Http\Resources\SavedViews\SavedViewResource` — consumat de
+// `SavedViewPicker.tsx` via `resources/js/lib/api.ts` (JSON simplu, ca `SearchResponse`
+// mai jos, nu props Inertia: meniul de vederi nu are nevoie ca `Accounts/Index` sau
+// `Deals/Index` să se re-randeze doar pentru ce a schimbat el).
+
+export type SavedViewVisibility = 'private' | 'team';
+
+export interface SavedViewSummary {
+    id: string;
+    name: string;
+    resourceType: string;
+    visibility: SavedViewVisibility;
+    filter: Record<string, string>;
+    sort: string;
+    canUpdate: boolean;
+    canDelete: boolean;
+}
+
+// `GET /{workspace}/saved-views/{resourceType}` — SavedViewController::index().
+export interface SavedViewsIndexResponse {
+    mine: SavedViewSummary[];
+    team: SavedViewSummary[];
+    defaultId: string | null;
+    can: {
+        createTeam: boolean;
+    };
+}
+
 // ── Exporturi — US-CRM-03, §13.2 ─────────────────────────────────────────────────
 
 export type ExportStatus = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';

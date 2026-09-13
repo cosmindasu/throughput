@@ -53,6 +53,9 @@ declare module '@inertiajs/core' {
             flash: {
                 success: string | null;
                 error: string | null;
+                // FR-VIEW-02 — „vederea Team folosită ca implicit a fost ștearsă", ton
+                // neutru, DISTINCT de `error`: nu e o greșeală a persoanei care o vede.
+                notice: string | null;
             };
             demoMode: boolean;
             theme: 'light' | 'dark';

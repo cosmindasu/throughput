@@ -20,6 +20,7 @@ use App\Models\Stage;
 use App\Support\Lists\DealList;
 use App\Support\Permissions;
 use App\Support\RecentlyViewed;
+use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,9 +39,16 @@ use Inertia\Response;
  */
 class DealController extends Controller
 {
-    public function index(Request $request, DealList $list): Response
+    public function index(Request $request, DealList $list): Response|RedirectResponse
     {
         Gate::authorize('viewAny', Deal::class);
+
+        // FR-VIEW-02 — vezi docblock-ul din AccountController::index() pentru raționamentul
+        // complet: implicitul salvat câștigă în fața filtrului de rol, dar doar pe un URL
+        // fără NIMIC explicit încă.
+        if (($redirect = SavedViewDefaultRedirect::resolve($request, 'deals')) !== null) {
+            return $redirect;
+        }
 
         $user = $request->user();
         $query = $list->parse($request);

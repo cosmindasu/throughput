@@ -57,6 +57,7 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/contacts.php';
         require __DIR__.'/web/deals.php';
         require __DIR__.'/web/pipeline.php';
+        require __DIR__.'/web/saved-views.php';
         require __DIR__.'/web/search.php';
         require __DIR__.'/web/settings.php';
         require __DIR__.'/web/exports.php';

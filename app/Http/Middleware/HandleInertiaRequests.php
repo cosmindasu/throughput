@@ -47,6 +47,10 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                // FR-VIEW-02 — „notificare discretă", distinctă de succes/eroare: tonul
+                // neutru contează, altfel ștergerea unei vederi „Team" de către un Manager
+                // ar arăta ca o eroare a persoanei care doar deschide lista a doua zi.
+                'notice' => fn () => $request->session()->get('notice'),
             ],
 
             // Prin config(), nu prin env(): entrypoint-ul de producție rulează
