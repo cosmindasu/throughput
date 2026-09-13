@@ -123,9 +123,19 @@ class DealController extends Controller
             'owner:id,name',
         ]);
 
+        // `orderByDesc('id')` ca departajare: `changed_at` e `timestamp(0)` (precizia
+        // implicită Laravel pe Postgres — vezi migrația `create_deal_stage_events_table`),
+        // deci trunchiată la secundă întreagă. Două mutări din ACELAȘI deal, în aceeași
+        // secundă (un utilizator rapid, sau un test E2E), au `changed_at` IDENTIC — fără
+        // departajare, `ORDER BY changed_at DESC` nu garantează ordinea de inserare pentru
+        // acele rânduri (găsit prin E2E, `e2e/specs/deals-pipeline.spec.ts`: 3 mutări
+        // succesive în aceeași secundă ieșeau într-o ordine nedeterministă pe „Stage
+        // history"). ULID-urile cresc monoton la inserare (același tipar ca `board()`,
+        // mai jos: `orderByDesc('created_at')->orderByDesc('id')`).
         $events = $deal->stageEvents()
             ->with(['fromStage:id,name', 'toStage:id,name', 'changedBy:id,name'])
             ->orderByDesc('changed_at')
+            ->orderByDesc('id')
             ->get();
 
         return Inertia::render('Deals/Show', [
