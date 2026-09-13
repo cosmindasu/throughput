@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { Result } from 'axe-core';
 import { authFile } from '../support/auth';
 import { APP_HOST } from '../support/env';
+import { setUserTheme } from '../support/theme';
 
 /**
  * §20.3 / §24.4 — axe-core pe ecranele principale, PE AMBELE TEME: o violare de
@@ -69,12 +70,30 @@ const TARGETS: AxeTarget[] = [
 
 test.use({ storageState: authFile('manager') });
 
+/**
+ * P1 (code review) — un cookie SINGUR nu ajunge: `ThemePreference::resolveForRequest()`
+ * citește ÎNTÂI alegerea explicită a utilizatorului AUTENTIFICAT curent (`users.theme`),
+ * ÎNAINTE de cookie — toate conturile demo au deja `theme='dark'` explicit (migrația
+ * `2026_09_13_120000_change_users_theme_default_to_dark.php`, implicit nou pentru
+ * TOȚI utilizatorii, seederele nu trec `theme`), deci cookie-ul singur era IGNORAT: ambele
+ * treceri „dark" și „light" randau de fapt tema închisă — verificat empiric, vezi raportul
+ * agentului. `setUserTheme()` (`e2e/support/theme.ts`) schimbă preferința REALĂ, prin
+ * `PATCH /preferences/theme`. Cookie-ul rămâne pus și el (nu strică, dar nu mai e sursa de
+ * adevăr aici).
+ */
 async function setTheme(page: Page, theme: Theme): Promise<void> {
-    // §15.6 — cookie necriptat `theme`, citit server-side
-    // (`ThemePreference::resolveForRequest`) ÎNAINTE de orice randare: setat
-    // înaintea navigării, nu prin `ThemeToggle` din UI, ca fiecare scanare să
-    // vadă o singură temă, izolat.
+    await setUserTheme(page, theme);
     await page.context().addCookies([{ name: 'theme', value: theme, domain: APP_HOST, path: '/' }]);
+}
+
+/**
+ * Dovadă că tema chiar s-a aplicat PE ACEST răspuns (FR-PREF-03 — randată server-side, din
+ * `resources/views/app.blade.php`: `<html class="{{ $theme === 'dark' ? 'dark' : '' }}">`) —
+ * fără ea, testul poate trece „verde" scanând din nou tema greșită, exact regresia găsită la
+ * review.
+ */
+async function expectHtmlThemeClass(page: Page, theme: Theme): Promise<void> {
+    await expect(page.locator('html')).toHaveClass(theme === 'dark' ? 'dark' : '');
 }
 
 function slug(label: string): string {
@@ -101,6 +120,16 @@ for (const theme of THEMES) {
             await setTheme(page, theme);
         });
 
+        // Restaurează `dark` după fiecare test „light": `users.theme` e o coloană
+        // PERSISTĂ pe contul de Manager, comun tuturor spec-urilor (`workers: 1`, aceeași
+        // bază `throughput_e2e`) — fără restaurare, orice spec de după acest fișier care
+        // reautentifică Managerul ar rula, din greșeală, pe tema deschisă.
+        if (theme === 'light') {
+            test.afterEach(async ({ page }) => {
+                await setUserTheme(page, 'dark');
+            });
+        }
+
         for (const target of TARGETS) {
             // Subset @smoke (PR-uri): un singur ecran, tema implicită (închisă) —
             // suficient să prindă o regresie de accesibilitate introdusă de un PR,
@@ -109,6 +138,7 @@ for (const theme of THEMES) {
 
             test(`${target.label} — 0 violări critice (axe, WCAG 2.x A/AA)`, { tag }, async ({ page }, testInfo) => {
                 await page.goto(target.path);
+                await expectHtmlThemeClass(page, theme);
                 await target.waitFor(page);
 
                 const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
