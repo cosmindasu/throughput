@@ -50,14 +50,14 @@ export default function Show() {
                     }
                 />
 
-                <section className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3">
+                <dl className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3">
                     <Detail label="Domain" value={account.domain} />
                     <Detail label="Phone" value={account.phone} />
                     <Detail label="Credit terms" value={account.creditTerms} />
                     <Detail label="Owner" value={account.owner?.name ?? 'Unassigned'} />
                     <Detail label="Source" value={account.source} />
                     <Detail label="Tags" value={account.tags.length > 0 ? account.tags.join(', ') : null} />
-                </section>
+                </dl>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <section aria-label="Contacts" className="flex flex-col gap-3">
