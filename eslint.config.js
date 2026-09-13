@@ -5,7 +5,7 @@ import globals from 'globals';
 
 export default tseslint.config(
     {
-        ignores: ['vendor/**', 'node_modules/**', 'public/build/**', 'storage/**', 'bootstrap/**'],
+        ignores: ['vendor/**', 'node_modules/**', 'public/build/**', 'storage/**', 'bootstrap/**', 'e2e/playwright-report/**', 'e2e/test-results/**'],
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,

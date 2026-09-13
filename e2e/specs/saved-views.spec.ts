@@ -42,12 +42,22 @@ test('vizualizare de echipă creată pe Accounts, partajată prin link, redeschi
     await expect(page.getByLabel('Sort by')).toHaveValue('-created_at');
 
     // Rândurile s-au reîmprospătat pe noul filtru înainte de a salva vederea — altfel am
-    // salva un URL corect, dar n-am ști încă dacă tabelul chiar l-a aplicat.
+    // salva un URL corect, dar n-am ști încă dacă tabelul chiar l-a aplicat. `expect.poll`,
+    // nu o citire unică: rândurile sunt un prop deferred, reîncărcat după schimbarea URL-ului.
+    await expect(page).toHaveURL(/sort=-created_at/);
     const statusCells = page.locator('table tbody tr td:nth-child(3)');
-    await expect(statusCells.first()).toBeVisible();
-    for (const text of await statusCells.allTextContents()) {
-        expect(text.trim().toLowerCase()).toBe('active');
-    }
+    await expect
+        .poll(async () => {
+            const texts = await statusCells.allTextContents();
+            return texts.length > 0 && texts.every((text) => text.trim().toLowerCase() === 'active');
+        })
+        .toBe(true);
+
+    // Rândurile exacte pe care le vede autorul: termenul de comparație pentru Agent. Fără
+    // scopul de owner fixat la salvare (`ResourceList::pinRoleDependentFiltersForSharing()`),
+    // Agentul primea propriul implicit, „My accounts", și vedea doar o parte din ele.
+    const accountNameLinks = 'table tbody tr td:nth-child(1) a';
+    const managerNames = await page.locator(accountNameLinks).allTextContents();
 
     // `aria-haspopup="true"` e SINGURUL buton din pagină cu acest atribut
     // (`SavedViewPicker.tsx`) — mai stabil decât numele lui accesibil, care se schimbă din
@@ -86,14 +96,19 @@ test('vizualizare de echipă creată pe Accounts, partajată prin link, redeschi
         await expect(agentPage).toHaveURL(/\/marlin\/accounts\?/);
         await agentPage.getByRole('table').waitFor();
 
-        // Controalele — starea salvată de Manager, intactă pentru Agent.
+        // Controalele — starea salvată de Manager, intactă pentru Agent, inclusiv scopul de
+        // owner: „All accounts", nu implicitul Agentului („My accounts"). `<label>` învelește
+        // `<select>`-ul, deci numele accesibil include și textele opțiunilor — potrivire pe
+        // prefix, nu exactă.
+        await expect(agentPage.getByRole('combobox', { name: /^Owner/ })).toHaveValue('all');
         await expect(agentPage.getByLabel('Status')).toHaveValue('active');
         await expect(agentPage.getByLabel('Sort by')).toHaveValue('-created_at');
 
-        // Rândurile — filtrul de status chiar s-a aplicat pentru Agent, nu doar controlul.
-        const agentStatusCells = agentPage.locator('table tbody tr td:nth-child(3)');
-        const agentStatusTexts = await agentStatusCells.allTextContents();
-        expect(agentStatusTexts.length).toBeGreaterThan(0);
+        // Rândurile — EXACT ce a văzut Managerul, în aceeași ordine. Doar „toate au status
+        // active" ar trece și cu Agentul restrâns la propriile conturi.
+        await expect.poll(() => agentPage.locator(accountNameLinks).allTextContents()).toEqual(managerNames);
+
+        const agentStatusTexts = await agentPage.locator('table tbody tr td:nth-child(3)').allTextContents();
         for (const text of agentStatusTexts) {
             expect(text.trim().toLowerCase()).toBe('active');
         }
