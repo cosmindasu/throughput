@@ -41,8 +41,11 @@ export default function GlobalSearch() {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
-    /** Vezi fix-ul din efectul de `open` mai jos — citit DUPĂ `dialog.close()` nativ, nu înainte. */
-    const shouldFocusTriggerOnCloseRef = useRef(false);
+    /**
+     * Valoarea PRECEDENTĂ a lui `open`, citită în efectul de mai jos ca să detecteze
+     * tranziția `true → false` — vezi P2-003 (code review) în docblock-ul efectului.
+     */
+    const wasOpenRef = useRef(open);
     const abortRef = useRef<AbortController | null>(null);
     const debounceRef = useRef<number | undefined>(undefined);
 
@@ -73,6 +76,31 @@ export default function GlobalSearch() {
         return () => document.removeEventListener('keydown', onKeyDown);
     }, []);
 
+    /**
+     * P2-003 (code review) — două probleme distincte cu `<dialog>` nativ, pe lângă fix-ul
+     * inițial (focusarea manuală trebuie să ruleze DUPĂ `dialog.close()`, altfel restaurarea
+     * nativă a focusului — pe elementul activ ÎNAINTE de `showModal()`, necondiționat de
+     * unde e focusul la momentul `close()` — o suprascrie):
+     *
+     *  1. `event.preventDefault()` pe `keydown` (în `onInputKeyDown`, mai jos) NU e garantat
+     *     să oprească închiderea nativă la Esc (`cancel` → `close`, prin `CloseWatcher` în
+     *     browserele care îl au) — depinde ca acel `keydown` să ajungă la handler-ul nostru,
+     *     ceea ce cere ca INPUTUL să aibă deja focus. Chiar imediat după Cmd+K, focusul intră
+     *     pe input printr-un `requestAnimationFrame` (mai jos) — NU sincron cu deschiderea.
+     *     Esc apăsat în acel interval (verificat empiric: reproductibil constant, nu doar
+     *     teoretic) nu ajunge deloc la `onInputKeyDown` — dialogul se închide singur, pe
+     *     calea nativă, ÎNAINTE ca acest efect să vadă `!open && dialog.open` (dialogul e deja
+     *     închis când efectul rulează), deci nici fix-ul de mai jos nu apucă să ruleze.
+     *  2. Soluția: un handler `onCancel` PE DIALOG (nu pe input) — evenimentul `cancel` se
+     *     declanșează pe elementul `<dialog>` însuși, indiferent ce are focus în interiorul
+     *     lui. `preventDefault()` ACOLO oprește garantat închiderea nativă (asta chiar e
+     *     comportamentul implicit anulabil al evenimentului `cancel`, spre deosebire de
+     *     `keydown`), iar închiderea trece mereu prin `close()`-ul nostru.
+     *
+     * Focusarea declanșatorului rulează acum necondiționat la ORICE tranziție
+     * `open → false` (citită aici din `wasOpenRef`), indiferent cine a inițiat închiderea —
+     * nu doar când apelantul a cerut-o explicit (fostul parametru `focusTrigger`, eliminat).
+     */
     useEffect(() => {
         const dialog = dialogRef.current;
 
@@ -84,21 +112,13 @@ export default function GlobalSearch() {
             dialog.showModal();
         } else if (!open && dialog.open) {
             dialog.close();
-
-            // FIX (bug găsit prin E2E, `e2e/specs/global-search.spec.ts`): `close()` pe un
-            // `<dialog>` deschis prin `showModal()` restaurează focusul, NECONDIȚIONAT, pe
-            // elementul care îl avea ÎNAINTE de `showModal()` — nu doar „dacă focusul mai e
-            // încă în interiorul dialogului", cum ar sugera o citire superficială a
-            // specificației. `close()` (funcția de mai jos) muta focusul pe declanșator
-            // ÎNAINTE ca acest efect să apuce să cheme `dialog.close()` nativ — restaurarea
-            // nativă câștiga mereu ULTIMA, trimițând focusul înapoi la orice era focusat
-            // înainte de Cmd+K (adesea `<body>`), nu pe declanșator. Mutat aici, DUPĂ
-            // `dialog.close()`, focusarea manuală chiar e ultimul cuvânt.
-            if (shouldFocusTriggerOnCloseRef.current) {
-                shouldFocusTriggerOnCloseRef.current = false;
-                triggerRef.current?.focus();
-            }
         }
+
+        if (wasOpenRef.current && !open) {
+            triggerRef.current?.focus();
+        }
+
+        wasOpenRef.current = open;
     }, [open]);
 
     // Fără stare `loading` separată: `react-hooks/set-state-in-effect` respinge un
@@ -199,21 +219,20 @@ export default function GlobalSearch() {
         [response],
     );
 
-    const close = (focusTrigger = true) => {
-        shouldFocusTriggerOnCloseRef.current = focusTrigger;
-        setOpen(false);
-    };
+    const close = () => setOpen(false);
 
     const select = (result: SearchResult) => {
-        close(false);
+        close();
         router.visit(result.url);
     };
 
     const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
         switch (event.key) {
             case 'Escape':
-                // `<dialog>` închide singur la Esc; interceptăm ca să readucem focusul
-                // explicit pe declanșator (nu doar „undeva").
+                // Cale RAPIDĂ, cât timp inputul are deja focus (cazul obișnuit): evită
+                // să mai aștepte round trip-ul `cancel` → `onCancel` de pe `<dialog>`.
+                // Catch-all-ul real pentru Esc apăsat ÎNAINTE ca inputul să apuce focusul
+                // (P2-003) e `onCancel`, pe elementul `<dialog>`, mai jos.
                 event.preventDefault();
                 close();
                 break;
@@ -269,7 +288,17 @@ export default function GlobalSearch() {
             <dialog
                 ref={dialogRef}
                 aria-label="Global search"
-                onClose={() => close(false)}
+                // P2-003 (code review) — catch-all pentru Esc, indiferent ce are focus în
+                // interiorul dialogului (spre deosebire de `keydown`, care depinde ca INPUTUL
+                // să aibă deja focus — vezi docblock-ul efectului de `open` de mai sus).
+                // `preventDefault()` pe `cancel` oprește GARANTAT închiderea nativă (comportament
+                // implicit anulabil, per spec), deci închiderea trece mereu prin `close()`-ul
+                // nostru — un singur loc care decide starea, indiferent cine a cerut-o.
+                onCancel={(event) => {
+                    event.preventDefault();
+                    close();
+                }}
+                onClose={close}
                 onClick={(event) => {
                     // Click pe `::backdrop` ajunge cu `target` = elementul `<dialog>` însuși.
                     // Aceeași cale ca Esc (`close()`, focus pe declanșator) — un click în afara
