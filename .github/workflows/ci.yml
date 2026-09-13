@@ -13,12 +13,22 @@
 #     Postgres + Redis, iar un build dublat în ambele joburi ar costa un minut în plus;
 #   - exclusiv `ubuntu-latest` (1×), niciodată macOS (10×) sau Windows (2×);
 #   - fără micro-job-uri: fiecare job se facturează rotunjit la minutul întreg, deci
-#     axe-core și Lighthouse sunt pași în `e2e`, nu job-uri separate.
+#     axe-core e pas în `e2e`, nu job separat.
 #
 # Precauție, dacă se activează branch protection pe `main` mai târziu: cu
 # `paths-ignore`, un PR doar-documentație nu declanșează niciun check, iar un
 # required status check ar rămâne etern „pending" și ar bloca merge-ul. De
 # confirmat explicit înainte de a porni protecția, nu implicit.
+#
+# Jobul `e2e` (Faza 2, v1.17): suita Playwright a intrat în repo
+# (`e2e/playwright.config.ts`) — garda „Există suita E2E?" din schița de Sprint 0
+# a dispărut. PR (inclusiv non-draft): subset `@smoke`. Push pe `main`/tag: suită
+# completă, inclusiv axe-core pe ambele teme (§20.3). Lighthouse CI NU e în job:
+# scos deliberat (nu uitat) — toate ecranele demo stau în spatele `/login`, iar un
+# `@lhci/cli autorun` fără o configurație `lighthouserc` capabilă să autentifice ar
+# măsura fie pagina de login, fie ar pica pe redirect. Revine cu acea configurație,
+# separat (§24.4 cere Lighthouse doar pe tema implicită, deci un singur ecran
+# autentificat + un cost mic de facturare suplimentară, de evaluat atunci).
 
 name: CI
 
@@ -176,49 +186,126 @@ jobs:
           if-no-files-found: error
 
   e2e:
-    name: "Playwright — fluxuri critice, axe-core, Lighthouse CI"
+    name: "Playwright — RBAC, comutare workspace, axe-core"
+    # Jobul scump al pipeline-ului (§5.1): stă în spatele gate-urilor ieftine
+    # (`quality`, `assets`) și sare pe draft-uri — un lint/typecheck/test picat nu
+    # mai pornește degeaba Postgres + Chromium.
     needs: [quality, assets]
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: throughput_e2e
+          # Superuser de bootstrap (imaginea îl creează la `initdb`), NU un rol
+          # aplicativ — la fel ca în `quality` (§3.3, capcana 1).
+          POSTGRES_USER: throughput
+          POSTGRES_PASSWORD: secret
+        options: >-
+          --health-cmd "pg_isready -U throughput -d throughput_e2e"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      # FĂRĂ Redis: suita rulează cu `CACHE_STORE=array`, `SESSION_DRIVER=file`,
+      # `QUEUE_CONNECTION=database` (e2e/support/env.ts) — un serviciu pornit doar
+      # pentru acest job ar fi cost fără folos.
     steps:
       - uses: actions/checkout@v4
 
-      # Suita Playwright apare în Faza 2, împreună cu primele ecrane care merită
-      # testate end-to-end. Până atunci jobul se oprește aici, în loc să cadă pe
-      # „No tests found": forma jobului (gate-uri, cache, draft) e deja scrisă și
-      # revizuită, ca să nu fie improvizată sub presiune în Faza 2. Garda dispare
-      # când `e2e/playwright.config.ts` intră în repo.
-      - name: "Există suita E2E?"
-        id: suite
-        run: |
-          if [ -f e2e/playwright.config.ts ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Suita Playwright nu există încă (Faza 2) — jobul se oprește aici."
-          fi
+      # Manifestul Vite vine ca artefact din `assets` — NU se reface build-ul aici
+      # (§5.1/plan §5.2): un al doilea build ar costa un minut facturat în plus,
+      # iar fără el orice pagină Inertia (inclusiv `/login`) răspunde 500.
+      - uses: actions/download-artifact@v4
+        with:
+          name: vite-build
+          path: public/build
 
-      - if: steps.suite.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: "pdo_pgsql, pgsql, redis, gd, intl, zip, bcmath"
+          coverage: none
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      # Același script ca `quality`/dev/prod (§3.3), altă bază: `throughput_e2e`,
+      # dedicată suitei Playwright, niciodată împărțită cu Pest (`throughput_test`).
+      - name: "Bootstrap roluri Postgres (același script ca dev/quality)"
+        run: bash docker/postgres/init/01-roles-and-extensions.sh
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: throughput
+          PGPASSWORD: secret
+          POSTGRES_USER: throughput
+          POSTGRES_DB: throughput_e2e
+          APP_DB_PASSWORD: secret
+          MIGRATOR_DB_PASSWORD: secret
+
+      # `.env`, NU `.env.testing`: `php artisan serve` (webServer din
+      # e2e/playwright.config.ts) și `e2e/global-setup.ts` citesc `.env` implicit.
+      # Restul suprascrierilor (DB_*, CACHE_STORE, SESSION_DRIVER, QUEUE_CONNECTION,
+      # DEMO_MODE) vin din `e2eEnv()` la runtime — scrise și aici ca bază validă
+      # (APP_KEY etc.), la fel cum `quality` generează `.env.testing`.
+      - name: "Mediu (.env pentru serverul Playwright)"
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          {
+            echo "APP_ENV=local"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=5432"
+            echo "DB_DATABASE=throughput_e2e"
+            echo "DB_USERNAME=throughput_app"
+            echo "DB_PASSWORD=secret"
+            echo "DB_MIGRATIONS_USERNAME=throughput_migrator"
+            echo "DB_MIGRATIONS_PASSWORD=secret"
+            echo "CACHE_STORE=array"
+            echo "SESSION_DRIVER=file"
+            echo "QUEUE_CONNECTION=database"
+            echo "DEMO_MODE=true"
+            echo "APP_URL=http://127.0.0.1:8010"
+          } >> .env
+
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
 
-      - if: steps.suite.outputs.ready == 'true'
-        uses: actions/cache@v4
+      - run: npm ci
+
+      - name: "Versiunea Playwright din lockfile"
+        id: playwright-version
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ steps.playwright-version.outputs.version }}
 
-      - if: steps.suite.outputs.ready == 'true'
-        run: npm ci && npx playwright install --with-deps chromium
+      # La cache hit, binarul Chromium e deja pe disc — lipsesc doar bibliotecile
+      # de sistem; la cache miss, descarcă tot (browser + dependențe).
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
 
-      # PR: subset critic de fluxuri. Push pe main: suită completă + axe + Lighthouse.
-      - if: steps.suite.outputs.ready == 'true'
-        run: npx playwright test ${{ github.ref == 'refs/heads/main' && '' || '--grep @smoke' }}
+      # PR (non-draft): subset `@smoke`. Push pe `main`/tag: suită completă (RBAC,
+      # comutare workspace, axe-core pe ambele teme).
+      - name: "Playwright"
+        run: npx playwright test -c e2e/playwright.config.ts ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && '' || '--grep @smoke' }}
 
-      - if: steps.suite.outputs.ready == 'true' && github.ref == 'refs/heads/main'
-        run: npx @axe-core/cli http://localhost:8000 --exit
-
-      - if: steps.suite.outputs.ready == 'true' && github.ref == 'refs/heads/main'
-        run: npx @lhci/cli autorun
+      # DOAR la eșec — un run verde n-are nimic de arătat, iar retenția scurtă
+      # ține contul de stocare mic (§5.1).
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 3
