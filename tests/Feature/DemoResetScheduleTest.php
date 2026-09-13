@@ -21,6 +21,20 @@ use Tests\TestCase;
  */
 class DemoResetScheduleTest extends TestCase
 {
+    /**
+     * `demo:reset` rulează pe imaginea `production` (`composer install --no-dev`), iar seed-ul
+     * trece prin `fake()` și prin `definition()` pe factories. Cu Faker în `require-dev`, jobul
+     * ar pica noaptea cu „Call to undefined function fake()", invizibil în orice test local,
+     * unde dependențele de dev sunt mereu instalate.
+     */
+    public function test_the_demo_seed_generator_is_a_production_dependency(): void
+    {
+        $composer = json_decode((string) file_get_contents(base_path('composer.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertArrayHasKey('fakerphp/faker', $composer['require']);
+        $this->assertArrayNotHasKey('fakerphp/faker', $composer['require-dev']);
+    }
+
     public function test_the_reset_is_scheduled_at_the_configured_cron(): void
     {
         $event = $this->resetEvent();
