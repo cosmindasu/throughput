@@ -319,6 +319,37 @@ export interface SettingsPreferencesPageProps {
 
 
 // ── Căutare globală — FR-SEARCH-01 ───────────────────────────────────────────────
+// Mirror manual al `App\Services\Search\GlobalSearchService` (nu un Resource — JSON
+// simplu, întors direct de `SearchController@index`, nicio pagină Inertia).
+
+/**
+ * `product` rămâne în uniune deși `SearchController` nu întoarce încă un grup
+ * „Products" (Faza 3, plan §9 — fără ecrane de produs în Faza 2, deci fără link):
+ * un item „recent" poate fi de tip produs de îndată ce o pagină de detaliu apelează
+ * `RecentlyViewed::record()` cu acel tip — sursa de adevăr e `App\Support\RecentlyViewed`.
+ */
+export type SearchResultType = 'account' | 'contact' | 'deal' | 'product' | 'action';
+
+export interface SearchResult {
+    type: SearchResultType;
+    id: string;
+    label: string;
+    sublabel: string | null;
+    url: string;
+}
+
+export type SearchGroupType = 'recent' | 'accounts' | 'contacts' | 'deals' | 'actions';
+
+export interface SearchGroup {
+    type: SearchGroupType;
+    label: string;
+    results: SearchResult[];
+}
+
+export interface SearchResponse {
+    query: string;
+    groups: SearchGroup[];
+}
 
 
 // ── Ajutor contextual — FR-HELP-01…04 ────────────────────────────────────────────
