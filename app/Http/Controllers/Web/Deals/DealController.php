@@ -186,6 +186,14 @@ class DealController extends Controller
      * `Deals/Kanban` — coloane = etapele pipeline-ului implicit, după `position`
      * (§9.3). Plafon de 50 carduri per coloană (cele mai recente); `hasMore` duce la
      * lista filtrată pe etapă („View all").
+     *
+     * Numărul de interogări e CONSTANT, indiferent de câte etape are pipeline-ul
+     * (P3-d, code review): varianta veche făcea `count()` + `latest()->limit(50)` +
+     * eager-load-uri PE COLOANĂ — ~25-40 interogări măsurate la 6-8 etape. Aici:
+     * totalurile într-o SINGURĂ interogare cu `groupBy('stage_id')`, iar plafonul de
+     * 50/etapă cu O SINGURĂ interogare fereastră (`row_number() over (partition by
+     * stage_id ...)`) — echivalentul SQL al unui „limit per grup", pe care Eloquent nu-l
+     * oferă nativ.
      */
     public function board(Request $request): Response
     {
@@ -202,27 +210,49 @@ class DealController extends Controller
         abort_if($pipeline === null, 404);
 
         $stages = Stage::query()->where('pipeline_id', $pipeline->getKey())->orderBy('position')->get();
+        $stageIds = $stages->pluck('id');
 
-        $columns = $stages->map(function (Stage $stage) use ($ownerFilter, $user) {
-            $base = Deal::query()->where('stage_id', $stage->getKey());
+        // 1 interogare pentru TOATE totalurile (nu una per coloană).
+        $totals = Deal::query()
+            ->whereIn('stage_id', $stageIds)
+            ->when($ownerFilter === 'me', fn ($query) => $query->where('owner_user_id', $user->getKey()))
+            ->selectRaw('stage_id, count(*) as aggregate')
+            ->groupBy('stage_id')
+            ->pluck('aggregate', 'stage_id');
 
-            if ($ownerFilter === 'me') {
-                $base->where('owner_user_id', $user->getKey());
-            }
+        // Rămâne pe query builder-ul lui `Deal` (nu `DB::table`), ca global scope-ul de
+        // tenant să se aplice ca pe orice altă interogare Eloquent — RLS, pe aceeași
+        // conexiune cu `app.tenant_id` deja setat de middleware, protejează oricum
+        // indiferent de forma SQL-ului.
+        $rankedDeals = Deal::query()
+            ->select('deals.*')
+            ->selectRaw('row_number() over (partition by stage_id order by created_at desc, id desc) as stage_rank')
+            ->whereIn('stage_id', $stageIds)
+            ->when($ownerFilter === 'me', fn ($query) => $query->where('owner_user_id', $user->getKey()));
 
-            $total = (clone $base)->count();
+        // Aliasul subquery-ului TREBUIE să fie `deals`, identic cu tabela reală:
+        // `TenantScope::apply()` calchează pe `$model->getTable()` și generează
+        // `"deals"."tenant_id" = ?` — cu orice alt alias, Postgres răspunde „missing
+        // FROM-clause entry for table deals".
+        $deals = Deal::query()
+            ->fromSub($rankedDeals, 'deals')
+            ->where('stage_rank', '<=', 50)
+            ->with(['account:id,name', 'owner:id,name', 'stage:id,name,is_won,is_lost'])
+            ->orderBy('stage_id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('stage_id');
 
-            $deals = (clone $base)
-                ->with(['account:id,name', 'owner:id,name', 'stage:id,name,is_won,is_lost'])
-                ->latest('created_at')
-                ->limit(50)
-                ->get();
+        $columns = $stages->map(function (Stage $stage) use ($totals, $deals) {
+            $stageDeals = $deals->get($stage->getKey(), collect());
+            $total = (int) $totals->get($stage->getKey(), 0);
 
             return [
                 'stage' => DealStageResource::make($stage),
-                'deals' => DealSummaryResource::collection($deals),
+                'deals' => DealSummaryResource::collection($stageDeals),
                 'total' => $total,
-                'hasMore' => $total > $deals->count(),
+                'hasMore' => $total > $stageDeals->count(),
             ];
         });
 
