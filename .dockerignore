@@ -3,6 +3,10 @@ vendor
 .git
 storage/logs
 .env
+.env.*
+# Worktree-urile agenților paraleli: fiecare cu `vendor/` și `.env` copiate — pe Coolify
+# contextul e o clonă git curată, dar un build local le-ar copia în imagine prin `COPY . .`.
+.claude/
 docs/
 tests/
 e2e/
