@@ -100,6 +100,67 @@ export interface ListState {
 
 // ── Contacts — FR-CRM-02 ─────────────────────────────────────────────────────────
 
+export interface ContactAccountSummary {
+    id: string;
+    name: string;
+}
+
+export interface ContactDealSummary {
+    id: string;
+    title: string;
+    status: string;
+    value: number | null;
+}
+
+export interface Contact {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+    title: string | null;
+    isPrimary: boolean;
+    optOut: boolean;
+    accountId: string | null;
+    account: ContactAccountSummary | null;
+    deals?: ContactDealSummary[];
+    createdAt: string | null;
+    updatedAt: string | null;
+    can: {
+        edit: boolean;
+        delete: boolean;
+    };
+}
+
+export interface ContactsIndexPageProps {
+    contacts: CursorPage<Contact>;
+    list: ListState;
+    can: {
+        create: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface ContactsShowPageProps {
+    contact: Contact;
+    can: {
+        edit: boolean;
+        delete: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface ContactsCreatePageProps {
+    account: ContactAccountSummary | null;
+    [key: string]: unknown;
+}
+
+export interface ContactsEditPageProps {
+    contact: Contact;
+    [key: string]: unknown;
+}
+
 
 // ── Deals și kanban — FR-DEAL-01, FR-DEAL-03 ─────────────────────────────────────
 
