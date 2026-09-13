@@ -51,20 +51,36 @@ class Stage extends Model
      * drept al utilizatorului: amestecată în policy, `can.delete` ar fi ascuns butonul, iar
      * utilizatorul n-ar fi aflat niciodată DE CE nu poate șterge.
      *
-     * Acceptă un `$dealsCount` precalculat (StageResource randează liste întregi cu
-     * `withCount('deals')`, ca să nu repete interogarea pe fiecare rând — N+1 pe ecranul de
-     * configurare).
+     * A doua blocare, pentru o etapă fără deals: vezi `hasDealHistory()`.
+     *
+     * Acceptă `$dealsCount` și `$hasDealHistory` precalculate (StageResource randează liste
+     * întregi cu `withCount('deals')` și `withExists` pe tranziții, ca să nu repete interogările
+     * pe fiecare rând — N+1 pe ecranul de configurare).
      */
-    public function deletionBlockedReason(?int $dealsCount = null): ?string
+    public function deletionBlockedReason(?int $dealsCount = null, ?bool $hasDealHistory = null): ?string
     {
         $dealsCount ??= $this->deals()->count();
 
-        if ($dealsCount === 0) {
-            return null;
+        if ($dealsCount > 0) {
+            return $dealsCount === 1
+                ? 'This stage has 1 deal on it. Move that deal to another stage before deleting it.'
+                : "This stage has {$dealsCount} deals on it. Move them to another stage before deleting it.";
         }
 
-        return $dealsCount === 1
-            ? 'This stage has 1 deal on it. Move that deal to another stage before deleting it.'
-            : "This stage has {$dealsCount} deals on it. Move them to another stage before deleting it.";
+        if ($hasDealHistory ?? $this->hasDealHistory()) {
+            return "Deals have passed through this stage before, and their stage history still points at it, so it can't be deleted. You can rename it instead.";
+        }
+
+        return null;
+    }
+
+    /**
+     * §9.1: `deal_stage_events` nu se editează și nu se șterge, deci o etapă prin care a trecut
+     * vreodată un deal rămâne referită de istoric. FK-urile spre etapă sunt fără cascadă, deci
+     * Postgres ar refuza oricum DELETE-ul, dar cu o eroare, nu cu un motiv de arătat.
+     */
+    public function hasDealHistory(): bool
+    {
+        return $this->transitionsTo()->exists() || $this->transitionsFrom()->exists();
     }
 }

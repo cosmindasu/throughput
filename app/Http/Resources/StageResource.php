@@ -42,6 +42,11 @@ class StageResource extends JsonResource
         // ar mai face o interogare (N+1) doar ca să afle dacă poate fi șters.
         $dealsCount = (int) ($this->deals_count ?? $this->deals()->count());
 
+        // La fel pentru istoric: `withExists` pe tranziții, altfel `deletionBlockedReason()` întreabă singur.
+        $hasDealHistory = isset($this->transitions_to_exists)
+            ? ((bool) $this->transitions_to_exists || (bool) $this->transitions_from_exists)
+            : null;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -51,7 +56,7 @@ class StageResource extends JsonResource
             'probability' => $this->probability,
             'dealsCount' => $dealsCount,
             'canDelete' => $request->user()?->can('delete', $this->resource) ?? false,
-            'deletionBlockedReason' => $this->deletionBlockedReason($dealsCount),
+            'deletionBlockedReason' => $this->deletionBlockedReason($dealsCount, $hasDealHistory),
         ];
     }
 }

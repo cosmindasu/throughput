@@ -27,8 +27,11 @@ class PipelineController extends Controller
 
         $pipeline = Pipeline::resolveDefault();
 
+        // Numărul de deals și existența istoricului, într-o singură interogare pentru toate
+        // etapele: de ele depinde `deletionBlockedReason` pe fiecare rând (BR-DEAL-01, §9.1).
         $stages = $pipeline->stages()
             ->withCount('deals')
+            ->withExists(['transitionsTo', 'transitionsFrom'])
             ->orderBy('position')
             ->get();
 

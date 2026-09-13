@@ -8,7 +8,7 @@ import type { HelpTopic } from '@/help/types';
  * Reconciliat cu codul la 2026-09-13: `Pages/Pipeline/Index.tsx` („Add stage", „Edit"/„Save",
  * „Delete", săgețile ↑/↓ și drag pe rând), `PipelinePolicy` (Viewer are `pipelines.view`, Agent
  * nu are nimic), `SaveStageAction` (nume unic, cel mult un Won și un Lost),
- * `Stage::deletionBlockedReason()` (ORICE etapă cu deals, nu doar Won/Lost),
+ * `Stage::deletionBlockedReason()` (ORICE etapă cu deals, nu doar Won/Lost, și orice etapă cu istoric),
  * `ReorderStagesAction` și FK-ul restrictiv `deal_stage_events.to_stage_id`.
  */
 const pipeline: HelpTopic = {
@@ -31,7 +31,7 @@ const pipeline: HelpTopic = {
     ],
     howItsBuilt: {
         summary:
-            "Deleting a stage has two guards. The screen counts the deals currently on the stage and explains the block before you confirm. Underneath, every past move in `deal_stage_events` points at its stage by id through a restrictive foreign key, so the database also refuses to remove a stage any deal has ever entered — the history ledger can't be left pointing at nothing, for the same reason deal history is append-only (see the Deals — Kanban topic). Reordering sends the complete new order, and the server rejects it unless it lists every stage exactly once. No dedicated ADR for this screen specifically; it follows directly from the append-only design argued in specs.md §9.1.",
+            "Deleting a stage has two guards. The screen checks both the deals currently on the stage and whether any deal has ever passed through it, and explains the block before you confirm. Underneath, every past move in `deal_stage_events` points at its stage by id through a restrictive foreign key, so the database also refuses to remove a stage any deal has ever entered — the history ledger can't be left pointing at nothing, for the same reason deal history is append-only (see the Deals — Kanban topic). Reordering sends the complete new order, and the server rejects it unless it lists every stage exactly once. No dedicated ADR for this screen specifically; it follows directly from the append-only design argued in specs.md §9.1.",
     },
 };
 

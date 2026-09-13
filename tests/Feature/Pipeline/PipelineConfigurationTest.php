@@ -4,6 +4,7 @@ namespace Tests\Feature\Pipeline;
 
 use App\Models\Account;
 use App\Models\Deal;
+use App\Models\DealStageEvent;
 use App\Models\Pipeline;
 use App\Models\Stage;
 use App\Models\Tenant;
@@ -275,6 +276,33 @@ class PipelineConfigurationTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->has('stages', 3));
     }
 
+    /**
+     * Deal-ul a trecut prin „Qualified" și a revenit pe „New": etapa nu mai are deals, dar
+     * istoricul o referă încă (`deal_stage_events.to_stage_id`, FK fără cascadă). Istoricul nu
+     * se șterge (§9.1), deci refuzul trebuie să spună asta. Nu „are deals", și nici un 500 din
+     * tranzacția cererii, abandonată de DELETE-ul respins de Postgres.
+     */
+    public function test_a_stage_that_only_appears_in_deal_history_cannot_be_deleted(): void
+    {
+        $new = $this->stages['New'];
+        $qualified = $this->stages['Qualified'];
+        $deal = $this->attachDeal($this->marlin, $new, $this->owner);
+        $this->recordStageHistory($deal, [$new, $qualified, $new]);
+
+        $response = $this->actingAs($this->owner)->delete("/marlin/pipeline/stages/{$qualified->id}");
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'stage history'));
+        $this->assertStageStillExists($qualified->id);
+
+        $this->actingAs($this->owner)->get('/marlin/pipeline')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('stages.1.name', 'Qualified')
+                ->where('stages.1.dealsCount', 0)
+                ->where('stages.1.deletionBlockedReason', fn (?string $reason) => $reason !== null && str_contains($reason, 'stage history'))
+            );
+    }
+
     public function test_reordering_persists_the_new_positions(): void
     {
         $ordered = [
@@ -399,6 +427,29 @@ class PipelineConfigurationTest extends TestCase
             $deal->save();
 
             return $deal;
+        });
+    }
+
+    /**
+     * @param  list<Stage>  $path  etapele prin care a trecut deal-ul, în ordine
+     */
+    private function recordStageHistory(Deal $deal, array $path): void
+    {
+        TenantContext::run($this->marlin, function () use ($deal, $path): void {
+            $previous = null;
+
+            foreach ($path as $offset => $stage) {
+                $event = new DealStageEvent([
+                    'deal_id' => $deal->getKey(),
+                    'from_stage_id' => $previous?->getKey(),
+                    'to_stage_id' => $stage->getKey(),
+                    'changed_at' => now()->subDays(count($path) - $offset),
+                ]);
+                $event->changed_by = $this->owner->getKey();
+                $event->save();
+
+                $previous = $stage;
+            }
         });
     }
 
