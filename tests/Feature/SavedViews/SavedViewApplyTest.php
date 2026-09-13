@@ -133,6 +133,74 @@ class SavedViewApplyTest extends TestCase
             );
     }
 
+    /**
+     * P2-004 (code review) — o vizualizare salvată reproduce scopul de owner EFECTIV al
+     * AUTORULUI (Manager, nerestrâns — `owner` absent din starea lui curentă), pentru
+     * ORICINE o deschide mai târziu, nu implicitul rolului celui care o deschide. Fără fix
+     * (`ResourceList::pinRoleDependentFiltersForSharing()`, aplicat în
+     * `SavedViewController::store()`): un Agent care deschide linkul ar primi PROPRIUL
+     * implicit (`owner=me`, `AccountList::defaultFilters()`), nu „All accounts" cum a văzut
+     * Managerul — contrazice plan §8 („redeschisă cu filtrele… intacte").
+     *
+     * Trece prin `store()` REAL (`postJson`), nu printr-un `SavedView` construit manual ca
+     * restul acestui fișier: regula se aplică la SALVARE, deci testul trebuie să exercite
+     * exact acel cod.
+     */
+    public function test_a_manager_saving_without_an_owner_filter_pins_it_to_all_for_whoever_opens_it(): void
+    {
+        $manager = $this->makeMember($this->tenant, 'manager@throughput.dev', Permissions::MANAGER);
+        $agent = $this->makeMember($this->tenant, 'agent@throughput.dev', Permissions::AGENT);
+
+        $created = $this->actingAs($manager)->postJson('/marlin/saved-views', [
+            'resource_type' => 'accounts',
+            'name' => 'All active accounts',
+            'visibility' => 'team',
+            // Fără `owner`: exact ce trimite `SavedViewPicker.tsx` cu starea curentă a unui
+            // Manager (nerestrâns de rol) care n-a atins niciodată filtrul de Owner.
+            'filter' => ['status' => 'active'],
+            'sort' => '-created_at',
+        ])->assertCreated()->json();
+
+        $this->assertSame(
+            'all',
+            $created['filter']['owner'] ?? null,
+            'Cheia `owner`, absentă din starea Managerului, trebuie fixată explicit ca `all` la salvare.'
+        );
+
+        $response = $this->actingAs($agent)->get("/marlin/saved-views/{$created['id']}/apply");
+        $response->assertRedirect();
+
+        $target = (string) $response->headers->get('Location');
+        $this->assertStringContainsString('filter%5Bowner%5D=all', $target, "Linkul de redirect trebuie să conțină explicit filter[owner]=all: {$target}");
+
+        $this->actingAs($agent)->get($target)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('list.filter.owner', 'all')
+                ->where('list.filter.status', 'active')
+            );
+    }
+
+    /**
+     * P2-004, a doua jumătate a regulii: o cheie DEJA prezentă (Agentul salvează cu propriul
+     * implicit, `owner=me`, umplut de `ListQuery::fromRequest()` chiar dacă URL-ul nu-l arată)
+     * rămâne NEATINSĂ — „me" e relativ la cine DESCHIDE vederea, nu la autor.
+     */
+    public function test_an_agents_own_me_filter_is_not_overwritten_at_save_time(): void
+    {
+        $agent = $this->makeMember($this->tenant, 'agent@throughput.dev', Permissions::AGENT);
+
+        $created = $this->actingAs($agent)->postJson('/marlin/saved-views', [
+            'resource_type' => 'accounts',
+            'name' => 'My accounts',
+            'visibility' => 'private',
+            'filter' => ['owner' => 'me', 'status' => 'active'],
+            'sort' => 'name',
+        ])->assertCreated()->json();
+
+        $this->assertSame('me', $created['filter']['owner'] ?? null);
+    }
+
     private function createSavedView(User $user, string $resourceType, array $filters, string $sort, string $visibility): SavedView
     {
         return TenantContext::run($this->tenant, function () use ($user, $resourceType, $filters, $sort, $visibility): SavedView {

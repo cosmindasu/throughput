@@ -38,6 +38,57 @@ abstract class ResourceList
         return [];
     }
 
+    /**
+     * Cheile de filtru al căror IMPLICIT depinde de ROLUL utilizatorului (ex: `owner` pe
+     * Accounts/Deals — Agentul pornește pe „My accounts/deals", Owner/Manager pe „All"),
+     * NU de valoarea implicitului pentru un rol anume — o listă fără nicio îngustare de rol
+     * (ex: Contacts) întoarce `[]`. Vezi `pinRoleDependentFiltersForSharing()`, singurul loc
+     * care citește această listă (P2-004, code review).
+     *
+     * @return list<string>
+     */
+    protected function roleDependentFilterKeys(): array
+    {
+        return [];
+    }
+
+    /**
+     * P2-004 (code review) — o vizualizare salvată reproduce scopul de owner EFECTIV al
+     * AUTORULUI ei, pentru ORICINE o deschide mai târziu, nu implicitul rolului celui care o
+     * deschide. Fără asta: Managerul salvează „All accounts" (implicitul lui — `owner`
+     * ABSENT din `list.filter`, `AccountList::defaultFilters()` întoarce `[]` pentru un rol
+     * nerestrâns), un Agent deschide linkul, iar `ListQuery::fromRequest()` — care NU repetă
+     * implicitul autorului, ci al celui care cere pagina — îi aplică PROPRIUL implicit
+     * (`owner=me`), deci Agentul vede doar conturile lui, nu ce a văzut Managerul. Contrazice
+     * direct plan §8 („redeschisă cu filtrele… intacte") și glosarul din specs.md
+     * („combinație numită de filtre… partajabilă").
+     *
+     * Regula: o cheie din `roleDependentFilterKeys()` ABSENTĂ din starea curentă a autorului
+     * (dovadă că autorul NU era restrâns de rol) se fixează explicit ca `'all'` — convenția
+     * comună `owner`-ului pe `AccountList`/`DealList`, singurele liste care suprascriu
+     * `roleDependentFilterKeys()` azi. O cheie DEJA prezentă (ex: un Agent salvează cu
+     * `owner=me`, propriul lui implicit, umplut de `ListQuery::fromRequest()` chiar dacă
+     * URL-ul nu-l arată explicit) rămâne NEATINSĂ: „me" rămâne relativ la cine DESCHIDE
+     * vederea, nu la autor — comportament deja existent, intenționat, nu o ambiguitate de
+     * rezolvat aici (un Agent care trimite propriul link altui Agent se așteaptă ca fiecare
+     * să vadă „ale lui", nu „ale primului Agent").
+     *
+     * Aplicată o singură dată, la SALVARE (`SavedViewController::store()`) — nu la fiecare
+     * `apply()`: vederile deja salvate înainte de acest fix nu se migrează (datele demo se
+     * resetează noaptea oricum), dar orice vedere NOUĂ e corectă de la creare.
+     *
+     * @param  array<string, string>  $filters
+     * @return array<string, string>
+     */
+    public function pinRoleDependentFiltersForSharing(array $filters): array
+    {
+        foreach ($this->roleDependentFilterKeys() as $key) {
+            $filters[$key] ??= 'all';
+        }
+
+        return $filters;
+    }
+
     protected function accepts(string $key, string $value): bool
     {
         return true;

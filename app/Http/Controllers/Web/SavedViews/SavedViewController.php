@@ -76,10 +76,16 @@ final class SavedViewController extends Controller
         $list = SavedViewResourceType::list($resourceType);
         $listQuery = $list->fromState($request->only(['filter', 'sort']))->toArray();
 
+        // P2-004 (code review) — vezi docblock-ul `ResourceList::pinRoleDependentFiltersForSharing()`:
+        // fixează explicit „all” pe cheile de filtru cu implicit dependent de rol (`owner`),
+        // ABSENTE din starea autorului, ca scopul lui EFECTIV (nu implicitul celui care
+        // deschide linkul mai târziu) să supraviețuiască partajării.
+        $filters = $list->pinRoleDependentFiltersForSharing($listQuery['filter']);
+
         $savedView = new SavedView([
             'resource_type' => $resourceType,
             'name' => $request->validated('name'),
-            'filters' => $listQuery['filter'],
+            'filters' => $filters,
             'sort' => $listQuery['sort'],
             'columns' => SavedViewResourceType::defaultColumns($resourceType),
             'visibility' => $request->validated('visibility'),
