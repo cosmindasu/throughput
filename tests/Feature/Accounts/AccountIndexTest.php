@@ -90,6 +90,35 @@ class AccountIndexTest extends TestCase
             );
     }
 
+    /**
+     * P1-002 din auditul specificației — verificat pe date, NU e un bug: `users.id` e
+     * generat de Eloquent (`HasUlids`), deja cu litere mici, deci `Str::lower($owner)` din
+     * `AccountList::applyFilters()` nu schimbă nimic pentru un ULID valid. Testul care
+     * lipsea: filtrarea pe un membru anume întoarce EXACT conturile lui, nici pe ale
+     * colegului, nici „My accounts", nici „All".
+     */
+    public function test_filtering_by_a_specific_member_returns_only_their_accounts(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'demo.agent@throughput.dev', Permissions::AGENT);
+        $manager = $this->makeMember($this->marlin, 'demo.manager@throughput.dev', Permissions::MANAGER);
+
+        TenantContext::run($this->marlin, function () use ($agent, $manager): void {
+            (new AccountFactory)->create(['name' => 'Agent Account One', 'created_by' => $this->owner->getKey(), 'owner_user_id' => $agent->getKey()]);
+            (new AccountFactory)->create(['name' => 'Agent Account Two', 'created_by' => $this->owner->getKey(), 'owner_user_id' => $agent->getKey()]);
+            (new AccountFactory)->count(3)->create(['created_by' => $this->owner->getKey(), 'owner_user_id' => $manager->getKey()]);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->get('/marlin/accounts?filter[owner]='.$agent->getKey())
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->loadDeferredProps(fn (AssertableInertia $deferred) => $deferred
+                    ->has('accounts.data', 2)
+                    ->where('accounts.data.0.name', fn (string $name) => in_array($name, ['Agent Account One', 'Agent Account Two'], true))
+                    ->where('accounts.data.1.name', fn (string $name) => in_array($name, ['Agent Account One', 'Agent Account Two'], true))
+                )
+            );
+    }
+
     public function test_filtering_by_status(): void
     {
         TenantContext::run($this->marlin, function (): void {

@@ -54,6 +54,33 @@ class AccountExportTest extends TestCase
         $this->assertCount(5, $lines);
     }
 
+    /**
+     * P1-002 din auditul specificației — completează testul care lipsea pentru calea de
+     * export: filtrarea pe un membru anume (id-ul lui) produce exact rândurile lui, nu
+     * rândurile colegului sau tot tenantul.
+     */
+    public function test_a_synchronous_export_filtered_by_a_specific_member_contains_only_their_rows(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'demo.agent@throughput.dev', Permissions::AGENT);
+        $manager = $this->makeMember($this->marlin, 'demo.manager@throughput.dev', Permissions::MANAGER);
+
+        TenantContext::run($this->marlin, function () use ($agent, $manager): void {
+            (new AccountFactory)->create(['name' => 'Agent Account One', 'created_by' => $this->owner->getKey(), 'owner_user_id' => $agent->getKey()]);
+            (new AccountFactory)->create(['name' => 'Agent Account Two', 'created_by' => $this->owner->getKey(), 'owner_user_id' => $agent->getKey()]);
+            (new AccountFactory)->count(3)->create(['created_by' => $this->owner->getKey(), 'owner_user_id' => $manager->getKey()]);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($this->owner)->get('/marlin/accounts/export?filter[owner]='.$agent->getKey());
+        $response->assertOk();
+
+        $lines = array_filter(explode("\n", trim($response->getContent())));
+        // Antet + exact 2 rânduri ale agentului — nici cele 3 ale managerului.
+        $this->assertCount(3, $lines);
+        $this->assertStringContainsString('Agent Account One', $response->getContent());
+        $this->assertStringContainsString('Agent Account Two', $response->getContent());
+    }
+
     public function test_a_viewer_can_export_even_without_write_access(): void
     {
         $viewer = $this->makeMember($this->marlin, 'demo.viewer@throughput.dev', Permissions::VIEWER);
