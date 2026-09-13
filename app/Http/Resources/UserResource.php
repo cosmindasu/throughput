@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 class UserResource extends JsonResource
 {
     /**
-     * @return array{id: string, name: string, email: string, theme: string, initials: string}
+     * @return array{id: string, name: string, email: string, theme: string, initials: string, dismissedHints: list<string>}
      */
     public function toArray(Request $request): array
     {
@@ -25,6 +25,10 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'theme' => $this->theme,
             'initials' => $this->initials(),
+            // BR-HELP-02 — indicii de primă vizită respinși, per utilizator (nu per
+            // tenant, la fel ca `theme`). Cast `array` pe model; `?? []` doar pentru
+            // rândurile mai vechi decât coloana, dacă există.
+            'dismissedHints' => $this->dismissed_hints ?? [],
         ];
     }
 
