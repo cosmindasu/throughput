@@ -9,10 +9,10 @@ use Database\Factories\DealFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
 use Database\Seeders\Support\DemoClock;
+use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\Rand;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * Deals pe toate etapele (nu "totul Won", specs.md §21.2) + `deal_stage_events` ca istoric
@@ -53,7 +53,7 @@ final class DealsSeeder
 
         for ($i = 0; $i < $target; $i++) {
             $account = $accounts[$i % $accountCount];
-            $dealId = (string) Str::ulid();
+            $dealId = DemoId::next();
             $ownerId = $ownerIds[array_rand($ownerIds)];
 
             // `created_at` al contului e timestamp, nu Carbon — vezi AccountsAndContactsSeeder.
@@ -128,7 +128,7 @@ final class DealsSeeder
                 $duration = $previousAt !== null ? $previousAt->diffInSeconds($event['at']) : null;
 
                 $eventWriter->push([
-                    'id' => (string) Str::ulid(),
+                    'id' => DemoId::next(),
                     'tenant_id' => $tenant->id,
                     'deal_id' => $dealId,
                     'from_stage_id' => $event['from']['id'] ?? null,

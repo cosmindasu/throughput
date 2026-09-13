@@ -17,6 +17,7 @@ use Database\Factories\ShipmentLineFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
 use Database\Seeders\Support\DemoClock;
+use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\Rand;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -116,7 +117,7 @@ final class StockAndOrdersSeeder
             $reservesStock = in_array($status, [Order::STATUS_CONFIRMED, Order::STATUS_PARTIALLY_FULFILLED], true);
 
             $ownerId = Rand::bool(80) ? $account['owner_user_id'] : $ownerIds[array_rand($ownerIds)];
-            $orderId = (string) Str::ulid();
+            $orderId = DemoId::next();
 
             $lineCount = (int) Rand::weightedKey([1 => 30, 2 => 35, 3 => 20, 4 => 15]);
             $lineVariants = Rand::distinct($variants, $lineCount);
@@ -159,7 +160,7 @@ final class StockAndOrdersSeeder
                 }
 
                 $lines[] = [
-                    'id' => (string) Str::ulid(),
+                    'id' => DemoId::next(),
                     'variant_id' => $variant['id'],
                     'description' => "{$variant['name']} — {$variant['sku']}",
                     'quantity' => $quantity,
@@ -246,7 +247,7 @@ final class StockAndOrdersSeeder
             }
 
             if ($shipmentLines !== [] && in_array($bucket, ['partially_fulfilled', 'fulfilled'], true)) {
-                $shipmentId = (string) Str::ulid();
+                $shipmentId = DemoId::next();
                 $shippedAt = DemoClock::shortlyAfter($placedAt, 12, 96);
 
                 $shipmentStatus = $bucket === 'fulfilled'
@@ -273,7 +274,7 @@ final class StockAndOrdersSeeder
 
                 foreach ($shipmentLines as $line) {
                     $shipmentLineRow = $shipmentLineFactory->definition();
-                    $shipmentLineRow['id'] = (string) Str::ulid();
+                    $shipmentLineRow['id'] = DemoId::next();
                     $shipmentLineRow['tenant_id'] = $tenant->id;
                     $shipmentLineRow['shipment_id'] = $shipmentId;
                     $shipmentLineRow['order_line_id'] = $line['id'];
@@ -281,7 +282,7 @@ final class StockAndOrdersSeeder
                     $shipmentLineWriter->push($shipmentLineRow);
 
                     $movementWriter->push([
-                        'id' => (string) Str::ulid(),
+                        'id' => DemoId::next(),
                         'tenant_id' => $tenant->id,
                         'variant_id' => $line['variant_id'],
                         'location_id' => $mainLocation,
@@ -297,7 +298,7 @@ final class StockAndOrdersSeeder
             } elseif ($bucket === 'confirmed_pending') {
                 // Etichetă în coadă/eșuată (ADR-013) — nimic nu a părăsit fizic depozitul,
                 // deci fără shipment_lines/stock_movements, doar shipment-ul "blocat".
-                $shipmentId = (string) Str::ulid();
+                $shipmentId = DemoId::next();
                 $shipmentStatus = Rand::bool(60) ? Shipment::STATUS_LABEL_PENDING : Shipment::STATUS_LABEL_FAILED;
 
                 $shipmentRow = $shipmentFactory->definition();
@@ -378,7 +379,7 @@ final class StockAndOrdersSeeder
                 $pool[$variantId][$mainLocation] += $qty;
 
                 $writer->push([
-                    'id' => (string) Str::ulid(),
+                    'id' => DemoId::next(),
                     'tenant_id' => $tenant->id,
                     'variant_id' => $variantId,
                     'location_id' => $mainLocation,
@@ -397,13 +398,13 @@ final class StockAndOrdersSeeder
             if (Rand::bool(5) && $pool[$variantId][$mainLocation] > 20) {
                 $transferQty = (int) max(5, round($pool[$variantId][$mainLocation] * (random_int(10, 15) / 100)));
                 $transferAt = Carbon::now()->subMonths(random_int(1, 11));
-                $refId = (string) Str::ulid();
+                $refId = DemoId::next();
 
                 $pool[$variantId][$mainLocation] -= $transferQty;
                 $pool[$variantId][$overflowLocation] = ($pool[$variantId][$overflowLocation] ?? 0) + $transferQty;
 
-                $writer->push(['id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'variant_id' => $variantId, 'location_id' => $mainLocation, 'delta' => -$transferQty, 'reason' => 'transfer', 'ref_type' => 'transfer', 'ref_id' => $refId, 'note' => null, 'created_by' => $actorId, 'created_at' => $transferAt]);
-                $writer->push(['id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'variant_id' => $variantId, 'location_id' => $overflowLocation, 'delta' => $transferQty, 'reason' => 'transfer', 'ref_type' => 'transfer', 'ref_id' => $refId, 'note' => null, 'created_by' => $actorId, 'created_at' => $transferAt]);
+                $writer->push(['id' => DemoId::next(), 'tenant_id' => $tenant->id, 'variant_id' => $variantId, 'location_id' => $mainLocation, 'delta' => -$transferQty, 'reason' => 'transfer', 'ref_type' => 'transfer', 'ref_id' => $refId, 'note' => null, 'created_by' => $actorId, 'created_at' => $transferAt]);
+                $writer->push(['id' => DemoId::next(), 'tenant_id' => $tenant->id, 'variant_id' => $variantId, 'location_id' => $overflowLocation, 'delta' => $transferQty, 'reason' => 'transfer', 'ref_type' => 'transfer', 'ref_id' => $refId, 'note' => null, 'created_by' => $actorId, 'created_at' => $transferAt]);
             }
 
             if (Rand::bool(3)) {
@@ -414,7 +415,7 @@ final class StockAndOrdersSeeder
                 $pool[$variantId][$mainLocation] += $delta;
 
                 $writer->push([
-                    'id' => (string) Str::ulid(),
+                    'id' => DemoId::next(),
                     'tenant_id' => $tenant->id,
                     'variant_id' => $variantId,
                     'location_id' => $mainLocation,
@@ -461,7 +462,7 @@ final class StockAndOrdersSeeder
                 $reserved = $locationId === $mainLocation ? min($reservedByVariant[$variantId] ?? 0, $onHand) : 0;
 
                 $row = $factory->definition();
-                $row['id'] = (string) Str::ulid();
+                $row['id'] = DemoId::next();
                 $row['tenant_id'] = $tenant->id;
                 $row['variant_id'] = $variantId;
                 $row['location_id'] = $locationId;

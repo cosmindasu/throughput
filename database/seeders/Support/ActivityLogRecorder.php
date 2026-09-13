@@ -3,7 +3,6 @@
 namespace Database\Seeders\Support;
 
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * Istoricul semănat al `activity_log` (plan §7.8): rândurile există din Faza 1, ca
@@ -34,7 +33,7 @@ final class ActivityLogRecorder
         ?array $newValues = null,
     ): void {
         $this->writer->push([
-            'id' => (string) Str::ulid(),
+            'id' => DemoId::next(),
             'tenant_id' => $tenantId,
             'user_id' => $userId,
             'action' => $action,

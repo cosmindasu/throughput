@@ -49,6 +49,12 @@ class DemoSeedScaleTest extends TestCase
             // „My accounts" al Agentului demo (US-CRM-02, fluxul RBAC din §24.3) nu e gol la
             // nicio scară — garanția din AccountsAndContactsSeeder, nu noroc statistic.
             $this->assertGreaterThanOrEqual(5, Account::query()->where('owner_user_id', $agent->getKey())->count());
+
+            // ID-urile scrise în bloc au aceeași formă ca cele din Eloquent (litere mici) — vezi
+            // DemoId. Cu majuscule, orice comparație după `Str::lower` pierdea rândul semănat.
+            foreach ([Account::class, Deal::class, Order::class] as $model) {
+                $this->assertSame(0, $model::query()->whereRaw("id ~ '[A-Z]'")->count(), "{$model}: id-uri cu majuscule.");
+            }
         });
     }
 

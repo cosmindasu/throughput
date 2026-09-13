@@ -10,11 +10,11 @@ use Database\Factories\ContactFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
 use Database\Seeders\Support\DemoClock;
+use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\DemoNames;
 use Database\Seeders\Support\Rand;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * Conturi + contacte în bloc (plan §7.8): definițiile plauzibile vin din factories
@@ -62,7 +62,7 @@ final class AccountsAndContactsSeeder
         $contactsByAccount = [];
 
         for ($i = 1; $i <= $total; $i++) {
-            $id = (string) Str::ulid();
+            $id = DemoId::next();
             // Primele conturi merg garantat la Agentul demo: „My accounts" (US-CRM-02) trebuie să
             // aibă ce arăta la orice scară. La scara E2E (40 de conturi, 5 agenți), distribuția
             // aleatoare l-ar lăsa ocazional fără niciunul — un demo gol și un test instabil.
@@ -103,7 +103,7 @@ final class AccountsAndContactsSeeder
             $contactIds = [];
 
             for ($c = 1; $c <= $contactCount; $c++) {
-                $contactId = (string) Str::ulid();
+                $contactId = DemoId::next();
                 $contactRow = $contactFactory->definition();
                 $firstName = $contactRow['first_name'];
                 $lastName = $contactRow['last_name'];

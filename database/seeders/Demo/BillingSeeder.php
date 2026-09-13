@@ -10,10 +10,10 @@ use Database\Factories\InvoiceFactory;
 use Database\Factories\PaymentFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
+use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\Rand;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * Facturare către clienți — AR intern (specs.md §12.1), decuplată de starea de onorare.
@@ -83,7 +83,7 @@ final class BillingSeeder
             }
 
             $total = $order['grand_total'];
-            $invoiceId = (string) Str::ulid();
+            $invoiceId = DemoId::next();
 
             if ($statusBucket === 'paid') {
                 $amountPaid = $total;
@@ -161,7 +161,7 @@ final class BillingSeeder
             $paidAt = $issueDate->copy()->addDays(random_int(1, max(2, $termDays + 10)));
 
             $row = $factory->definition();
-            $row['id'] = (string) Str::ulid();
+            $row['id'] = DemoId::next();
             $row['tenant_id'] = $tenant->id;
             $row['invoice_id'] = $invoiceId;
             $row['amount'] = $amount;
