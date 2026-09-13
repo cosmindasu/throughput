@@ -31,7 +31,7 @@ const exportsTopic: HelpTopic = {
     ],
     howItsBuilt: {
         summary:
-            'The 5,000-row threshold decides synchronous vs. queued, not the resource type — under it, the CSV is built inside the request and returned directly; over it, the filter and sort are saved on a `bulk_operations` row and re-run by a queued job. The job marks the export "Running" in its own short transaction before doing the work, otherwise the status would jump straight from "Queued" to the end. Both paths write the file through the same exporter, which prefixes any cell starting with =, +, - or @ with an apostrophe, so a spreadsheet never runs it as a formula. No dedicated ADR — see specs.md §13.2 for the mechanism.',
+            'The 5,000-row threshold decides synchronous vs. queued, not the resource type — under it, the CSV is built inside the request and returned directly; over it, the filter and sort are saved on a `bulk_operations` row and re-run by a queued job. The job marks the export "Running" in its own short transaction before doing the work, otherwise the status would jump straight from "Queued" to the end. Both paths write the file through the same exporter, which prefixes any cell starting with =, +, -, @, a tab or a carriage return with an apostrophe, so a spreadsheet never runs it as a formula. No dedicated ADR — see specs.md §13.2 for the mechanism.',
     },
 };
 

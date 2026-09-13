@@ -25,7 +25,7 @@ const dealsKanban: HelpTopic = {
     ],
     rules: [
         "A deal can't move to Won without a value — the move is rejected with \"Set a deal value before marking as Won\" and the card goes back where it was, whether you dragged it or used the menu. Set the value from the deal's \"Edit\" first.",
-        "Dragging isn't the only way to change stage — \"Move to stage…\" is fully operable from the keyboard: Tab to the card's \"Move to stage…\" button, Enter, Space or ↓ to open it, ↑/↓ to pick a stage, Enter to move, Esc to close. This isn't a nice-to-have: drag-and-drop alone would fail WCAG 2.2 accessibility for anyone who can't use a mouse.",
+        "Dragging isn't the only way to change stage — \"Move to stage…\" is fully operable from the keyboard: Tab to the card's \"Move to stage…\" button, Enter, Space or ↓ to open it, ↑/↓ to pick a stage, Enter or Space to move, Esc to close. This isn't a nice-to-have: drag-and-drop alone would fail WCAG 2.2 accessibility for anyone who can't use a mouse.",
         'Moving a deal to the Lost stage first opens "Mark deal as Lost": pick a reason — Price, Competition, Timing or Other — then "Mark as Lost". Moving it out of Lost again clears the reason.',
         'Viewers see the board read-only: no dragging, no "Move to stage…" menu. Agents start on "My deals" and can move only deals they own.',
         "Each column shows its 50 most recently created deals; the number in the column header is the full count. There's no create button on the board — a new deal always starts on the first stage.",
