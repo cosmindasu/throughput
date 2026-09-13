@@ -78,7 +78,8 @@ export interface ActivityItem {
 
 export interface DashboardPageProps {
     kpis: DashboardKpis;
-    activity: ActivityItem[];
+    // `null` când rolul nu citește jurnalul de activitate (Viewer, specs §7.4).
+    activity: ActivityItem[] | null;
     [key: string]: unknown;
 }
 

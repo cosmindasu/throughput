@@ -10,8 +10,11 @@ use App\Models\InventoryLevel;
 use App\Models\Invoice;
 use App\Models\Membership;
 use App\Models\Order;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,7 +44,7 @@ class DashboardController extends Controller
         return redirect()->route('workspace.dashboard', ['workspace' => $membership->tenant->slug]);
     }
 
-    public function show(): Response
+    public function show(Request $request): Response
     {
         return Inertia::render('Dashboard', [
             'kpis' => [
@@ -65,9 +68,31 @@ class DashboardController extends Controller
                     ->count(),
             ],
 
-            'activity' => ActivityEntryResource::collection(
-                ActivityLog::query()->with('user')->latest('created_at')->limit(10)->get()
-            ),
+            'activity' => $this->recentActivity($request->user()),
         ]);
+    }
+
+    /**
+     * Feed-ul e o citire a jurnalului de activitate, deci urmează rândul lui din matricea §7.4:
+     * Owner și Manager văd tot tenantul (`activity_log.view`), Agentul doar acțiunile proprii
+     * (`activity_log.view_own`), Viewer-ul nimic. Cine n-are acces primește `null`, nu o listă
+     * goală: „No recent activity yet" ar afirma ceva fals despre workspace.
+     */
+    private function recentActivity(User $user): ?AnonymousResourceCollection
+    {
+        $seesWholeTenant = $user->can('activity_log.view');
+
+        if (! $seesWholeTenant && ! $user->can('activity_log.view_own')) {
+            return null;
+        }
+
+        return ActivityEntryResource::collection(
+            ActivityLog::query()
+                ->when(! $seesWholeTenant, fn (Builder $query) => $query->where('user_id', $user->getKey()))
+                ->with('user')
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+        );
     }
 }

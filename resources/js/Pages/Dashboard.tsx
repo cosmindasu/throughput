@@ -17,7 +17,8 @@ const numberFormatter = new Intl.NumberFormat('en-US');
  * Dashboard-ul de start al unui workspace (FR-DEMO-01, specs.md §21.3) —
  * prima pagină după login. Trebuie să încapă fără scroll pe 1280×800: titlu +
  * 4 KPI tiles + feed de activitate, fără widget-uri suplimentare care nu sunt
- * cerute explicit.
+ * cerute explicit. Feed-ul lipsește pentru rolurile care nu citesc jurnalul de
+ * activitate (Viewer, specs.md §7.4): `activity` vine `null`.
  */
 export default function Dashboard() {
     const { workspace, kpis, activity } = usePage<DashboardPageProps>().props;
@@ -43,12 +44,14 @@ export default function Dashboard() {
                     <KpiTile label="Low stock alerts" value={numberFormatter.format(kpis.lowStockAlerts)} />
                 </div>
 
-                <section className="rounded-lg border border-border bg-surface p-4" aria-label="Recent activity">
-                    <h2 className="text-sm font-medium text-text-2">Recent activity</h2>
-                    <div className="mt-3">
-                        <ActivityFeed items={activity} />
-                    </div>
-                </section>
+                {activity !== null && (
+                    <section className="rounded-lg border border-border bg-surface p-4" aria-label="Recent activity">
+                        <h2 className="text-sm font-medium text-text-2">Recent activity</h2>
+                        <div className="mt-3">
+                            <ActivityFeed items={activity} />
+                        </div>
+                    </section>
+                )}
             </div>
         </>
     );

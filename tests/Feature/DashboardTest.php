@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Account;
+use App\Models\ActivityLog;
 use App\Models\Deal;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -74,6 +75,43 @@ class DashboardTest extends TestCase
             );
     }
 
+    /**
+     * §7.4, rândul „Jurnal de activitate": Owner și Manager citesc tot tenantul, Agentul doar
+     * acțiunile proprii, Viewer-ul nimic. Feed-ul de pe dashboard e o citire a acelui jurnal,
+     * deci urmează același rând.
+     */
+    public function test_the_activity_feed_follows_the_activity_log_row_of_the_permission_matrix(): void
+    {
+        $manager = $this->makeMember($this->marlin, 'demo.manager@throughput.dev', Permissions::MANAGER);
+        $agent = $this->makeMember($this->marlin, 'demo.agent@throughput.dev', Permissions::AGENT);
+        $viewer = $this->makeMember($this->marlin, 'demo.viewer@throughput.dev', Permissions::VIEWER);
+
+        TenantContext::run($this->marlin, function () use ($agent): void {
+            $this->logActivity($this->owner, 'login');
+            $this->logActivity($agent, 'exported', Account::class);
+        });
+        $this->clearDatabaseTenantContext();
+
+        foreach ([$this->owner, $manager] as $user) {
+            $this->actingAs($user)->get('/marlin/dashboard')
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->has('activity', 2));
+        }
+
+        $this->actingAs($agent)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('activity', 1)
+                ->where('activity.0.actor', $agent->name)
+                ->where('activity.0.description', 'Exported Account')
+            );
+
+        // `null`, nu listă goală: „No recent activity yet" ar afirma ceva fals despre workspace.
+        $this->actingAs($viewer)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('activity', null));
+    }
+
     public function test_the_switcher_lists_every_workspace_the_user_belongs_to(): void
     {
         $this->actingAs($this->owner)->get('/marlin/dashboard')
@@ -134,6 +172,17 @@ class DashboardTest extends TestCase
                     return true;
                 })
             );
+    }
+
+    private function logActivity(User $user, string $action, ?string $auditableType = null): void
+    {
+        ActivityLog::query()->create([
+            'user_id' => $user->getKey(),
+            'action' => $action,
+            'auditable_type' => $auditableType,
+            'ip_address' => '203.0.113.10',
+            'user_agent' => 'DashboardTest',
+        ]);
     }
 
     private function seedBusinessData(Tenant $tenant, float $dealValue, float $overdueBalance): void
