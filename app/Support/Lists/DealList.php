@@ -42,6 +42,12 @@ final class DealList extends ResourceList
         return Permissions::restrictedToOwnRecords($user) ? ['owner' => 'me'] : [];
     }
 
+    /** P2-004 — vezi `ResourceList::pinRoleDependentFiltersForSharing()`. */
+    protected function roleDependentFilterKeys(): array
+    {
+        return ['owner'];
+    }
+
     protected function accepts(string $key, string $value): bool
     {
         return match ($key) {

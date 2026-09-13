@@ -91,16 +91,48 @@ test('Cmd+K — stare inițială, căutare grupată pe tip, navigare cu tastatur
     await expect(dialog).toBeHidden();
 
     // Redeschidere + Esc: închide și readuce focusul pe declanșator, fără să navigheze.
+    // Aici, calea RAPIDĂ (`onInputKeyDown`, input deja focusat) — cealaltă cale, `onCancel`
+    // de pe `<dialog>` (P2-003), e testată separat mai jos, determinist.
     await page.keyboard.press('ControlOrMeta+K');
     await expect(dialog).toBeVisible();
-    // Focusul intră pe input printr-un `requestAnimationFrame` (`GlobalSearch.tsx`), NU
-    // sincron cu deschiderea — fără să-l aștepte, `Escape`-ul de mai jos poate ajunge
-    // înainte, pe orice avea focusul înainte de Cmd+K: `onInputKeyDown` (care readuce
-    // focusul pe declanșator) nu s-ar mai declanșa deloc, doar `<dialog>`-ul nativ s-ar
-    // închide pe calea „cancel" (`onClose={() => close(false)}`, focus NEschimbat).
     await expect(dialog.getByRole('combobox')).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
     await expect(page).toHaveURL(new RegExp(dealUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'));
+});
+
+/**
+ * P2-003 (code review) — Esc apăsat ÎNAINTE ca input-ul să apuce focusul (deschis prin
+ * Cmd+K, focusul intră pe input printr-un `requestAnimationFrame`, nu sincron cu
+ * deschiderea) nu mai trece prin `onInputKeyDown` (calea rapidă, cere focus deja pe input),
+ * ci exclusiv prin `onCancel`-ul de pe `<dialog>` — catch-all-ul adăugat la acest review.
+ *
+ * Verificat empiric (raportat în raportul agentului): un `KeyboardEvent('Escape')`
+ * SINTETIC, dispecerizat de două ori la rând (chiar fără `await` între ele), NU reproduce
+ * fidel fereastra de cursă reală — round trip-ul CDP al fiecărui `page.keyboard.press` lasă
+ * timp `requestAnimationFrame`-ului să ruleze oricum, iar un `dispatchEvent` complet
+ * sincron, în pagină, ajunge ÎNAINTE ca React să apuce să monteze dialogul (`setOpen(true)`
+ * e async), deci evenimentul „Escape" nu are ce prinde. Un eveniment `KeyboardEvent`
+ * sintetic, netrusted, oricum NU declanșează comportamentul nativ de închidere al
+ * `<dialog>` (doar evenimentele de încredere ale browserului o fac) — deci nu există o cale
+ * automatizată să reproducă fidel, determinist, cursa Escape-vs-rAF prin tastatură.
+ *
+ * Dispecerizarea DIRECTĂ a evenimentului `cancel` (pe care browserul l-ar emite la Escape,
+ * indiferent ce are focus în interiorul dialogului) exercită însă exact codul de pe acea
+ * cale — determinist, fără să depindă de timing.
+ */
+test('Esc înainte ca input-ul să apuce focusul tot închide paleta și readuce focusul pe declanșator', async ({ page }) => {
+    await page.goto('/marlin/dashboard');
+
+    const trigger = page.getByRole('button', { name: 'Search' });
+    const dialog = page.getByRole('dialog', { name: 'Global search' });
+
+    await page.keyboard.press('ControlOrMeta+K');
+    await expect(dialog).toBeVisible();
+
+    await dialog.evaluate((dialogEl) => dialogEl.dispatchEvent(new Event('cancel', { cancelable: true })));
+
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
 });

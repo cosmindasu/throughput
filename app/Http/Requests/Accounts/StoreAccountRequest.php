@@ -23,6 +23,39 @@ final class StoreAccountRequest extends FormRequest
     }
 
     /**
+     * P2-001 (code review, al doilea strat) — un `contact` cu TOATE câmpurile goale se
+     * tratează ca absent, ÎNAINTE de validare. Front-end-ul (`AccountForm.tsx`) omite deja
+     * cheia în acest caz, dar validarea nu are voie să depindă doar de asta: un client care
+     * trimite payload-ul HTTP direct (fără acest formular) ar retrimite `contact` cu
+     * string-uri goale, iar `required_with:contact` s-ar declanșa la fel de tăcut. Regula
+     * rămâne „TOATE goale" — un `contact` cu DOAR email/phone/title completat (fără nume)
+     * NU se scoate aici: rămâne prezent, ca `required_with:contact` să ceară numele, exact
+     * cazul semnalat la P2-001 (contact „completat parțial" pierdut fără nicio eroare).
+     */
+    protected function prepareForValidation(): void
+    {
+        $contact = $this->input('contact');
+
+        if (is_array($contact) && ! $this->hasNonBlankValue($contact)) {
+            $this->request->remove('contact');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    private function hasNonBlankValue(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
