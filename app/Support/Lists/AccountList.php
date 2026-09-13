@@ -5,15 +5,17 @@ namespace App\Support\Lists;
 use App\Models\Account;
 use App\Models\Membership;
 use App\Models\User;
+use App\Support\Exports\ExportableList;
 use App\Support\ListQuery;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
  * Lista de conturi — FR-CRM-03, US-CRM-02.
  */
-final class AccountList extends ResourceList
+final class AccountList extends ResourceList implements ExportableList
 {
     public const STATUSES = [Account::STATUS_PROSPECT, Account::STATUS_ACTIVE, Account::STATUS_INACTIVE];
 
@@ -76,5 +78,28 @@ final class AccountList extends ResourceList
                 ->orWhereNotIn('owner_user_id', Membership::query()->where('status', Membership::STATUS_ACTIVE)->select('user_id'))),
             default => $query->where('owner_user_id', Str::lower($owner)),
         };
+    }
+
+    /** @return list<string> */
+    public function exportHeaders(): array
+    {
+        return ['Name', 'Domain', 'Industry', 'Status', 'Credit terms', 'Owner', 'Created at'];
+    }
+
+    /**
+     * @param  Account  $row
+     * @return list<string|int|float|null>
+     */
+    public function exportRow(Model $row): array
+    {
+        return [
+            $row->name,
+            $row->domain,
+            $row->industry,
+            $row->status,
+            $row->credit_terms,
+            $row->owner?->name,
+            $row->created_at?->toIso8601String(),
+        ];
     }
 }

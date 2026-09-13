@@ -78,6 +78,54 @@ final class ListQuery
         return new self($filters, $sort, is_string($cursor) && $cursor !== '' ? $cursor : null);
     }
 
+    /**
+     * Reface un `ListQuery` dintr-o stare deja canonică (`toArray()`), nu dintr-un
+     * request HTTP — necesar exportului în coadă (§13.2), care reia interogarea din
+     * `bulk_operations.filter_snapshot`, într-un job, fără cerere.
+     *
+     * Aceleași reguli de validare ca `fromRequest()` (valorile necunoscute/respinse se
+     * ignoră, nu aruncă): un snapshot vechi, scris înainte de o schimbare de filtre
+     * acceptate, tot trebuie să producă un export, nu o eroare de job eșuat.
+     *
+     * Fără `$defaultFilters`: starea salvată e deja rezultatul aplicării implicitului
+     * (ex: „My accounts" pentru Agent) de la momentul declanșării — reaplicarea lui aici
+     * ar fi un al doilea loc care poate diverge de `fromRequest()`.
+     *
+     * @param  array{filter?: array<string, mixed>, sort?: mixed}  $state
+     * @param  list<string>  $filterKeys
+     * @param  list<string>  $sortableColumns
+     * @param  (Closure(string, string): bool)|null  $accepts
+     */
+    public static function fromState(
+        array $state,
+        array $filterKeys,
+        array $sortableColumns,
+        string $defaultSort,
+        ?Closure $accepts = null,
+    ): self {
+        $raw = $state['filter'] ?? [];
+        $raw = is_array($raw) ? $raw : [];
+
+        $filters = [];
+
+        foreach ($filterKeys as $key) {
+            if (! array_key_exists($key, $raw)) {
+                continue;
+            }
+
+            $value = is_string($raw[$key]) ? mb_substr(trim($raw[$key]), 0, 100) : '';
+
+            if ($value !== '' && ($accepts === null || $accepts($key, $value))) {
+                $filters[$key] = $value;
+            }
+        }
+
+        $sort = $state['sort'] ?? null;
+        $sort = is_string($sort) && in_array(ltrim($sort, '-'), $sortableColumns, true) ? $sort : $defaultSort;
+
+        return new self($filters, $sort, null);
+    }
+
     public function filter(string $key): ?string
     {
         return $this->filters[$key] ?? null;

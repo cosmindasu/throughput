@@ -97,6 +97,107 @@ export interface ListState {
 
 // ── Accounts — FR-CRM-01…04, US-CRM-01…03 ────────────────────────────────────────
 
+export type AccountStatus = 'prospect' | 'active' | 'inactive';
+export type CreditTerms = 'net_15' | 'net_30' | 'net_60' | 'prepaid';
+
+export interface AccountOwnerOption {
+    id: string;
+    name: string;
+}
+
+export interface AccountAddress {
+    line1: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    country: string | null;
+}
+
+// Rândul din Accounts/Index — App\Http\Resources\Accounts\AccountResource.
+export interface AccountRow {
+    id: string;
+    name: string;
+    domain: string | null;
+    industry: string | null;
+    status: AccountStatus;
+    owner: { id: string; name: string } | null;
+    createdAt: string | null;
+    // Per RÂND, nu per pagină: un Agent pe „All accounts" vede tot tenantul, dar
+    // editează doar ce deține/a creat (§7.5).
+    canEdit: boolean;
+}
+
+// Accounts/Show, Accounts/Edit — App\Http\Resources\Accounts\AccountDetailResource.
+export interface AccountDetail {
+    id: string;
+    name: string;
+    domain: string | null;
+    industry: string | null;
+    phone: string | null;
+    status: AccountStatus;
+    creditTerms: CreditTerms;
+    source: string | null;
+    tags: string[];
+    billingAddress: AccountAddress | null;
+    shippingAddress: AccountAddress | null;
+    owner: { id: string; name: string } | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+}
+
+// App\Http\Resources\Accounts\AccountContactResource — doar afișare pe Accounts/Show.
+export interface AccountContactRow {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    title: string | null;
+    isPrimary: boolean;
+}
+
+// App\Http\Resources\Accounts\AccountDealResource — doar afișare pe Accounts/Show.
+export interface AccountDealRow {
+    id: string;
+    title: string;
+    stageName: string | null;
+    value: number | null;
+    currency: string;
+    status: string;
+    url: string;
+}
+
+// App\Support\Accounts\AccountActivityTimeline — FR-CRM-04.
+export interface AccountActivityEntry {
+    id: string;
+    description: string;
+    at: string | null;
+    url: string | null;
+}
+
+export interface AccountsIndexPageProps {
+    accounts: CursorPage<AccountRow>;
+    list: ListState;
+    owners: AccountOwnerOption[];
+    can: { create: boolean; export: boolean };
+    [key: string]: unknown;
+}
+
+export interface AccountsShowPageProps {
+    account: AccountDetail;
+    contacts: AccountContactRow[];
+    deals: AccountDealRow[];
+    activity: AccountActivityEntry[];
+    deletionBlockedReason: string | null;
+    can: { edit: boolean; delete: boolean; createDeal: boolean; createContact: boolean };
+    [key: string]: unknown;
+}
+
+export interface AccountsFormPageProps {
+    account?: AccountDetail;
+    owners: AccountOwnerOption[];
+    prefill?: { name: string };
+    [key: string]: unknown;
+}
 
 // ── Contacts — FR-CRM-02 ─────────────────────────────────────────────────────────
 
@@ -224,4 +325,20 @@ export interface SettingsPreferencesPageProps {
 
 
 // ── Exporturi — US-CRM-03, §13.2 ─────────────────────────────────────────────────
+
+export type ExportStatus = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
+
+// App\Http\Resources\Exports\ExportResource — Exports/Show.
+export interface ExportStatusPayload {
+    id: string;
+    resourceType: string;
+    status: ExportStatus;
+    totalRows: number;
+    canDownload: boolean;
+}
+
+export interface ExportsShowPageProps {
+    export: ExportStatusPayload;
+    [key: string]: unknown;
+}
 

@@ -55,6 +55,23 @@ abstract class ResourceList
         );
     }
 
+    /**
+     * Reface un `ListQuery` dintr-un `filter_snapshot` de `bulk_operations` — exportul în
+     * coadă (§13.2) reia exact interogarea capturată la declanșare, fără cerere HTTP.
+     *
+     * @param  array{filter?: array<string, mixed>, sort?: mixed}  $state
+     */
+    public function fromState(array $state): ListQuery
+    {
+        return ListQuery::fromState(
+            $state,
+            $this->filterKeys(),
+            $this->sortableColumns(),
+            $this->defaultSort(),
+            $this->accepts(...),
+        );
+    }
+
     public function query(ListQuery $list, User $user): Builder
     {
         $query = $this->baseQuery();

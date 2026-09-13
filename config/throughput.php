@@ -47,6 +47,11 @@ return [
         'bulk_max_rows' => (int) env('BULK_MAX_ROWS_ABSOLUTE', 60000),
         'import_max_rows' => (int) env('IMPORT_MAX_ROWS', 50000),
         'api_rate_limit_per_minute' => (int) env('API_RATE_LIMIT_PER_MINUTE', 300),
+
+        // US-CRM-03, §13.2: sub prag, exportul CSV răspunde sincron în cererea curentă;
+        // peste el, devine un `bulk_operations` + job pe coada `bulk` (§13.2, ADR-013 —
+        // scrierea fișierului nu are voie să țină tranzacția cererii deschisă).
+        'export_sync_max_rows' => (int) env('EXPORT_SYNC_MAX_ROWS', 5000),
     ],
 
 ];

@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['resource_type', 'action', 'filter_snapshot', 'total_rows', 'batch_id', 'group_id', 'status'])]
+#[Fillable([
+    'user_id', 'resource_type', 'action', 'filter_snapshot', 'total_rows', 'batch_id',
+    'group_id', 'status', 'result_path', 'error_message',
+])]
 class BulkOperation extends Model
 {
     use BelongsToTenant, HasUlids;
@@ -34,5 +37,15 @@ class BulkOperation extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * exports.download — doar autorul, doar când fișierul chiar există (§13.2, DoD pachet A).
+     */
+    public function isDownloadableBy(User $user): bool
+    {
+        return $this->user_id === $user->getKey()
+            && $this->status === self::STATUS_COMPLETED
+            && $this->result_path !== null;
     }
 }

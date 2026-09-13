@@ -57,6 +57,39 @@ class ListQueryTest extends TestCase
     }
 
     /**
+     * §13.2 — reconstrucția din `bulk_operations.filter_snapshot`, folosită de exportul în
+     * coadă. Aceleași reguli ca `fromRequest()`, fără cursor și fără `defaultFilters`
+     * (starea salvată e deja rezultatul aplicării implicitului la momentul declanșării).
+     */
+    public function test_from_state_reapplies_the_same_validation_as_from_request(): void
+    {
+        $list = ListQuery::fromState(
+            ['filter' => ['status' => 'active', 'tenant_id' => 'ignored'], 'sort' => '-created_at'],
+            ['status', 'owner'],
+            ['name', 'created_at'],
+            'name',
+        );
+
+        $this->assertSame(['status' => 'active'], $list->filters);
+        $this->assertSame('-created_at', $list->sort);
+        $this->assertNull($list->cursor);
+    }
+
+    public function test_from_state_ignores_rejected_values_and_falls_back_on_bad_sort(): void
+    {
+        $list = ListQuery::fromState(
+            ['filter' => ['status' => 'bogus'], 'sort' => 'password'],
+            ['status'],
+            ['name'],
+            'name',
+            fn (string $key, string $value) => $value !== 'bogus',
+        );
+
+        $this->assertSame([], $list->filters);
+        $this->assertSame('name', $list->sort);
+    }
+
+    /**
      * @param  array<string, string>  $defaults
      */
     private function parse(string $uri, array $defaults = []): ListQuery
