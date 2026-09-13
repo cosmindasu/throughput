@@ -4,8 +4,12 @@ import type { HelpTopic } from '@/help/types';
  * `Contacts/Index` — specs.md §8.1/8.3 (FR-CRM-02/03), same list mechanism as
  * Accounts (`ListQuery`/`ResourceList`).
  *
- * Presupuneri de buton semnalate în raport: „New Contact", „Export CSV" —
- * confirmate la construirea `Contacts/Index.tsx` (pachet paralel).
+ * Reconciliat cu codul la 2026-09-13: `Pages/Contacts/Index.tsx` (căutare cu „Apply", „Sort by",
+ * „Export CSV", „New contact" — și FĂRĂ `SavedViewPicker`: vizualizările salvate există doar pe
+ * accounts/deals, `SavedViewResourceType`), `ContactList` (fără filtru implicit pe rol, căutare
+ * pe câmpuri separate), `ContactPolicy` și `ContactController::destroy()` — ștergerea NU e
+ * blocată de deals/comenzi (FK-urile `deals.primary_contact_id` și `orders.contact_id` sunt
+ * `nullOnDelete`).
  */
 const contactsList: HelpTopic = {
     id: 'contacts-list',
@@ -13,20 +17,21 @@ const contactsList: HelpTopic = {
     whatIsThis:
         "Every person you deal with at your accounts — not the companies themselves, the people. A contact can exist before you've linked it to a company yet.",
     whatCanYouDo: [
-        'Search by name or email and filter the list.',
-        'Save the current filters as a view, private or shared with the team.',
-        'Export the filtered list to CSV.',
-        'Open "New Contact" to add one, linked to an account or on its own.',
+        'Search by first name, last name or email — one at a time, so "Jane Doe" typed together finds nothing — then press "Apply".',
+        'Sort by "Last name (A–Z)", "Newest first" or "Oldest first".',
+        'Download the current list with "Export CSV".',
+        'Add someone with "New contact" — linked to an account or on their own — or change a contact from its "Edit" link.',
     ],
     rules: [
-        'Export is available to Viewers too — it reads the rows already on screen, it does not write anything.',
-        "A contact can be marked \"opt out\" of marketing — that only suppresses future marketing messages, it doesn't affect transactional ones like order confirmations or invoices, and it doesn't delete the contact.",
-        "An Agent can only edit contacts linked to accounts they own or created; the rest of the list is still visible, just read-only for them.",
-        'Deleting a contact is blocked while it has linked deals or orders, the same rule as accounts.',
+        'There\'s no "My contacts" default: every role sees every contact in the workspace. What changes by role is who can edit.',
+        'An Agent can edit or delete only contacts they created, or contacts at accounts they own; the other rows have no "Edit" link.',
+        '"Export CSV" is available to Viewers too — it reads every row matching the current search, all pages of it, and writes nothing. The file includes a "Marketing opt-out" column.',
+        "Deleting a contact isn't blocked by deals or orders that reference it — they keep their history and lose the link.",
+        'Contacts have no saved views yet — "Views" exists on Accounts and Deals only.',
     ],
     howItsBuilt: {
         summary:
-            'This list reuses the same cursor-paginated `ListQuery` foundation as Accounts, so it stays fast at the same scale without a separate implementation. There is no dedicated ADR for this screen — the pagination and filtering approach is a functional requirement (FR-CRM-03), not an architecture-level decision.',
+            'This list reuses the same cursor-paginated `ListQuery` foundation as Accounts (`ContactList` on the shared `ResourceList`), so it stays fast at the same scale without a separate implementation, and "Export CSV" re-runs exactly this query. There is no dedicated ADR for this screen — the pagination and filtering approach is a functional requirement (FR-CRM-03), not an architecture-level decision.',
     },
 };
 
