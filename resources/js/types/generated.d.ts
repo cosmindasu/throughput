@@ -224,7 +224,9 @@ export interface Contact {
     isPrimary: boolean;
     optOut: boolean;
     accountId: string | null;
-    account: ContactAccountSummary | null;
+    // `ContactResource::toArray()` folosește `whenLoaded('account', ...)` — cheia
+    // LIPSEȘTE din JSON (nu `null`) când relația n-a fost încărcată (code review P3-d).
+    account?: ContactAccountSummary | null;
     deals?: ContactDealSummary[];
     createdAt: string | null;
     updatedAt: string | null;
