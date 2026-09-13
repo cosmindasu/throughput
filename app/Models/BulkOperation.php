@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'user_id', 'resource_type', 'action', 'filter_snapshot', 'total_rows', 'batch_id',
-    'group_id', 'status', 'result_path', 'error_message',
+    'group_id', 'status', 'result_path', 'error_message', 'expires_at',
 ])]
 class BulkOperation extends Model
 {
@@ -31,6 +31,7 @@ class BulkOperation extends Model
         return [
             'filter_snapshot' => 'array',
             'total_rows' => 'integer',
+            'expires_at' => 'datetime',
         ];
     }
 
@@ -40,12 +41,21 @@ class BulkOperation extends Model
     }
 
     /**
-     * exports.download — doar autorul, doar când fișierul chiar există (§13.2, DoD pachet A).
+     * exports.download — doar autorul, doar când fișierul chiar există (§13.2, DoD pachet A)
+     * și linkul n-a expirat (FR-GDPR-01, §20.5: 7 zile). Verificarea e pe timp, nu doar pe
+     * `result_path`: linkul trebuie să moară exact la scadență, indiferent dacă
+     * `PruneExpiredExportsJob` a rulat deja fizic ștergerea fișierului în noaptea aceea.
      */
     public function isDownloadableBy(User $user): bool
     {
         return $this->user_id === $user->getKey()
             && $this->status === self::STATUS_COMPLETED
-            && $this->result_path !== null;
+            && $this->result_path !== null
+            && ! $this->isExpired();
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
     }
 }

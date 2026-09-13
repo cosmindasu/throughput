@@ -546,6 +546,9 @@ export interface ExportStatusPayload {
     status: ExportStatus;
     totalRows: number;
     canDownload: boolean;
+    // FR-GDPR-01, specs.md §20.5 — null cât timp exportul nu e `completed`.
+    expiresAt: string | null;
+    isExpired: boolean;
 }
 
 export interface ExportsShowPageProps {

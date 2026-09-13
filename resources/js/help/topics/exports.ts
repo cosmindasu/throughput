@@ -5,11 +5,15 @@ import type { HelpTopic } from '@/help/types';
  * de exportul GDPR de tenant din §20.5 (Settings → „Export data", Faza 5) — acesta e statusul
  * unui export de LISTĂ (CSV filtrat).
  *
- * Reconciliat cu codul la 2026-09-13: `Pages/Exports/Show.tsx` (etichetele de status, polling la
- * 2 s, „Download CSV"), `ListExport` (prag `EXPORT_SYNC_MAX_ROWS` = 5.000 inclusiv, plafonul
- * demo `BULK_MAX_ROWS_ABSOLUTE` = 60.000), `ExportableResources` (doar conturi și contacte),
- * `BulkOperationPolicy` (doar autorul), `ExportListJob` și `CsvExporter`. Nu există încă un job de
- * expirare a exporturilor; în demo, `demo:reset` (`migrate:fresh`) le șterge în fiecare noapte.
+ * Reconciliat cu codul la 2026-09-14: `Pages/Exports/Show.tsx` (etichetele de status, polling la
+ * 2 s, „Download CSV", data de expirare), `ListExport` (prag `EXPORT_SYNC_MAX_ROWS` = 5.000
+ * inclusiv, plafonul demo `BULK_MAX_ROWS_ABSOLUTE` = 60.000), `ExportableResources` (doar conturi
+ * și contacte), `BulkOperationPolicy` (doar autorul), `ExportListJob` și `CsvExporter`.
+ * `PruneExpiredExportsJob` (plan §7.2) rulează zilnic, cu aceeași retenție ca FR-GDPR-01
+ * (`export_retention_days`, implicit 7 zile): golește `result_path` și șterge fișierul, rândul
+ * rămâne. În demo, `demo:reset` mai golește și el `exports/` integral, la fiecare reset zilnic —
+ * `migrate:fresh` oricum șterge toate rândurile `bulk_operations`, deci fișierele rămase ar fi
+ * orfane cu certitudine.
  */
 const exportsTopic: HelpTopic = {
     id: 'exports',
@@ -28,10 +32,11 @@ const exportsTopic: HelpTopic = {
         "Only the person who started an export can open this page or download the file — not even an Owner can open a teammate's export.",
         "Every role that can view the list can export it, including Viewer — exporting what's already visible to you is a read, not a write.",
         'In the public demo, an export of more than 60,000 rows is refused before it starts.',
+        'A completed export stays downloadable for 7 days. After that the link expires — this page shows when it expired instead of the download button — though the row itself stays in history.',
     ],
     howItsBuilt: {
         summary:
-            'The 5,000-row threshold decides synchronous vs. queued, not the resource type — under it, the CSV is built inside the request and returned directly; over it, the filter and sort are saved on a `bulk_operations` row and re-run by a queued job. The job marks the export "Running" in its own short transaction before doing the work, otherwise the status would jump straight from "Queued" to the end. Both paths write the file through the same exporter, which prefixes any cell starting with =, +, -, @, a tab or a carriage return with an apostrophe, so a spreadsheet never runs it as a formula. No dedicated ADR — see specs.md §13.2 for the mechanism.',
+            'The 5,000-row threshold decides synchronous vs. queued, not the resource type — under it, the CSV is built inside the request and returned directly; over it, the filter and sort are saved on a `bulk_operations` row and re-run by a queued job. The job marks the export "Running" in its own short transaction before doing the work, otherwise the status would jump straight from "Queued" to the end. Both paths write the file through the same exporter, which prefixes any cell starting with =, +, -, @, a tab or a carriage return with an apostrophe, so a spreadsheet never runs it as a formula. A daily system job then prunes completed exports past their 7-day retention: it deletes the file and clears the stored path, keeping the row. No dedicated ADR — see specs.md §13.2 and §20.5 (FR-GDPR-01, same retention) for the mechanism.',
     },
 };
 

@@ -16,7 +16,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ExportResource extends JsonResource
 {
     /**
-     * @return array{id: string, resourceType: string, status: string, totalRows: int, canDownload: bool}
+     * @return array{id: string, resourceType: string, status: string, totalRows: int, canDownload: bool, expiresAt: string|null, isExpired: bool}
      */
     public function toArray(Request $request): array
     {
@@ -26,6 +26,10 @@ class ExportResource extends JsonResource
             'status' => $this->status,
             'totalRows' => $this->total_rows,
             'canDownload' => (bool) $request->user()?->can('download', $this->resource),
+            // FR-GDPR-01 (§20.5) — `Exports/Show.tsx` arată data de expirare cât linkul e
+            // valabil, apoi „This export expired on …" în locul butonului de descărcare.
+            'expiresAt' => $this->expires_at?->toIso8601String(),
+            'isExpired' => $this->isExpired(),
         ];
     }
 }

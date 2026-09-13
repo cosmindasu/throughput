@@ -52,6 +52,11 @@ return [
         // peste el, devine un `bulk_operations` + job pe coada `bulk` (§13.2, ADR-013 —
         // scrierea fișierului nu are voie să țină tranzacția cererii deschisă).
         'export_sync_max_rows' => (int) env('EXPORT_SYNC_MAX_ROWS', 5000),
+
+        // FR-GDPR-01 (specs.md §20.5): link de descărcare valabil 7 zile. Aceeași valoare
+        // pentru exportul de listă (`bulk_operations`, §13.2) — `PruneExpiredExportsJob`
+        // (plan §7.2) golește `result_path` peste acest prag; fișierul dispare de pe disc.
+        'export_retention_days' => (int) env('EXPORT_RETENTION_DAYS', 7),
     ],
 
 ];

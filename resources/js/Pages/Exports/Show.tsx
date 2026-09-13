@@ -8,6 +8,9 @@ import type { ExportsShowPageProps, ExportStatus } from '@/types/generated';
 
 const TERMINAL_STATUSES: ExportStatus[] = ['completed', 'failed', 'cancelled'];
 
+// La fel ca Deals/Show.tsx — o singură dată la nivel de modul, nu recreat la fiecare randare.
+const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
+
 const TONES: Record<ExportStatus, BadgeTone> = {
     pending: 'neutral',
     running: 'accent',
@@ -58,6 +61,13 @@ export default function Show() {
                     {!isTerminal && <span className="text-sm text-text-2">This page updates automatically.</span>}
                     {exportStatus.status === 'failed' && (
                         <span className="text-sm text-danger">The export could not be completed. Try again from the list.</span>
+                    )}
+                    {exportStatus.status === 'completed' && exportStatus.expiresAt && (
+                        <span className="text-sm text-text-2">
+                            {exportStatus.isExpired
+                                ? `This export expired on ${dateFormatter.format(new Date(exportStatus.expiresAt))}.`
+                                : `Available for download until ${dateFormatter.format(new Date(exportStatus.expiresAt))}.`}
+                        </span>
                     )}
                 </div>
 

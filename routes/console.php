@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
 use Illuminate\Foundation\Inspiring;
@@ -17,3 +18,9 @@ Artisan::command('inspire', function () {
 Schedule::job(new ResetDemoDataJob, 'default')
     ->cron(config('throughput.demo.reset_cron'))
     ->when(fn (): bool => DemoMode::enabled());
+
+// Plan §7.2 (lista joburilor de sistem) — curățarea exporturilor expirate (FR-GDPR-01,
+// specs.md §20.5, retenție de `throughput.limits.export_retention_days` zile). Fără `when()`:
+// spre deosebire de resetul demo, jobul e util oricând există exporturi (demo sau nu) — el
+// însuși iterează tenanții (ADR-014, pct. 4), scheduler-ul doar dispecerizează.
+Schedule::job(new PruneExpiredExportsJob, 'default')->daily();

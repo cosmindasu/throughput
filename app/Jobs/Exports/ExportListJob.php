@@ -79,6 +79,10 @@ class ExportListJob implements ShouldQueue
                 $operation->update([
                     'status' => BulkOperation::STATUS_COMPLETED,
                     'result_path' => $path,
+                    // FR-GDPR-01 (specs.md §20.5), retenția din throughput.limits — link de
+                    // descărcare valabil un număr fix de zile; `PruneExpiredExportsJob` golește
+                    // `result_path` și șterge fișierul peste acest prag (plan §7.2).
+                    'expires_at' => now()->addDays((int) config('throughput.limits.export_retention_days')),
                 ]);
             } catch (Throwable $e) {
                 $operation->update([
