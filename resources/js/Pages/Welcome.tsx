@@ -1,50 +1,17 @@
-import { Head, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-
-const THEME_COOKIE = 'theme';
-const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
-
-function setThemeCookie(theme: 'light' | 'dark') {
-    document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=${ONE_YEAR_IN_SECONDS}; samesite=lax`;
-}
-
-/**
- * Comutator de temă minimal (Sprint 0).
- *
- * Scrie cookie-ul `theme` client-side și basculează clasa `.dark` direct pe
- * `<html>`, ca schimbarea să fie instantă și fără reload. La următoarea
- * navigare/randare server, `app.blade.php` citește același cookie și aplică
- * aceeași clasă înainte de primul paint (FR-PREF-03, fără licărire).
- *
- * Persistența server-side completă (coloana `users.theme`, FR-PREF-01/02) e
- * Faza 1 — nu se implementează acum, doar cookie-ul client.
- */
-function ThemeToggle() {
-    const { theme } = usePage().props;
-    const [current, setCurrent] = useState<'light' | 'dark'>(theme);
-
-    const toggle = () => {
-        const next = current === 'dark' ? 'light' : 'dark';
-        setCurrent(next);
-        document.documentElement.classList.toggle('dark', next === 'dark');
-        document.documentElement.style.colorScheme = next;
-        setThemeCookie(next);
-    };
-
-    return (
-        <button
-            type="button"
-            onClick={toggle}
-            className="rounded-md border border-control px-3 py-1.5 text-sm text-text-2 transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-            Theme: {current === 'dark' ? 'dark' : 'light'}
-        </button>
-    );
-}
+import { useThemeSync } from '@/hooks/useThemeSync';
 
 export default function Welcome() {
+    // Vizitator anonim: nicio alegere persistată (fără `users.theme`), deci mereu,
+    // implicit, „System" (specs.md §15.6) — corectează un prim-paint greșit pe un
+    // dispozitiv nou și urmărește schimbările reale ale sistemului de operare.
+    // Comutatorul cu trei stări (resources/js/Components/ThemeToggle.tsx) nu apare
+    // aici: FR-PREF-01 îl cere doar pe ecranele AUTENTIFICATE — AppLayout îl ascunde
+    // deja pentru vizitatori, la fel ca restul barei de sus.
+    useThemeSync(true);
+
     return (
         <>
             {/*
@@ -55,10 +22,7 @@ export default function Welcome() {
             <Head title="Home" />
 
             <div className="flex flex-col gap-8">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-semibold text-text">Throughput</h1>
-                    <ThemeToggle />
-                </div>
+                <h1 className="text-2xl font-semibold text-text">Throughput</h1>
 
                 <p className="max-w-prose text-text-2">
                     Sprint 0 scaffold. The design system — tokens for both themes,

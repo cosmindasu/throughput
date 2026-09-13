@@ -133,6 +133,28 @@ export interface PipelinePageProps {
 
 // ── Settings și preferințe — FR-PREF-01…03 ───────────────────────────────────────
 
+// App\Http\Controllers\Web\Settings\SettingsController::index() — plan §7.4. O secțiune
+// fără drept LIPSEȘTE din interfață (§7.3, FR-RBAC-01); `preferences` e mereu `true`
+// (BR-PREF-02), nu omisă, ca forma să rămână uniformă.
+export interface SettingsSectionPermissions {
+    members: boolean;
+    billing: boolean;
+    apiTokens: boolean;
+    pipeline: boolean;
+    preferences: boolean;
+}
+
+export interface SettingsIndexPageProps {
+    can: SettingsSectionPermissions;
+    [key: string]: unknown;
+}
+
+// Settings/Preferences — rândul de temă vine din props comune (`auth.user.theme`,
+// `theme`), nimic specific paginii încă.
+export interface SettingsPreferencesPageProps {
+    [key: string]: unknown;
+}
+
 
 // ── Căutare globală — FR-SEARCH-01 ───────────────────────────────────────────────
 
