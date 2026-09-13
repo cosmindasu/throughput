@@ -11,6 +11,14 @@ interface DealCardProps {
     workspaceSlug: string;
     onDragStart: (event: DragEvent<HTMLDivElement>, deal: DealSummary) => void;
     onError: (message: string) => void;
+    onMoved?: (stage: DealStage) => void;
+}
+
+/** Id DOM stabil al cardului, derivat din `deal.id` — ținta focusului explicit după o
+ * mutare reușită (P2-002), indiferent dacă a fost declanșată din meniu sau din drag &
+ * drop. */
+export function dealCardDomId(dealId: string): string {
+    return `deal-card-${dealId}`;
 }
 
 /**
@@ -18,12 +26,14 @@ interface DealCardProps {
  * meniului „Move to stage…" — un Viewer sau un Agent pe deal-ul altcuiva nu văd nici
  * drag handle, nici meniu (nu doar dezactivate, ABSENTE — FR-RBAC-01).
  */
-export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onError }: DealCardProps) {
+export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onError, onMoved }: DealCardProps) {
     return (
         <div
+            id={dealCardDomId(deal.id)}
+            tabIndex={-1}
             draggable={deal.can.moveStage}
             onDragStart={(event) => deal.can.moveStage && onDragStart(event, deal)}
-            className="rounded-md border border-border bg-surface p-3 shadow-sm"
+            className="rounded-md border border-border bg-surface p-3 shadow-sm focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             aria-roledescription={deal.can.moveStage ? 'Draggable deal card' : undefined}
         >
             <Link href={`/${workspaceSlug}/deals/${deal.id}`} className="text-sm font-medium text-text hover:underline">
@@ -50,6 +60,7 @@ export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onE
                         currentStageId={deal.stage.id}
                         stages={stages}
                         onError={onError}
+                        onMoved={onMoved}
                     />
                 </div>
             )}

@@ -126,6 +126,7 @@ class DealCrudHttpTest extends TestCase
     {
         $owner = $this->makeMember($this->marlin, 'owner3@throughput.dev', Permissions::OWNER);
         $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
 
         $this->actingAs($owner)
             ->get("/marlin/deals/{$deal->getKey()}")
@@ -148,6 +149,7 @@ class DealCrudHttpTest extends TestCase
         $owner = $this->makeMember($this->marlin, 'owner4@throughput.dev', Permissions::OWNER);
         $agent = $this->makeMember($this->marlin, 'agent2@throughput.dev', Permissions::AGENT);
         $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
 
         $this->actingAs($agent)
             ->get("/marlin/deals/{$deal->getKey()}")
@@ -164,6 +166,7 @@ class DealCrudHttpTest extends TestCase
         $owner = $this->makeMember($this->marlin, 'owner5@throughput.dev', Permissions::OWNER);
         $deal = $this->createDeal($owner);
         $originalStageId = $deal->stage_id;
+        $this->clearDatabaseTenantContext();
 
         $this->actingAs($owner)
             ->put("/marlin/deals/{$deal->getKey()}", [
@@ -184,6 +187,7 @@ class DealCrudHttpTest extends TestCase
         $owner = $this->makeMember($this->marlin, 'owner6@throughput.dev', Permissions::OWNER);
         $agent = $this->makeMember($this->marlin, 'agent3@throughput.dev', Permissions::AGENT);
         $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
 
         $this->actingAs($agent)
             ->put("/marlin/deals/{$deal->getKey()}", ['title' => 'Hijacked'])
@@ -195,6 +199,7 @@ class DealCrudHttpTest extends TestCase
         $owner = $this->makeMember($this->marlin, 'owner7@throughput.dev', Permissions::OWNER);
         $viewer = $this->makeMember($this->marlin, 'viewer2@throughput.dev', Permissions::VIEWER);
         $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
 
         $this->actingAs($viewer)
             ->delete("/marlin/deals/{$deal->getKey()}")

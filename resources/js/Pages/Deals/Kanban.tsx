@@ -1,7 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { ButtonLink } from '@/Components/Button';
-import DealCard from '@/Components/Deals/DealCard';
+import DealCard, { dealCardDomId } from '@/Components/Deals/DealCard';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import AppLayout from '@/Layouts/AppLayout';
@@ -37,14 +37,43 @@ export default function Kanban() {
     }
 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [announcement, setAnnouncement] = useState('');
     const [draggedDeal, setDraggedDeal] = useState<DealSummary | null>(null);
     const [pendingLostMove, setPendingLostMove] = useState<PendingLostMove | null>(null);
     const [dialogProcessing, setDialogProcessing] = useState(false);
+    // Id-ul cardului al cărui focus trebuie restaurat explicit, ODATĂ ce coloanele
+    // reflectă deja mutarea (P2-002) — cardul se remontează într-o altă coloană (părinte
+    // VDOM diferit), deci React nu-l reconciliază după `key`, iar elementul care avea
+    // focus rămâne detașat din DOM. Într-un `ref`, nu `useState`: efectul de mai jos DOAR
+    // citește valoarea și mută focusul (o sincronizare cu DOM-ul, nu o schimbare de
+    // stare React), deci n-are ce `setState` să declanșeze randări în cascadă.
+    const pendingFocusDealId = useRef<string | null>(null);
+    const [focusTick, setFocusTick] = useState(0);
 
     const allStages = columns.map((column) => column.stage);
 
+    useEffect(() => {
+        if (!pendingFocusDealId.current) {
+            return;
+        }
+
+        document.getElementById(dealCardDomId(pendingFocusDealId.current))?.focus();
+        pendingFocusDealId.current = null;
+    }, [focusTick, columns]);
+
+    const requestFocus = (dealId: string) => {
+        pendingFocusDealId.current = dealId;
+        setFocusTick((tick) => tick + 1);
+    };
+
     const move = (deal: DealSummary, targetStage: DealStage, lostReason?: LostReason) => {
-        const previousColumns = columns;
+        // Focusul se restaurează DOAR dacă era deja pe cardul ăsta (drag & drop e
+        // mouse-driven, dar un utilizator poate avea focusul pe declanșatorul „Move to
+        // stage…" de la o interacțiune anterioară) — altfel am fura focusul de pe un alt
+        // element al paginii pe care utilizatorul îl folosea în timp ce cererea era în zbor.
+        const cardElement = document.getElementById(dealCardDomId(deal.id));
+        const restoreFocus = cardElement !== null && cardElement.contains(document.activeElement);
+
         setColumns((current) => applyOptimisticMove(current, deal, targetStage));
         setErrorMessage(null);
         setDialogProcessing(true);
@@ -55,13 +84,29 @@ export default function Kanban() {
             {
                 preserveScroll: true,
                 onError: (errors) => {
-                    setColumns(previousColumns);
+                    // Revert PUNCTUAL, doar pentru ACEST deal, aplicat pe starea CURENTĂ
+                    // printr-un updater funcțional — NU pe un instantaneu de dinaintea
+                    // mutării (P2-001): dacă între timp un ALT card a fost mutat (reușit
+                    // sau încă în zbor), un `setColumns(previousColumns)` l-ar șterge
+                    // vizual, deși respingerea asta nu-l privește.
+                    setColumns((current) => revertOptimisticMove(current, deal, targetStage));
                     setErrorMessage(errors.to_stage_id ?? errors.lost_reason ?? 'Could not move this deal.');
                 },
-                onSuccess: () => setPendingLostMove(null),
+                onSuccess: () => {
+                    setPendingLostMove(null);
+                    setAnnouncement(`Moved ${deal.title} to ${targetStage.name}`);
+                    if (restoreFocus) {
+                        requestFocus(deal.id);
+                    }
+                },
                 onFinish: () => setDialogProcessing(false),
             },
         );
+    };
+
+    const handleCardMoved = (deal: DealSummary, targetStage: DealStage) => {
+        setAnnouncement(`Moved ${deal.title} to ${targetStage.name}`);
+        requestFocus(deal.id);
     };
 
     const handleDrop = (event: DragEvent<HTMLElement>, targetStage: DealStage) => {
@@ -121,6 +166,13 @@ export default function Kanban() {
                     </p>
                 )}
 
+                {/* Regiune SEPARATĂ de alerta de eroare de mai sus (P2-003): o alertă
+                    întrerupe imediat cititorul de ecran, o anunțare „polite" așteaptă o
+                    pauză — succesul unei mutări nu justifică întreruperea. */}
+                <p aria-live="polite" role="status" className="sr-only">
+                    {announcement}
+                </p>
+
                 <div className="flex gap-4 overflow-x-auto pb-4">
                     {columns.map((column) => (
                         <section
@@ -144,6 +196,7 @@ export default function Kanban() {
                                         workspaceSlug={workspaceSlug}
                                         onDragStart={(_event, draggedDealCard) => setDraggedDeal(draggedDealCard)}
                                         onError={setErrorMessage}
+                                        onMoved={(stage) => handleCardMoved(deal, stage)}
                                     />
                                 ))}
 
@@ -204,6 +257,39 @@ function applyOptimisticMove(columns: DealsBoardColumn[], deal: DealSummary, tar
 
         if (column.stage.id === target.id) {
             return { ...column, deals: [movedDeal, ...column.deals], total: column.total + 1 };
+        }
+
+        return column;
+    });
+}
+
+/**
+ * Inversul PUNCTUAL al `applyOptimisticMove`, pentru un deal respins de server (P2-001).
+ * Operează pe `columns` dat — apelantul îl aplică printr-un updater funcțional pe starea
+ * CURENTĂ, nu pe un instantaneu vechi, ca să compună corect cu mutări concurente ale
+ * altor carduri.
+ *
+ * Verifică ÎNTÂI dacă deal-ul mai e, de fapt, în `targetStage` — o resincronizare din
+ * props-urile serverului (declanșată de succesul ALTEI mutări, care reîncarcă tot
+ * board-ul) poate fi ajuns între timp și poate fi mutat deja deal-ul înapoi pe baza
+ * stării reale din DB. Fără verificarea asta, revenirea ar decrementa `total` a doua
+ * oară pentru un card care nu mai e acolo.
+ */
+function revertOptimisticMove(columns: DealsBoardColumn[], deal: DealSummary, targetStage: DealStage): DealsBoardColumn[] {
+    const targetColumn = columns.find((column) => column.stage.id === targetStage.id);
+    const stillOptimisticallyThere = targetColumn?.deals.some((item) => item.id === deal.id) ?? false;
+
+    if (!stillOptimisticallyThere) {
+        return columns;
+    }
+
+    return columns.map((column) => {
+        if (column.stage.id === targetStage.id) {
+            return { ...column, deals: column.deals.filter((item) => item.id !== deal.id), total: Math.max(column.total - 1, 0) };
+        }
+
+        if (column.stage.id === deal.stage.id) {
+            return { ...column, deals: [deal, ...column.deals], total: column.total + 1 };
         }
 
         return column;

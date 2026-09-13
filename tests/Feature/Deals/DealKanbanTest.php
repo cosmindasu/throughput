@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\CreatesPipelines;
 use Tests\TestCase;
@@ -74,6 +75,36 @@ class DealKanbanTest extends TestCase
                 ->where('columns.0.hasMore', true)
                 ->where('columns.1.hasMore', false)
             );
+    }
+
+    /**
+     * P3-d, code review: varianta veche făcea `count()` + `latest()->limit(50)` +
+     * eager-load-uri PE COLOANĂ — ~25-40 interogări măsurate la 6-8 etape. Măsurat pe
+     * varianta nouă, cu 6 etape: 8 interogări de autentificare/RBAC/sesiune (comune
+     * oricărei cereri autentificate, nu doar board-ului) + 7 din `board()` însuși
+     * (pipeline, etape, totaluri, deals ferestruite, 3 eager-load-uri) = 15, CONSTANT
+     * indiferent de câte etape sau deals există. Plafonul de mai jos lasă un pic de
+     * marjă peste cele 15 măsurate, dar rămâne mult sub vechiul comportament
+     * proporțional cu numărul de etape.
+     */
+    public function test_the_board_runs_a_constant_number_of_queries_regardless_of_stage_count(): void
+    {
+        TenantContext::run($this->tenant, function (): void {
+            foreach (array_keys($this->stages) as $stageName) {
+                for ($i = 0; $i < 4; $i++) {
+                    $this->dealOn($stageName, $this->owner, "{$stageName} deal {$i}");
+                }
+            }
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        DB::enableQueryLog();
+        $this->actingAs($this->owner)->get('/marlin/deals/board?owner=all')->assertOk();
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertLessThanOrEqual(20, $queryCount, "Board query count should stay constant regardless of stage count, got {$queryCount}.");
     }
 
     public function test_can_per_card_differs_by_role(): void
