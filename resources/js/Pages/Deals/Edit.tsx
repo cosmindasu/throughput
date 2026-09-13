@@ -27,14 +27,21 @@ interface DealFormData {
  * vezi `App\Http\Requests\Deals\UpdateDealRequest`): mutarea pe alt cont nu schimbă etapa,
  * istoricul `deal_stage_events` sau owner-ul — validarea și scrierea reală sunt server-side
  * (`UpdateDealRequest` + `DealController::update()`).
+ *
+ * Code review P2-002 — `account_id`/eticheta combobox-ului pornesc din propul `account`
+ * (rezolvat de server, nu din `deal.account`): `deal.account` rămâne mereu contul SALVAT,
+ * neschimbat până la submit, deci la reîncărcare cu `?account=B` în URL (P2-002) sau după
+ * un refresh, `deal.account` (A) și `contacts` (pentru B) ar diverge dacă formularul ar
+ * porni tot din `deal.account`. O singură sursă de adevăr: server-ul rezolvă `account` și
+ * `contacts` din ACELAȘI cont, în `DealController::edit()`.
  */
 export default function Edit() {
-    const { deal, contacts, owners, can, workspace } = usePage<DealsEditPageProps>().props;
+    const { deal, account, contacts, owners, can, workspace } = usePage<DealsEditPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/deals/${deal.id}/edit`;
 
     const { data, setData, put, processing, errors } = useForm<DealFormData>({
-        account_id: deal.account.id,
+        account_id: account?.id ?? '',
         title: deal.title,
         value: deal.value !== null ? String(deal.value) : '',
         expected_close_date: deal.expectedCloseDate ?? '',
@@ -46,6 +53,11 @@ export default function Edit() {
     // ales se golește imediat, iar `DealController::edit()` recalculează `contacts`
     // pentru noul cont, printr-o reîncărcare parțială a aceleiași pagini — deal-ul
     // propriu-zis (etapă, istoric, owner) rămâne neschimbat până la submit.
+    //
+    // Code review P2-001 — `account` se trimite ÎNTOTDEAUNA, chiar gol (`''`) la „Clear":
+    // omiterea cheii la golire făcea `$request->has('account')` fals pe server, care cădea
+    // pe contul VECHI al deal-ului — „Clear" arăta câmpul gol, dar oferea tot contactele
+    // contului anterior.
     const handleAccountChange = (accountId: string | null) => {
         setData((current) => ({
             ...current,
@@ -53,7 +65,7 @@ export default function Edit() {
             primary_contact_id: '',
         }));
 
-        router.get(basePath, accountId ? { account: accountId } : {}, {
+        router.get(basePath, { account: accountId ?? '' }, {
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -78,7 +90,7 @@ export default function Edit() {
                             <AccountCombobox
                                 {...control}
                                 value={data.account_id.trim() === '' ? null : data.account_id}
-                                initialLabel={deal.account.name}
+                                initialLabel={account?.name ?? null}
                                 onChange={handleAccountChange}
                             />
                         )}

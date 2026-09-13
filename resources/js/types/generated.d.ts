@@ -401,6 +401,11 @@ export interface DealsCreatePageProps {
 
 export interface DealsEditPageProps {
     deal: Deal;
+    // Contul REZOLVAT de `DealController::edit()` (code review P2-002) — sursă unică
+    // pentru combobox ȘI `contacts`: din `?account=` dacă e prezent (inclusiv gol →
+    // `null`, cazul „Clear"), altfel contul curent al deal-ului. NU e mereu egal cu
+    // `deal.account` (care rămâne contul SALVAT, neschimbat până la submit).
+    account: DealPartyRef | null;
     contacts: DealPartyRef[];
     owners: DealPartyRef[];
     can: {

@@ -78,17 +78,24 @@ class DealController extends Controller
      *
      * Un `?account=` PREZENT dar invalid (ULID din alt tenant sau inexistent) rămâne
      * `findOrFail` → 404, ca înainte — doar ABSENȚA parametrului nu mai e o eroare.
+     *
+     * Code review P3 — `is_string($raw)`, tiparul din `AccountLookupController::__invoke()`:
+     * `?account[]=x` ajunge ca array la `$request->query('account')`, iar un array trimis
+     * la `contactsForAccount()`/`findOrFail()` fie ar arunca `TypeError` (500), fie ar
+     * face o interogare `whereIn` neintenționată. Un query param cu forma greșită devine
+     * „niciun cont", nu o eroare de server.
      */
     public function create(Request $request): Response
     {
         Gate::authorize('create', Deal::class);
 
-        $accountId = $request->query('account');
+        $raw = $request->query('account');
+        $accountId = is_string($raw) ? $raw : null;
         $account = $accountId !== null && $accountId !== '' ? Account::query()->findOrFail($accountId) : null;
 
         return Inertia::render('Deals/Create', [
             'account' => $account !== null ? ['id' => $account->id, 'name' => $account->name] : null,
-            'contacts' => $this->contactsForAccount($account?->id),
+            'contacts' => $this->contactsForAccount($account),
             'can' => ['changeOwner' => Gate::allows('changeOwner', Deal::class)],
             'owners' => Gate::allows('changeOwner', Deal::class) ? $this->ownerOptions() : [],
         ]);
@@ -148,6 +155,19 @@ class DealController extends Controller
      * `account_id` ales) — vezi `resources/js/Pages/Deals/Edit.tsx`. Absența lui (prima
      * încărcare a paginii) cade pe contul curent al deal-ului. Deal-ul propriu-zis NU se
      * schimbă aici — doar la `update()`, după submit.
+     *
+     * Code review P2-001/P2-002 — `account` iese explicit în props, REZOLVAT din exact
+     * aceeași variabilă `$account` care alimentează `contacts`: o singură sursă de adevăr
+     * pentru „ce cont e activ acum în formular", nu două (`deal.account` pe client +
+     * `contacts` pe server, care puteau diverge la refresh cu `?account=` rămas în URL,
+     * sau la „Clear" — vezi P2-001, `Edit.tsx` trimite acum `account=''` explicit, nu
+     * omite cheia, ca `$request->has('account')` să distingă „gol, ales explicit" de
+     * „absent, prima încărcare").
+     *
+     * `?account=` gol → „niciun cont" (contacts goale), NU fallback pe contul deal-ului —
+     * altfel „Clear" în combobox n-ar goli niciodată lista de contacte (P2-001).
+     * `?account=<id>` invalid/din alt tenant → `findOrFail` → 404, simetric cu `create()`.
+     * `?account[]=x` (P3) → `is_string($raw)` îl tratează ca absent, nu ca 500.
      */
     public function edit(Request $request, Deal $deal): Response
     {
@@ -155,11 +175,19 @@ class DealController extends Controller
 
         $deal->load(['account:id,name', 'primaryContact:id,first_name,last_name']);
 
-        $accountId = $request->has('account') ? $request->query('account') : $deal->account_id;
+        $raw = $request->query('account');
+        $accountId = is_string($raw) ? $raw : null;
+
+        if ($request->has('account')) {
+            $account = $accountId !== null && $accountId !== '' ? Account::query()->findOrFail($accountId) : null;
+        } else {
+            $account = $deal->account;
+        }
 
         return Inertia::render('Deals/Edit', [
             'deal' => DealResource::make($deal),
-            'contacts' => $this->contactsForAccount($accountId),
+            'account' => $account !== null ? ['id' => $account->id, 'name' => $account->name] : null,
+            'contacts' => $this->contactsForAccount($account),
             'can' => [
                 'changeOwner' => Gate::allows('changeOwner', $deal),
                 'delete' => Gate::allows('delete', $deal),
@@ -303,15 +331,13 @@ class DealController extends Controller
     }
 
     /**
-     * Contactele disponibile pentru „Primary contact", scopate la contul ales în
-     * `AccountCombobox` (Create ȘI Edit — §9 task: „contactul principal depinde de
-     * cont"). `find()`, nu `findOrFail()`: id-ul poate fi tranzitoriu (utilizatorul tocmai
-     * a șters selecția din combobox) — o listă goală e răspunsul corect, nu un 404.
+     * Contactele disponibile pentru „Primary contact", scopate la contul REZOLVAT în
+     * `create()`/`edit()` (§9 task: „contactul principal depinde de cont"). Primește
+     * modelul deja rezolvat de apelant (nu un id) — o singură interogare de cont per
+     * cerere, nu una aici plus alta pentru propul `account` (P2-002).
      */
-    private function contactsForAccount(?string $accountId): AnonymousResourceCollection
+    private function contactsForAccount(?Account $account): AnonymousResourceCollection
     {
-        $account = $accountId !== null && $accountId !== '' ? Account::query()->find($accountId) : null;
-
         if ($account === null) {
             return DealContactOptionResource::collection(collect());
         }

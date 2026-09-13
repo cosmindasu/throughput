@@ -52,7 +52,7 @@ export default function Create() {
             primary_contact_id: '',
         }));
 
-        router.get(basePath, accountId ? { account: accountId } : {}, {
+        router.get(basePath, { account: accountId ?? '' }, {
             preserveState: true,
             preserveScroll: true,
             replace: true,
