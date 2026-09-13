@@ -433,6 +433,151 @@ class DealCrudHttpTest extends TestCase
         );
     }
 
+    /**
+     * Code review — simetric cu `create()`: un `?account=` prezent dar invalid/din alt
+     * tenant rămâne `findOrFail` → 404, nu o degradare tăcută la „fără cont".
+     */
+    public function test_create_with_an_account_query_parameter_from_another_tenant_is_not_found(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner15@throughput.dev', Permissions::OWNER);
+
+        $cascade = $this->makeTenant('cascade-create-404', 'Cascade Hydraulic Components');
+        $foreignAccountId = TenantContext::run($cascade, function () use ($cascade) {
+            $cascadeOwner = $this->makeMember($cascade, 'cascade.owner3@throughput.dev', Permissions::OWNER);
+            $account = new Account(['name' => 'Cascade Bearing Co.']);
+            $account->created_by = $cascadeOwner->getKey();
+            $account->save();
+
+            return $account->id;
+        });
+
+        $this->actingAs($owner)
+            ->get("/marlin/deals/create?account={$foreignAccountId}")
+            ->assertNotFound();
+    }
+
+    /**
+     * P2-001/P2-002 (code review) — `?account=` din alt tenant pe `edit()`: 404, ca la
+     * `create()`, nu o pagină care ar putea scurge contacte ale altui tenant. Contul
+     * străin are un contact propriu, ca testul să nu treacă „din întâmplare" (listă
+     * goală oricum, indiferent de scurgere).
+     */
+    public function test_edit_with_an_account_query_parameter_from_another_tenant_leaks_no_contacts(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner16@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
+
+        $cascade = $this->makeTenant('cascade-edit-404', 'Cascade Hydraulic Components');
+        $foreignAccountId = TenantContext::run($cascade, function () use ($cascade) {
+            $cascadeOwner = $this->makeMember($cascade, 'cascade.owner4@throughput.dev', Permissions::OWNER);
+            $account = new Account(['name' => 'Cascade Bearing Co.']);
+            $account->created_by = $cascadeOwner->getKey();
+            $account->save();
+
+            $contact = new Contact([
+                'account_id' => $account->getKey(),
+                'first_name' => 'Foreign',
+                'last_name' => 'Contact',
+            ]);
+            $contact->created_by = $cascadeOwner->getKey();
+            $contact->save();
+
+            return $account->id;
+        });
+
+        $response = $this->actingAs($owner)
+            ->get("/marlin/deals/{$deal->getKey()}/edit?account={$foreignAccountId}");
+
+        $response->assertNotFound();
+        $response->assertDontSee('Foreign Contact');
+    }
+
+    /**
+     * P2-001 (code review) — „Clear" în combobox trimite `account=''` explicit: contul
+     * rezolvat e `null`, contactele sunt goale, NU contactele contului vechi al deal-ului.
+     */
+    public function test_edit_with_an_empty_account_query_parameter_clears_the_account_and_contacts(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner17@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->get("/marlin/deals/{$deal->getKey()}/edit?account=")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Deals/Edit')
+                ->where('account', null)
+                ->where('contacts', [])
+            );
+    }
+
+    public function test_updating_a_deal_with_an_empty_account_id_is_rejected(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner18@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->from("/marlin/deals/{$deal->getKey()}/edit")
+            ->put("/marlin/deals/{$deal->getKey()}", ['account_id' => '', 'title' => $deal->title])
+            ->assertSessionHasErrors('account_id');
+    }
+
+    /**
+     * Decizie fixată explicit (§7.4/§7.5, US-CRM-02) — un Agent editează doar deal-uri
+     * proprii, dar poate să le mute pe ORICE cont din tenant: `AccountPolicy::view()`/
+     * `viewAny()` nu se îngustează pentru Agent (doar `update()`/`delete()` ale CONTULUI
+     * se îngustează), deci nu există regulă care să refuze alegerea unui cont pe care
+     * Agentul nu-l deține. Testul există ca un review viitor să nu „repare" asta din
+     * greșeală, tratând-o ca pe o gaură de RBAC.
+     */
+    public function test_an_agent_can_move_their_own_deal_to_an_account_they_do_not_own(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'agent5@throughput.dev', Permissions::AGENT);
+        $deal = $this->createDeal($agent);
+        $this->clearDatabaseTenantContext();
+
+        $unrelatedAccountId = TenantContext::run($this->marlin, function () {
+            $someoneElse = $this->makeMember($this->marlin, 'unrelated-owner@throughput.dev', Permissions::OWNER);
+            $account = new Account(['name' => 'Not The Agents Account LLC', 'owner_user_id' => $someoneElse->getKey()]);
+            $account->created_by = $someoneElse->getKey();
+            $account->save();
+
+            return $account->getKey();
+        });
+
+        $this->actingAs($agent)
+            ->put("/marlin/deals/{$deal->getKey()}", ['account_id' => $unrelatedAccountId, 'title' => $deal->title])
+            ->assertRedirect("/marlin/deals/{$deal->getKey()}");
+
+        TenantContext::run($this->marlin, function () use ($deal, $unrelatedAccountId): void {
+            $this->assertSame($unrelatedAccountId, $deal->fresh()->account_id);
+        });
+    }
+
+    /**
+     * P3 (code review) — `?account[]=x` (array, nu string) nu trebuie să dea 500:
+     * tiparul `is_string($raw)` din `AccountLookupController` tratează forma greșită ca
+     * „niciun cont", nu ca eroare de server.
+     */
+    public function test_edit_with_an_array_account_query_parameter_does_not_error(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner19@throughput.dev', Permissions::OWNER);
+        $deal = $this->createDeal($owner);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->get("/marlin/deals/{$deal->getKey()}/edit?account[]=x")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Deals/Edit')
+                ->where('account', null)
+                ->where('contacts', [])
+            );
+    }
+
     private function createDeal(User $owner): Deal
     {
         return TenantContext::run($this->marlin, function () use ($owner): Deal {
