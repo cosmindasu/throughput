@@ -33,6 +33,11 @@ declare module '@inertiajs/core' {
                     email: string;
                     theme: 'system' | 'light' | 'dark';
                     initials: string;
+                    // BR-HELP-02 — indicii de primă vizită respinse, per utilizator
+                    // (nu per tenant — supraviețuiesc comutării de workspace, la fel
+                    // ca `theme`, FR-PREF-02). Chei libere (`help-panel-intro`, ...),
+                    // validate strict server-side la POST /hints/{key}.
+                    dismissedHints: string[];
                 } | null;
             };
             workspace: {
