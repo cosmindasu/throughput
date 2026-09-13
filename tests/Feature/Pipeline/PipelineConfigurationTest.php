@@ -161,6 +161,25 @@ class PipelineConfigurationTest extends TestCase
         ])->assertForbidden();
     }
 
+    /**
+     * P3 — Agentul e deja acoperit la ecran (`test_agent_cannot_view_the_pipeline_configuration_screen`),
+     * dar asta nu garantează refuzul pe fiecare endpoint de scriere: policy-ul e verificat per
+     * acțiune (`StagePolicy`), nu doar la `index`. Un Agent care ghicește/reia un URL de
+     * mutație trebuie respins la fel de explicit ca Viewer-ul, nu doar redirecționat de pe
+     * ecranul de listare.
+     */
+    public function test_agent_is_forbidden_from_every_write_action(): void
+    {
+        $stage = $this->stages['New'];
+
+        $this->actingAs($this->agent)->post('/marlin/pipeline/stages', ['name' => 'Nope'])->assertForbidden();
+        $this->actingAs($this->agent)->patch("/marlin/pipeline/stages/{$stage->id}", ['name' => 'Nope'])->assertForbidden();
+        $this->actingAs($this->agent)->delete("/marlin/pipeline/stages/{$stage->id}")->assertForbidden();
+        $this->actingAs($this->agent)->put('/marlin/pipeline/stages/order', [
+            'stage_ids' => array_map(fn (Stage $s) => $s->id, array_values($this->stages)),
+        ])->assertForbidden();
+    }
+
     public function test_stage_name_must_be_unique_within_the_pipeline(): void
     {
         $response = $this->actingAs($this->owner)->post('/marlin/pipeline/stages', [
