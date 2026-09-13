@@ -126,6 +126,29 @@ class PipelineConfigurationTest extends TestCase
             );
     }
 
+    /**
+     * P2-001 — regresie: un PATCH e parțial de drept. Trimițând DOAR `name`, absența
+     * `is_won`/`is_lost`/`probability` din payload NU înseamnă „dezactivează-le" —
+     * `UpdateStageRequest::stageData()` trebuie să păstreze valorile curente ale etapei.
+     * `test_owner_can_edit_a_stage` de mai sus nu acoperea bug-ul: edita o etapă deja fără
+     * marcaj, deci trecea din motivul greșit.
+     */
+    public function test_partial_patch_with_only_name_preserves_won_flag_and_probability(): void
+    {
+        $won = $this->stages['Won'];
+
+        $this->actingAs($this->owner)->patch("/marlin/pipeline/stages/{$won->id}", [
+            'name' => 'Closed Won',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->actingAs($this->owner)->get('/marlin/pipeline')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('stages.2.name', 'Closed Won')
+                ->where('stages.2.isWon', true)
+                ->where('stages.2.probability', 100)
+            );
+    }
+
     public function test_viewer_is_forbidden_from_every_write_action(): void
     {
         $stage = $this->stages['New'];
