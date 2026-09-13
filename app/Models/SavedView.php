@@ -14,6 +14,18 @@ class SavedView extends Model
 {
     use BelongsToTenant, HasUlids;
 
+    public const VISIBILITY_PRIVATE = 'private';
+
+    public const VISIBILITY_TEAM = 'team';
+
+    /**
+     * Tipurile din enum-ul de bază (§15.1) — mai largi decât `SavedViewResourceType::supported()`,
+     * care listează doar resursele CU ecran de listă construit până acum (Accounts, Deals).
+     *
+     * @var list<string>
+     */
+    public const RESOURCE_TYPES = ['accounts', 'contacts', 'deals', 'orders', 'products', 'invoices'];
+
     protected function casts(): array
     {
         return [
