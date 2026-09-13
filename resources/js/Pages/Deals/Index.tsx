@@ -5,6 +5,7 @@ import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
+import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useListFilters } from '@/hooks/useListFilters';
@@ -58,7 +59,12 @@ export default function Index() {
             <div className="flex flex-col gap-6">
                 <PageHeader
                     title="Deals"
-                    actions={<ViewSwitcher workspaceSlug={workspaceSlug} active="list" />}
+                    actions={
+                        <>
+                            <SavedViewPicker resourceType="deals" current={filters} />
+                            <ViewSwitcher workspaceSlug={workspaceSlug} active="list" />
+                        </>
+                    }
                 />
 
                 <div className="flex flex-wrap items-end gap-3">

@@ -4,6 +4,7 @@ import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
+import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useListFilters } from '@/hooks/useListFilters';
@@ -32,6 +33,7 @@ export default function Index() {
                     title="Accounts"
                     actions={
                         <>
+                            <SavedViewPicker resourceType="accounts" current={list} />
                             {can.export && (
                                 <a href={exportHref} className={buttonClass('secondary')}>
                                     Export CSV
