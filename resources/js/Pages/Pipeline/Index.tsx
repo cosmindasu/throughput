@@ -455,10 +455,10 @@ function StageRow({
                 {stage.isLost && <StatusBadge tone="danger">Lost</StatusBadge>}
                 {!stage.isWon && !stage.isLost && <span className="text-text-3">—</span>}
             </td>
-            <td className="px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
+            <td className="numeric px-3 py-2 text-right">
                 {stage.probability === null ? '—' : `${stage.probability}%`}
             </td>
-            <td className="px-3 py-2 text-right [font-variant-numeric:tabular-nums]">{stage.dealsCount}</td>
+            <td className="numeric px-3 py-2 text-right">{stage.dealsCount}</td>
             {canManage && (
                 <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">

@@ -6,6 +6,7 @@ import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatMoney } from '@/lib/money';
 import type { AccountsShowPageProps } from '@/types/generated';
 
 /**
@@ -101,9 +102,9 @@ export default function Show() {
                                             {deal.title}
                                         </a>
                                         <div className="text-right text-xs text-text-2">
-                                            <div className="tabular-nums">
-                                                {deal.value !== null ? `${deal.currency} ${deal.value.toLocaleString('en-US')}` : '—'}
-                                            </div>
+                                            {/* Același format ca Deals/Index și kanbanul (`formatMoney`, două
+                                                zecimale fixe), pe cifre mono — nu `USD 12,345.5` pe sans. */}
+                                            <div className="numeric">{formatMoney(deal.value, deal.currency)}</div>
                                             <div>{deal.stageName ?? deal.status}</div>
                                         </div>
                                     </li>

@@ -164,8 +164,12 @@ function DealsTable({
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             {SORTABLE_COLUMNS.map((column) => (
-                                <th key={column.key} scope="col" className="px-4 py-2 font-medium">
-                                    <button type="button" onClick={() => onSort(column.key)} className="flex items-center gap-1 hover:text-text">
+                                <th key={column.key} scope="col" className={`px-4 py-2 font-medium ${column.key === 'value' ? 'text-right' : ''}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => onSort(column.key)}
+                                        className={`flex items-center gap-1 hover:text-text ${column.key === 'value' ? 'ml-auto' : ''}`}
+                                    >
                                         {column.label}
                                         {sort.column === column.key && <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>}
                                     </button>
@@ -211,9 +215,11 @@ function DealRow({ deal, workspaceSlug }: { deal: DealSummary; workspaceSlug: st
                     </span>
                 )}
             </td>
-            <td className="numeric px-4 py-2">{formatMoney(deal.value, deal.currency)}</td>
-            <td className="px-4 py-2">{deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'}</td>
-            <td className="px-4 py-2">{deal.createdAt ? dateFormatter.format(new Date(deal.createdAt)) : '—'}</td>
+            {/* Sumele aliniate la dreapta, pe cifre mono: zecimalele cad una sub alta. Verificat pe
+                cel mai lung total din seed ($184,963.91), la 1024/1280/1440 px, pe ambele teme. */}
+            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(deal.value, deal.currency)}</td>
+            <td className="whitespace-nowrap px-4 py-2">{deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'}</td>
+            <td className="whitespace-nowrap px-4 py-2">{deal.createdAt ? dateFormatter.format(new Date(deal.createdAt)) : '—'}</td>
             <td className="px-4 py-2">{deal.account.name}</td>
             <td className="px-4 py-2">{deal.owner.name}</td>
             <td className="px-4 py-2">
