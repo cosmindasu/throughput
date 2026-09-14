@@ -18,7 +18,7 @@ final class RecentlyViewed
     public const LIMIT = 8;
 
     /**
-     * @param  'account'|'contact'|'deal'|'product'  $type
+     * @param  'account'|'contact'|'deal'|'product'|'order'  $type
      */
     public static function record(Request $request, string $type, string $id, string $label, string $url): void
     {

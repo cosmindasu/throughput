@@ -7,6 +7,8 @@ import dealDetail from '@/help/topics/deal-detail';
 import dealsKanban from '@/help/topics/deals-kanban';
 import dealsList from '@/help/topics/deals-list';
 import exportsTopic from '@/help/topics/exports';
+import orderDetail from '@/help/topics/order-detail';
+import ordersList from '@/help/topics/orders-list';
 import pipeline from '@/help/topics/pipeline';
 import preferences from '@/help/topics/preferences';
 import productDetail from '@/help/topics/product-detail';
@@ -67,6 +69,11 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
 
     'Stock/Show': stock,
     'Stock/History': stockHistory,
+
+    'Orders/Index': ordersList,
+    'Orders/Show': orderDetail,
+    'Orders/Create': orderDetail,
+    'Orders/Edit': orderDetail,
 };
 
 /**

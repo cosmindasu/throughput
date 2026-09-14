@@ -47,7 +47,7 @@ class HelpTopicCoverageTest extends TestCase
      *
      * @var list<string>
      */
-    private const DEFERRED_NAV_LABELS = ['Orders', 'Invoices', 'Reports'];
+    private const DEFERRED_NAV_LABELS = ['Invoices', 'Reports'];
 
     public function test_every_built_navigation_route_and_the_dashboard_have_a_help_topic(): void
     {

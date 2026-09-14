@@ -64,5 +64,7 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         // Pachetul A (Faza 3, specs.md §10) — catalog de produse și stoc.
         require __DIR__.'/web/products.php';
         require __DIR__.'/web/stock.php';
+        // Comenzi și mașină de stări (Faza 3, specs.md §11, plan §9).
+        require __DIR__.'/web/orders.php';
     });
 });

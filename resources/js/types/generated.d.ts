@@ -689,3 +689,118 @@ export interface ExportsShowPageProps {
     [key: string]: unknown;
 }
 
+// ── Comenzi — specs.md §11, FR-ORD-02…07, plan §9 task 1 ─────────────────────────
+
+export type OrderStatus = 'draft' | 'confirmed' | 'partially_fulfilled' | 'fulfilled' | 'cancelled';
+
+export interface OrderPartyRef {
+    id: string;
+    name: string;
+}
+
+// App\Http\Resources\Orders\OrderLineResource.
+export interface OrderLine {
+    id: string;
+    variantId: string;
+    sku: string | null;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    lineTotal: number;
+    quantityFulfilled: number;
+}
+
+// App\Http\Resources\Orders\OrderResource — detaliul complet (`Orders/Show`, `Orders/Edit`).
+export interface Order {
+    id: string;
+    orderNumber: string | null;
+    status: OrderStatus;
+    statusLabel: string;
+    currency: string;
+    subtotal: number;
+    discountTotal: number;
+    shippingTotal: number;
+    grandTotal: number;
+    notes: string | null;
+    placedAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    account: OrderPartyRef;
+    // §20.5 — un contact anonimizat rămâne vizibil aici (istoric), exact ca pe Deal.
+    contact: { id: string; name: string; isAnonymized: boolean } | null;
+    deal: { id: string; title: string } | null;
+    owner: OrderPartyRef;
+    lines: OrderLine[];
+}
+
+// App\Http\Resources\Orders\OrderSummaryResource — un rând din `Orders/Index`.
+export interface OrderSummary {
+    id: string;
+    orderNumber: string | null;
+    status: OrderStatus;
+    statusLabel: string;
+    currency: string;
+    grandTotal: number;
+    placedAt: string | null;
+    createdAt: string | null;
+    account: OrderPartyRef;
+    owner: OrderPartyRef;
+    can: {
+        edit: boolean;
+        cancel: boolean;
+    };
+}
+
+export interface OrdersIndexPageProps {
+    orders: CursorPage<OrderSummary>;
+    filters: ListState;
+    can: {
+        create: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface OrdersShowPageProps {
+    order: Order;
+    can: {
+        edit: boolean;
+        delete: boolean;
+        confirm: boolean;
+        cancel: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface OrdersCreatePageProps {
+    account: OrderPartyRef | null;
+    contacts: OrderPartyRef[];
+    owners: OrderPartyRef[];
+    can: {
+        changeOwner: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface OrdersEditPageProps {
+    order: Order;
+    account: OrderPartyRef | null;
+    contacts: OrderPartyRef[];
+    owners: OrderPartyRef[];
+    can: {
+        changeOwner: boolean;
+        delete: boolean;
+    };
+    [key: string]: unknown;
+}
+
+// `GET /{workspace}/orders/variants/lookup` — App\Http\Controllers\Web\Orders\VariantLookupController.
+// JSON simplu (nu props Inertia), consumat de `VariantCombobox` din `Orders/Create`/`Orders/Edit`.
+export interface OrderVariantOption {
+    id: string;
+    sku: string;
+    name: string;
+    price: number;
+    available: number;
+}
+

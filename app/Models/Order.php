@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToTenant;
+use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,10 @@ class Order extends Model
     protected function casts(): array
     {
         return [
+            // §9 task ("mașina de stări") — un singur loc știe tranzițiile legale
+            // (`App\Enums\OrderStatus::canTransitionTo()`); acest cast e ce face
+            // `$order->status` întoarce enumul, nu un string brut, peste tot în cod.
+            'status' => OrderStatus::class,
             'subtotal' => 'decimal:2',
             'discount_total' => 'decimal:2',
             'shipping_total' => 'decimal:2',
