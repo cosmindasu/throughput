@@ -3,8 +3,9 @@
 namespace App\Actions\Stock\Concerns;
 
 use App\Models\InventoryLevel;
-use Illuminate\Database\QueryException;
+use App\Models\Scopes\TenantScope;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Convenția de blocare pe stoc, comună cu lotul Comenzi (task brief): orice cod care
@@ -37,12 +38,21 @@ trait LocksInventoryLevels
     }
 
     /**
-     * Creează, în afara lock-ului, rândurile `(variant_id, location_id)` care nu există
-     * încă — seed-ul (Faza 1) nu garantează o proiecție pentru fiecare pereche variantă/
-     * locație, doar pentru cele efectiv mișcate. Inserările sunt individuale (un rând per
-     * `INSERT`), deci nu pot produce ele însele un deadlock între cele două locuri care
-     * scriu pe acest tabel; constrângerea unică `(tenant_id, variant_id, location_id)`
-     * absoarbe o cursă rară cu o a doua interogare, nu cu o excepție netratată.
+     * Creează rândurile `(variant_id, location_id)` care lipsesc, înainte de blocare:
+     * seed-ul (Faza 1) nu garantează o proiecție pentru fiecare pereche variantă/locație,
+     * doar pentru cele efectiv mișcate.
+     *
+     * Două reguli, fiecare pentru un defect reprodus cu două sesiuni `psql`:
+     *  - Rândurile se inserează sortate, într-o singură instrucțiune. Inserate în ordinea
+     *    apelantului, două transferuri concurente în sensuri opuse pe o pereche fără
+     *    proiecție ajungeau să țină fiecare câte un rând nou și să-l aștepte pe al
+     *    celuilalt: deadlock.
+     *  - `INSERT … ON CONFLICT DO NOTHING`, nu `create()` într-un `catch`. În PostgreSQL
+     *    orice eroare abortează tranzacția, iar aici tranzacția e a întregii cereri (ADR-013):
+     *    rândul creat concurent dădea 500 la interogarea următoare, nu „nimic de făcut".
+     *
+     * `insertOrIgnore` ocolește evenimentele Eloquent, deci `id` și `tenant_id` se
+     * completează explicit, cum le-ar fi completat `HasUlids` și `BelongsToTenant`.
      *
      * @param  list<string>  $locationIds
      */
@@ -54,19 +64,24 @@ trait LocksInventoryLevels
             ->pluck('location_id')
             ->all();
 
-        foreach (array_diff($locationIds, $existing) as $locationId) {
-            try {
-                InventoryLevel::query()->create([
-                    'variant_id' => $variantId,
-                    'location_id' => $locationId,
-                    'on_hand' => 0,
-                    'reserved' => 0,
-                ]);
-            } catch (QueryException) {
-                // Rândul a fost creat concurent de cealaltă parte a convenției de mai
-                // sus (ex. o rezervare de comandă) între verificarea și inserarea de aici
-                // — constrângerea unică a prins-o, rândul deja există, nimic de făcut.
-            }
+        $missing = array_values(array_diff($locationIds, $existing));
+
+        if ($missing === []) {
+            return;
         }
+
+        sort($missing, SORT_STRING);
+        $tenantId = TenantScope::requireCurrentTenantId();
+        $now = now();
+
+        InventoryLevel::query()->insertOrIgnore(array_map(fn (string $locationId): array => [
+            'id' => strtolower((string) Str::ulid()),
+            'tenant_id' => $tenantId,
+            'variant_id' => $variantId,
+            'location_id' => $locationId,
+            'on_hand' => 0,
+            'reserved' => 0,
+            'updated_at' => $now,
+        ], $missing));
     }
 }

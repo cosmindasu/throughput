@@ -8,6 +8,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Variant;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -51,6 +52,16 @@ final class RecordStockMovementAction
 
         return DB::transaction(function () use ($variant, $location, $delta, $reason, $by, $note, $refType, $refId): StockMovement {
             $level = $this->lockLevels($variant->getKey(), [$location->getKey()])->get($location->getKey());
+
+            // Stocul fizic nu coboară sub zero, oricare ar fi motivul mișcării: aceeași regulă
+            // ca la transfer, verificată tot sub lock, fiindcă o mișcare concurentă poate schimba
+            // `on_hand` între formular și acest moment. Un `on_hand` negativ ar da și un
+            // `available` negativ, pe care BR-STOCK-04 îl exclude prin design.
+            if ($level->on_hand + $delta < 0) {
+                throw ValidationException::withMessages([
+                    'delta' => "Only {$level->on_hand} on hand at this location; this change would take it below zero.",
+                ]);
+            }
 
             $level->on_hand += $delta;
             $level->save();

@@ -14,6 +14,7 @@ use App\Support\Permissions;
 use Database\Factories\LocationFactory;
 use Database\Factories\ProductFactory;
 use Database\Factories\VariantFactory;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use RuntimeException;
 use Tests\TestCase;
@@ -112,6 +113,39 @@ class RecordStockMovementTest extends TestCase
             $this->assertSame(0, StockMovement::query()->count());
             $this->assertFalse(InventoryLevel::query()->where('variant_id', $this->variant->getKey())->exists());
         });
+    }
+
+    public function test_a_movement_that_would_take_on_hand_below_zero_is_rejected_and_leaves_no_trace(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $action = new RecordStockMovementAction;
+            $action->execute($this->variant, $this->location, 10, StockMovement::REASON_RECEIPT, $this->owner);
+
+            try {
+                $action->execute($this->variant, $this->location, -11, StockMovement::REASON_ADJUSTMENT, $this->owner, 'Cycle count.');
+                $this->fail('Expected a ValidationException.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('delta', $exception->errors());
+            }
+
+            $level = InventoryLevel::query()->where('variant_id', $this->variant->getKey())->firstOrFail();
+            $this->assertSame(10, $level->on_hand);
+            $this->assertSame(1, StockMovement::query()->where('variant_id', $this->variant->getKey())->count());
+        });
+    }
+
+    public function test_an_adjustment_below_zero_via_http_is_rejected_on_the_delta_field(): void
+    {
+        TenantContext::run($this->marlin, fn () => (new RecordStockMovementAction)->execute(
+            $this->variant, $this->location, 3, StockMovement::REASON_RECEIPT, $this->owner
+        ));
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->post("/marlin/variants/{$this->variant->id}/stock/adjust", [
+            'location_id' => $this->location->id,
+            'delta' => -4,
+            'note' => 'Cycle count correction.',
+        ])->assertSessionHasErrors('delta');
     }
 
     public function test_stock_movements_are_append_only(): void
