@@ -23,11 +23,11 @@ use Tests\TestCase;
  *     din label-ul de navigație. O rută poate exista cu alt nume de componentă
  *     decât am presupus; testul verifică ce se întâmplă, nu ce credem noi.
  *
- * Module întregi încă neconstruite ÎN TOT PROIECTUL (Products — Faza 3 §10,
- * Orders — Faza 3 §11, Invoices — Faza 5 §12, Reports — Faza 4 §16) sunt sărite
- * EXPLICIT: fără ele, testul ar cere conținut din prima zi a Fazei 2, pentru
- * rute care nici n-au controller. Ele intră automat sub acoperire când fazele
- * lor le construiesc, fără nicio schimbare aici.
+ * Module întregi încă neconstruite ÎN TOT PROIECTUL (Invoices — Faza 5 §12,
+ * Reports — Faza 4 §16) sunt sărite EXPLICIT: fără ele, testul ar cere conținut
+ * pentru rute care nici n-au controller. Faza fiecărui modul îl scoate din
+ * `DEFERRED_NAV_LABELS` când îl construiește, cum au făcut Products și Orders
+ * în Faza 3.
  *
  * Rutele modulelor construite ÎN PARALEL, de alți agenți, ÎN ACEASTĂ FAZĂ
  * (Accounts, Contacts, Deals, Settings) nu există încă în acest worktree —
