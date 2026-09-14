@@ -24,3 +24,10 @@ Schedule::job(new ResetDemoDataJob, 'default')
 // spre deosebire de resetul demo, jobul e util oricând există exporturi (demo sau nu) — el
 // însuși iterează tenanții (ADR-014, pct. 4), scheduler-ul doar dispecerizează.
 Schedule::job(new PruneExpiredExportsJob, 'default')->daily();
+
+// FR-STOCK-01, specs.md §10.4 — reconcilierea săptămânală a stocului: recalculează
+// `inventory_levels.on_hand` din `stock_movements` și raportează divergențele, fără să
+// corecteze (§10.1, ADR-004). Comandă de consolă, nu un job — iterează tenanții ea
+// însăși (`App\Console\Commands\StockReconcile`, ADR-014 pct. 4) și scrie raportul pe
+// ieșirea standard a scheduler-ului, care ajunge în logul de operare (§25.2).
+Schedule::command('stock:reconcile')->weekly();

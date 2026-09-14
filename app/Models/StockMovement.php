@@ -17,6 +17,27 @@ class StockMovement extends Model
     // Registru append-only (ADR-004) — tabela are doar `created_at`, fără `updated_at`.
     public const UPDATED_AT = null;
 
+    // Enumul din migrația `stock_movements` (specs.md §10.2) — sursă unică pentru
+    // Actions, FormRequests și `StockMovementList`.
+    public const REASON_RECEIPT = 'receipt';
+
+    public const REASON_SALE = 'sale';
+
+    public const REASON_ADJUSTMENT = 'adjustment';
+
+    public const REASON_RETURN = 'return';
+
+    public const REASON_TRANSFER = 'transfer';
+
+    /** @var list<string> */
+    public const REASONS = [
+        self::REASON_RECEIPT,
+        self::REASON_SALE,
+        self::REASON_ADJUSTMENT,
+        self::REASON_RETURN,
+        self::REASON_TRANSFER,
+    ];
+
     protected function casts(): array
     {
         return [

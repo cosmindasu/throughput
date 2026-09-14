@@ -47,6 +47,17 @@ final class Permissions
     }
 
     /**
+     * §7.4, rândul „Produse & variante": `variants.cost` (marja) e ascunsă pentru Agent și
+     * Viewer, la nivel de `VariantResource`, nu doar în UI. Verificată direct pe rol —
+     * catalogul nu are o permisiune separată `products.view_cost`, marja fiind o
+     * proprietate a ROLULUI, nu a resursei (spre deosebire de ownership, care e per rând).
+     */
+    public static function canViewCost(User $user): bool
+    {
+        return $user->hasAnyRole([self::OWNER, self::MANAGER]);
+    }
+
+    /**
      * Toate permisiunile din aplicație, grupate pe resursa din matricea §7.4.
      *
      * @return array<string, list<string>>

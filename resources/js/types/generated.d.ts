@@ -454,6 +454,129 @@ export interface PipelinePageProps {
     [key: string]: unknown;
 }
 
+// ── Produse și stoc — specs.md §10, FR-STOCK-01…03, BR-STOCK-01…04 ───────────────
+
+export type UnitOfMeasure = 'each' | 'box' | 'pallet';
+
+// App\Http\Resources\Products\ProductResource — rândul din Products/Index.
+export interface ProductRow {
+    id: string;
+    name: string;
+    category: string | null;
+    unitOfMeasure: UnitOfMeasure;
+    isActive: boolean;
+    variantsCount: number;
+    createdAt: string | null;
+}
+
+// App\Http\Resources\Products\VariantResource — `cost`/`onHand`/`reserved`/`available`
+// sunt câmpuri OPȚIONALE, nu `| null`: lipsesc din JSON (nu apar deloc), nu sunt `null`.
+// `cost` lipsește pentru Agent/Viewer (§7.4, `Permissions::canViewCost()`); celelalte
+// trei lipsesc când `inventoryLevels` n-a fost încărcată pe rândul cerut.
+export interface VariantRow {
+    id: string;
+    productId: string;
+    sku: string;
+    attributes: Record<string, unknown>;
+    price: number;
+    cost?: number;
+    weight: number | null;
+    isActive: boolean;
+    onHand?: number;
+    reserved?: number;
+    available?: number;
+    createdAt: string | null;
+}
+
+// App\Http\Resources\Products\ProductDetailResource — Products/Show, Products/Edit.
+export interface ProductDetail {
+    id: string;
+    name: string;
+    category: string | null;
+    unitOfMeasure: UnitOfMeasure;
+    isActive: boolean;
+    variants: VariantRow[];
+    createdAt: string | null;
+    updatedAt: string | null;
+}
+
+export interface ProductsIndexPageProps {
+    products: CursorPage<ProductRow>;
+    list: ListState;
+    can: { create: boolean };
+    [key: string]: unknown;
+}
+
+export interface ProductsShowPageProps {
+    product: ProductDetail;
+    deletionBlockedReason: string | null;
+    can: { edit: boolean; delete: boolean; createVariant: boolean };
+    [key: string]: unknown;
+}
+
+export interface ProductsFormPageProps {
+    product?: ProductDetail;
+    [key: string]: unknown;
+}
+
+export interface VariantsCreatePageProps {
+    product: ProductDetail;
+    [key: string]: unknown;
+}
+
+export interface VariantsEditPageProps {
+    variant: VariantRow;
+    product: { id: string; name: string };
+    [key: string]: unknown;
+}
+
+// App\Http\Resources\Stock\StockLevelResource — Stock/Show.
+export interface StockLevelRow {
+    id: string;
+    locationId: string;
+    locationName: string;
+    onHand: number;
+    reserved: number;
+    available: number;
+    updatedAt: string | null;
+}
+
+export interface StockLocationOption {
+    id: string;
+    name: string;
+}
+
+export interface StockShowPageProps {
+    variant: VariantRow;
+    levels: StockLevelRow[];
+    locations: StockLocationOption[];
+    can: { adjust: boolean };
+    [key: string]: unknown;
+}
+
+export type StockMovementReason = 'receipt' | 'sale' | 'adjustment' | 'return' | 'transfer';
+
+// App\Http\Resources\Stock\StockMovementResource — Stock/History.
+export interface StockMovementRow {
+    id: string;
+    delta: number;
+    reason: StockMovementReason;
+    refType: string | null;
+    refId: string | null;
+    note: string | null;
+    location: { id: string; name: string };
+    createdBy: { id: string; name: string } | null;
+    createdAt: string | null;
+}
+
+export interface StockHistoryPageProps {
+    variant: { id: string; sku: string; productName: string };
+    movements: CursorPage<StockMovementRow>;
+    list: ListState;
+    reasons: StockMovementReason[];
+    [key: string]: unknown;
+}
+
 // ── Settings și preferințe — FR-PREF-01…03 ───────────────────────────────────────
 
 // App\Http\Controllers\Web\Settings\SettingsController::index() — plan §7.4. O secțiune

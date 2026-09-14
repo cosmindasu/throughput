@@ -44,4 +44,23 @@ class Variant extends Model
     {
         return $this->hasMany(OrderLine::class);
     }
+
+    /**
+     * La fel ca `Product::deletionBlockedReason()` — stare, nu drept. `inventory_levels`
+     * cascadează la ștergerea variantei (migrația `inventory_levels`), dar
+     * `stock_movements` (append-only, ADR-004) și `order_lines` NU, deliberat: un ledger
+     * care s-ar șterge odată cu varianta n-ar mai fi un registru.
+     */
+    public function deletionBlockedReason(): ?string
+    {
+        if ($this->stockMovements()->exists()) {
+            return 'This variant cannot be deleted: it has recorded stock movements.';
+        }
+
+        if ($this->orderLines()->exists()) {
+            return 'This variant cannot be deleted: it is used on at least one order.';
+        }
+
+        return null;
+    }
 }

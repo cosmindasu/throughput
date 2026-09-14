@@ -61,5 +61,8 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/search.php';
         require __DIR__.'/web/settings.php';
         require __DIR__.'/web/exports.php';
+        // Pachetul A (Faza 3, specs.md §10) — catalog de produse și stoc.
+        require __DIR__.'/web/products.php';
+        require __DIR__.'/web/stock.php';
     });
 });

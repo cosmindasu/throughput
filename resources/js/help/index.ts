@@ -9,7 +9,12 @@ import dealsList from '@/help/topics/deals-list';
 import exportsTopic from '@/help/topics/exports';
 import pipeline from '@/help/topics/pipeline';
 import preferences from '@/help/topics/preferences';
+import productDetail from '@/help/topics/product-detail';
+import productsList from '@/help/topics/products-list';
 import settings from '@/help/topics/settings';
+import stock from '@/help/topics/stock';
+import stockHistory from '@/help/topics/stock-history';
+import variantForm from '@/help/topics/variant-form';
 import type { HelpTopic } from '@/help/types';
 
 /**
@@ -52,6 +57,16 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Settings/Preferences': preferences,
 
     'Exports/Show': exportsTopic,
+
+    'Products/Index': productsList,
+    'Products/Show': productDetail,
+    'Products/Create': productDetail,
+    'Products/Edit': productDetail,
+    'Variants/Create': variantForm,
+    'Variants/Edit': variantForm,
+
+    'Stock/Show': stock,
+    'Stock/History': stockHistory,
 };
 
 /**
