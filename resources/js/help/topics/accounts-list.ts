@@ -22,6 +22,7 @@ const accountsList: HelpTopic = {
         'Open "Views" to apply a saved view, "Save view" to keep the current filters, or "☆ Set default" to open the list on that view.',
         'Download the filtered list with "Export CSV", even without edit rights.',
         'Create an account with "New account", or change one from its "Edit" link.',
+        'Select several accounts with the checkboxes — or "Select all N matching this filter" — and reassign them to a new owner in one action, from the bar that appears once you\'ve picked at least one.',
     ],
     rules: [
         'Agents start on "My accounts"; everyone else starts on all accounts. The filter changes what you see, not what you can edit — an Agent only gets "Edit" on accounts they own or created.',
@@ -29,6 +30,7 @@ const accountsList: HelpTopic = {
         '"Export CSV" works for every role, including Viewer: it reads every row matching the current filters — all pages, not just the one on screen — and writes nothing. Up to 5,000 rows download at once; a bigger export continues on a status page.',
         'Anyone can save, rename and delete their own private views. Only Owner and Manager can save a view for the whole team or rename and delete a team view; everyone else can still apply "Team views".',
         'A default view opens only when the URL carries no filter or sort, so a link a teammate shares always opens with its own filters.',
+        'Reassigning owners in bulk is a write, so it follows the same rule as editing one at a time: Viewer never sees the checkboxes, and an Agent can only reassign accounts they own or created, capped at 500 per operation. A confirmation dialog appears above 125 rows for Agent, 1,000 for everyone else who can do it — see the "Bulk operation status" page for what happens after you confirm.',
     ],
     howItsBuilt: {
         summary:

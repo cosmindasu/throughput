@@ -31,3 +31,8 @@ Schedule::job(new PruneExpiredExportsJob, 'default')->daily();
 // însăși (`App\Console\Commands\StockReconcile`, ADR-014 pct. 4) și scrie raportul pe
 // ieșirea standard a scheduler-ului, care ajunge în logul de operare (§25.2).
 Schedule::command('stock:reconcile')->weekly();
+
+// §13.2, pct. 8 — job_batches nu trebuie să crească nemărginit (comandă nativă Laravel,
+// fără parametri: implicit șterge batch-urile terminate de peste 24h). Fără `when()`, ca la
+// `PruneExpiredExportsJob`: operațiile în masă există independent de DEMO_MODE.
+Schedule::command('queue:prune-batches')->daily();

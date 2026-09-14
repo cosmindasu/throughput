@@ -1,5 +1,6 @@
 import { Deferred, Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
@@ -7,6 +8,7 @@ import PageHeader from '@/Components/PageHeader';
 import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import type { AccountRow, AccountsIndexPageProps } from '@/types/generated';
@@ -16,13 +18,17 @@ import type { AccountRow, AccountsIndexPageProps } from '@/types/generated';
  * (filtre, header) apare instant, rândurile vin după — vezi `TableSkeleton`.
  */
 export default function Index() {
-    const { accounts, list, owners, can, workspace } = usePage<AccountsIndexPageProps>().props;
+    const { accounts, total, list, owners, can, bulkConfirmationThreshold, workspace } = usePage<AccountsIndexPageProps>().props;
     const { url } = usePage();
     const { setFilter, setSort } = useListFilters(list);
 
     const hasFilters = Object.keys(list.filter).length > 0;
     const base = workspace ? `/${workspace.slug}` : '';
     const exportHref = buildExportHref(url, base);
+    const bulkDispatchUrl = buildBulkDispatchUrl(url, base, 'accounts');
+
+    const pageIds = accounts ? accounts.data.map((account) => account.id) : [];
+    const selection = useBulkSelection(pageIds);
 
     return (
         <>
@@ -103,12 +109,40 @@ export default function Index() {
                     {hasFilters && <Button onClick={() => clearAll(setFilter)}>Clear filters</Button>}
                 </div>
 
+                {can.bulkWrite && (
+                    <BulkSelectionBar
+                        resourceNounSingular="account"
+                        resourceNounPlural="accounts"
+                        dispatchUrl={bulkDispatchUrl}
+                        total={total}
+                        selectedCount={selection.selectedCount}
+                        allOnPageSelected={selection.allOnPageSelected}
+                        matchingFilter={selection.matchingFilter}
+                        selectedIds={selection.selectedIds}
+                        owners={owners}
+                        confirmationThreshold={bulkConfirmationThreshold}
+                        onSelectAllMatching={selection.selectAllMatching}
+                        onClearSelection={selection.clear}
+                    />
+                )}
+
                 <Deferred data="accounts" fallback={<TableSkeleton columns={5} />}>
                     {accounts && accounts.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-raised text-text-2">
                                     <tr>
+                                        {can.bulkWrite && (
+                                            <th scope="col" className="w-10 px-4 py-2">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label="Select all accounts on this page"
+                                                    checked={selection.allOnPageSelected}
+                                                    onChange={selection.toggleAllOnPage}
+                                                    className="size-4 rounded border-control"
+                                                />
+                                            </th>
+                                        )}
                                         <th scope="col" className="px-4 py-2 font-medium">Name</th>
                                         <th scope="col" className="px-4 py-2 font-medium">Owner</th>
                                         <th scope="col" className="px-4 py-2 font-medium">Status</th>
@@ -121,6 +155,17 @@ export default function Index() {
                                 <tbody className="divide-y divide-border-soft bg-surface">
                                     {accounts.data.map((account: AccountRow) => (
                                         <tr key={account.id} className="hover:bg-row-hover">
+                                            {can.bulkWrite && (
+                                                <td className="px-4 py-2.5">
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={`Select ${account.name}`}
+                                                        checked={selection.isSelected(account.id)}
+                                                        onChange={() => selection.toggleRow(account.id)}
+                                                        className="size-4 rounded border-control"
+                                                    />
+                                                </td>
+                                            )}
                                             <td className="px-4 py-2.5">
                                                 <a href={`${base}/accounts/${account.id}`} className="font-medium text-accent-text hover:underline">
                                                     {account.name}
@@ -193,6 +238,17 @@ function buildExportHref(currentUrl: string, base: string): string {
     const exportPath = `${base}/accounts/export`;
 
     return query ? `${exportPath}?${query}` : exportPath;
+}
+
+/**
+ * §13.2 — `DispatchBulkOperationAction` capturează exact filtrul/sortul din querystring-ul
+ * curent, ca lista/exportul/operația în masă să vadă aceleași rânduri pentru același URL.
+ */
+function buildBulkDispatchUrl(currentUrl: string, base: string, resourceType: 'accounts' | 'deals'): string {
+    const query = currentUrl.split('?')[1];
+    const path = `${base}/${resourceType}/bulk/reassign-owner`;
+
+    return query ? `${path}?${query}` : path;
 }
 
 Index.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;

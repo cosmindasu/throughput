@@ -70,6 +70,19 @@ class DealPolicy
     }
 
     /**
+     * §13.4 (Pachetul C, valul „bulk") — reasignare owner în masă pe Deals. Legată de
+     * `deals.change_owner`, ca `changeOwner()` de mai sus: Agent nu are permisiunea asta în
+     * catalog (`Permissions::forRoles()`), deci nu poate reasigna owner-ul unui deal, nici
+     * individual, nici în masă — nesimetric față de Accounts (unde Agentul poate, pe
+     * subsetul propriu), decizie DEJA existentă în catalogul de roluri, nu una nouă a
+     * acestui pachet.
+     */
+    public function bulkReassignOwner(User $user): bool
+    {
+        return $user->can('deals.change_owner') && $user->can('bulk.write');
+    }
+
+    /**
      * §7.5: un Agent lucrează doar pe deal-urile unde e responsabil.
      */
     private function isWithinOwnRecords(User $user, Deal $deal): bool

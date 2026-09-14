@@ -57,6 +57,19 @@ return [
         // pentru exportul de listă (`bulk_operations`, §13.2) — `PruneExpiredExportsJob`
         // (plan §7.2) golește `result_path` peste acest prag; fișierul dispare de pe disc.
         'export_retention_days' => (int) env('EXPORT_RETENTION_DAYS', 7),
+
+        // BR-BULK-02 — plafonul DUR al Agentului pe o operație în masă de SCRIERE, per
+        // operație, indiferent de resursă (conturi/deals/comenzi). Distinct de
+        // `bulk_max_rows` de mai sus: acela e plafonul ABSOLUT din DEMO_MODE, pentru orice
+        // rol; ăsta e o regulă de business permanentă, activă și în afara demo-ului.
+        // `App\Support\Bulk\BulkConfirmationThreshold` calculează pragul de confirmare
+        // (FR-BULK-01) din valoarea asta — 25% din ea, plafonat la 1.000.
+        'bulk_agent_row_cap' => (int) env('BULK_AGENT_ROW_CAP', 500),
+
+        // §13.2, pct. 2 — mărimea unui chunk de operație în masă (planul cere 500-1.000
+        // rânduri per job de coadă). Un singur loc: planificatorul (`PlanBulkOperationJob`)
+        // și estimarea de progres (`BulkOperationResource`) trebuie să vadă aceeași valoare.
+        'bulk_chunk_size' => (int) env('BULK_CHUNK_SIZE', 500),
     ],
 
 ];

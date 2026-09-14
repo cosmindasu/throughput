@@ -177,9 +177,17 @@ export interface AccountActivityEntry {
 
 export interface AccountsIndexPageProps {
     accounts: CursorPage<AccountRow>;
+    // Pachetul C („bulk"), §13.1 — numărul EXACT de rânduri care corespund filtrului
+    // curent, pentru linkul „Select all N accounts matching this filter". Deferred, ca
+    // `accounts`: un al doilea COUNT pe același filtru, nu blochează randarea rândurilor.
+    total: number;
     list: ListState;
     owners: AccountOwnerOption[];
-    can: { create: boolean; export: boolean };
+    can: { create: boolean; export: boolean; bulkWrite: boolean };
+    // App\Support\Bulk\BulkConfirmationThreshold — FR-BULK-01 (125 pentru Agent, 1.000
+    // pentru Owner/Manager) și BR-BULK-02 (`null` = fără plafon de rol).
+    bulkConfirmationThreshold: number;
+    bulkRowCap: number | null;
     [key: string]: unknown;
 }
 
@@ -358,10 +366,18 @@ export interface DealStageEvent {
 
 export interface DealsIndexPageProps {
     deals: CursorPage<DealSummary>;
+    // Pachetul C („bulk"), §13.1 — vezi `AccountsIndexPageProps.total`, aceeași formă.
+    total: number;
     filters: ListState;
     can: {
         create: boolean;
+        bulkWrite: boolean;
     };
+    // Gol când `can.bulkWrite` e fals — ca la `Deals/Create`/`Deals/Edit`
+    // (`Gate::allows('bulkReassignOwner', Deal::class)`), nu o listă needed dar netrimisă.
+    owners: DealPartyRef[];
+    bulkConfirmationThreshold: number;
+    bulkRowCap: number | null;
     [key: string]: unknown;
 }
 
@@ -686,6 +702,32 @@ export interface ExportStatusPayload {
 
 export interface ExportsShowPageProps {
     export: ExportStatusPayload;
+    [key: string]: unknown;
+}
+
+// ── Operații în masă de SCRIERE — specs.md §13.2, plan §9 „Operații în masă" ─────
+
+export type BulkOperationStatus = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
+
+// App\Http\Resources\Bulk\BulkOperationResource — Bulk/Show.
+export interface BulkOperationPayload {
+    id: string;
+    resourceType: string;
+    action: string;
+    status: BulkOperationStatus;
+    totalRows: number;
+    totalJobs: number;
+    processedJobs: number;
+    failedJobs: number;
+    // Aproximare (`total_rows × processedJobs / totalJobs`) — exactă la 0% și 100%, vezi
+    // docblock-ul `BulkOperationResource` pentru motiv (schema n-are un contor de rânduri).
+    processedRowsEstimate: number;
+    canCancel: boolean;
+    errorMessage: string | null;
+}
+
+export interface BulkShowPageProps {
+    operation: BulkOperationPayload;
     [key: string]: unknown;
 }
 

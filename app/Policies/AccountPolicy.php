@@ -55,6 +55,19 @@ class AccountPolicy
     }
 
     /**
+     * §13.4 (BR-BULK-02/03) — reasignare owner în masă (Pachetul C, valul „bulk"). Agent
+     * trece Policy-ul (are `accounts.edit`), dar rămâne restrâns la subsetul propriu la
+     * nivel de INTEROGARE (`App\Support\Bulk\Resources\AccountBulkResource::scopeToOwnRecords()`),
+     * nu aici — un Policy răspunde la „poate omul ăsta declanșa ACȚIUNEA", nu la „pe ce
+     * rânduri anume"; plafonul de rânduri (500) e verificat separat, în
+     * `DispatchBulkOperationAction`. Viewer n-are `accounts.edit` → refuzat (BR-BULK-03).
+     */
+    public function bulkReassignOwner(User $user): bool
+    {
+        return $user->can('accounts.edit') && $user->can('bulk.write');
+    }
+
+    /**
      * §7.5: un Agent lucrează pe conturile unde e responsabil sau pe cele create de el.
      */
     private function isWithinOwnRecords(User $user, Account $account): bool

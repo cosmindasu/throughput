@@ -13,6 +13,7 @@ use App\Models\Account;
 use App\Models\Contact;
 use App\Models\Membership;
 use App\Support\Accounts\AccountActivityTimeline;
+use App\Support\Bulk\BulkConfirmationThreshold;
 use App\Support\Exports\ListExport;
 use App\Support\Lists\AccountList;
 use App\Support\Lists\CursorPage;
@@ -52,12 +53,21 @@ final class AccountController extends Controller
                 $listQuery->paginate($list->query($listQuery, $user)),
                 AccountResource::class,
             )),
+            // Pachetul C („bulk") — §13.1, linkul „Select all N accounts matching this
+            // filter" are nevoie de N-ul EXACT, nu al paginii curente. Deferred separat de
+            // `accounts`: nu blochează randarea rândurilor, e doar un COUNT pe același filtru.
+            'total' => Inertia::defer(fn () => (int) $list->query($listQuery, $user)->toBase()->getCountForPagination()),
             'list' => $listQuery->toArray(),
             'owners' => $this->ownerOptions(),
             'can' => [
                 'create' => $user->can('create', Account::class),
                 'export' => $user->can('export', Account::class),
+                // Separat de `export` (§13.5, §7.4 nota ³): exportul e o citire, permisă și
+                // Viewer-ului; `bulkWrite` guvernează reasignarea de owner în masă.
+                'bulkWrite' => $user->can('bulkReassignOwner', Account::class),
             ],
+            'bulkConfirmationThreshold' => BulkConfirmationThreshold::for($user),
+            'bulkRowCap' => BulkConfirmationThreshold::rowCapForRole($user),
         ]);
     }
 

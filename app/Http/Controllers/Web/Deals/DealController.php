@@ -18,6 +18,7 @@ use App\Models\Membership;
 use App\Models\Pipeline;
 use App\Models\Scopes\NotAnonymizedContactScope;
 use App\Models\Stage;
+use App\Support\Bulk\BulkConfirmationThreshold;
 use App\Support\Lists\DealList;
 use App\Support\Permissions;
 use App\Support\RecentlyViewed;
@@ -63,10 +64,23 @@ class DealController extends Controller
                 'nextCursor' => $paginator->nextCursor()?->encode(),
                 'prevCursor' => $paginator->previousCursor()?->encode(),
             ]),
+            // Pachetul C („bulk") — §13.1, linkul „Select all N deals matching this filter"
+            // are nevoie de N-ul EXACT, nu al paginii curente. Deferred separat de `deals`:
+            // nu blochează randarea rândurilor, e doar un COUNT pe același filtru.
+            'total' => Inertia::defer(fn () => (int) $list->query($query, $user)->toBase()->getCountForPagination()),
             'filters' => $query->toArray(),
             'can' => [
                 'create' => Gate::allows('create', Deal::class),
+                // Separat de export (§13.5, §7.4 nota ³): Agent nu are `deals.change_owner`
+                // în catalog (`Permissions::forRoles()`), deci `bulkWrite` e `false` pentru
+                // el aici — nesimetric față de Accounts, decizie deja existentă în RBAC.
+                'bulkWrite' => Gate::allows('bulkReassignOwner', Deal::class),
             ],
+            // Gol când `can.bulkWrite` e fals — ca la `create()`/`edit()` mai jos, nu o
+            // listă calculată degeaba pentru un rol care n-o poate folosi.
+            'owners' => Gate::allows('bulkReassignOwner', Deal::class) ? $this->ownerOptions() : [],
+            'bulkConfirmationThreshold' => BulkConfirmationThreshold::for($user),
+            'bulkRowCap' => BulkConfirmationThreshold::rowCapForRole($user),
         ]);
     }
 

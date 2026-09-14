@@ -66,5 +66,7 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/stock.php';
         // Comenzi și mașină de stări (Faza 3, specs.md §11, plan §9).
         require __DIR__.'/web/orders.php';
+        // Pachetul C (Faza 3, specs.md §13, plan §9) — mecanismul generic de operații în masă.
+        require __DIR__.'/web/bulk.php';
     });
 });

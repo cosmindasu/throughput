@@ -22,6 +22,7 @@ const dealsList: HelpTopic = {
         'Sort by clicking the "Title", "Value", "Expected close" or "Created" header — click again to reverse.',
         'Open "Views" to apply a saved view, "Save view" to keep the current filters, or "☆ Set default".',
         'Switch to "Board" for the Kanban layout, or open a deal from its title or its "Edit" link.',
+        'As Owner or Manager, select several deals with the checkboxes — or "Select all N matching this filter" — and reassign them to a new owner in one action.',
     ],
     rules: [
         'Agents start on "My deals"; everyone else on all deals. A default saved view, if you set one, wins whenever the URL has no filter or sort.',
@@ -29,6 +30,7 @@ const dealsList: HelpTopic = {
         'Deals have no CSV export yet — "Export CSV" exists on Accounts and Contacts.',
         "Sorting and filtering here never change a deal's stage — moving stage only happens from the board or from the deal's own page.",
         'Only Owner and Manager can save a team view or rename and delete one; every role can keep private views.',
+        'Bulk-reassigning owners is Owner/Manager only — an Agent can reassign a deal to themself one at a time when they create it, but not change any deal\'s owner afterwards, alone or in bulk, so the checkboxes and the reassign bar never appear for that role. A confirmation dialog appears above 1,000 selected deals.',
     ],
     howItsBuilt: {
         summary:

@@ -1,5 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import CursorPagination from '@/Components/CursorPagination';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import EmptyState from '@/Components/EmptyState';
@@ -8,6 +9,7 @@ import PageHeader from '@/Components/PageHeader';
 import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatMoney } from '@/lib/money';
@@ -34,11 +36,12 @@ const SORTABLE_COLUMNS: Array<{ key: string; label: string }> = [
  * titlul, filtrele și acțiunile sunt pe ecran înainte ca rândurile să vină.
  */
 export default function Index() {
-    const { props } = usePage<DealsIndexPageProps>();
+    const { props, url } = usePage<DealsIndexPageProps>();
     const { filters, can, workspace } = props;
     const workspaceSlug = workspace?.slug ?? '';
     const { setFilter, setSort } = useListFilters(filters);
     const [search, setSearch] = useState(filters.filter.q ?? '');
+    const bulkDispatchUrl = buildBulkDispatchUrl(url, workspaceSlug ? `/${workspaceSlug}` : '', 'deals');
 
     const currentSort = filters.sort.replace(/^-/, '');
     const currentDirection = filters.sort.startsWith('-') ? 'desc' : 'asc';
@@ -111,7 +114,13 @@ export default function Index() {
                 </div>
 
                 <Deferred data="deals" fallback={<TableSkeleton columns={6} />}>
-                    <DealsTable workspaceSlug={workspaceSlug} canCreate={can.create} sort={{ column: currentSort, direction: currentDirection }} onSort={toggleSort} />
+                    <DealsTable
+                        workspaceSlug={workspaceSlug}
+                        canCreate={can.create}
+                        sort={{ column: currentSort, direction: currentDirection }}
+                        onSort={toggleSort}
+                        bulkDispatchUrl={bulkDispatchUrl}
+                    />
                 </Deferred>
             </div>
         </>
@@ -136,13 +145,17 @@ function DealsTable({
     canCreate,
     sort,
     onSort,
+    bulkDispatchUrl,
 }: {
     workspaceSlug: string;
     canCreate: boolean;
     sort: { column: string; direction: 'asc' | 'desc' };
     onSort: (column: string) => void;
+    bulkDispatchUrl: string;
 }) {
-    const { deals } = usePage<DealsIndexPageProps>().props;
+    const { deals, total, can, owners, bulkConfirmationThreshold } = usePage<DealsIndexPageProps>().props;
+    const pageIds = deals.data.map((deal) => deal.id);
+    const selection = useBulkSelection(pageIds);
 
     if (deals.data.length === 0) {
         return (
@@ -159,10 +172,38 @@ function DealsTable({
 
     return (
         <div className="flex flex-col gap-4">
+            {can.bulkWrite && (
+                <BulkSelectionBar
+                    resourceNounSingular="deal"
+                    resourceNounPlural="deals"
+                    dispatchUrl={bulkDispatchUrl}
+                    total={total}
+                    selectedCount={selection.selectedCount}
+                    allOnPageSelected={selection.allOnPageSelected}
+                    matchingFilter={selection.matchingFilter}
+                    selectedIds={selection.selectedIds}
+                    owners={owners}
+                    confirmationThreshold={bulkConfirmationThreshold}
+                    onSelectAllMatching={selection.selectAllMatching}
+                    onClearSelection={selection.clear}
+                />
+            )}
+
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
+                            {can.bulkWrite && (
+                                <th scope="col" className="w-10 px-4 py-2">
+                                    <input
+                                        type="checkbox"
+                                        aria-label="Select all deals on this page"
+                                        checked={selection.allOnPageSelected}
+                                        onChange={selection.toggleAllOnPage}
+                                        className="size-4 rounded border-control"
+                                    />
+                                </th>
+                            )}
                             {SORTABLE_COLUMNS.map((column) => (
                                 <th key={column.key} scope="col" className={`px-4 py-2 font-medium ${column.key === 'value' ? 'text-right' : ''}`}>
                                     <button
@@ -191,7 +232,14 @@ function DealsTable({
                     </thead>
                     <tbody>
                         {deals.data.map((deal) => (
-                            <DealRow key={deal.id} deal={deal} workspaceSlug={workspaceSlug} />
+                            <DealRow
+                                key={deal.id}
+                                deal={deal}
+                                workspaceSlug={workspaceSlug}
+                                showCheckbox={can.bulkWrite}
+                                selected={selection.isSelected(deal.id)}
+                                onToggle={() => selection.toggleRow(deal.id)}
+                            />
                         ))}
                     </tbody>
                 </table>
@@ -202,9 +250,32 @@ function DealsTable({
     );
 }
 
-function DealRow({ deal, workspaceSlug }: { deal: DealSummary; workspaceSlug: string }) {
+function DealRow({
+    deal,
+    workspaceSlug,
+    showCheckbox,
+    selected,
+    onToggle,
+}: {
+    deal: DealSummary;
+    workspaceSlug: string;
+    showCheckbox: boolean;
+    selected: boolean;
+    onToggle: () => void;
+}) {
     return (
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
+            {showCheckbox && (
+                <td className="px-4 py-2">
+                    <input
+                        type="checkbox"
+                        aria-label={`Select ${deal.title}`}
+                        checked={selected}
+                        onChange={onToggle}
+                        className="size-4 rounded border-control"
+                    />
+                </td>
+            )}
             <td className="px-4 py-2">
                 <Link href={`/${workspaceSlug}/deals/${deal.id}`} className="font-medium text-text hover:underline">
                     {deal.title}
@@ -234,6 +305,17 @@ function DealRow({ deal, workspaceSlug }: { deal: DealSummary; workspaceSlug: st
             </td>
         </tr>
     );
+}
+
+/**
+ * §13.2 — `DispatchBulkOperationAction` capturează exact filtrul/sortul din querystring-ul
+ * curent, ca lista/operația în masă să vadă aceleași rânduri pentru același URL.
+ */
+function buildBulkDispatchUrl(currentUrl: string, base: string, resourceType: 'accounts' | 'deals'): string {
+    const query = currentUrl.split('?')[1];
+    const path = `${base}/${resourceType}/bulk/reassign-owner`;
+
+    return query ? `${path}?${query}` : path;
 }
 
 Index.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;

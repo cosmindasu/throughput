@@ -1,5 +1,6 @@
 import accountDetail from '@/help/topics/account-detail';
 import accountsList from '@/help/topics/accounts-list';
+import bulkOperation from '@/help/topics/bulk-operation';
 import contactDetail from '@/help/topics/contact-detail';
 import contactsList from '@/help/topics/contacts-list';
 import dashboard from '@/help/topics/dashboard';
@@ -59,6 +60,7 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Settings/Preferences': preferences,
 
     'Exports/Show': exportsTopic,
+    'Bulk/Show': bulkOperation,
 
     'Products/Index': productsList,
     'Products/Show': productDetail,
