@@ -85,6 +85,37 @@ class CancelOrderActionTest extends TestCase
         });
     }
 
+    /**
+     * Code review P1-003 — două linii pe ACEEAȘI variantă, confirmate ca backorder
+     * (BR-STOCK-04), eliberează la anulare exact suma lor, prin ACELAȘI rând
+     * `inventory_levels` (`LocksInventoryLevels::lockLevelsAtLocation()`), fără să
+     * trimită `reserved` sub zero.
+     */
+    public function test_cancelling_releases_the_sum_of_duplicate_lines_on_the_same_variant(): void
+    {
+        TenantContext::run($this->tenant, function (): void {
+            $location = $this->makeDefaultLocation();
+            $variant = $this->makeVariant();
+            $this->setInventory($variant, $location, onHand: 10);
+
+            $order = $this->draftOrder([
+                ['variant_id' => $variant->getKey(), 'quantity' => 6],
+                ['variant_id' => $variant->getKey(), 'quantity' => 6],
+            ]);
+            $confirmed = (new ConfirmOrderAction)->execute($order, acknowledgeBackorder: true);
+
+            $level = InventoryLevel::query()->where('variant_id', $variant->getKey())->first();
+            $this->assertSame(12, $level->reserved);
+
+            $cancelled = (new CancelOrderAction)->execute($confirmed);
+
+            $this->assertSame(OrderStatus::Cancelled, $cancelled->status);
+            $level->refresh();
+            $this->assertSame(0, $level->reserved);
+            $this->assertGreaterThanOrEqual(0, $level->reserved, '`reserved` nu coboară sub zero.');
+        });
+    }
+
     public function test_cancelling_an_already_cancelled_order_is_refused(): void
     {
         TenantContext::run($this->tenant, function (): void {

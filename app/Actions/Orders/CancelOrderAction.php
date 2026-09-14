@@ -2,8 +2,8 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Stock\Concerns\LocksInventoryLevels;
 use App\Enums\OrderStatus;
-use App\Models\InventoryLevel;
 use App\Models\Location;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class CancelOrderAction
 {
+    use LocksInventoryLevels;
+
     public function execute(Order $order): Order
     {
         return DB::transaction(function () use ($order): Order {
@@ -37,30 +39,37 @@ final class CancelOrderAction
                 if ($variantIds->isNotEmpty()) {
                     // Aceeași locație implicită folosită de `ConfirmOrderAction` la
                     // rezervare (§9 task — simplificare asumată, o singură locație de
-                    // rezervare în această fază) și aceeași convenție de blocare: o
-                    // singură interogare, ordonată `variant_id, location_id`, înainte
-                    // de orice scriere pe `reserved`.
+                    // rezervare în această fază) și aceeași convenție de blocare
+                    // (code review P1-003, `LocksInventoryLevels::lockLevelsAtLocation()`):
+                    // creează întâi, sortat, orice rând `inventory_levels` lipsă pentru
+                    // variantele cerute, apoi le blochează într-o singură interogare,
+                    // ordonată `variant_id, location_id`, înainte de orice scriere pe
+                    // `reserved`.
                     $location = Location::query()->where('is_default', true)->first()
                         ?? Location::query()->oldest('created_at')->firstOrFail();
 
-                    $levels = InventoryLevel::query()
-                        ->where('location_id', $location->getKey())
-                        ->whereIn('variant_id', $variantIds)
-                        ->orderBy('variant_id')
-                        ->orderBy('location_id')
-                        ->lockForUpdate()
-                        ->get()
-                        ->keyBy('variant_id');
+                    $levels = $this->lockLevelsAtLocation($location->getKey(), $variantIds->all());
 
                     foreach ($lines as $line) {
                         // BR-ORD-01 a fost deja verificată de Policy (fără shipment),
                         // deci `quantity_fulfilled` e mereu 0 aici — eliberarea e
-                        // integrală, pe toată cantitatea liniei.
+                        // integrală, pe toată cantitatea liniei. Două linii duplicate pe
+                        // aceeași variantă eliberează fiecare propriul `$remaining`, pe
+                        // ACELAȘI rând `inventory_levels` (`keyBy` de mai jos, în trait).
                         $remaining = $line->quantity - $line->quantity_fulfilled;
                         $level = $levels->get($line->variant_id);
 
-                        if ($remaining > 0 && $level !== null) {
-                            $level->decrement('reserved', $remaining);
+                        // Clamp la 0 (code review P1-003) — `reserved` nu coboară sub
+                        // zero, oricât ar cere eliberarea acestei linii. Nu e un caz
+                        // așteptat pe date corecte (o comandă confirmată a rezervat deja
+                        // `$remaining` la confirmare), dar un rând abia creat aici de
+                        // `lockLevelsAtLocation()` (variantă fără proiecție încă) ar
+                        // porni de la `reserved = 0`, iar o eliberare necondiționată l-ar
+                        // trimite negativ.
+                        $decrement = min($remaining, $level->reserved);
+
+                        if ($decrement > 0) {
+                            $level->decrement('reserved', $decrement);
                         }
                     }
                 }

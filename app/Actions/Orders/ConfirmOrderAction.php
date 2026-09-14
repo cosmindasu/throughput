@@ -2,8 +2,8 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Stock\Concerns\LocksInventoryLevels;
 use App\Enums\OrderStatus;
-use App\Models\InventoryLevel;
 use App\Models\Location;
 use App\Models\Order;
 use App\Models\Scopes\TenantScope;
@@ -24,6 +24,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class ConfirmOrderAction
 {
+    use LocksInventoryLevels;
+
     /** Continuă numerotarea seed-ului (`StockAndOrdersSeeder::$orderNumber = 10000`). */
     private const FIRST_SEQUENCE = 10000;
 
@@ -58,35 +60,42 @@ final class ConfirmOrderAction
 
             $variantIds = $lines->pluck('variant_id')->unique()->values();
 
-            // Convenția comună cu lotul Stoc (regulile pachetului, „blocarea pe stoc"):
-            // ORICE cod care blochează rânduri `inventory_levels` o face cu
-            // `lockForUpdate()`, într-o SINGURĂ interogare ordonată `ORDER BY
-            // variant_id, location_id`, înainte de orice scriere — ca două tranzacții
-            // care ating variante suprapuse să nu se blocheze reciproc în ordine
-            // inversă (deadlock clasic pe blocări multiple). Lotul ăsta scrie DOAR
-            // `reserved`; lotul Stoc scrie doar `on_hand` — niciodată aceeași coloană
-            // din două locuri.
-            $levels = InventoryLevel::query()
-                ->where('location_id', $location->getKey())
-                ->whereIn('variant_id', $variantIds)
-                ->orderBy('variant_id')
-                ->orderBy('location_id')
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('variant_id');
+            // Convenția comună cu lotul Stoc (`LocksInventoryLevels`, „blocarea pe
+            // stoc"): ORICE cod care blochează rânduri `inventory_levels` o face
+            // într-o SINGURĂ interogare ordonată `ORDER BY variant_id, location_id`,
+            // înainte de orice scriere — ca două tranzacții care ating variante
+            // suprapuse să nu se blocheze reciproc în ordine inversă (deadlock clasic
+            // pe blocări multiple). Lotul ăsta scrie DOAR `reserved`; lotul Stoc scrie
+            // doar `on_hand` — niciodată aceeași coloană din două locuri.
+            //
+            // `lockLevelsAtLocation()` creează întâi, cu `insertOrIgnore()` sortat, ORICE
+            // rând `inventory_levels` lipsă pentru perechile cerute (code review P1-003:
+            // o comandă cu DOUĂ linii pe aceeași variantă fără proiecție încă dădea
+            // `UniqueConstraintViolationException` la a doua, fiindcă doar colecția din
+            // memorie era completată, nu și rândul din bază) — apoi blochează.
+            $levels = $this->lockLevelsAtLocation($location->getKey(), $variantIds->all());
+
+            // BR-STOCK-04 / code review P1-002 — cererea se agregă PE VARIANTĂ înainte de
+            // comparație: două linii de 6 pe aceeași variantă, cu `available = 10`, cer
+            // împreună 12, deci depășesc — comparate separat (6 vs 10, 6 vs 10) niciuna
+            // n-ar fi părut peste stoc, iar `reserved` ar fi ajuns la 12 fără backorder
+            // confirmat.
+            $requestedByVariant = $lines
+                ->groupBy('variant_id')
+                ->map(fn ($linesForVariant) => (int) $linesForVariant->sum('quantity'));
 
             $needsBackorder = false;
 
-            foreach ($lines as $line) {
-                $level = $levels->get($line->variant_id);
+            foreach ($requestedByVariant as $variantId => $requested) {
+                $level = $levels->get($variantId);
                 $available = $level !== null ? $level->on_hand - $level->reserved : 0;
 
-                if ($line->quantity > $available) {
+                if ($requested > $available) {
                     $needsBackorder = true;
                 }
             }
 
-            // BR-STOCK-04 — nici blocare, nici permitere tăcută: dacă vreo linie cere
+            // BR-STOCK-04 — nici blocare, nici permitere tăcută: dacă vreo variantă cere
             // mai mult decât `available`, confirmarea are nevoie de flagul explicit,
             // verificat AICI, de server (`ConfirmOrderRequest::acknowledgesBackorder()`),
             // nu doar afișat de interfață.
@@ -97,21 +106,9 @@ final class ConfirmOrderAction
             }
 
             foreach ($lines as $line) {
-                $level = $levels->get($line->variant_id);
-
-                // Nu ar trebui să lipsească pe date semănate (Faza 1 scrie o proiecție
-                // pentru fiecare variantă la locația principală, chiar cu on_hand=0),
-                // dar un tenant de test poate crea o variantă fără nicio proiecție încă.
-                if ($level === null) {
-                    $level = InventoryLevel::query()->create([
-                        'variant_id' => $line->variant_id,
-                        'location_id' => $location->getKey(),
-                        'on_hand' => 0,
-                        'reserved' => 0,
-                    ]);
-                }
-
-                $level->increment('reserved', $line->quantity);
+                // Garantat de `lockLevelsAtLocation()` mai sus — fiecare variantă din
+                // `$variantIds` are acum un rând `inventory_levels`, creat dacă lipsea.
+                $levels->get($line->variant_id)->increment('reserved', $line->quantity);
             }
 
             $locked->order_number = $this->nextOrderNumber();
@@ -141,14 +138,23 @@ final class ConfirmOrderAction
      * blochează `Account` ca să serializeze unicitatea `is_primary`,
      * `SaveStageAction` blochează `Pipeline` ca să serializeze poziția etapelor.
      * Aici: blocarea `Tenant` serializează TOATE confirmările acestui tenant —
-     * a doua tranzacție așteaptă la `lockForUpdate()` de mai jos până la commit-ul
-     * primei, apoi recalculează MAX-ul cu o interogare NOUĂ (Postgres, READ
-     * COMMITTED — implicit, neschimbat în acest proiect — dă fiecărei instrucțiuni
-     * o poză proaspătă a bazei, nu doar tranzacției), deci vede deja numărul
-     * scris de prima. Unicitatea rămâne garantată și dacă acest raționament ar
-     * avea o gaură: `orders_tenant_id_order_number_unique` ar respinge orice
-     * coliziune cu o eroare de bază de date, nu cu o comandă dublu-numerotată
-     * tăcut.
+     * a doua tranzacție așteaptă la lock-ul de mai jos până la commit-ul primei,
+     * apoi recalculează MAX-ul cu o interogare NOUĂ (Postgres, READ COMMITTED —
+     * implicit, neschimbat în acest proiect — dă fiecărei instrucțiuni o poză
+     * proaspătă a bazei, nu doar tranzacției), deci vede deja numărul scris de
+     * prima. Unicitatea rămâne garantată și dacă acest raționament ar avea o
+     * gaură: `orders_tenant_id_order_number_unique` ar respinge orice coliziune
+     * cu o eroare de bază de date, nu cu o comandă dublu-numerotată tăcut.
+     *
+     * Code review P1-001 — `->lock('for no key update')`, NU `lockForUpdate()`
+     * (`FOR UPDATE`). Tranzacția asta ține toată cererea HTTP; `FOR UPDATE` intră
+     * în conflict cu `FOR KEY SHARE`, blocarea pe care PostgreSQL o ia la verificarea
+     * FK a oricărui INSERT/UPDATE într-o tabelă copil (orice rând cu `tenant_id`),
+     * deci oprea toate scrierile tenantului până la commit — măsurat cu două sesiuni,
+     * `lock timeout` pe `SELECT 1 FROM ONLY tenants … FOR KEY SHARE`. `FOR NO KEY
+     * UPDATE` serializează la fel două confirmări (rândul `tenants` rămâne blocat),
+     * dar lasă să treacă inserările în tabelele copil. Vezi `.ai/rules/tenancy.md`,
+     * secțiunea „Blocarea unui rând părinte".
      */
     private function nextOrderNumber(): string
     {
@@ -159,7 +165,7 @@ final class ConfirmOrderAction
         $tenantId = TenantScope::requireCurrentTenantId();
 
         /** @var Tenant $tenant */
-        $tenant = Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
+        $tenant = Tenant::query()->whereKey($tenantId)->lock('for no key update')->firstOrFail();
 
         $sample = Order::query()->whereNotNull('order_number')->value('order_number');
         $prefix = is_string($sample) && preg_match('/^(.*)-\d+$/', $sample, $matches) === 1

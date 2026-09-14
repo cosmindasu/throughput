@@ -81,7 +81,23 @@ class OrderPolicy
     {
         return $user->can('orders.cancel')
             && $this->isWithinOwnRecords($user, $order)
-            && ! $order->shipments()->exists();
+            && ! $this->hasShipments($order);
+    }
+
+    /**
+     * Code review P2-002 — simetric cu `DealPolicy::changeOwner()`. Doar permisiunea,
+     * nicio îngustare ABAC: în matricea de roluri (`Permissions::forRoles()`)
+     * `orders.change_owner` există doar la Owner/Manager, niciodată la Agent, deci
+     * proprietatea curentă a comenzii n-are cum să schimbe rezultatul.
+     *
+     * `?Order $order = null`: `Gate::authorize('changeOwner', Order::class)` (pagina
+     * Create, unde încă nu există nicio comandă) scurtează argumentul la un singur
+     * parametru (`$user`) — vezi `Gate::callPolicyMethod()`. Aceeași metodă acoperă și
+     * Show/Edit, unde se cheamă cu instanța reală.
+     */
+    public function changeOwner(User $user, ?Order $order = null): bool
+    {
+        return $user->can('orders.change_owner');
     }
 
     /**
@@ -94,5 +110,24 @@ class OrderPolicy
         }
 
         return $order->owner_user_id === $user->getKey();
+    }
+
+    /**
+     * Code review P2-001 — `OrderList::baseQuery()` precarcă `shipments_exists` cu
+     * `withExists('shipments')` pentru fiecare rând din `Orders/Index`: fără el,
+     * `OrderSummaryResource` chema `Gate::allows('cancel', …)` per rând, iar acest
+     * cod repeta `shipments()->exists()` de fiecare dată — 50 de interogări în plus
+     * pe o pagină de 50. Aici, folosește atributul deja încărcat când există; cade pe
+     * interogarea directă în celelalte locuri unde `cancel()` se verifică pe UN
+     * singur `Order` (Show, `CancelOrderController`), unde un `exists()` nu costă
+     * nimic în plus.
+     */
+    private function hasShipments(Order $order): bool
+    {
+        if (array_key_exists('shipments_exists', $order->getAttributes())) {
+            return (bool) $order->shipments_exists;
+        }
+
+        return $order->shipments()->exists();
     }
 }

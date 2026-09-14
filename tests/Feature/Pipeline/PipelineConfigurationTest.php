@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -109,6 +110,31 @@ class PipelineConfigurationTest extends TestCase
                 ->where('stages.4.isWon', false)
                 ->where('stages.4.isLost', false)
             );
+    }
+
+    /**
+     * Code review P1-001 — `SaveStageAction::execute()` blochează `pipelines` cu
+     * `for no key update`, nu `for update`: verificat pe SQL-ul emis (Postgres), la fel
+     * ca `ConfirmOrderActionTest::test_confirming_locks_the_tenant_row_with_for_no_key_update()`.
+     */
+    public function test_creating_a_stage_locks_the_pipeline_row_with_for_no_key_update(): void
+    {
+        DB::enableQueryLog();
+        $this->actingAs($this->manager)->post('/marlin/pipeline/stages', [
+            'name' => 'Negotiation',
+            'probability' => 60,
+        ])->assertRedirect();
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $pipelineLockQueries = $queries->filter(fn (string $sql): bool => str_contains($sql, 'from "pipelines"') && str_contains($sql, 'for '));
+
+        $this->assertTrue($pipelineLockQueries->isNotEmpty(), 'Expected a locking query against pipelines.');
+        $pipelineLockQueries->each(fn (string $sql) => $this->assertStringContainsString(
+            'for no key update',
+            $sql,
+            "Expected `for no key update`, got: {$sql}"
+        ));
     }
 
     public function test_owner_can_edit_a_stage(): void

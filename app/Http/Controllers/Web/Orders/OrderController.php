@@ -17,7 +17,6 @@ use App\Models\Order;
 use App\Models\Scopes\NotAnonymizedContactScope;
 use App\Support\Lists\CursorPage;
 use App\Support\Lists\OrderList;
-use App\Support\Permissions;
 use App\Support\RecentlyViewed;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,13 +66,11 @@ final class OrderController extends Controller
         $accountId = is_string($raw) ? $raw : null;
         $account = $accountId !== null && $accountId !== '' ? Account::query()->findOrFail($accountId) : null;
 
-        $canChangeOwner = ! Permissions::restrictedToOwnRecords($request->user());
-
         return Inertia::render('Orders/Create', [
             'account' => $account !== null ? ['id' => $account->id, 'name' => $account->name] : null,
             'contacts' => $this->contactsForAccount($account),
-            'can' => ['changeOwner' => $canChangeOwner],
-            'owners' => $canChangeOwner ? $this->ownerOptions() : [],
+            'can' => ['changeOwner' => Gate::allows('changeOwner', Order::class)],
+            'owners' => Gate::allows('changeOwner', Order::class) ? $this->ownerOptions() : [],
         ]);
     }
 
@@ -83,7 +80,11 @@ final class OrderController extends Controller
 
         $data = $request->validated();
 
-        if (Permissions::restrictedToOwnRecords($request->user())) {
+        // Code review P2-002 — `Gate::allows('changeOwner', …)`, NU
+        // `Permissions::restrictedToOwnRecords()` direct: catalogul (`orders.change_owner`)
+        // e acum sursa unică, ca la `DealController::store()`. Un Agent care forjează
+        // `owner_user_id` în cerere e refuzat aici, server-side, nu doar ascuns din UI.
+        if (! Gate::allows('changeOwner', Order::class)) {
             unset($data['owner_user_id']);
         }
 
@@ -154,17 +155,15 @@ final class OrderController extends Controller
             $account = $order->account;
         }
 
-        $canChangeOwner = ! Permissions::restrictedToOwnRecords($request->user());
-
         return Inertia::render('Orders/Edit', [
             'order' => OrderResource::make($order),
             'account' => $account !== null ? ['id' => $account->id, 'name' => $account->name] : null,
             'contacts' => $this->contactsForAccount($account),
             'can' => [
-                'changeOwner' => $canChangeOwner,
+                'changeOwner' => Gate::allows('changeOwner', $order),
                 'delete' => Gate::allows('delete', $order),
             ],
-            'owners' => $canChangeOwner ? $this->ownerOptions() : [],
+            'owners' => Gate::allows('changeOwner', $order) ? $this->ownerOptions() : [],
         ]);
     }
 
@@ -174,7 +173,8 @@ final class OrderController extends Controller
 
         $data = $request->validated();
 
-        if (Permissions::restrictedToOwnRecords($request->user())) {
+        // Code review P2-002 — vezi `store()`.
+        if (! Gate::allows('changeOwner', $order)) {
             unset($data['owner_user_id']);
         }
 

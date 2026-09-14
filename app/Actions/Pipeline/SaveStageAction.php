@@ -40,7 +40,18 @@ final class SaveStageAction
             // (resursa comună a tuturor etapelor lui), nu etapa în sine — o etapă nouă încă
             // nu are rând de blocat. Verificările trebuie mutate DUPĂ acest lock: a doua
             // cerere concurentă așteaptă commit-ul primei și vede deja rezultatul ei.
-            Pipeline::query()->whereKey($pipeline->getKey())->lockForUpdate()->first();
+            //
+            // Code review P1-001 — `->lock('for no key update')`, NU `lockForUpdate()`
+            // (`FOR UPDATE`): acest cod nu scrie nimic pe rândul `Pipeline` însuși, doar
+            // îl folosește ca blocare a unei invariante care trăiește pe etapele lui.
+            // `FOR UPDATE` ar intra în conflict cu `FOR KEY SHARE`, blocarea luată la
+            // verificarea FK a oricărui INSERT/UPDATE într-un rând `stages`, deci ar opri
+            // acele scrieri (inclusiv `create()`/`update()` de mai jos, în ALTĂ tranzacție)
+            // până la commit — tranzacția ține toată cererea (ADR-013). `FOR NO KEY
+            // UPDATE` serializează la fel două salvări concurente de etape, fără să
+            // blocheze copiii. Vezi `.ai/rules/tenancy.md`, secțiunea „Blocarea unui rând
+            // părinte".
+            Pipeline::query()->whereKey($pipeline->getKey())->lock('for no key update')->first();
 
             $this->ensureNameIsUnique($pipeline, $data['name'], $stage);
 

@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\CreatesOrders;
 use Tests\TestCase;
@@ -70,6 +71,86 @@ class OrderCrudHttpTest extends TestCase
             ->get('/marlin/orders')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('filters.filter.owner', 'me'));
+    }
+
+    /**
+     * Code review P2-001 — `OrderSummaryResource::can.cancel` chema
+     * `Gate::allows('cancel', …)` per rând, iar `OrderPolicy::cancel()` repeta
+     * `shipments()->exists()` — 50 de interogări suplimentare pe o pagină de 50.
+     * `OrderList::baseQuery()` precarcă acum `shipments_exists` cu `withExists()`.
+     * Verificat prin comparație, ca la `DealKanbanTest::test_the_board_runs_a_constant_number_of_queries…()`:
+     * numărul de interogări NU crește proporțional cu numărul de comenzi din pagină.
+     *
+     * `orders` e un prop deferred (`Inertia::defer`, FR-PERF-01) — nu se rezolvă pe o
+     * încărcare inițială, doar pe un reload parțial pentru exact acest prop, deci
+     * cererea de test poartă explicit header-ele de reload parțial ale Inertia.
+     */
+    public function test_the_orders_list_does_not_n_plus_one_the_cancel_permission_per_row(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner12@throughput.dev', Permissions::OWNER);
+
+        // `Inertia::getVersion()` nu e populat în afara unei cereri reale (îl setează
+        // `HandleInertiaRequests::handle()` la începutul FIECĂREI cereri) — un apel direct
+        // aici, înainte de orice request, ar întoarce mereu '', diferit de versiunea reală
+        // calculată din `public/build/manifest.json`, deci server-ul ar răspunde 409 (Inertia
+        // tratează asta ca „reload complet necesar"), nu ceea ce testează asta. Un prim
+        // reload parțial cu o versiune sigur greșită scoate versiunea reală din headerul de
+        // răspuns (`onVersionChange()` o pune acolo chiar și pe un 409).
+        $version = $this->actingAs($owner)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => 'warmup',
+                'X-Inertia-Partial-Component' => 'Orders/Index',
+                'X-Inertia-Partial-Data' => 'orders',
+            ])
+            ->get('/marlin/orders')
+            ->headers->get('x-inertia-version');
+
+        $queryCountFor = function (int $orderCount) use ($owner, $version): int {
+            TenantContext::run($this->marlin, function () use ($owner, $orderCount): void {
+                Order::query()->delete();
+
+                for ($i = 0; $i < $orderCount; $i++) {
+                    $order = new Order([
+                        'account_id' => $this->account->getKey(),
+                        'owner_user_id' => $owner->getKey(),
+                        'status' => OrderStatus::Draft,
+                        'currency' => 'USD',
+                    ]);
+                    $order->created_by = $owner->getKey();
+                    $order->save();
+                }
+            });
+            $this->clearDatabaseTenantContext();
+
+            // `flushQueryLog()` — `disableQueryLog()` NU golește jurnalul, doar oprește
+            // înregistrarea; fără flush aici, a doua măsurătoare din acest test ar
+            // acumula și interogările primei.
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->actingAs($owner)
+                ->withHeaders([
+                    'X-Inertia' => 'true',
+                    'X-Inertia-Version' => $version,
+                    'X-Inertia-Partial-Component' => 'Orders/Index',
+                    'X-Inertia-Partial-Data' => 'orders',
+                ])
+                ->get('/marlin/orders')
+                ->assertOk();
+            $count = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $count;
+        };
+
+        $withOneOrder = $queryCountFor(1);
+        $withTenOrders = $queryCountFor(10);
+
+        $this->assertSame(
+            $withOneOrder,
+            $withTenOrders,
+            "Query count should stay constant regardless of order count; got {$withOneOrder} for 1 order and {$withTenOrders} for 10."
+        );
     }
 
     public function test_create_is_prefilled_from_the_account_query_parameter(): void
@@ -142,19 +223,139 @@ class OrderCrudHttpTest extends TestCase
         });
     }
 
-    public function test_an_agent_cannot_assign_a_different_owner_even_by_forging_the_field(): void
+    /**
+     * Code review P3 — `discount` era validat doar `min:0`, deci `line_total`/
+     * `grand_total` (`BuildsOrderLines`) puteau ieși negative. Aici: 2 × 10.00 = 20.00
+     * subtotal, discount de 25 > 20 — refuzat, nimic scris.
+     */
+    public function test_a_line_discount_exceeding_its_subtotal_is_refused_on_create(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner13@throughput.dev', Permissions::OWNER);
+        $variantId = TenantContext::run($this->marlin, fn () => $this->makeVariant(price: 10.0)->getKey());
+
+        $response = $this->actingAs($owner)->post('/marlin/orders', [
+            'account_id' => $this->account->getKey(),
+            'lines' => [
+                ['variant_id' => $variantId, 'quantity' => 2, 'unit_price' => 10.0, 'discount' => 25.0],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('lines.0.discount');
+
+        TenantContext::run($this->marlin, function (): void {
+            $this->assertSame(0, Order::query()->count());
+        });
+    }
+
+    /** Simetric cu testul de mai sus, pe editarea unui draft existent. */
+    public function test_a_line_discount_exceeding_its_subtotal_is_refused_on_update(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner14@throughput.dev', Permissions::OWNER);
+        $variantId = TenantContext::run($this->marlin, fn () => $this->makeVariant(price: 10.0)->getKey());
+        $order = $this->draftOrder($owner, [['variant_id' => $variantId, 'quantity' => 2]]);
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($owner)->put("/marlin/orders/{$order->getKey()}", [
+            'account_id' => $this->account->getKey(),
+            'lines' => [
+                ['variant_id' => $variantId, 'quantity' => 2, 'unit_price' => 10.0, 'discount' => 25.0],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('lines.0.discount');
+
+        TenantContext::run($this->marlin, function () use ($order): void {
+            $this->assertCount(1, $order->fresh('orderLines')->orderLines, 'Liniile vechi rămân neatinse.');
+        });
+    }
+
+    /**
+     * Code review P2-002 — `orders.change_owner` (catalog + `OrderPolicy::changeOwner()`)
+     * e acum sursa unică, ca la `deals.change_owner`: formularul NU oferă opțiunea, iar o
+     * cerere directă cu `owner_user_id` forjat e refuzată server-side, nu doar ascunsă din
+     * UI.
+     */
+    public function test_an_agent_cannot_change_the_owner_of_an_order_via_the_form_or_a_direct_request(): void
     {
         $agent = $this->makeMember($this->marlin, 'agent2@throughput.dev', Permissions::AGENT);
         $otherAgent = $this->makeMember($this->marlin, 'other-agent@throughput.dev', Permissions::AGENT);
 
+        // Formular — nicio opțiune de owner oferită Agentului.
+        $this->actingAs($agent)
+            ->get("/marlin/orders/create?account={$this->account->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can.changeOwner', false)
+                ->where('owners', [])
+            );
+
+        // Cerere directă — `owner_user_id` forjat e ignorat, nu doar ascuns din UI.
         $this->actingAs($agent)->post('/marlin/orders', [
             'account_id' => $this->account->getKey(),
             'owner_user_id' => $otherAgent->getKey(),
         ])->assertRedirect();
 
-        TenantContext::run($this->marlin, function () use ($agent): void {
+        $orderId = TenantContext::run($this->marlin, function () use ($agent): string {
             $order = Order::query()->where('account_id', $this->account->getKey())->firstOrFail();
             $this->assertSame($agent->getKey(), $order->owner_user_id);
+
+            return $order->getKey();
+        });
+        $this->clearDatabaseTenantContext();
+
+        // Editarea unui draft existent — la fel, `owner_user_id` forjat nu se aplică.
+        $this->actingAs($agent)
+            ->get("/marlin/orders/{$orderId}/edit")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('can.changeOwner', false));
+
+        $this->actingAs($agent)->put("/marlin/orders/{$orderId}", [
+            'account_id' => $this->account->getKey(),
+            'owner_user_id' => $otherAgent->getKey(),
+            'lines' => [],
+        ])->assertRedirect();
+
+        TenantContext::run($this->marlin, function () use ($agent, $orderId): void {
+            $this->assertSame($agent->getKey(), Order::query()->findOrFail($orderId)->owner_user_id);
+        });
+    }
+
+    /**
+     * Simetric cu testul de mai sus: Manager ARE `orders.change_owner`
+     * (`Permissions::forRoles()`), deci reasignarea trece, atât la creare cât și la
+     * editare.
+     */
+    public function test_a_manager_can_change_the_owner_of_an_order(): void
+    {
+        $manager = $this->makeMember($this->marlin, 'manager@throughput.dev', Permissions::MANAGER);
+        $agent = $this->makeMember($this->marlin, 'agent5@throughput.dev', Permissions::AGENT);
+
+        $this->actingAs($manager)
+            ->get("/marlin/orders/create?account={$this->account->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('can.changeOwner', true));
+
+        $this->actingAs($manager)->post('/marlin/orders', [
+            'account_id' => $this->account->getKey(),
+            'owner_user_id' => $agent->getKey(),
+        ])->assertRedirect();
+
+        $orderId = TenantContext::run($this->marlin, function () use ($agent): string {
+            $order = Order::query()->where('account_id', $this->account->getKey())->firstOrFail();
+            $this->assertSame($agent->getKey(), $order->owner_user_id);
+
+            return $order->getKey();
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($manager)->put("/marlin/orders/{$orderId}", [
+            'account_id' => $this->account->getKey(),
+            'owner_user_id' => $manager->getKey(),
+            'lines' => [],
+        ])->assertRedirect();
+
+        TenantContext::run($this->marlin, function () use ($manager, $orderId): void {
+            $this->assertSame($manager->getKey(), Order::query()->findOrFail($orderId)->owner_user_id);
         });
     }
 

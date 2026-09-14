@@ -42,7 +42,9 @@ class PermissionMatrixTest extends TestCase
             ],
             'Manager' => [
                 Permissions::MANAGER,
-                ['members.invite', 'orders.create', 'imports.create', 'reports.manage', 'activity_log.view', 'api_tokens.create'],
+                // `orders.change_owner` (code review P2-002) — simetric cu
+                // `deals.change_owner`, care e deja aici.
+                ['members.invite', 'orders.create', 'orders.change_owner', 'imports.create', 'reports.manage', 'activity_log.view', 'api_tokens.create'],
                 // Fără billing (doar citire), fără setări de curierat, fără export GDPR nou.
                 ['billing.manage', 'carrier_settings.manage', 'carrier_settings.view', 'data_exports.create'],
             ],
@@ -50,8 +52,9 @@ class PermissionMatrixTest extends TestCase
                 Permissions::AGENT,
                 ['accounts.edit', 'deals.move_stage', 'orders.create', 'shipments.create', 'bulk.write', 'bulk.export', 'activity_log.view_own'],
                 // „—" în matrice: stoc, plăți, import, membri, pipeline, jurnal complet,
-                // schimbarea proprietarului unui deal.
-                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner'],
+                // schimbarea proprietarului unui deal SAU al unei comenzi (code review
+                // P2-002 — `orders.change_owner` nou, simetric cu `deals.change_owner`).
+                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner', 'orders.change_owner'],
             ],
             'Viewer' => [
                 Permissions::VIEWER,

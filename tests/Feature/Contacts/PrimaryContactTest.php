@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Contacts\PrimaryContactAssignment;
 use App\Support\Permissions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -126,9 +127,10 @@ class PrimaryContactTest extends TestCase
     /**
      * `PrimaryContactAssignment` izolat de HTTP (plan §1.2): două apeluri secvențiale
      * pe același cont nu lasă niciodată doi primari. Garanția sub concurență reală —
-     * `Account::lockForUpdate()` serializează a doua tranzacție în spatele primei —
-     * ține de proprietatea SQL a `SELECT ... FOR UPDATE`, neobservabilă într-un test
-     * cu un singur fir de execuție; e documentată în docblock-ul clasei, nu aici.
+     * blocarea `Account` (code review P1-001: `for no key update`, nu `for update` —
+     * vezi docblock-ul clasei) serializează a doua tranzacție în spatele primei — ține
+     * de proprietatea SQL a lock-ului, neobservabilă într-un test cu un singur fir de
+     * execuție; e documentată în docblock-ul clasei, nu aici.
      */
     public function test_two_sequential_assignments_on_the_same_account_never_leave_two_primaries(): void
     {
@@ -150,6 +152,37 @@ class PrimaryContactTest extends TestCase
             $this->assertFalse(Contact::query()->findOrFail($firstContactId)->is_primary);
             $this->assertTrue(Contact::query()->findOrFail($secondContactId)->is_primary);
             $this->assertSame(1, Contact::query()->where('account_id', $accountId)->where('is_primary', true)->count());
+        });
+    }
+
+    /**
+     * Code review P1-001 — `PrimaryContactAssignment::apply()` blochează `accounts` cu
+     * `for no key update`, nu `for update`: verificat pe SQL-ul emis (Postgres), la fel
+     * ca `ConfirmOrderActionTest::test_confirming_locks_the_tenant_row_with_for_no_key_update()`.
+     */
+    public function test_apply_locks_the_account_row_with_for_no_key_update(): void
+    {
+        [$accountId, $contactId] = TenantContext::run($this->marlin, function (): array {
+            $account = $this->account('Northwind Industrial Supply LLC');
+            $contact = $this->contact($account, 'Jane', 'Doe', primary: false);
+
+            return [$account->id, $contact->id];
+        });
+
+        TenantContext::run($this->marlin, function () use ($accountId, $contactId): void {
+            DB::enableQueryLog();
+            PrimaryContactAssignment::apply($accountId, $contactId);
+            $queries = collect(DB::getQueryLog())->pluck('query');
+            DB::disableQueryLog();
+
+            $accountLockQueries = $queries->filter(fn (string $sql): bool => str_contains($sql, 'from "accounts"') && str_contains($sql, 'for '));
+
+            $this->assertTrue($accountLockQueries->isNotEmpty(), 'Expected a locking query against accounts.');
+            $accountLockQueries->each(fn (string $sql) => $this->assertStringContainsString(
+                'for no key update',
+                $sql,
+                "Expected `for no key update`, got: {$sql}"
+            ));
         });
     }
 

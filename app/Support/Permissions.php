@@ -78,7 +78,12 @@ final class Permissions
             'products' => ['products.view', 'products.create', 'products.edit', 'products.delete'],
             'locations' => ['locations.view', 'locations.manage'],
             'stock' => ['stock.view', 'stock.adjust'],
-            'orders' => ['orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.cancel'],
+            // `orders.change_owner` (code review P2-002) — simetric cu `deals.change_owner`:
+            // catalogul lipsea, iar `OrderController` calcula dreptul din
+            // `! Permissions::restrictedToOwnRecords()`, ocolind matricea. Rezolvată aici,
+            // nu doar în `OrderPolicy`, ca valul 2 (reasignare în masă pe Orders) s-o
+            // găsească deja în `forRoles()`, ca `deals.change_owner`.
+            'orders' => ['orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.cancel', 'orders.change_owner'],
             'shipments' => ['shipments.view', 'shipments.create', 'shipments.edit'],
             'invoices' => ['invoices.view', 'invoices.create', 'invoices.edit', 'invoices.void'],
             'payments' => ['payments.view', 'payments.create'],

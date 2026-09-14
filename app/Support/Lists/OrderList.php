@@ -58,9 +58,15 @@ final class OrderList extends ResourceList implements ExportableList
         };
     }
 
+    /**
+     * Code review P2-001 — `withExists('shipments')` aici, o SINGURĂ dată pentru toată
+     * pagina, ca `OrderPolicy::cancel()` să poată citi `shipments_exists` deja încărcat
+     * în loc să repete `shipments()->exists()` per rând (`OrderSummaryResource::can.cancel`,
+     * 50 de interogări suplimentare pe o pagină de 50).
+     */
     protected function baseQuery(): Builder
     {
-        return Order::query()->with(['account:id,name', 'owner:id,name']);
+        return Order::query()->with(['account:id,name', 'owner:id,name'])->withExists('shipments');
     }
 
     protected function applyFilters(Builder $query, ListQuery $list, User $user): void

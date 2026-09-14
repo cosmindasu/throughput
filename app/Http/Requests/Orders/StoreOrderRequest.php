@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Orders;
 
+use App\Http\Requests\Orders\Concerns\ValidatesOrderLineDiscount;
 use App\Models\Membership;
 use App\Models\Scopes\TenantScope;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,6 +18,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreOrderRequest extends FormRequest
 {
+    use ValidatesOrderLineDiscount;
+
     public function authorize(): bool
     {
         return true;
@@ -62,7 +65,9 @@ class StoreOrderRequest extends FormRequest
             ],
             'lines.*.quantity' => ['required_with:lines', 'integer', 'min:1', 'max:100000'],
             'lines.*.unit_price' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
-            'lines.*.discount' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
+            // Code review P3 — discountul nu poate depăși subtotalul liniei
+            // (`quantity * unit_price`), altfel `line_total`/`grand_total` ies negative.
+            'lines.*.discount' => ['nullable', 'numeric', 'min:0', 'max:9999999.99', $this->discountWithinLineSubtotalRule()],
         ];
     }
 }
