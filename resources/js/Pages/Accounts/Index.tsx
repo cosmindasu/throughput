@@ -18,7 +18,7 @@ import type { AccountRow, AccountsIndexPageProps } from '@/types/generated';
  * (filtre, header) apare instant, rândurile vin după — vezi `TableSkeleton`.
  */
 export default function Index() {
-    const { accounts, total, list, owners, can, bulkConfirmationThreshold, workspace } = usePage<AccountsIndexPageProps>().props;
+    const { accounts, total, list, owners, can, bulkConfirmationThreshold, bulkRowCap, workspace } = usePage<AccountsIndexPageProps>().props;
     const { url } = usePage();
     const { setFilter, setSort } = useListFilters(list);
 
@@ -121,6 +121,7 @@ export default function Index() {
                         selectedIds={selection.selectedIds}
                         owners={owners}
                         confirmationThreshold={bulkConfirmationThreshold}
+                        rowCap={bulkRowCap}
                         onSelectAllMatching={selection.selectAllMatching}
                         onClearSelection={selection.clear}
                     />

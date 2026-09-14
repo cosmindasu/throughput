@@ -135,6 +135,20 @@ class PlanBulkOperationJob implements ShouldQueue
             );
         }, $keyName);
 
+        // P1-001 (code review) — fereastra dintre scrierea „running" (prima tranzacție a
+        // lui `handle()`, deja comisă) și `Bus::batch()->dispatch()`, mai jos:
+        // `BulkOperationController::cancel()` poate anula o operație aflată exact aici
+        // (fără `batch_id` încă scris), altfel ignorată — batch-ul tot pornea. Reverificare
+        // CHIAR ÎNAINTE de dispatch, fără nicio scriere de bază de date între citire și
+        // `->dispatch()`: o anulare care s-a COMIS deja e vizibilă aici (Postgres READ
+        // COMMITTED — fiecare instrucțiune nouă vede ce s-a comis între timp, chiar în
+        // interiorul aceleiași tranzacții deschise de `TenantContext::run()`). Verificarea
+        // stă ÎNAINTEA ramurii „`$jobs` gol" de mai jos, ca o operație anulată cu 0 rânduri
+        // de procesat să nu fie rescrisă tăcut pe `completed`.
+        if ($operation->fresh()?->status !== BulkOperation::STATUS_RUNNING) {
+            return;
+        }
+
         if ($jobs === []) {
             $operation->update(['status' => BulkOperation::STATUS_COMPLETED, 'total_rows' => 0]);
 

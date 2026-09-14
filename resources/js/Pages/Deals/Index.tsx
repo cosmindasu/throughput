@@ -153,7 +153,7 @@ function DealsTable({
     onSort: (column: string) => void;
     bulkDispatchUrl: string;
 }) {
-    const { deals, total, can, owners, bulkConfirmationThreshold } = usePage<DealsIndexPageProps>().props;
+    const { deals, total, can, owners, bulkConfirmationThreshold, bulkRowCap } = usePage<DealsIndexPageProps>().props;
     const pageIds = deals.data.map((deal) => deal.id);
     const selection = useBulkSelection(pageIds);
 
@@ -184,6 +184,7 @@ function DealsTable({
                     selectedIds={selection.selectedIds}
                     owners={owners}
                     confirmationThreshold={bulkConfirmationThreshold}
+                    rowCap={bulkRowCap}
                     onSelectAllMatching={selection.selectAllMatching}
                     onClearSelection={selection.clear}
                 />

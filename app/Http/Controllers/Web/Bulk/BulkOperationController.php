@@ -45,6 +45,7 @@ final class BulkOperationController extends Controller
             listQuery: $listQuery,
             ids: $request->idsOrNull(),
             actionPayload: ['owner_user_id' => $request->validated('owner_user_id')],
+            confirmed: $request->confirmed(),
         );
 
         return redirect()
@@ -56,19 +57,69 @@ final class BulkOperationController extends Controller
     {
         $this->authorize('view', $operation);
 
+        // P3 (code review) — `Bulk/Show` e pagina de progres/anulare a operațiilor de
+        // SCRIERE (`Bus::batch()`); un export (`action === 'export'`) deschis prin
+        // această rută ar arăta un buton „Cancel" fără niciun efect real (exportul
+        // rulează ca un job unic, fără batch — vezi `BulkOperationPolicy::cancel()`).
+        // Exporturile rămân pe ruta lor, `exports.show` (`ExportController::show()`).
+        abort_unless(BulkChunkActions::isRegistered($operation->action), 404);
+
         return Inertia::render('Bulk/Show', [
             'operation' => new BulkOperationResource($operation),
         ]);
     }
 
+    /**
+     * P1-001 (code review) — „Cancel" trebuia să facă ceva ȘI cât timp planificatorul n-a
+     * scris încă un `batch_id` (`status = pending`, sau `running` în fereastra scurtă
+     * dintre scrierea „running" și `Bus::batch()->dispatch()` din
+     * `PlanBulkOperationJob::plan()`). Un singur `UPDATE` atomic, condiționat ȘI pe
+     * `batch_id IS NULL`, ȘI pe stare — nu un citește-apoi-scrie separat, care ar putea
+     * călca o tranziție concurentă a planificatorului. Planificatorul, la rândul lui,
+     * reverifică starea chiar înainte de `Bus::batch()->dispatch()` (fără nicio scriere
+     * de bază de date între verificare și dispatch): o anulare care a apucat să se
+     * COMITĂ înaintea acelei verificări nu mai lasă planificatorul să creeze batch-ul.
+     */
     public function cancel(BulkOperation $operation): RedirectResponse
     {
         $this->authorize('cancel', $operation);
 
-        if ($operation->batch_id !== null) {
-            Bus::findBatch($operation->batch_id)?->cancel();
+        // Nu instanța legată de rută (rezolvată la începutul cererii — poate fi stale
+        // față de planificator, care rulează concurent pe alt proces/worker).
+        $fresh = $operation->fresh();
+
+        if ($fresh === null) {
+            return back()->with('success', 'This operation no longer exists.');
         }
 
-        return back()->with('success', 'Cancelling — rows already in progress will finish, the rest stop.');
+        if ($fresh->batch_id !== null) {
+            Bus::findBatch($fresh->batch_id)?->cancel();
+
+            return back()->with('success', 'Cancelling — rows already in progress will finish, the rest stop.');
+        }
+
+        $cancelled = BulkOperation::query()
+            ->whereKey($fresh->getKey())
+            ->whereNull('batch_id')
+            ->whereIn('status', [BulkOperation::STATUS_PENDING, BulkOperation::STATUS_RUNNING])
+            ->update(['status' => BulkOperation::STATUS_CANCELLED]);
+
+        if ($cancelled > 0) {
+            return back()->with('success', 'Cancelled.');
+        }
+
+        // Am pierdut cursa: planificatorul a scris `batch_id` chiar între citirea de mai
+        // sus și `UPDATE`-ul atomic. Recitim și anulăm batch-ul proaspăt creat, ca la
+        // cazul obișnuit — sau, dacă operația s-a terminat deja pe cont propriu între
+        // timp, spunem exact atât.
+        $fresh = $fresh->fresh();
+
+        if ($fresh?->batch_id !== null) {
+            Bus::findBatch($fresh->batch_id)?->cancel();
+
+            return back()->with('success', 'Cancelling — rows already in progress will finish, the rest stop.');
+        }
+
+        return back()->with('success', 'This operation has already finished.');
     }
 }

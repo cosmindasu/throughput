@@ -14,6 +14,8 @@ use App\Models\Contact;
 use App\Models\Membership;
 use App\Support\Accounts\AccountActivityTimeline;
 use App\Support\Bulk\BulkConfirmationThreshold;
+use App\Support\Bulk\BulkMatchingRowCount;
+use App\Support\Bulk\BulkWritableResources;
 use App\Support\Exports\ListExport;
 use App\Support\Lists\AccountList;
 use App\Support\Lists\CursorPage;
@@ -54,9 +56,17 @@ final class AccountController extends Controller
                 AccountResource::class,
             )),
             // Pachetul C („bulk") — §13.1, linkul „Select all N accounts matching this
-            // filter" are nevoie de N-ul EXACT, nu al paginii curente. Deferred separat de
+            // filter" are nevoie de N-ul EXACT pe care ÎL ATINGE OPERAȚIA, nu al filtrului
+            // brut — vezi P2-003 (code review): pentru un Agent (BR-BULK-02),
+            // `BulkMatchingRowCount` aplică ACEEAȘI restricție de proprietate pe care o
+            // aplică `DispatchBulkOperationAction` la declanșare, printr-o singură funcție
+            // (nu o a doua copie a `scopeToOwnRecords()` aici). Deferred separat de
             // `accounts`: nu blochează randarea rândurilor, e doar un COUNT pe același filtru.
-            'total' => Inertia::defer(fn () => (int) $list->query($listQuery, $user)->toBase()->getCountForPagination()),
+            'total' => Inertia::defer(fn () => BulkMatchingRowCount::for(
+                $user,
+                BulkWritableResources::resolve('accounts'),
+                $list->query($listQuery, $user),
+            )),
             'list' => $listQuery->toArray(),
             'owners' => $this->ownerOptions(),
             'can' => [

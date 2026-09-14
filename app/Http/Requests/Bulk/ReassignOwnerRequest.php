@@ -36,6 +36,10 @@ class ReassignOwnerRequest extends FormRequest
                 'string',
                 $this->activeMembershipRule(),
             ],
+            // P2-002 (code review), FR-BULK-01 — clientul trimite `true` DOAR după ce
+            // dialogul de confirmare a fost acceptat (peste `BulkConfirmationThreshold`);
+            // absent/`false` peste prag => `DispatchBulkOperationAction` refuză.
+            'confirmed' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -43,6 +47,11 @@ class ReassignOwnerRequest extends FormRequest
     public function idsOrNull(): ?array
     {
         return $this->boolean('selectAllMatching') ? null : $this->input('ids', []);
+    }
+
+    public function confirmed(): bool
+    {
+        return $this->boolean('confirmed');
     }
 
     /**

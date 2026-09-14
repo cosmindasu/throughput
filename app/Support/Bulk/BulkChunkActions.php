@@ -32,4 +32,18 @@ final class BulkChunkActions
 
         return app($class);
     }
+
+    /**
+     * Code review P3 — distinge o operație bazată pe `Bus::batch()` (`reassign_owner` și
+     * orice acțiune viitoare din `map()`) de un export (`action === 'export'`,
+     * `App\Support\Exports\ListExport`): exporturile rulează ca UN job unic
+     * (`ExportListJob`), fără batch și fără `batch_id`, deci n-au ce anula prin
+     * `$batch->cancel()` și nu au o pagină de progres cu „Cancel" (`Bulk/Show`) —
+     * rămân pe ruta lor (`exports.show`). Folosit de `BulkOperationPolicy::cancel()` și
+     * de `BulkOperationController::show()`.
+     */
+    public static function isRegistered(string $action): bool
+    {
+        return array_key_exists($action, self::map());
+    }
 }

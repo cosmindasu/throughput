@@ -19,6 +19,8 @@ use App\Models\Pipeline;
 use App\Models\Scopes\NotAnonymizedContactScope;
 use App\Models\Stage;
 use App\Support\Bulk\BulkConfirmationThreshold;
+use App\Support\Bulk\BulkMatchingRowCount;
+use App\Support\Bulk\BulkWritableResources;
 use App\Support\Lists\DealList;
 use App\Support\Permissions;
 use App\Support\RecentlyViewed;
@@ -65,9 +67,15 @@ class DealController extends Controller
                 'prevCursor' => $paginator->previousCursor()?->encode(),
             ]),
             // Pachetul C („bulk") — §13.1, linkul „Select all N deals matching this filter"
-            // are nevoie de N-ul EXACT, nu al paginii curente. Deferred separat de `deals`:
-            // nu blochează randarea rândurilor, e doar un COUNT pe același filtru.
-            'total' => Inertia::defer(fn () => (int) $list->query($query, $user)->toBase()->getCountForPagination()),
+            // are nevoie de N-ul EXACT pe care ÎL ATINGE OPERAȚIA, nu al filtrului brut —
+            // vezi P2-003 (code review) și docblock-ul echivalent din
+            // `AccountController::index()`. Deferred separat de `deals`: nu blochează
+            // randarea rândurilor, e doar un COUNT pe același filtru.
+            'total' => Inertia::defer(fn () => BulkMatchingRowCount::for(
+                $user,
+                BulkWritableResources::resolve('deals'),
+                $list->query($query, $user),
+            )),
             'filters' => $query->toArray(),
             'can' => [
                 'create' => Gate::allows('create', Deal::class),

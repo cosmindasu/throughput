@@ -177,8 +177,10 @@ export interface AccountActivityEntry {
 
 export interface AccountsIndexPageProps {
     accounts: CursorPage<AccountRow>;
-    // Pachetul C („bulk"), §13.1 — numărul EXACT de rânduri care corespund filtrului
-    // curent, pentru linkul „Select all N accounts matching this filter". Deferred, ca
+    // Pachetul C („bulk"), §13.1 — numărul EXACT de rânduri pe care le-ar ATINGE
+    // operația bulk pe filtrul curent (`App\Support\Bulk\BulkMatchingRowCount`, P2-003),
+    // NU al filtrului brut: pentru un Agent (BR-BULK-02), restricția de proprietate e
+    // deja aplicată aici, identic cu `DispatchBulkOperationAction`. Deferred, ca
     // `accounts`: un al doilea COUNT pe același filtru, nu blochează randarea rândurilor.
     total: number;
     list: ListState;

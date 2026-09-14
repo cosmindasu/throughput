@@ -22,6 +22,13 @@ final class ExportController extends Controller
     {
         $this->authorize('view', $export);
 
+        // P3 (code review), invers de `BulkOperationController::show()` — o operație de
+        // SCRIERE (`reassign_owner`) deschisă prin `/exports/{id}` ar arăta `Exports/Show`
+        // cu un link de descărcare care nu va exista niciodată: `result_path` rămâne
+        // `null` pentru orice `action` ÎNREGISTRAT în `BulkChunkActions`, exportul fiind
+        // singurul flux care-l scrie (`App\Jobs\Exports\ExportListJob`).
+        abort_unless($export->action === 'export', 404);
+
         return Inertia::render('Exports/Show', [
             'export' => new ExportResource($export),
         ]);

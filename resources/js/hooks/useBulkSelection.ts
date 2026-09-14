@@ -58,6 +58,11 @@ export function useBulkSelection(pageIds: string[]) {
 
     const isSelected = (id: string) => matchingFilter || selected.has(id);
 
+    // P1-002 (code review) — DOAR bifele explicite de pe pagina curentă (≤ mărimea
+    // paginii), NICIODATĂ N-ul din modul „select all matching filter": acest hook n-are
+    // vizibilitate pe `total`-ul paginii (trăiește în props, nu aici). Numărul EFECTIV
+    // afectat de operație, folosit la afișare/dialog/prag, se calculează în
+    // `BulkSelectionBar` (`matchingFilter ? total : selectedCount`), nu aici.
     const selectedCount = useMemo(() => selected.size, [selected]);
 
     return {

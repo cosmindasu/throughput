@@ -16,13 +16,23 @@ interface BulkSelectionBarProps {
     resourceNounPlural: string;
     /** URL complet (cu prefixul de workspace și querystring-ul filtrului curent) al rutei `bulk.reassign-owner`. */
     dispatchUrl: string;
+    /**
+     * N-ul EXACT pe care operația l-ar atinge pe modul „select all matching filter"
+     * (`App\Support\Bulk\BulkMatchingRowCount`, P2-003 — restricția Agentului aplicată).
+     * Prop DEFERRED (Inertia 3): poate să nu fi sosit încă la primul randaj, chiar dacă
+     * tipul din `generated.d.ts` îl declară mereu `number` — verificat aici cu
+     * `typeof`, nu presupus (P1-002, code review).
+     */
     total: number;
+    /** Rândurile bifate explicit pe pagina curentă (`useBulkSelection`), NICIODATĂ tot filtrul. */
     selectedCount: number;
     allOnPageSelected: boolean;
     matchingFilter: boolean;
     selectedIds: string[];
     owners: BulkOwnerOption[];
     confirmationThreshold: number;
+    /** `App\Support\Bulk\BulkConfirmationThreshold::rowCapForRole()` — `null` = fără plafon (Owner/Manager). */
+    rowCap: number | null;
     onSelectAllMatching: () => void;
     onClearSelection: () => void;
 }
@@ -47,18 +57,32 @@ export default function BulkSelectionBar({
     selectedIds,
     owners,
     confirmationThreshold,
+    rowCap,
     onSelectAllMatching,
     onClearSelection,
 }: BulkSelectionBarProps) {
     const [ownerId, setOwnerId] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const noun = selectedCount === 1 ? resourceNounSingular : resourceNounPlural;
+    const totalKnown = typeof total === 'number';
+
+    // P1-002 (code review) — pe modul „select all matching filter", numărul care contează
+    // e N-ul EXACT al operației (P2-003), NICIODATĂ `selected.size` (plafonat la o pagină,
+    // `useBulkSelection`): altfel dialogul arăta „50 accounts" pentru o operație pe mii de
+    // rânduri, iar comparația cu pragul de confirmare pornea de la numărul greșit.
+    const effectiveCount = matchingFilter && totalKnown ? total : selectedCount;
+    const noun = effectiveCount === 1 ? resourceNounSingular : resourceNounPlural;
     const ownerName = owners.find((owner) => owner.id === ownerId)?.name ?? '';
+    // P2-001 (code review) — plafonul Agentului verificat ȘI client-side, înainte de
+    // submit: serverul (`DispatchBulkOperationAction`) rămâne sursa de adevăr, dar
+    // dezactivarea aici scutește un drum dus-întors doar ca să afli refuzul.
+    const overRowCap = rowCap !== null && effectiveCount > rowCap;
 
-    const dispatch = () => {
+    const dispatch = (confirmed: boolean) => {
         setProcessing(true);
+        setError(null);
 
         router.post(
             dispatchUrl,
@@ -66,8 +90,13 @@ export default function BulkSelectionBar({
                 selectAllMatching: matchingFilter,
                 ids: matchingFilter ? [] : selectedIds,
                 owner_user_id: ownerId,
+                confirmed,
             },
             {
+                // P2-001 (code review) — refuzurile serverului (plafonul de rol, DEMO_MODE,
+                // pragul de confirmare fără `confirmed`) ajungeau pe `errors.selection`, dar
+                // nimic nu le citea: dialogul se închidea fără nicio explicație.
+                onError: (errors) => setError(errors.selection ?? 'This operation could not be started.'),
                 onFinish: () => {
                     setProcessing(false);
                     setConfirmOpen(false);
@@ -77,16 +106,17 @@ export default function BulkSelectionBar({
     };
 
     const handleReassignClick = () => {
-        if (!ownerId) {
+        if (!ownerId || overRowCap) {
             return;
         }
 
-        if (selectedCount > confirmationThreshold) {
+        if (effectiveCount > confirmationThreshold) {
             setConfirmOpen(true);
             return;
         }
 
-        dispatch();
+        // Sub prag — serverul nu cere `confirmed` (FR-BULK-01: doar peste prag).
+        dispatch(false);
     };
 
     return (
@@ -94,10 +124,10 @@ export default function BulkSelectionBar({
             {selectedCount > 0 && (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-raised px-4 py-2.5 text-sm">
                     <span className="font-medium text-text">
-                        {selectedCount.toLocaleString('en-US')} {noun} selected
+                        {effectiveCount.toLocaleString('en-US')} {noun} selected
                     </span>
 
-                    {allOnPageSelected && !matchingFilter && total > selectedCount && (
+                    {allOnPageSelected && !matchingFilter && totalKnown && total > selectedCount && (
                         <button
                             type="button"
                             onClick={onSelectAllMatching}
@@ -123,7 +153,7 @@ export default function BulkSelectionBar({
                         </select>
                     </label>
 
-                    <Button variant="primary" disabled={!ownerId || processing} onClick={handleReassignClick}>
+                    <Button variant="primary" disabled={!ownerId || processing || overRowCap} onClick={handleReassignClick}>
                         Reassign owner
                     </Button>
 
@@ -133,14 +163,26 @@ export default function BulkSelectionBar({
 
                     <ConfirmDialog
                         open={confirmOpen}
-                        title={`Reassign ${selectedCount.toLocaleString('en-US')} ${noun}?`}
-                        onConfirm={dispatch}
+                        title={`Reassign ${effectiveCount.toLocaleString('en-US')} ${noun}?`}
+                        onConfirm={() => dispatch(true)}
                         onClose={() => setConfirmOpen(false)}
                         processing={processing}
                         confirmLabel="Reassign"
                     >
-                        {`This changes the owner of ${selectedCount.toLocaleString('en-US')} ${resourceNounPlural} to ${ownerName}. It runs in the background — you'll land on a status page and can cancel it while it's running.`}
+                        {`This changes the owner of ${effectiveCount.toLocaleString('en-US')} ${resourceNounPlural} to ${ownerName}. It runs in the background — you'll land on a status page and can cancel it while it's running.`}
                     </ConfirmDialog>
+
+                    {overRowCap && (
+                        <p role="alert" className="w-full rounded-md bg-danger-tint px-3 py-2 text-sm text-danger">
+                            {`This would affect ${effectiveCount.toLocaleString('en-US')} ${resourceNounPlural}, above your role's limit of ${rowCap?.toLocaleString('en-US')} rows per operation.`}
+                        </p>
+                    )}
+
+                    {error && (
+                        <p role="alert" className="w-full rounded-md bg-danger-tint px-3 py-2 text-sm text-danger">
+                            {error}
+                        </p>
+                    )}
                 </div>
             )}
         </div>

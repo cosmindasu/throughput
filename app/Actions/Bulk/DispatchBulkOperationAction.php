@@ -6,6 +6,7 @@ use App\Jobs\Bulk\PlanBulkOperationJob;
 use App\Models\BulkOperation;
 use App\Models\User;
 use App\Support\Bulk\BulkConfirmationThreshold;
+use App\Support\Bulk\BulkMatchingRowCount;
 use App\Support\Bulk\BulkWritableResource;
 use App\Support\DemoMode;
 use App\Support\ListQuery;
@@ -28,8 +29,13 @@ final class DispatchBulkOperationAction
     /**
      * @param  list<string>|null  $ids  set explicit (checkbox de pagină); `null` = tot filtrul curent
      * @param  array<string, mixed>  $actionPayload
+     * @param  bool  $confirmed  FR-BULK-01, plan §9 — clientul l-a trecut prin dialogul de
+     *                           confirmare (`selectedCount`/`total` peste
+     *                           `BulkConfirmationThreshold::for()`). `false` implicit: doar
+     *                           formularul care ȘTIE că a arătat dialogul trimite `true`.
      *
-     * @throws ValidationException peste plafonul de rol (BR-BULK-02) sau peste plafonul absolut DEMO_MODE (§22.2)
+     * @throws ValidationException peste plafonul de rol (BR-BULK-02), peste plafonul absolut
+     *                             DEMO_MODE (§22.2), sau peste pragul de confirmare fără `confirmed` (FR-BULK-01)
      */
     public function execute(
         User $user,
@@ -39,6 +45,7 @@ final class DispatchBulkOperationAction
         ?array $ids,
         array $actionPayload,
         ?string $groupId = null,
+        bool $confirmed = false,
     ): BulkOperation {
         $restrictToOwnRecords = Permissions::restrictedToOwnRecords($user);
 
@@ -46,11 +53,11 @@ final class DispatchBulkOperationAction
             ? $resource->newQuery()->whereIn($resource->newQuery()->getModel()->getKeyName(), $ids)
             : app($resource->listClass())->query($listQuery, $user);
 
-        if ($restrictToOwnRecords) {
-            $resource->scopeToOwnRecords($query, $user);
-        }
-
-        $total = (int) (clone $query)->toBase()->getCountForPagination();
+        // P2-003 (code review) — ACEEAȘI funcție cu care `AccountController`/
+        // `DealController::index()` calculează N-ul din „Select all N matching this
+        // filter": un singur loc aplică `scopeToOwnRecords()` pentru Agent (BR-BULK-02),
+        // altfel lista și dispecerizarea pot diverge din nou.
+        $total = BulkMatchingRowCount::for($user, $resource, $query);
 
         $roleCap = BulkConfirmationThreshold::rowCapForRole($user);
 
@@ -62,6 +69,16 @@ final class DispatchBulkOperationAction
 
         if (DemoMode::exceedsBulkRowCap($total)) {
             throw ValidationException::withMessages(['selection' => DemoMode::bulkRowCapRefusal($total)]);
+        }
+
+        // P2-002 (code review), plan §9 — „o singură expresie într-un singur loc
+        // (`BulkConfirmationThreshold`), citită și de server la validare, și de props
+        // pentru dialog". Pragul se verifică pe ACELAȘI `$total`, deja restrâns la
+        // subsetul propriu pentru Agent — nu pe numărul brut al filtrului.
+        if (! $confirmed && BulkConfirmationThreshold::exceeds($user, $total)) {
+            throw ValidationException::withMessages([
+                'selection' => "This operation would affect {$total} rows and needs confirmation before it can start.",
+            ]);
         }
 
         $operation = BulkOperation::create([
