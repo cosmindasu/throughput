@@ -59,6 +59,30 @@ ascunde problema, fiindcă adaugă `tenant_id = ?` fără cast, așa că plătes
 agregatele și joburile. `IsolationTest::test_no_policy_casts_the_indexed_column` citește
 `pg_policies`. Vezi [ADR-016](../../docs/adr/ADR-016-cast-rls-pe-setare-nu-pe-coloana.md).
 
+## Blocarea unui rând părinte: `FOR NO KEY UPDATE`, nu `FOR UPDATE`
+
+O invariantă care nu trăiește pe un singur rând se serializează blocând rândul părinte: numărul
+de comandă per tenant, contactul principal al unui cont, ordinea etapelor dintr-un pipeline.
+`lockForUpdate()` emite `FOR UPDATE`, care intră în conflict cu `FOR KEY SHARE`, blocarea pe
+care PostgreSQL o ia la verificarea FK a oricărui INSERT sau UPDATE într-o tabelă copil. Cum
+tranzacția ține toată cererea, un `FOR UPDATE` pe `tenants` oprește scrierile întregului tenant
+până la finalul cererii. Măsurat cu două sesiuni: `lock timeout` exact pe
+`SELECT 1 FROM ONLY tenants … FOR KEY SHARE`.
+
+Forma corectă e `->lock('for no key update')`. Serializează la fel două tranzacții care
+blochează același părinte, dar lasă să treacă inserările în tabelele copil. Pe rândul pe care
+chiar îl modifici (comanda la tranziție, `inventory_levels`), `lockForUpdate()` e acceptabil:
+oprește doar copiii acelui rând.
+
+## Rânduri create la cerere: `ON CONFLICT DO NOTHING`, sortat
+
+Un `create()` într-un `catch` pentru unique violation nu salvează nimic: în PostgreSQL orice
+eroare abortează tranzacția, deci cererea dă 500 la interogarea următoare. Rândurile care pot
+fi create concurent se inserează cu `insertOrIgnore()`, într-o singură instrucțiune, **în
+aceeași ordine în care se blochează apoi**. Inserate în ordinea apelantului, două tranzacții în
+sensuri opuse țin fiecare câte un rând nou și îl așteaptă pe al celeilalte (deadlock reprodus pe
+`inventory_levels`). Vezi `App\Actions\Stock\Concerns\LocksInventoryLevels`.
+
 ## Două familii de joburi
 
 - **De tenant**: primesc `tenantId` serializat explicit și îl restaurează în `handle()`.
