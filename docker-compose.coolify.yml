@@ -14,6 +14,9 @@ x-app-env: &app-env
   APP_URL: "${APP_URL}"
   APP_LOCALE: en
   DEMO_MODE: "${DEMO_MODE:-true}"
+  # Plan §2.1. Implicitul din config/throughput.php e același; stă aici ca ora resetului să
+  # se poată schimba din Coolify → Environment Variables, fără commit.
+  DEMO_RESET_CRON: "${DEMO_RESET_CRON:-0 3 * * *}"
   DB_CONNECTION: pgsql
   DB_HOST: postgres
   DB_DATABASE: "${DB_DATABASE:-throughput}"
@@ -33,8 +36,13 @@ x-app-env: &app-env
   HORIZON_PREFIX: "throughput_horizon:"
   MAIL_MAILER: "${MAIL_MAILER:-smtp}"
   MAIL_HOST: "${MAIL_HOST}"
+  # Portul și expeditorul din plan §2.4. Fără ele, config/mail.php cade pe implicitele
+  # pachetului: portul 2525 în loc de 587 și `hello@example.com`, un domeniu fără SPF/DKIM.
+  # Recuperarea parolei, singurul email trimis la publicare, ar pica sau ar ajunge în spam.
+  MAIL_PORT: "${MAIL_PORT:-587}"
   MAIL_USERNAME: "${MAIL_USERNAME}"
   MAIL_PASSWORD: "${MAIL_PASSWORD}"
+  MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS:-noreply@throughput.dbg.ro}"
   DEMO_EMAIL_ALLOWLIST: "${DEMO_EMAIL_ALLOWLIST}"
   STRIPE_KEY: "${STRIPE_KEY}"
   STRIPE_SECRET: "${STRIPE_SECRET}"
