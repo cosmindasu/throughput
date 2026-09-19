@@ -48,12 +48,36 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Implicitele PHP (2M/8M) ar fi respins importurile CSV (IMPORT_MAX_ROWS=50000, Faza 4)
 # cu o eroare la nivel de PHP, după ce nginx acceptase deja corpul cererii — două
 # plafoane diferite în două straturi e exact tipul de nepotrivire greu de diagnosticat.
-# `memory_limit` rămâne implicit (128M): 4 copii × plafon mai mare ar depăși cei 256m
-# ai containerului `app` din §3.1.
+# `memory_limit` rămâne implicit (128M) în `conf.d`: 4 copii × plafon mai mare ar depăși
+# cei 256m ai containerului `app` din §3.1. Vezi mai jos de ce `horizon` are nevoie de
+# altceva și de ce nu poate primi altceva prin `conf.d`.
 RUN { \
         echo 'upload_max_filesize=32M'; \
         echo 'post_max_size=32M'; \
     } > /usr/local/etc/php/conf.d/uploads.ini
+
+# Plafon SEPARAT de memorie pentru containerul `horizon` (Faza 4, lot M — măsurat, nu
+# presupus). Aceeași imagine servește trei containere cu bugete diferite: `app` 256m cu
+# 4 copii FPM, `scheduler` 128m, `horizon` 384m. Un `memory_limit` în `conf.d` s-ar aplica
+# tuturor trei, deci plafonul de care are nevoie DOAR workerul de coadă stă într-un director
+# separat, activat prin `PHP_INI_SCAN_DIR` exclusiv pe serviciul `horizon`
+# (docker-compose*.yml). Celelalte două rămân neatinse, la 128M.
+#
+# De ce era nevoie: `config/horizon.php` fixa `'memory' => 256` (pragul la care Horizon
+# repornește workerul ÎNTRE joburi), cu bugetul containerului ca justificare — dar PHP
+# omora procesul la 128M cu mult înainte, deci acel prag nu putea intra niciodată în
+# vigoare. Un export PDF de 250 de rânduri pica cu „Allowed memory size exhausted", iar
+# fatalul NU ajunge în `catch (Throwable)`: operația rămânea „running", cu polling la
+# nesfârșit, până la epuizarea celor 3 încercări (~45 de minute).
+#
+# De ce `PHP_INI_SCAN_DIR` și nu `php -d memory_limit=… artisan horizon`: Horizon își
+# pornește workerii ca procese PHP NOI, care nu moștenesc `-d` de pe comanda master.
+# Variabila de mediu, da — verificat: master=256M, copil=256M.
+#
+# 256M, nu mai mult: workerul e unul singur (`maxProcesses => 1`), iar 256M de heap înseamnă
+# ~290 MB RSS, plus ~60 MB ai supervisorului master — sub cei 384m ai containerului, cu marjă.
+RUN mkdir -p /usr/local/etc/php/horizon.d \
+    && echo 'memory_limit=256M' > /usr/local/etc/php/horizon.d/memory.ini
 
 WORKDIR /var/www/html
 

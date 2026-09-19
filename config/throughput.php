@@ -55,15 +55,35 @@ return [
 
         // Export PDF (§13.5, Orders) — mereu în coadă (ADR-013: DomPDF randează HTML în
         // proces, un cost care nu are ce căuta în tranzacția cererii), deci pragul de mai
-        // sus nu i se aplică. **500, nu 1.000** — măsurat direct pe container (worker de
-        // coadă izolat, `PdfExporter::save()`, tabel simplu, `OrderList`):
-        //   100 rânduri → 0.5s / 97 MB · 250 → 1.4s / 137 MB · 500 → 2.8s / 227 MB
-        //   750 → 5.3s / 347 MB · 1.000 → 8.3s / 499 MB
-        // Creșterea nu e liniară (layout-ul de tabel al DomPDF, nu I/O) — 1.000 rânduri
-        // trece de bugetul de memorie al containerului (`.ai/rules/project.md`, 250-400 MB
-        // la vârf, pe un VPS împărțit cu 11 proiecte, deja cu OOM-uri măsurate). 500 rânduri
-        // rămâne sub 250 MB, cu marjă pentru baza de proces (framework, driver, coadă).
-        'export_pdf_max_rows' => (int) env('EXPORT_PDF_MAX_ROWS', 500),
+        // sus nu i se aplică. **250, coborât de la 500** — RECONFIRMAT PE CONTAINER (Faza 4),
+        // nu pe Mac, cum fuseseră cifrele din ADR-019: `php:8.3-fpm-alpine` cu extensiile din
+        // `docker/app/Dockerfile`, `--memory=384m` (bugetul real al lui `horizon`), pornind de
+        // la un worker de coadă REAL (`ExportListJob` dispecerizat pe coada `bulk`, nu un
+        // script gol), pe aceeași sursă (`OrderList`/`PdfExporter`), 2 repetări per punct.
+        // Vârful e RSS-ul procesului citit din `/proc/<pid>/status` (`VmHWM`), nu
+        // `memory_get_peak_usage()`:
+        //   100 → 0,7s / 108 MB · 250 → 1,2s / 162 MB · 500 → 3,0s / 294 MB
+        //   750 → 4,3s / ~400 MB, UCIS DE KERNEL (`docker inspect` → `OOMKilled: true`)
+        // Un worker pornit, cu coada goală, ÎNAINTE de primul rând de PDF, are deja ~58 MB
+        // (framework, driver de bază de date, conexiunea Redis) — de aici diferența față de
+        // cifrele de heap din ADR-019, care rămân corecte pentru ce măsurau.
+        //
+        // Măsurătoarea a scos la iveală un defect mai mare, reparat separat: `memory_limit`
+        // PHP era 128M și în containerul `horizon`, care are 384m, fiindcă aceeași imagine
+        // servește și `app` (256m, 4 copii FPM). Adică `'memory' => 256` din
+        // `config/horizon.php` — pragul măsurat și argumentat în Faza 3 — nu putea intra
+        // NICIODATĂ în vigoare: PHP omora procesul înainte ca Horizon să verifice. Peste ~225
+        // de rânduri, exportul pica cu „Allowed memory size exhausted", iar fatalul NU ajunge
+        // în `catch (Throwable $e)` din `ExportListJob`: operația rămânea „running", cu polling
+        // la nesfârșit, până la epuizarea celor 3 încercări (~45 de minute). Fixul e un
+        // `memory_limit=256M` activat prin `PHP_INI_SCAN_DIR` DOAR pe serviciul `horizon` —
+        // vezi `docker/app/Dockerfile`, stage-ul `base`, pentru de ce nu merge prin `conf.d`
+        // și de ce nu merge nici prin `php -d`.
+        //
+        // 250, cu fixul aplicat: ~162 MB RSS, din care ~127 MB heap — peste 2× marjă sub
+        // plafonul de 256M. 500 de rânduri ar cere ~259 MB de heap, adică exact peste plafon,
+        // deci valoarea veche rămâne nesigură chiar și după fix.
+        'export_pdf_max_rows' => (int) env('EXPORT_PDF_MAX_ROWS', 250),
 
         // FR-GDPR-01 (specs.md §20.5): link de descărcare valabil 7 zile. Aceeași valoare
         // pentru exportul de listă (`bulk_operations`, §13.2) — `PruneExpiredExportsJob`

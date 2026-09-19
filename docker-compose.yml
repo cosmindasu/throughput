@@ -14,6 +14,11 @@ services:
     command: ["php", "artisan", "horizon"]
     mem_limit: 512m
     memswap_limit: 512m
+    # Ca în producție (docker-compose.coolify.yml): plafonul de memorie al workerului de
+    # coadă e 256M, nu implicitul de 128M al imaginii. Aici mai ales — un plafon diferit
+    # între dev și producție ar însemna că un job care merge local pică pe server.
+    environment:
+      PHP_INI_SCAN_DIR: "/usr/local/etc/php/conf.d:/usr/local/etc/php/horizon.d"
     volumes: [".:/var/www/html"]
     depends_on:
       postgres: { condition: service_healthy }

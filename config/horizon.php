@@ -234,6 +234,15 @@ return [
              * Rămâne SUB plafonul containerului (384 MB): 256 pentru worker + 64 pentru
              * supervisorul master (`memory_limit` mai sus) lasă ~64 MB de rezervă, ca
              * reciclarea să vină de la Horizon, nu de la OOM killer-ul cgroup-ului.
+             *
+             * Corecție, Faza 4: până acum valoarea asta nu putea intra în vigoare. Imaginea
+             * lăsa `memory_limit` PHP la 128M și în containerul `horizon` (e aceeași imagine
+             * ca pentru `app`, care are alt buget), deci PHP omora procesul cu mult înainte ca
+             * Horizon să apuce să verifice — iar măsurătoarea de ~227 MB de mai sus fusese
+             * făcută pe Mac, nu pe container. Plafonul PHP e acum 256M, activat prin
+             * `PHP_INI_SCAN_DIR` doar pe acest serviciu (`docker/app/Dockerfile`). Cele două
+             * cifre sunt deliberat egale: PHP oprește un job care ar depăși 256M, Horizon
+             * reciclează procesul după un job care a ajuns acolo.
              */
             'memory' => 256,
             'tries' => 1,

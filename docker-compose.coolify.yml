@@ -104,6 +104,12 @@ services:
       <<: *app-env
       APP_RUN_MIGRATIONS: "false"
       APP_RUN_SEEDERS: "false"
+      # Singurul serviciu care ridică `memory_limit` la 256M (vezi docker/app/Dockerfile,
+      # stage-ul `base`). `app` și `scheduler` folosesc aceeași imagine și rămân la 128M —
+      # bugetele lor sunt 256m cu 4 copii FPM, respectiv 128m. Calea include și `conf.d`:
+      # `PHP_INI_SCAN_DIR` ÎNLOCUIEȘTE directorul implicit, nu i se adaugă, deci fără el
+      # extensiile și plafoanele de upload ar dispărea tăcut.
+      PHP_INI_SCAN_DIR: "/usr/local/etc/php/conf.d:/usr/local/etc/php/horizon.d"
     volumes: [app_storage:/var/www/html/storage]
     depends_on:
       app: { condition: service_healthy }
