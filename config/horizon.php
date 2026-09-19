@@ -222,7 +222,20 @@ return [
             'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
+            /*
+             * 256, nu 128 (implicitul Laravel), după măsurătorile Fazei 3: un export PDF la
+             * plafonul lui (500 de rânduri, [[ADR-019]]) are un vârf de ~227 MB, iar un chunk
+             * de operație în masă pe zeci de mii de rânduri se apropie și el. Horizon verifică
+             * memoria ÎNTRE joburi, deci un job nu e ucis la mijloc — valoarea decide cât de
+             * des se reciclează procesul. Cu 128, workerul reporni după fiecare export PDF:
+             * nu se pierdea lucru (supervisorul îl readuce), dar plafonul nu spunea adevărul
+             * despre ce rulează acolo.
+             *
+             * Rămâne SUB plafonul containerului (384 MB): 256 pentru worker + 64 pentru
+             * supervisorul master (`memory_limit` mai sus) lasă ~64 MB de rezervă, ca
+             * reciclarea să vină de la Horizon, nu de la OOM killer-ul cgroup-ului.
+             */
+            'memory' => 256,
             'tries' => 1,
             'timeout' => 60,
             'nice' => 0,
