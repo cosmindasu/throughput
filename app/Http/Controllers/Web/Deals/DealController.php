@@ -24,6 +24,7 @@ use App\Support\Bulk\BulkWritableResources;
 use App\Support\Lists\DealList;
 use App\Support\Permissions;
 use App\Support\RecentlyViewed;
+use App\Support\SavedViews\ListColumns;
 use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
@@ -77,6 +78,9 @@ class DealController extends Controller
                 $list->query($query, $user),
             )),
             'filters' => $query->toArray(),
+            // Selector de coloane (specs.md §15.1) — validate server-side ca orice filtru;
+            // un `?columns=` necunoscut/gol cade pe `SavedViewResourceType::defaultColumns()`.
+            'columns' => ListColumns::fromRequest($request, 'deals'),
             'can' => [
                 'create' => Gate::allows('create', Deal::class),
                 // Separat de export (§13.5, §7.4 nota ³): Agent nu are `deals.change_owner`

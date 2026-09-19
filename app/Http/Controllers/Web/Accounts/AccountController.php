@@ -20,6 +20,7 @@ use App\Support\Exports\ListExport;
 use App\Support\Lists\AccountList;
 use App\Support\Lists\CursorPage;
 use App\Support\RecentlyViewed;
+use App\Support\SavedViews\ListColumns;
 use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,6 +69,9 @@ final class AccountController extends Controller
                 $list->query($listQuery, $user),
             )),
             'list' => $listQuery->toArray(),
+            // Selector de coloane (specs.md §15.1) — validate server-side ca orice filtru;
+            // un `?columns=` necunoscut/gol cade pe `SavedViewResourceType::defaultColumns()`.
+            'columns' => ListColumns::fromRequest($request, 'accounts'),
             'owners' => $this->ownerOptions(),
             'can' => [
                 'create' => $user->can('create', Account::class),

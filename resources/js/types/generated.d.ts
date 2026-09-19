@@ -184,6 +184,10 @@ export interface AccountsIndexPageProps {
     // `accounts`: un al doilea COUNT pe același filtru, nu blochează randarea rândurilor.
     total: number;
     list: ListState;
+    // Selector de coloane (specs.md §15.1) — coloanele EFECTIVE (validate server-side prin
+    // `App\Support\SavedViews\ListColumns`), în ordinea lor de afișare; NU în `ListState`
+    // (folosit și de liste fără selector, ex. Contacts) — un prop separat, la fel ca `total`.
+    columns: string[];
     owners: AccountOwnerOption[];
     can: { create: boolean; export: boolean; bulkWrite: boolean };
     // App\Support\Bulk\BulkConfirmationThreshold — FR-BULK-01 (125 pentru Agent, 1.000
@@ -371,6 +375,8 @@ export interface DealsIndexPageProps {
     // Pachetul C („bulk"), §13.1 — vezi `AccountsIndexPageProps.total`, aceeași formă.
     total: number;
     filters: ListState;
+    // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
+    columns: string[];
     can: {
         create: boolean;
         bulkWrite: boolean;
@@ -678,6 +684,9 @@ export interface SavedViewSummary {
     visibility: SavedViewVisibility;
     filter: Record<string, string>;
     sort: string;
+    // Selector de coloane (specs.md §15.1) — deja sanitizate față de lista permisă curentă
+    // (`SavedViewResource::toArray()`), în ordinea lor de afișare.
+    columns: string[];
     canUpdate: boolean;
     canDelete: boolean;
 }

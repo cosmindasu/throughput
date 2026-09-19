@@ -11,15 +11,26 @@ import type { ListState } from '@/types/generated';
  *
  * Eliminarea unei chei readuce implicitul serverului (ex: „My accounts" pentru Agent);
  * pentru „fără filtru" explicit, lista acceptă o valoare dedicată (`owner=all`).
+ *
+ * `columns` (opțional, specs.md §15.1) — coloanele EFECTIVE curente ale paginii, pe listele
+ * cu selector. Transmise aici (nu doar în `useListColumns`) ca orice schimbare de
+ * filtru/sortare să le PĂSTREZE în URL — altfel `router.get()` ar rescrie query string-ul
+ * complet și `?columns=` ar dispărea la următorul clic pe „Sort by".
  */
-export function useListFilters(state: ListState) {
+export function useListFilters(state: ListState, columns?: string[]) {
     const { url } = usePage();
     const path = url.split('?')[0];
 
-    const apply = (next: Partial<ListState>) => {
+    const apply = (next: Partial<ListState> & { columns?: string[] }) => {
+        const effectiveColumns = next.columns ?? columns;
+
         router.get(
             path,
-            { filter: next.filter ?? state.filter, sort: next.sort ?? state.sort },
+            {
+                filter: next.filter ?? state.filter,
+                sort: next.sort ?? state.sort,
+                ...(effectiveColumns ? { columns: effectiveColumns.join(',') } : {}),
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };

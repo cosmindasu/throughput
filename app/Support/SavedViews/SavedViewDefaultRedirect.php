@@ -21,7 +21,10 @@ final class SavedViewDefaultRedirect
 {
     public static function resolve(Request $request, string $resourceType): ?RedirectResponse
     {
-        if ($request->query('filter') !== null || $request->query('sort') !== null || $request->query('cursor') !== null) {
+        if ($request->query('filter') !== null
+            || $request->query('sort') !== null
+            || $request->query('cursor') !== null
+            || $request->query(ListColumns::QUERY_KEY) !== null) {
             return null;
         }
 
@@ -50,7 +53,11 @@ final class SavedViewDefaultRedirect
 
         $list = SavedViewResourceType::list($resourceType);
         $listQuery = $list->fromState(['filter' => $savedView->filters, 'sort' => $savedView->sort]);
+        $columns = ListColumns::fromState($savedView->columns, $resourceType);
 
-        return redirect()->route(SavedViewResourceType::routeName($resourceType), $listQuery->toArray());
+        return redirect()->route(SavedViewResourceType::routeName($resourceType), [
+            ...$listQuery->toArray(),
+            'columns' => ListColumns::toQueryValue($columns),
+        ]);
     }
 }

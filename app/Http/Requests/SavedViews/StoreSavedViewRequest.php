@@ -42,6 +42,11 @@ final class StoreSavedViewRequest extends FormRequest
             'filter' => ['sometimes', 'array'],
             'filter.*' => ['nullable', 'string', 'max:100'],
             'sort' => ['sometimes', 'nullable', 'string', 'max:60'],
+            // Selector de coloane (§15.1) — validată din nou, cu ACEEAȘI sanitizare ca un
+            // `?columns=` de pe URL (`ListColumns::fromState()`, apelat din controller):
+            // aici doar forma brută (listă de string-uri), nu apartenența la lista permisă.
+            'columns' => ['sometimes', 'array'],
+            'columns.*' => ['string', 'max:60'],
         ];
     }
 }

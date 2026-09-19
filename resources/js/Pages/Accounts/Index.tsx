@@ -2,6 +2,7 @@ import { Deferred, Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import Button, { ButtonLink, buttonClass } from '@/Components/Button';
+import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
@@ -9,18 +10,46 @@ import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { useListColumns } from '@/hooks/useListColumns';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import type { AccountRow, AccountsIndexPageProps } from '@/types/generated';
+
+/**
+ * Selector de coloane (specs.md §15.1) — cheile permise pentru Accounts, EXACT ca
+ * `App\Support\SavedViews\SavedViewResourceType::permittedColumns('accounts')`. Ordinea de
+ * aici e ordinea CANONICĂ (implicit + meniul selectorului); ordinea de AFIȘARE reală e
+ * `props.columns` (validat server-side).
+ */
+const ACCOUNT_COLUMNS: Array<ColumnDefinition & { cellClassName: string; render: (account: AccountRow) => ReactNode }> = [
+    { key: 'owner', label: 'Owner', cellClassName: 'px-4 py-2.5 text-text-2', render: (account) => account.owner?.name ?? '—' },
+    {
+        key: 'status',
+        label: 'Status',
+        cellClassName: 'px-4 py-2.5',
+        render: (account) => <StatusBadge tone={statusTone(account.status)}>{account.status}</StatusBadge>,
+    },
+    {
+        key: 'createdAt',
+        label: 'Created',
+        cellClassName: 'px-4 py-2.5 tabular-nums text-text-2',
+        render: (account) => (account.createdAt ? new Date(account.createdAt).toLocaleDateString('en-US') : '—'),
+    },
+];
+
+const ACCOUNT_COLUMNS_BY_KEY: Record<string, (typeof ACCOUNT_COLUMNS)[number]> = Object.fromEntries(
+    ACCOUNT_COLUMNS.map((column) => [column.key, column] as const),
+);
 
 /**
  * Accounts/Index — FR-CRM-03, US-CRM-02. `accounts` e deferred (FR-PERF-01): shell-ul
  * (filtre, header) apare instant, rândurile vin după — vezi `TableSkeleton`.
  */
 export default function Index() {
-    const { accounts, total, list, owners, can, bulkConfirmationThreshold, bulkRowCap, workspace } = usePage<AccountsIndexPageProps>().props;
+    const { accounts, total, list, columns, owners, can, bulkConfirmationThreshold, bulkRowCap, workspace } = usePage<AccountsIndexPageProps>().props;
     const { url } = usePage();
-    const { setFilter, setSort } = useListFilters(list);
+    const { apply, setFilter, setSort } = useListFilters(list, columns);
+    const { toggle: toggleColumn, moveUp: moveColumnUp, moveDown: moveColumnDown } = useListColumns(columns, apply);
 
     const hasFilters = Object.keys(list.filter).length > 0;
     const base = workspace ? `/${workspace.slug}` : '';
@@ -29,6 +58,19 @@ export default function Index() {
 
     const pageIds = accounts ? accounts.data.map((account) => account.id) : [];
     const selection = useBulkSelection(pageIds);
+
+    // Filtrat O SINGURĂ dată și folosit identic pe antet, pe corp ȘI pe skeleton (ca în
+    // `Deals/Index.tsx`) — o cheie necunoscută (n-ar trebui să apară, `columns` e validat
+    // server-side, dar defensiv) nu mai dezaliniază tabelul: fără asta, antetul randa
+    // necondiționat, corpul sărea coloana, iar rândurile se decalau vizual.
+    const visibleColumns = columns
+        .map((key) => ACCOUNT_COLUMNS_BY_KEY[key])
+        .filter((column): column is (typeof ACCOUNT_COLUMNS)[number] => column !== undefined);
+
+    // Identitate + coloanele vizibile + acțiuni, +1 pentru checkbox-ul de bulk când există —
+    // altfel skeleton-ul (lățimea coloanelor „pulsând" înainte ca rândurile să vină, FR-PERF-01)
+    // nu se mai potrivește cu tabelul real odată ce selectorul schimbă numărul de coloane.
+    const skeletonColumnCount = 1 + visibleColumns.length + 1 + (can.bulkWrite ? 1 : 0);
 
     return (
         <>
@@ -39,7 +81,8 @@ export default function Index() {
                     title="Accounts"
                     actions={
                         <>
-                            <SavedViewPicker resourceType="accounts" current={list} />
+                            <SavedViewPicker resourceType="accounts" current={list} columns={columns} />
+                            <ColumnSelector columns={ACCOUNT_COLUMNS} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
                             {can.export && (
                                 <a href={exportHref} className={buttonClass('secondary')}>
                                     Export CSV
@@ -127,7 +170,7 @@ export default function Index() {
                     />
                 )}
 
-                <Deferred data="accounts" fallback={<TableSkeleton columns={5} />}>
+                <Deferred data="accounts" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
                     {accounts && accounts.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-left text-sm">
@@ -145,9 +188,11 @@ export default function Index() {
                                             </th>
                                         )}
                                         <th scope="col" className="px-4 py-2 font-medium">Name</th>
-                                        <th scope="col" className="px-4 py-2 font-medium">Owner</th>
-                                        <th scope="col" className="px-4 py-2 font-medium">Status</th>
-                                        <th scope="col" className="px-4 py-2 font-medium">Created</th>
+                                        {visibleColumns.map((column) => (
+                                            <th key={column.key} scope="col" className="px-4 py-2 font-medium">
+                                                {column.label}
+                                            </th>
+                                        ))}
                                         <th scope="col" className="px-4 py-2 font-medium">
                                             <span className="sr-only">Actions</span>
                                         </th>
@@ -173,13 +218,11 @@ export default function Index() {
                                                 </a>
                                                 {account.domain && <div className="text-xs text-text-3">{account.domain}</div>}
                                             </td>
-                                            <td className="px-4 py-2.5 text-text-2">{account.owner?.name ?? '—'}</td>
-                                            <td className="px-4 py-2.5">
-                                                <StatusBadge tone={statusTone(account.status)}>{account.status}</StatusBadge>
-                                            </td>
-                                            <td className="px-4 py-2.5 tabular-nums text-text-2">
-                                                {account.createdAt ? new Date(account.createdAt).toLocaleDateString('en-US') : '—'}
-                                            </td>
+                                            {visibleColumns.map((column) => (
+                                                <td key={column.key} className={column.cellClassName}>
+                                                    {column.render(account)}
+                                                </td>
+                                            ))}
                                             <td className="px-4 py-2.5 text-right">
                                                 {account.canEdit && (
                                                     <a href={`${base}/accounts/${account.id}/edit`} className="text-sm text-accent-text hover:underline">

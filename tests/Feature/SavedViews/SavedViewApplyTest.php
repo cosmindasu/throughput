@@ -85,7 +85,9 @@ class SavedViewApplyTest extends TestCase
         $response->assertRedirect();
 
         $target = $response->headers->get('Location');
-        $this->assertStringNotContainsString('status', (string) $target);
+        // `status` apare și în valoarea implicită a `?columns=` (§15.1) — verificarea trebuie
+        // să vizeze strict `filter[status]`, nu orice apariție a cuvântului în URL.
+        $this->assertStringNotContainsString('filter%5Bstatus%5D', (string) $target);
 
         $this->actingAs($this->owner)->get($target)
             ->assertOk()

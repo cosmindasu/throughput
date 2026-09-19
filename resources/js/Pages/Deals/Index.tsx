@@ -1,6 +1,7 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
+import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import EmptyState from '@/Components/EmptyState';
@@ -10,6 +11,7 @@ import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { useListColumns } from '@/hooks/useListColumns';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatMoney } from '@/lib/money';
@@ -24,12 +26,63 @@ const STATUSES = [
     { value: 'lost', label: 'Lost' },
 ] as const;
 
-const SORTABLE_COLUMNS: Array<{ key: string; label: string }> = [
-    { key: 'title', label: 'Title' },
-    { key: 'value', label: 'Value' },
-    { key: 'expected_close_date', label: 'Expected close' },
-    { key: 'created_at', label: 'Created' },
+interface DealColumnDef extends ColumnDefinition {
+    /** Cheia de sortare `ListQuery` (`DealList::sortableColumns()`) — absentă pe coloanele nesortabile (Account/Owner/Stage). */
+    sortKey?: string;
+    headerClassName?: string;
+    cellClassName: string;
+    render: (deal: DealSummary) => ReactNode;
+}
+
+/**
+ * Selector de coloane (specs.md §15.1) — cheile permise pentru Deals, EXACT ca
+ * `App\Support\SavedViews\SavedViewResourceType::permittedColumns('deals')`. `title`
+ * (identitatea) rămâne fix, randat separat mai jos, cu propriul buton de sortare.
+ */
+const DEAL_COLUMNS: DealColumnDef[] = [
+    {
+        key: 'value',
+        label: 'Value',
+        sortKey: 'value',
+        headerClassName: 'text-right',
+        cellClassName: 'numeric whitespace-nowrap px-4 py-2 text-right',
+        render: (deal) => formatMoney(deal.value, deal.currency),
+    },
+    {
+        key: 'expectedCloseDate',
+        label: 'Expected close',
+        sortKey: 'expected_close_date',
+        cellClassName: 'whitespace-nowrap px-4 py-2',
+        render: (deal) => (deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'),
+    },
+    {
+        key: 'createdAt',
+        label: 'Created',
+        sortKey: 'created_at',
+        cellClassName: 'whitespace-nowrap px-4 py-2',
+        render: (deal) => (deal.createdAt ? dateFormatter.format(new Date(deal.createdAt)) : '—'),
+    },
+    {
+        key: 'account',
+        label: 'Account',
+        cellClassName: 'px-4 py-2',
+        render: (deal) => deal.account.name,
+    },
+    {
+        key: 'owner',
+        label: 'Owner',
+        cellClassName: 'px-4 py-2',
+        render: (deal) => deal.owner.name,
+    },
+    {
+        key: 'stage',
+        label: 'Stage',
+        cellClassName: 'px-4 py-2',
+        render: (deal) => <StatusBadge>{deal.stage.name}</StatusBadge>,
+    },
 ];
+
+const DEAL_COLUMNS_BY_KEY: Record<string, DealColumnDef> = Object.fromEntries(DEAL_COLUMNS.map((column) => [column.key, column] as const));
 
 /**
  * `Deals/Index` — task-ul Pachetului C punctul 4. Prop `deals` DEFERRED (FR-PERF-01):
@@ -37,14 +90,27 @@ const SORTABLE_COLUMNS: Array<{ key: string; label: string }> = [
  */
 export default function Index() {
     const { props, url } = usePage<DealsIndexPageProps>();
-    const { filters, can, workspace } = props;
+    const { filters, columns, can, workspace } = props;
     const workspaceSlug = workspace?.slug ?? '';
-    const { setFilter, setSort } = useListFilters(filters);
+    const { apply, setFilter, setSort } = useListFilters(filters, columns);
+    const { toggle: toggleColumn, moveUp: moveColumnUp, moveDown: moveColumnDown } = useListColumns(columns, apply);
     const [search, setSearch] = useState(filters.filter.q ?? '');
     const bulkDispatchUrl = buildBulkDispatchUrl(url, workspaceSlug ? `/${workspaceSlug}` : '', 'deals');
 
     const currentSort = filters.sort.replace(/^-/, '');
     const currentDirection = filters.sort.startsWith('-') ? 'desc' : 'asc';
+
+    // Filtrat O SINGURĂ dată, folosit identic pe antet, pe corp ȘI pe skeleton — o cheie
+    // necunoscută (n-ar trebui să apară, `columns` e validat server-side, dar defensiv) nu
+    // mai dezaliniază tabelul.
+    const visibleColumns = columns
+        .map((key) => DEAL_COLUMNS_BY_KEY[key])
+        .filter((column): column is DealColumnDef => column !== undefined);
+
+    // Identitate (title) + coloanele vizibile + acțiuni, +1 pentru checkbox-ul de bulk când
+    // există — altfel skeleton-ul nu se mai potrivește cu tabelul real odată ce selectorul
+    // schimbă numărul de coloane.
+    const skeletonColumnCount = 1 + visibleColumns.length + 1 + (can.bulkWrite ? 1 : 0);
 
     const toggleSort = (column: string) => {
         if (currentSort !== column) {
@@ -64,7 +130,8 @@ export default function Index() {
                     title="Deals"
                     actions={
                         <>
-                            <SavedViewPicker resourceType="deals" current={filters} />
+                            <SavedViewPicker resourceType="deals" current={filters} columns={columns} />
+                            <ColumnSelector columns={DEAL_COLUMNS} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
                             <ViewSwitcher workspaceSlug={workspaceSlug} active="list" />
                         </>
                     }
@@ -113,10 +180,11 @@ export default function Index() {
                     </div>
                 </div>
 
-                <Deferred data="deals" fallback={<TableSkeleton columns={6} />}>
+                <Deferred data="deals" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
                     <DealsTable
                         workspaceSlug={workspaceSlug}
                         canCreate={can.create}
+                        columns={visibleColumns}
                         sort={{ column: currentSort, direction: currentDirection }}
                         onSort={toggleSort}
                         bulkDispatchUrl={bulkDispatchUrl}
@@ -143,12 +211,15 @@ function OwnerFilterButton({ active, onClick, children }: { active: boolean; onC
 function DealsTable({
     workspaceSlug,
     canCreate,
+    columns,
     sort,
     onSort,
     bulkDispatchUrl,
 }: {
     workspaceSlug: string;
     canCreate: boolean;
+    /** Deja filtrate/rezolvate în `Index()` (`visibleColumns`) — nicio cheie necunoscută aici. */
+    columns: DealColumnDef[];
     sort: { column: string; direction: 'asc' | 'desc' };
     onSort: (column: string) => void;
     bulkDispatchUrl: string;
@@ -205,27 +276,30 @@ function DealsTable({
                                     />
                                 </th>
                             )}
-                            {SORTABLE_COLUMNS.map((column) => (
-                                <th key={column.key} scope="col" className={`px-4 py-2 font-medium ${column.key === 'value' ? 'text-right' : ''}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => onSort(column.key)}
-                                        className={`flex items-center gap-1 hover:text-text ${column.key === 'value' ? 'ml-auto' : ''}`}
-                                    >
-                                        {column.label}
-                                        {sort.column === column.key && <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>}
-                                    </button>
+                            <th scope="col" className="px-4 py-2 font-medium">
+                                <button type="button" onClick={() => onSort('title')} className="flex items-center gap-1 hover:text-text">
+                                    Title
+                                    {sort.column === 'title' && <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>}
+                                </button>
+                            </th>
+                            {columns.map((column) => (
+                                <th key={column.key} scope="col" className={`px-4 py-2 font-medium ${column.headerClassName ?? ''}`}>
+                                    {column.sortKey ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onSort(column.sortKey!)}
+                                            className={`flex items-center gap-1 hover:text-text ${column.headerClassName === 'text-right' ? 'ml-auto' : ''}`}
+                                        >
+                                            {column.label}
+                                            {sort.column === column.sortKey && (
+                                                <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        column.label
+                                    )}
                                 </th>
                             ))}
-                            <th scope="col" className="px-4 py-2 font-medium">
-                                Account
-                            </th>
-                            <th scope="col" className="px-4 py-2 font-medium">
-                                Owner
-                            </th>
-                            <th scope="col" className="px-4 py-2 font-medium">
-                                Stage
-                            </th>
                             <th scope="col" className="px-4 py-2 font-medium">
                                 <span className="sr-only">Actions</span>
                             </th>
@@ -237,6 +311,7 @@ function DealsTable({
                                 key={deal.id}
                                 deal={deal}
                                 workspaceSlug={workspaceSlug}
+                                columns={columns}
                                 showCheckbox={can.bulkWrite}
                                 selected={selection.isSelected(deal.id)}
                                 onToggle={() => selection.toggleRow(deal.id)}
@@ -254,12 +329,15 @@ function DealsTable({
 function DealRow({
     deal,
     workspaceSlug,
+    columns,
     showCheckbox,
     selected,
     onToggle,
 }: {
     deal: DealSummary;
     workspaceSlug: string;
+    /** Deja filtrate/rezolvate în `Index()` (`visibleColumns`) — nicio cheie necunoscută aici. */
+    columns: DealColumnDef[];
     showCheckbox: boolean;
     selected: boolean;
     onToggle: () => void;
@@ -287,16 +365,11 @@ function DealRow({
                     </span>
                 )}
             </td>
-            {/* Sumele aliniate la dreapta, pe cifre mono: zecimalele cad una sub alta. Verificat pe
-                cel mai lung total din seed ($184,963.91), la 1024/1280/1440 px, pe ambele teme. */}
-            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(deal.value, deal.currency)}</td>
-            <td className="whitespace-nowrap px-4 py-2">{deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'}</td>
-            <td className="whitespace-nowrap px-4 py-2">{deal.createdAt ? dateFormatter.format(new Date(deal.createdAt)) : '—'}</td>
-            <td className="px-4 py-2">{deal.account.name}</td>
-            <td className="px-4 py-2">{deal.owner.name}</td>
-            <td className="px-4 py-2">
-                <StatusBadge>{deal.stage.name}</StatusBadge>
-            </td>
+            {columns.map((column) => (
+                <td key={column.key} className={column.cellClassName}>
+                    {column.render(deal)}
+                </td>
+            ))}
             <td className="px-4 py-2 text-text-2">
                 {deal.can.edit && (
                     <Link href={`/${workspaceSlug}/deals/${deal.id}/edit`} className="hover:underline">

@@ -21,6 +21,7 @@ const dealsList: HelpTopic = {
         'Switch between "My deals" and "All deals".',
         'Sort by clicking the "Title", "Value", "Expected close" or "Created" header — click again to reverse.',
         'Open "Views" to apply a saved view, "Save view" to keep the current filters, or "☆ Set default".',
+        'Open "Columns" to show, hide or reorder the optional columns (Value, Expected close, Created, Account, Owner, Stage) with checkboxes and "Move up"/"Move down" — the deal title column always stays, and a saved view remembers your choice.',
         'Switch to "Board" for the Kanban layout, or open a deal from its title or its "Edit" link.',
         'As Owner or Manager, select several deals with the checkboxes — or "Select all N matching this filter" — and reassign them to a new owner in one action.',
     ],

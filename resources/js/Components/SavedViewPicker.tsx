@@ -8,9 +8,11 @@ import type { ListState, SavedViewsIndexResponse, SavedViewSummary, SavedViewVis
 
 interface SavedViewPickerProps {
     /** Doar resursele din `App\Support\SavedViews\SavedViewResourceType::supported()`. */
-    resourceType: 'accounts' | 'deals';
+    resourceType: 'accounts' | 'deals' | 'orders' | 'products';
     /** Starea curentă a listei (`list`/`filters`, după pagină) — `ListQuery::toArray()`. */
     current: ListState;
+    /** Coloanele EFECTIVE curente ale paginii (specs.md §15.1) — propul `columns`, validat server-side. */
+    columns: string[];
 }
 
 /**
@@ -26,7 +28,7 @@ interface SavedViewPickerProps {
  * (`<a>`/`<button>`), Tab-navigabile în ordinea din DOM — Escape închide și readuce
  * focusul pe declanșator, click în afara panoului la fel (ca la `WorkspaceSwitcher`).
  */
-export default function SavedViewPicker({ resourceType, current }: SavedViewPickerProps) {
+export default function SavedViewPicker({ resourceType, current, columns }: SavedViewPickerProps) {
     const { workspace } = usePage().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
@@ -85,7 +87,7 @@ export default function SavedViewPicker({ resourceType, current }: SavedViewPick
     };
 
     const all = data ? [...data.mine, ...data.team] : [];
-    const active = all.find((view) => sameListState(current, view)) ?? null;
+    const active = all.find((view) => sameListState(current, columns, view)) ?? null;
 
     const refreshAfterMutation = () => {
         load();
@@ -184,6 +186,7 @@ export default function SavedViewPicker({ resourceType, current }: SavedViewPick
                 resourceType={resourceType}
                 base={base}
                 current={current}
+                columns={columns}
                 canCreateTeam={data?.can.createTeam ?? false}
                 onClose={() => setSaveDialogOpen(false)}
                 onSaved={() => {
@@ -219,7 +222,7 @@ export default function SavedViewPicker({ resourceType, current }: SavedViewPick
     );
 }
 
-function sameListState(current: ListState, view: SavedViewSummary): boolean {
+function sameListState(current: ListState, columns: string[], view: SavedViewSummary): boolean {
     if (current.sort !== view.sort) {
         return false;
     }
@@ -231,7 +234,13 @@ function sameListState(current: ListState, view: SavedViewSummary): boolean {
         return false;
     }
 
-    return currentKeys.every((key) => current.filter[key] === view.filter[key]);
+    if (!currentKeys.every((key) => current.filter[key] === view.filter[key])) {
+        return false;
+    }
+
+    // Selector de coloane (§15.1) — „activă" înseamnă TOATĂ starea identică, inclusiv
+    // ordinea coloanelor, nu doar filtrele/sortarea.
+    return columns.length === view.columns.length && columns.every((key, index) => key === view.columns[index]);
 }
 
 interface SavedViewGroupProps {
@@ -303,6 +312,7 @@ interface SaveViewDialogProps {
     resourceType: string;
     base: string;
     current: ListState;
+    columns: string[];
     canCreateTeam: boolean;
     onClose: () => void;
     onSaved: () => void;
@@ -313,7 +323,7 @@ interface SaveViewDialogProps {
  * al paginii, deja canonic (`ListQuery::toArray()`), afișat aici doar ca REZUMAT — serverul
  * revalidează totul prin `ResourceList::fromState()` la salvare (§ StoreSavedViewRequest).
  */
-function SaveViewDialog({ open, resourceType, base, current, canCreateTeam, onClose, onSaved }: SaveViewDialogProps) {
+function SaveViewDialog({ open, resourceType, base, current, columns, canCreateTeam, onClose, onSaved }: SaveViewDialogProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const [name, setName] = useState('');
@@ -349,6 +359,7 @@ function SaveViewDialog({ open, resourceType, base, current, canCreateTeam, onCl
                 visibility,
                 filter: current.filter,
                 sort: current.sort,
+                columns,
             });
             onSaved();
         } catch (caught) {
@@ -392,12 +403,24 @@ function SaveViewDialog({ open, resourceType, base, current, canCreateTeam, onCl
                     <legend className="text-sm font-medium text-text">Visibility</legend>
                     <div className="mt-1 flex flex-col gap-1 text-sm">
                         <label className="flex items-center gap-2">
-                            <input type="radio" name="visibility" checked={visibility === 'private'} onChange={() => setVisibility('private')} />
+                            <input
+                                type="radio"
+                                name="visibility"
+                                checked={visibility === 'private'}
+                                onChange={() => setVisibility('private')}
+                                className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                            />
                             Private — only you
                         </label>
                         {canCreateTeam && (
                             <label className="flex items-center gap-2">
-                                <input type="radio" name="visibility" checked={visibility === 'team'} onChange={() => setVisibility('team')} />
+                                <input
+                                    type="radio"
+                                    name="visibility"
+                                    checked={visibility === 'team'}
+                                    onChange={() => setVisibility('team')}
+                                    className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                                />
                                 Team — everyone in this workspace
                             </label>
                         )}

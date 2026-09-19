@@ -8,6 +8,7 @@ use App\Http\Requests\SavedViews\UpdateSavedViewRequest;
 use App\Http\Resources\SavedViews\SavedViewResource;
 use App\Models\SavedView;
 use App\Models\SavedViewDefault;
+use App\Support\SavedViews\ListColumns;
 use App\Support\SavedViews\SavedViewResourceType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -82,12 +83,18 @@ final class SavedViewController extends Controller
         // deschide linkul mai târziu) să supraviețuiască partajării.
         $filters = $list->pinRoleDependentFiltersForSharing($listQuery['filter']);
 
+        // Selector de coloane (specs.md §15.1) — scrie starea CURENTĂ a ecranului
+        // (`ColumnSelector`/`useListColumns`), validată prin ACEEAȘI sanitizare ca un
+        // `?columns=` de pe URL, nu `defaultColumns()`: altfel un utilizator care a ascuns
+        // o coloană și salvează vederea ar primi-o înapoi vizibilă la fiecare deschidere.
+        $columns = ListColumns::fromState($request->validated('columns'), $resourceType);
+
         $savedView = new SavedView([
             'resource_type' => $resourceType,
             'name' => $request->validated('name'),
             'filters' => $filters,
             'sort' => $listQuery['sort'],
-            'columns' => SavedViewResourceType::defaultColumns($resourceType),
+            'columns' => $columns,
             'visibility' => $request->validated('visibility'),
         ]);
         $savedView->user_id = $request->user()->getKey();
@@ -127,8 +134,12 @@ final class SavedViewController extends Controller
 
         $list = SavedViewResourceType::list($savedView->resource_type);
         $listQuery = $list->fromState(['filter' => $savedView->filters, 'sort' => $savedView->sort]);
+        $columns = ListColumns::fromState($savedView->columns, $savedView->resource_type);
 
-        return redirect()->route(SavedViewResourceType::routeName($savedView->resource_type), $listQuery->toArray());
+        return redirect()->route(SavedViewResourceType::routeName($savedView->resource_type), [
+            ...$listQuery->toArray(),
+            'columns' => ListColumns::toQueryValue($columns),
+        ]);
     }
 
     /**

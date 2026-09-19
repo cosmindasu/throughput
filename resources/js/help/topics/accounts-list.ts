@@ -20,6 +20,7 @@ const accountsList: HelpTopic = {
         'Search by account name, filter by "Status" and sort by name or newest.',
         'Use the "Owner" filter to see "My accounts", "All accounts", "Unassigned" accounts or one teammate\'s accounts.',
         'Open "Views" to apply a saved view, "Save view" to keep the current filters, or "☆ Set default" to open the list on that view.',
+        'Open "Columns" to show, hide or reorder the optional columns (Owner, Status, Created) with checkboxes and "Move up"/"Move down" — the account name column always stays, and a saved view remembers your choice.',
         'Download the filtered list with "Export CSV", even without edit rights.',
         'Create an account with "New account", or change one from its "Edit" link.',
         'Select several accounts with the checkboxes — or "Select all N matching this filter" — and reassign them to a new owner in one action, from the bar that appears once you\'ve picked at least one.',
