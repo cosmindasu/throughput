@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\SentEmail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,6 +42,12 @@ class SettingsController extends Controller
                 // Owner, Manager, Viewer — nu Agent (matricea §7.4: Agent are „—" pe
                 // configurarea de pipeline/etape, Viewer are „R").
                 'pipeline' => $user->can('pipelines.view'),
+
+                // BR-DEMO-02, specs.md §22.3 — jurnalul „Sent Emails". Gardă pe
+                // `sent_emails.view` (Owner/Manager), NU `settings.view` (au și
+                // Agent/Viewer): conținutul complet al fiecărui email e un nivel de acces
+                // diferit de „poate deschide Settings" — vezi App\Policies\SentEmailPolicy.
+                'sentEmails' => $user->can('viewAny', SentEmail::class),
 
                 // Mereu true — BR-PREF-02: comutarea temei nu e o acțiune de scriere de
                 // business, disponibilă tuturor rolurilor. Cheie explicită (nu omisă),

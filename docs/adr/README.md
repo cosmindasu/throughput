@@ -27,6 +27,7 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-017](ADR-017-reset-demo-ca-job-pe-horizon.md) | Resetul zilnic al demo-ului rulează ca job pe Horizon, nu în containerul `scheduler` | Accepted | 2026-09-13 | Faza 2 |
 | [ADR-018](ADR-018-cautare-sub-rls-fara-index-trigram.md) | Căutarea globală sub RLS filtrează pe rândurile tenantului, fără indexuri GIN trigram | Accepted | 2026-09-13 | Faza 2 |
 | [ADR-019](ADR-019-export-pdf-liste-dompdf-nu-chromium.md) | Exportul PDF de listă (Orders) cu DomPDF, nu cu Chromium în imagine | Accepted | 2026-09-14 | Faza 3 |
+| [ADR-020](ADR-020-politica-rls-proprie-pentru-jurnalul-de-email.md) | Politică RLS proprie pentru jurnalul de email, cu tenant opțional | Accepted | 2026-09-19 | Faza 4 |
 
 ## Convenții
 

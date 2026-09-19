@@ -626,6 +626,7 @@ export interface SettingsSectionPermissions {
     apiTokens: boolean;
     pipeline: boolean;
     preferences: boolean;
+    sentEmails: boolean;
 }
 
 export interface SettingsIndexPageProps {
@@ -636,6 +637,39 @@ export interface SettingsIndexPageProps {
 // Settings/Preferences — rândul de temă vine din props comune (`auth.user.theme`,
 // `theme`), nimic specific paginii încă.
 export interface SettingsPreferencesPageProps {
+    [key: string]: unknown;
+}
+
+// Settings/SentEmails/Index — App\Http\Resources\Settings\SentEmailResource, BR-DEMO-02,
+// specs.md §22.3. Un rând per email văzut de `App\Mail\Transport\DemoInterceptingTransport`.
+export type SentEmailStatus = 'delivered' | 'intercepted' | 'partial' | 'failed';
+
+export interface SentEmailRecipient {
+    type: 'to' | 'cc' | 'bcc';
+    address: string;
+    name: string | null;
+    allowed: boolean;
+}
+
+export interface SentEmailRow {
+    id: string;
+    mailer: string;
+    status: SentEmailStatus;
+    subject: string;
+    fromAddress: string | null;
+    fromName: string | null;
+    recipients: SentEmailRecipient[];
+    // Corp REDACTAT la scriere (App\Support\Mail\SentEmailRedactor) — niciodată brut.
+    htmlBody: string | null;
+    textBody: string | null;
+    redacted: boolean;
+    createdAt: string;
+}
+
+export interface SentEmailsIndexPageProps {
+    sentEmails: CursorPage<SentEmailRow>;
+    list: ListState;
+    statuses: SentEmailStatus[];
     [key: string]: unknown;
 }
 
@@ -1002,6 +1036,201 @@ export interface BulkOperationGroupPayload {
 
 export interface BulkGroupShowPageProps {
     group: BulkOperationGroupPayload;
+    [key: string]: unknown;
+}
+
+// ── Rapoarte și livrare programată — specs.md §16, plan §10, lotul K din Faza 4 ──
+// Mirror manual al `App\Http\Resources\Reports\ReportDefinitionResource`/`ReportRunResource`.
+
+export type ReportFormat = 'csv' | 'xlsx' | 'pdf';
+export type ReportScheduleFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+export type ReportRunStatus = 'queued' | 'running' | 'success' | 'failed';
+export type ReportTriggeredBy = 'scheduler' | 'manual';
+
+export interface ReportSavedViewRef {
+    id: string;
+    name: string;
+    resourceType: string;
+}
+
+// App\Http\Resources\Reports\ReportRunResource — istoricul de rulări (FR-REP-01).
+export interface ReportRunRow {
+    id: string;
+    status: ReportRunStatus;
+    triggeredBy: ReportTriggeredBy;
+    startedAt: string | null;
+    finishedAt: string | null;
+    rowCount: number | null;
+    errorMessage: string | null;
+    hasFile: boolean;
+}
+
+// App\Http\Resources\Reports\ReportDefinitionResource — Reports/Index și Reports/Show.
+export interface ReportDefinitionRow {
+    id: string;
+    name: string;
+    reportType: string;
+    isBuiltIn: boolean;
+    sourceLabel: string;
+    savedView: ReportSavedViewRef | null;
+    format: ReportFormat;
+    scheduleFrequency: ReportScheduleFrequency;
+    scheduleTime: string | null;
+    scheduleDay: number | null;
+    recipients: string[];
+    isActive: boolean;
+    createdBy: string | null;
+    lastRun: ReportRunRow | null;
+    canUpdate: boolean;
+    canDelete: boolean;
+    canRunNow: boolean;
+}
+
+export interface ReportBuiltInOption {
+    value: string;
+    label: string;
+}
+
+export interface ReportsIndexPageProps {
+    reports: ReportDefinitionRow[];
+    can: {
+        create: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface ReportsCreatePageProps {
+    savedViews: SavedViewSummary[];
+    builtInReports: ReportBuiltInOption[];
+    [key: string]: unknown;
+}
+
+export interface ReportsEditPageProps {
+    report: ReportDefinitionRow;
+    savedViews: SavedViewSummary[];
+    builtInReports: ReportBuiltInOption[];
+    [key: string]: unknown;
+}
+
+// App\Http\Controllers\Web\Reports\ReportController::builtInPreview() — US-REP-02,
+// rezultatul sincron randat direct în `Reports/Show`, plafonat (vezi docblock-ul PHP).
+export interface ReportBuiltInPreview {
+    columns: string[];
+    rows: Array<Array<string | number | null>>;
+    totalRows: number;
+    truncated: boolean;
+    // Fix P1 (review) — `true` când raportul expune date derivate din `variants.cost` și
+    // utilizatorul curent n-are `Permissions::canViewCost()` (Agent/Viewer destinatar).
+    // `columns`/`rows` sunt goale în acel caz — randează un motiv, nu un tabel gol.
+    hiddenForCost: boolean;
+}
+
+export interface ReportsShowPageProps {
+    report: ReportDefinitionRow;
+    runs: ReportRunRow[];
+    builtInPreview: ReportBuiltInPreview | null;
+    can: {
+        update: boolean;
+        delete: boolean;
+        runNow: boolean;
+        download: boolean;
+    };
+    [key: string]: unknown;
+}
+
+// ── Import CSV — specs.md §14, plan §10 ──────────────────────────────────────────
+// Flux în 4 pași (Upload → Mapare → Probă uscată → Commit → Raport), un singur ecran
+// (`Imports/Show`) cu stări succesive pe `import.status`.
+
+export type ImportStatus =
+    | 'uploaded'
+    | 'mapped'
+    | 'validating'
+    | 'validated'
+    | 'importing'
+    | 'completed'
+    | 'completed_with_errors'
+    | 'failed';
+
+export type ImportResourceType = 'accounts' | 'contacts' | 'products' | 'variants';
+
+// App\Http\Resources\Imports\ImportResource.
+export interface ImportSummary {
+    id: string;
+    resourceType: ImportResourceType;
+    resourceLabel: string;
+    originalFilename: string;
+    status: ImportStatus;
+    totalRows: number | null;
+    validRows: number | null;
+    errorRows: number | null;
+    columnMapping: Record<string, string | null> | null;
+    createdBy?: { id: string; name: string };
+    createdAt: string | null;
+    completedAt: string | null;
+}
+
+export interface ImportsIndexPageProps {
+    imports: ImportSummary[];
+    can: {
+        create: boolean;
+    };
+    [key: string]: unknown;
+}
+
+export interface ImportResourceOption {
+    value: ImportResourceType;
+    label: string;
+}
+
+export interface ImportsCreatePageProps {
+    resources: ImportResourceOption[];
+    limits: {
+        maxFileMb: number;
+        maxRows: number;
+    };
+    [key: string]: unknown;
+}
+
+// Un câmp țintă al resursei (`App\Support\Imports\ImportField`), pentru ecranul de mapare.
+export interface ImportFieldDefinition {
+    key: string;
+    label: string;
+    required: boolean;
+}
+
+export type ImportMappingConfidence = 'high' | 'medium' | 'low' | 'none';
+
+// App\Support\Imports\ColumnMappingSuggester::suggest() — US-IMP-02, un indicator de
+// încredere per coloană a fișierului încărcat.
+export interface ImportMappingSuggestion {
+    header: string;
+    field: string | null;
+    confidence: ImportMappingConfidence;
+    score: number;
+}
+
+// App\Http\Resources\Imports\ImportRowResource — tabelul de erori al probei uscate.
+export interface ImportRowError {
+    rowNumber: number;
+    errors: Array<{ field: string; message: string }>;
+}
+
+export interface ImportsShowPageProps {
+    import: ImportSummary;
+    fields: ImportFieldDefinition[];
+    // Prezente DOAR cât timp `import.status === 'uploaded'` (Pasul 2, mapare).
+    headers: string[] | null;
+    mappingSuggestions: ImportMappingSuggestion[] | null;
+    // Prezente din `validating` încolo — `null` înainte de prima probă uscată.
+    invalidRows: ImportRowError[] | null;
+    invalidRowsTruncated: boolean;
+    templateUrl: string;
+    errorReportUrl: string | null;
+    can: {
+        manage: boolean;
+        cancel: boolean;
+    };
     [key: string]: unknown;
 }
 

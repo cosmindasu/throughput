@@ -99,6 +99,15 @@ final class Permissions
             'payments' => ['payments.view', 'payments.create'],
             'bulk' => ['bulk.write', 'bulk.export'],
             'imports' => ['imports.view', 'imports.create'],
+            // BR-DEMO-02, §22.3 — jurnalul „Sent Emails" din Settings. Permisiune SEPARATĂ,
+            // nu o reutilizare a lui `activity_log.view`: precedentul e `unassigned.view`
+            // (mai sus), despărțit deliberat de `members.view` fiindcă „cele două ecrane pot
+            // diverge mai târziu". Aici diferența e deja reală, nu ipotetică — jurnalul de
+            // activitate spune CINE a schimbat CE, jurnalul de email păstrează CONȚINUTUL
+            // COMPLET al mesajelor, inclusiv ale unor fluxuri fără legătură cu vreo
+            // modificare de business. Intră la Owner/Manager prin `all()`/`array_diff()`,
+            // ca restul rândurilor rezervate lor.
+            'sent_emails' => ['sent_emails.view'],
             'saved_views' => ['saved_views.manage_own', 'saved_views.view_team', 'saved_views.manage_team'],
             'reports' => ['reports.view', 'reports.manage'],
             'activity_log' => ['activity_log.view', 'activity_log.view_own'],

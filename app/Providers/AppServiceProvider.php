@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Mail\InterceptingMailManager;
 use App\Models\Tenant;
 use App\Support\Members\DeactivatedMemberIds;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -21,6 +22,23 @@ class AppServiceProvider extends ServiceProvider
         // un al doilea `app(DeactivatedMemberIds::class)` ar crea o instanță nouă, cu
         // propriul cache gol, chiar în aceeași cerere.
         $this->app->scoped(DeactivatedMemberIds::class);
+
+        // BR-DEMO-02, specs.md §22.3, plan §10 — decorează ORICE mailer cu interceptarea de
+        // demo (`App\Mail\Transport\DemoInterceptingTransport`), indiferent de driverul
+        // configurat (`log` local, `resend` în producție — ADR-009).
+        //
+        // `extend()`, NU `singleton()`: `Illuminate\Mail\MailServiceProvider` implementează
+        // `DeferrableProvider` — se încarcă abia la PRIMA rezolvare a `mail.manager`/`mailer`,
+        // moment în care `Application::registerDeferredProvider()` re-leagă binding-ul
+        // NECONDIȚIONAT (verificat în sursă), suprascriind orice `singleton()` pus aici mai
+        // devreme, în `register()`, ÎNAINTE ca ceva să fi cerut vreodată mail-ul. Un
+        // `extend()` nu are această problemă: extenderele unui container se aplică DUPĂ
+        // rezolvare, indiferent cine a legat binding-ul ultimul — robust la ordinea de
+        // încărcare a providerilor amânați.
+        $this->app->extend(
+            'mail.manager',
+            fn (): InterceptingMailManager => new InterceptingMailManager($this->app),
+        );
 
         // Billable e TENANTUL, nu utilizatorul (ADR-006): abonamentul e al organizației
         // și nu trebuie să dispară când pleacă persoana care a introdus cardul.

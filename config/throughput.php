@@ -85,6 +85,13 @@ return [
         // deci valoarea veche rămâne nesigură chiar și după fix.
         'export_pdf_max_rows' => (int) env('EXPORT_PDF_MAX_ROWS', 250),
 
+        // §22.3 — retenția jurnalului „Sent Emails". Cât timp `DEMO_MODE=true`, `demo:reset`
+        // golește oricum tabela în fiecare noapte; jobul zilnic de purjare e plasa de
+        // siguranță pentru un reset picat (`ResetDemoDataJob` are `tries=1`), nu mecanismul
+        // principal. Aceeași valoare ca retenția exporturilor, din același motiv (§20.5):
+        // jurnalul păstrează conținutul complet al mesajelor, deci e date personale.
+        'sent_email_retention_days' => (int) env('SENT_EMAIL_RETENTION_DAYS', 7),
+
         // FR-GDPR-01 (specs.md §20.5): link de descărcare valabil 7 zile. Aceeași valoare
         // pentru exportul de listă (`bulk_operations`, §13.2) — `PruneExpiredExportsJob`
         // (plan §7.2) golește `result_path` peste acest prag; fișierul dispare de pe disc.

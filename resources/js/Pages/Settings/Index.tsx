@@ -53,6 +53,12 @@ const SECTIONS: SettingsSection[] = [
         description: 'Theme and other personal preferences.',
         href: (w) => `/${w}/settings/preferences`,
     },
+    {
+        key: 'sentEmails',
+        title: 'Sent Emails',
+        description: 'Every transactional email the public demo tried to send — delivered or intercepted (§22.3).',
+        href: (w) => `/${w}/settings/sent-emails`,
+    },
 ];
 
 /**

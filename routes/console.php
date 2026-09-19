@@ -2,6 +2,7 @@
 
 use App\Jobs\System\FailStuckBulkOperationsJob;
 use App\Jobs\System\PruneExpiredExportsJob;
+use App\Jobs\System\PruneSentEmailsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
 use Illuminate\Foundation\Inspiring;
@@ -46,3 +47,11 @@ Schedule::command('queue:prune-batches')->daily();
 // întârzierea maximă vizibilă sub o treime din prag, cu o interogare îngustă, indexată,
 // per tenant — cost neglijabil pe bugetul de memorie al scheduler-ului (ADR-017).
 Schedule::job(new FailStuckBulkOperationsJob, 'default')->everyFiveMinutes();
+
+// §22.3 (lotul L din Faza 4) — retenția jurnalului „Sent Emails". Fără `when()`, ca la
+// `PruneExpiredExportsJob`: jurnalul există doar cât timp DEMO_MODE=true, dar dacă demo-ul
+// se oprește, rândurile deja scrise tot trebuie să expire. Cât timp resetul de noapte merge,
+// el golește oricum tabela — jobul ăsta e plasa de siguranță pentru un reset picat
+// (`ResetDemoDataJob` are `tries=1`), nu mecanismul principal.
+Schedule::job(new PruneSentEmailsJob, 'default')->daily();
+
