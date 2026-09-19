@@ -5,6 +5,7 @@ namespace App\Http\Resources\Products;
 use App\Models\InventoryLevel;
 use App\Models\Variant;
 use App\Support\Permissions;
+use App\Support\Stock\LowStockRule;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,9 +16,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * pentru rolurile fără drept, nu doar o randează `null` — un `null` tot ar confirma
  * existența câmpului, plus ar cere clientului să distingă „ascuns" de „fără cost".
  *
- * `onHand`/`reserved`/`available` apar DOAR când `inventoryLevels` a fost încărcată
- * explicit (`whenLoaded`) — un rând din `Products/Show` le vrea, un rând dintr-un
+ * `onHand`/`reserved`/`available`/`isLowStock` apar DOAR când `inventoryLevels` a fost
+ * încărcată explicit (`whenLoaded`) — un rând din `Products/Show` le vrea, un rând dintr-un
  * dropdown de selecție de variantă (alt pachet) nu are motiv să plătească suma.
+ * `lowStockThreshold` (FR-STOCK-02) e mereu prezent — nu e sensibil ca `cost`, iar
+ * formularul de editare are nevoie de el chiar și fără niveluri încărcate.
  *
  * @mixin Variant
  */
@@ -30,6 +33,9 @@ class VariantResource extends JsonResource
     {
         $user = $request->user();
         $levels = $this->whenLoaded('inventoryLevels');
+        $available = $levels instanceof Collection
+            ? $levels->sum(fn (InventoryLevel $level) => $level->available())
+            : null;
 
         return [
             'id' => $this->id,
@@ -45,9 +51,11 @@ class VariantResource extends JsonResource
             'isActive' => (bool) $this->is_active,
             'onHand' => $this->when($levels instanceof Collection, fn () => $levels->sum('on_hand')),
             'reserved' => $this->when($levels instanceof Collection, fn () => $levels->sum('reserved')),
-            'available' => $this->when(
+            'available' => $this->when($levels instanceof Collection, fn () => $available),
+            'lowStockThreshold' => $this->low_stock_threshold,
+            'isLowStock' => $this->when(
                 $levels instanceof Collection,
-                fn () => $levels->sum(fn (InventoryLevel $level) => $level->available()),
+                fn () => LowStockRule::isLow($this->low_stock_threshold, $available, (bool) $this->is_active),
             ),
             'createdAt' => $this->created_at?->toIso8601String(),
         ];

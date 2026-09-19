@@ -5,6 +5,7 @@ namespace App\Support\Lists;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\ListQuery;
+use App\Support\Stock\LowStockRule;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -38,9 +39,17 @@ final class ProductList extends ResourceList
         };
     }
 
+    /**
+     * `lowStockVariantsCount` (FR-STOCK-02, task brief punctul 4) — subinterogare agregată
+     * CORELATĂ pe `variants.product_id = products.id`, calculată în ACEEAȘI interogare de
+     * listă, fără `withCount`/N+1 și fără încărcarea variantelor în PHP. Regula „low" e
+     * scrisă o singură dată, în `App\Support\Stock\LowStockRule`.
+     */
     protected function baseQuery(): Builder
     {
-        return Product::query()->withCount('variants');
+        return Product::query()
+            ->withCount('variants')
+            ->addSelect(['low_stock_variants_count' => LowStockRule::lowVariantsCountSubquery()]);
     }
 
     protected function applyFilters(Builder $query, ListQuery $list, User $user): void

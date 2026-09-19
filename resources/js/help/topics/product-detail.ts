@@ -18,6 +18,7 @@ const productDetail: HelpTopic = {
         'Only Owner and Manager can create, edit or delete products and variants — Agent and Viewer see the same screen read-only, with no "Edit", "Add variant" or "Delete".',
         "A variant's cost (and therefore its margin) is never sent to Agent or Viewer accounts — not just hidden in the layout, removed from the data the page receives.",
         "Deleting a product or a variant is refused, with a plain-language reason, once it has recorded stock movements or has been used on an order — that history is never silently dropped.",
+        'A "Low stock" badge appears next to a variant once its available quantity drops below the threshold set on it (see "Variant") — a variant without a threshold never shows it.',
     ],
     howItsBuilt: {
         summary:

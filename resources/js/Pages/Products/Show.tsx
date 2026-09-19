@@ -67,6 +67,9 @@ export default function Show() {
                                         <th scope="col" className="px-4 py-2 font-medium">Price</th>
                                         {can.edit && <th scope="col" className="px-4 py-2 font-medium">Cost</th>}
                                         <th scope="col" className="px-4 py-2 font-medium">Available</th>
+                                        <th scope="col" className="px-4 py-2 font-medium">
+                                            <span className="sr-only">Low stock</span>
+                                        </th>
                                         <th scope="col" className="px-4 py-2 font-medium">Status</th>
                                         <th scope="col" className="px-4 py-2 font-medium">
                                             <span className="sr-only">Actions</span>
@@ -85,6 +88,9 @@ export default function Show() {
                                             )}
                                             <td className="px-4 py-2.5 tabular-nums text-text-2">
                                                 {variant.available !== undefined ? variant.available : '—'}
+                                            </td>
+                                            <td className="px-4 py-2.5">
+                                                {variant.isLowStock && <StatusBadge tone="warning">Low stock</StatusBadge>}
                                             </td>
                                             <td className="px-4 py-2.5">
                                                 <StatusBadge tone={variant.isActive ? 'success' : 'neutral'}>

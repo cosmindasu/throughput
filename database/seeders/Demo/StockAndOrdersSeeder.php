@@ -9,6 +9,7 @@ use App\Models\Shipment;
 use App\Models\ShipmentLine;
 use App\Models\StockMovement;
 use App\Models\Tenant;
+use App\Models\Variant;
 use Database\Factories\InventoryLevelFactory;
 use Database\Factories\OrderFactory;
 use Database\Factories\OrderLineFactory;
@@ -454,12 +455,38 @@ final class StockAndOrdersSeeder
         $factory = new InventoryLevelFactory;
         $now = Carbon::now();
 
+        // FR-STOCK-02 — praguri de „low stock" pe un subset realist de variante, deduse
+        // DUPĂ ce disponibilul final e cunoscut (nu la creare, în `CatalogSeeder`, unde
+        // stocul încă nu există): variant_id => prag ales mai jos.
+        $lowStockThresholds = [];
+
         foreach ($variants as $variant) {
             $variantId = $variant['id'];
+            $locations = $stockPool[$variantId] ?? [];
 
-            foreach ($stockPool[$variantId] ?? [] as $locationId => $onHand) {
+            $onHandAtMain = max(0, $locations[$mainLocation] ?? 0);
+            $reservedAtMain = min($reservedByVariant[$variantId] ?? 0, $onHandAtMain);
+            $available = max(0, array_sum(array_map(fn (int $qty) => max(0, $qty), $locations)) - $reservedAtMain);
+
+            // ~15% dintre variante primesc un prag (restul rămân `null` — fără alertă,
+            // BR implicit al FR-STOCK-02). Dintre acestea, o treime e setată DELIBERAT
+            // peste disponibilul curent, ca alerta „Low stock" să apară efectiv pe câteva
+            // produse pe seed; restul sub disponibil — prag configurat, stoc sănătos.
+            //
+            // P3, code review — la `$available === 0`, ramura „sănătos" ar calcula
+            // `max(1, intdiv(0, N)) = 1`, adică exact un prag peste disponibil (0 < 1 =
+            // low), contrazicând comentariul de mai sus. O variantă fără NIMIC pe stoc nu
+            // poate primi un prag „sănătos" — orice prag nenul o face low prin construcție
+            // — deci ramura low se alege EXPLICIT pentru ea, nu doar aleatoriu.
+            if (Rand::bool(15)) {
+                $lowStockThresholds[$variantId] = $available === 0 || Rand::bool(33)
+                    ? $available + random_int(5, 25)
+                    : max(1, intdiv($available, random_int(4, 10)));
+            }
+
+            foreach ($locations as $locationId => $onHand) {
                 $onHand = max(0, $onHand);
-                $reserved = $locationId === $mainLocation ? min($reservedByVariant[$variantId] ?? 0, $onHand) : 0;
+                $reserved = $locationId === $mainLocation ? $reservedAtMain : 0;
 
                 $row = $factory->definition();
                 $row['id'] = DemoId::next();
@@ -475,5 +502,23 @@ final class StockAndOrdersSeeder
         }
 
         $writer->flush();
+
+        $this->applyLowStockThresholds($lowStockThresholds);
+    }
+
+    /**
+     * `low_stock_threshold` nu vine dintr-un factory de `stock_movements` (nu e o mișcare,
+     * FR-STOCK-02) — se scrie direct pe `variants`, în tranzacția per-tenant deja deschisă
+     * de apelant (`TenantContext::run`). Volum mic (~15% din variantele unui tenant, cel
+     * mult câteva sute), deci `update()` individual e suficient — fără nevoie de
+     * `ChunkedWriter`.
+     *
+     * @param  array<string, int>  $thresholds  variant_id => prag
+     */
+    private function applyLowStockThresholds(array $thresholds): void
+    {
+        foreach ($thresholds as $variantId => $threshold) {
+            Variant::query()->whereKey($variantId)->update(['low_stock_threshold' => $threshold]);
+        }
     }
 }

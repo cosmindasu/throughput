@@ -484,13 +484,17 @@ export interface ProductRow {
     unitOfMeasure: UnitOfMeasure;
     isActive: boolean;
     variantsCount: number;
+    // FR-STOCK-02 — subinterogare agregată în ProductList::baseQuery(), nu un withCount
+    // separat (App\Support\Stock\LowStockRule). Afișarea pe listă e a lotului D.
+    lowStockVariantsCount: number;
     createdAt: string | null;
 }
 
-// App\Http\Resources\Products\VariantResource — `cost`/`onHand`/`reserved`/`available`
-// sunt câmpuri OPȚIONALE, nu `| null`: lipsesc din JSON (nu apar deloc), nu sunt `null`.
-// `cost` lipsește pentru Agent/Viewer (§7.4, `Permissions::canViewCost()`); celelalte
-// trei lipsesc când `inventoryLevels` n-a fost încărcată pe rândul cerut.
+// App\Http\Resources\Products\VariantResource — `cost`/`onHand`/`reserved`/`available`/
+// `isLowStock` sunt câmpuri OPȚIONALE, nu `| null`: lipsesc din JSON (nu apar deloc), nu
+// sunt `null`. `cost` lipsește pentru Agent/Viewer (§7.4, `Permissions::canViewCost()`);
+// celelalte patru lipsesc când `inventoryLevels` n-a fost încărcată pe rândul cerut.
+// `lowStockThreshold` (FR-STOCK-02) e mereu prezent — nu e sensibil ca `cost`.
 export interface VariantRow {
     id: string;
     productId: string;
@@ -503,6 +507,8 @@ export interface VariantRow {
     onHand?: number;
     reserved?: number;
     available?: number;
+    lowStockThreshold: number | null;
+    isLowStock?: boolean;
     createdAt: string | null;
 }
 

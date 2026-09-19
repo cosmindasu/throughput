@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
+import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
 import type { StockShowPageProps } from '@/types/generated';
 
@@ -23,6 +24,14 @@ export default function Show() {
             <div className="flex flex-col gap-6">
                 <PageHeader
                     title={`Stock — ${variant.sku}`}
+                    description={
+                        variant.isLowStock ? (
+                            <span className="flex items-center gap-2">
+                                <StatusBadge tone="warning">Low stock</StatusBadge>
+                                <span>Available is below the threshold of {variant.lowStockThreshold}.</span>
+                            </span>
+                        ) : undefined
+                    }
                     actions={
                         <ButtonLink href={`${base}/variants/${variant.id}/stock/history`}>View history</ButtonLink>
                     }

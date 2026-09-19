@@ -16,6 +16,7 @@ interface VariantFormData {
     cost: string;
     weight: string;
     is_active: boolean;
+    low_stock_threshold: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
         cost: variant?.cost !== undefined ? String(variant.cost) : '',
         weight: variant?.weight !== null && variant?.weight !== undefined ? String(variant.weight) : '',
         is_active: variant?.isActive ?? true,
+        low_stock_threshold: variant?.lowStockThreshold !== null && variant?.lowStockThreshold !== undefined ? String(variant.lowStockThreshold) : '',
     });
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -95,6 +97,24 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                             className={controlClass}
                             value={data.weight}
                             onChange={(event) => setData('weight', event.target.value)}
+                        />
+                    )}
+                </Field>
+
+                <Field
+                    label="Low stock threshold"
+                    error={errors.low_stock_threshold}
+                    hint="Optional. Shows a Low stock indicator when available drops below this number — leave empty for no alert."
+                >
+                    {(control) => (
+                        <input
+                            {...control}
+                            type="number"
+                            step="1"
+                            min="0"
+                            className={controlClass}
+                            value={data.low_stock_threshold}
+                            onChange={(event) => setData('low_stock_threshold', event.target.value)}
                         />
                     )}
                 </Field>

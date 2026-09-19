@@ -236,8 +236,44 @@ class ExplainCriticalQueries extends Command
             'stock_movements — istoric per variantă (FR-STOCK-03)' => [
                 'select * from stock_movements where variant_id = (select id from variants limit 1) order by created_at desc limit 50', [],
             ],
+            // Vederea `Products/Index` (`ProductList::baseQuery()`): `variants_count` și
+            // `low_stock_variants_count` (FR-STOCK-02, App\Support\Stock\LowStockRule) sunt
+            // subinterogări CORELATE pe `variants.product_id = products.id`, per rând de
+            // produs. Fără `variants(tenant_id, product_id)` (migrația
+            // `2026_09_14_150000_add_product_id_index_to_variants_table`), ambele scanau
+            // toate variantele tenantului per produs — măsurat, 65,6 ms pe pagina implicită
+            // de 50 de produse Marlin, `Rows Removed by Filter: 735` per produs.
+            'products — listă, cu numărul de variante low stock (FR-STOCK-02)' => [
+                'select products.*,
+                    (select count(*) from variants where variants.product_id = products.id) as variants_count,
+                    (select count(*) from variants where variants.product_id = products.id
+                        and variants.is_active = true and variants.low_stock_threshold is not null
+                        and (select coalesce(sum(inventory_levels.on_hand - inventory_levels.reserved), 0)
+                             from inventory_levels where inventory_levels.variant_id = variants.id) < variants.low_stock_threshold
+                    ) as low_stock_variants_count
+                    from products order by name asc, id asc limit 50', [],
+            ],
             'orders — listă filtrată pe status (FR-ORD-02)' => [
                 'select * from orders where status = ? order by created_at desc limit 50', ['confirmed'],
+            ],
+            // Vederea IMPLICITĂ a `OrderList` pentru Owner/Manager: `defaultSort()` =
+            // `-created_at`, FĂRĂ filtru de status (`defaultFilters()` întoarce `[]` — doar
+            // Agentul primește `owner=me`). Indexul `(tenant_id, status, created_at)` de mai
+            // sus nu o servește: ordonează DUPĂ status înăuntrul tenantului, deci sortarea pe
+            // `created_at` peste toate statusurile nu poate citi indexul în ordine. Migrația
+            // `2026_09_14_120000_add_created_at_index_to_orders_table` adaugă
+            // `(tenant_id, created_at)` exact pentru acest caz (plan §17, intrarea 1.24).
+            'orders — vedere implicită, fără filtru de status (plan §17, 1.24)' => [
+                'select * from orders order by created_at desc limit 50', [],
+            ],
+            // P2-005 (review general) — jumătatea `orders` a indicatorului „Unassigned"
+            // din navigație (`App\Support\Members\UnassignedRecordsCounter`, FR-TEN-05),
+            // calculată per cerere pentru orice Owner/Manager. Migrația
+            // `2026_09_14_170000_add_owner_user_id_index_to_orders_table` adaugă
+            // `(tenant_id, owner_user_id)`, simetric cu indexul deja existent pe `deals`.
+            'orders — indicator Unassigned (FR-TEN-05, P2-005)' => [
+                "select count(*) from orders where status in ('draft', 'confirmed', 'partially_fulfilled')
+                    and owner_user_id not in (select user_id from memberships where status = 'active')", [],
             ],
             'invoices — raport „Overdue invoices"' => [
                 'select * from invoices where status = ? order by due_date limit 50', ['overdue'],

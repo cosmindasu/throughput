@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['product_id', 'sku', 'attributes', 'price', 'cost', 'weight', 'is_active'])]
+#[Fillable(['product_id', 'sku', 'attributes', 'price', 'cost', 'weight', 'is_active', 'low_stock_threshold'])]
 class Variant extends Model
 {
     use BelongsToTenant, HasUlids;
@@ -22,6 +22,7 @@ class Variant extends Model
             'cost' => 'decimal:2',
             'weight' => 'decimal:3',
             'is_active' => 'boolean',
+            'low_stock_threshold' => 'integer',
         ];
     }
 

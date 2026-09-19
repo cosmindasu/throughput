@@ -39,6 +39,8 @@ final class StoreVariantRequest extends FormRequest
             'cost' => ['required', 'numeric', 'min:0'],
             'weight' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
+            // FR-STOCK-02 — `null` = fără alertă, nu 0 implicit (App\Support\Stock\LowStockRule).
+            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
