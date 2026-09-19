@@ -44,7 +44,7 @@ const WEEKDAYS = [
  * needitabilă, dar valorile ei circulă tot prin `useForm` (necesare la `put()`).
  */
 export default function ReportForm({ mode, report, savedViews, builtInReports, action }: ReportFormProps) {
-    const { data, setData, post, put, processing, errors: typedErrors } = useForm<ReportFormData>({
+    const { data, setData, post, put, transform, processing, errors: typedErrors } = useForm<ReportFormData>({
         name: report?.name ?? '',
         report_type: report?.reportType ?? (builtInReports[0]?.value === undefined ? 'saved_view_export' : 'saved_view_export'),
         saved_view_id: report?.savedView?.id ?? '',
@@ -92,10 +92,19 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
             schedule_time: data.schedule_frequency === 'none' ? null : data.schedule_time,
         };
 
+        // `transform()`, NU `post(action, { data: payload })` — găsit de suita E2E, Faza 4.
+        // `useForm().submit()` IGNORĂ `options.data`: trimite întotdeauna starea internă a
+        // hook-ului, netransformată. Consecința era că `recipients` pleca spre server ca
+        // string brut în loc de listă, iar `StoreReportRequest` refuza cu „The recipients
+        // field must be an array." — adică NICIUN raport nu putea fi creat sau editat din
+        // interfață, deși toate testele de server treceau. Varianta greșită fusese tăcută cu
+        // `as never`: tipurile semnalaseră corect problema, iar cast-ul le-a redus la tăcere.
+        transform(() => payload);
+
         if (mode === 'create') {
-            post(action, { data: payload } as never);
+            post(action);
         } else {
-            put(action, { data: payload } as never);
+            put(action);
         }
     };
 

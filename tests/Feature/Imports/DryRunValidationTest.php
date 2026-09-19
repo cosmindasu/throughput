@@ -98,6 +98,35 @@ class DryRunValidationTest extends TestCase
         $this->assertSame('N/A', $byRowNumber[4]->raw_data['Price']);
     }
 
+    /**
+     * Regresie, găsită de suita E2E (Faza 4): acțiunea golea contoarele, dar NU muta
+     * `status` din `mapped`. Două consecințe, ambele invizibile pentru testele care
+     * verificau doar rezultatul final al probei uscate:
+     *
+     *  1. Cererea se întorcea cu importul tot pe `mapped`, deci ecranul nu se considera „în
+     *     lucru" și nu pornea polling-ul — pagina rămânea blocată pe „Step 2 of 4" la
+     *     nesfârșit, deși pe server proba uscată se termina corect în câteva secunde.
+     *  2. Garda `where('status', MAPPED)` din acțiune nu serializa nimic cât timp `status`
+     *     rămânea `mapped`: un al doilea POST trecea la fel de bine ca primul.
+     *
+     * Testul verifică starea IMEDIAT după cerere, ÎNAINTE de a rula coada — exact fereastra
+     * pe care o rata suita până acum.
+     */
+    public function test_requesting_a_dry_run_moves_the_import_to_validating_before_any_job_runs(): void
+    {
+        $import = $this->uploadAndMap("SKU,Product Name,Price,Cost\nSKU-1,Widget,10.00,5.00\n");
+
+        $this->actingAs($this->owner)->post("/marlin/imports/{$import->getKey()}/dry-run");
+
+        $fresh = TenantContext::run($this->marlin, fn () => Import::query()->findOrFail($import->getKey()));
+        $this->assertSame(Import::STATUS_VALIDATING, $fresh->status);
+
+        // Al doilea POST, pe același import, e acum refuzat — garda chiar serializează.
+        $this->actingAs($this->owner)
+            ->post("/marlin/imports/{$import->getKey()}/dry-run")
+            ->assertSessionHasErrors('status');
+    }
+
     private function uploadAndMap(string $csvContent): Import
     {
         $file = UploadedFile::fake()->createWithContent('products.csv', $csvContent);

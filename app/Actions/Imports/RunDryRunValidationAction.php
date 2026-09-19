@@ -27,6 +27,17 @@ final class RunDryRunValidationAction
             ->whereKey($import->getKey())
             ->where('status', Import::STATUS_MAPPED)
             ->update([
+                // `status` trebuie să tranziționeze AICI, sincron, nu abia în jobul din coadă
+                // (găsit de suita E2E, Faza 4). Două motive, nu unul:
+                //  1. Fără el, cererea se întoarce cu importul tot pe `mapped`, deci ecranul
+                //     nu se consideră „în lucru" și nu pornește polling-ul — pagina rămâne
+                //     blocată pe „Step 2 of 4" la nesfârșit, deși proba uscată se termină
+                //     corect pe server în câteva secunde.
+                //  2. Garda `where('status', MAPPED)` de mai sus nu serializa NIMIC cât timp
+                //     `status` rămânea `mapped`: două POST-uri concurente treceau amândouă,
+                //     iar docblock-ul de deasupra promitea o atomicitate pe care nu o avea.
+                // `CommitImportAction` făcea deja corect (`mapped` → `importing`).
+                'status' => Import::STATUS_VALIDATING,
                 'total_rows' => null,
                 'valid_rows' => null,
                 'error_rows' => null,
