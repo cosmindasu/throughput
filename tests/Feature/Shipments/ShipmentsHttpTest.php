@@ -90,9 +90,12 @@ class ShipmentsHttpTest extends TestCase
     }
 
     /**
-     * §7.4 — Agent are „CU*", nu „D": nu poate renunța nici la propriul shipment eșuat.
+     * Decizia proprietarului (Faza 4): Agentul primește „D*" pe onorare, nu doar „CU*".
+     * Litera matricei §7.4 îl lăsa blocat pe propria comandă — cu eticheta eșuată nu putea
+     * nici expedia, nici renunța, iar comanda nu se poate anula cât timp shipment-ul există
+     * (BR-ORD-01). Îngustarea la comenzile proprii se verifică în testul următor.
      */
-    public function test_an_agent_cannot_discard_their_own_failed_shipment(): void
+    public function test_an_agent_can_discard_their_own_failed_shipment(): void
     {
         $agent = $this->makeMember($this->marlin, 'agent3@throughput.dev', Permissions::AGENT);
         $shipment = $this->failedShipmentFor($agent);
@@ -100,7 +103,31 @@ class ShipmentsHttpTest extends TestCase
 
         $this->actingAs($agent)
             ->delete("/marlin/orders/{$shipment->order_id}/shipments/{$shipment->getKey()}")
+            ->assertRedirect("/marlin/orders/{$shipment->order_id}");
+
+        TenantContext::run($this->marlin, function () use ($shipment): void {
+            $this->assertNull(Shipment::query()->find($shipment->getKey()));
+        });
+    }
+
+    /**
+     * Celălalt capăt al aceleiași decizii: dreptul nou e îngustat de
+     * `ShipmentPolicy::discard()` la comenzile proprii, exact ca `retryLabel()`.
+     */
+    public function test_an_agent_cannot_discard_a_failed_shipment_on_an_order_they_do_not_own(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'agent3b@throughput.dev', Permissions::AGENT);
+        $strangerOwner = $this->makeMember($this->marlin, 'owner1b@throughput.dev', Permissions::OWNER);
+        $shipment = $this->failedShipmentFor($strangerOwner);
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($agent)
+            ->delete("/marlin/orders/{$shipment->order_id}/shipments/{$shipment->getKey()}")
             ->assertForbidden();
+
+        TenantContext::run($this->marlin, function () use ($shipment): void {
+            $this->assertNotNull(Shipment::query()->find($shipment->getKey()));
+        });
     }
 
     public function test_a_manager_can_discard_a_failed_shipment_on_any_order(): void

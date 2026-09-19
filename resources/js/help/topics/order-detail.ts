@@ -38,7 +38,7 @@ const orderDetail: HelpTopic = {
         "If there isn't enough stock on hand to cover a shipment when you mark it shipped (a backorder that never arrived), the attempt is refused outright and nothing is recorded — not a partial shipment.",
         'The order moves to "partially fulfilled" the first time any shipment ships without covering every line, and to "fulfilled" only once every line is fully shipped; a later partial shipment on an already partially-fulfilled order simply leaves it there.',
         "A confirmed order can still be cancelled as long as nothing has shipped; that releases the reserved stock. Once at least one shipment exists, only its own unshipped lines can be cancelled — full cancellation is refused (BR-ORD-01).",
-        'An Agent can view every order in the workspace, but only edits, confirms, cancels or creates/retries shipments on the ones they own — and cannot discard a failed shipment even on their own order, only Owner and Manager can; Owner and Manager can do all of it on any order.',
+        'An Agent can view every order in the workspace, but only edits, confirms, cancels, or creates, retries and discards shipments on the ones they own; Owner and Manager can do all of it on any order.',
     ],
     howItsBuilt: {
         summary:

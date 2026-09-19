@@ -58,10 +58,14 @@ class ShipmentPolicy
     }
 
     /**
-     * Renunțarea la un shipment `label_failed` (`DiscardShipmentAction`) — matricea NU dă
-     * „D" Agentului (doar „CU*"), deci `shipments.delete` nu există pe rolul Agent în
-     * `Permissions::forRoles()`: un Agent nu poate renunța nici la propriul shipment eșuat,
-     * doar îl reîncearcă.
+     * Renunțarea la un shipment `label_failed` (`DiscardShipmentAction`).
+     *
+     * Matricea §7.4 dădea Agentului doar „CU*", iar în Faza 3 asta însemna că un Agent cu
+     * etichetă eșuată pe propria comandă rămânea blocat: nu putea nici expedia, nici renunța,
+     * iar comanda nu se putea anula cât timp shipment-ul exista (BR-ORD-01). Decizia
+     * proprietarului (Faza 4) extinde rândul la „CU*D*" — `shipments.delete` e acum pe rolul
+     * Agent în `Permissions::forRoles()`, iar îngustarea de proprietate de mai jos îl ține pe
+     * comenzile proprii, exact ca `retryLabel()`/`markShipped()`.
      */
     public function discard(User $user, Shipment $shipment): bool
     {

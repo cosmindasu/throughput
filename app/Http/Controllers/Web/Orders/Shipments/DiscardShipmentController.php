@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * `DELETE /orders/{order}/shipments/{shipment}` — renunțarea la un shipment
- * `label_failed` (task brief, item 3). Owner/Manager doar (`shipments.delete` nu e pe
- * rolul Agent — vezi `ShipmentPolicy::discard()`).
+ * `label_failed` (task brief, item 3). Owner/Manager pe orice comandă, Agent doar pe
+ * comenzile proprii (decizia proprietarului, Faza 4 — vezi `ShipmentPolicy::discard()`).
  */
 final class DiscardShipmentController extends Controller
 {

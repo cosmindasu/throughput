@@ -89,11 +89,11 @@ final class Permissions
             // nu doar în `OrderPolicy`, ca valul 2 (reasignare în masă pe Orders) s-o
             // găsească deja în `forRoles()`, ca `deals.change_owner`.
             'orders' => ['orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.cancel', 'orders.change_owner'],
-            // §7.4, rândul „Onorare / expediere": Owner/Manager CRUD, Agent CU* (creare +
-            // reîncercare/etichetă pe comenzi PROPRII, fără `shipments.delete` — matricea nu-i
-            // dă „D"), Viewer doar `shipments.view`. `shipments.delete` (nou, valul 2) gates
-            // „Discard" pe un shipment `label_failed`; intră automat la Owner/Manager prin
-            // `all()`/`array_diff()` mai jos, fără să fie listată explicit la Agent/Viewer.
+            // §7.4, rândul „Onorare / expediere": Owner/Manager CRUD, Agent CU*D* (creare,
+            // reîncercare/etichetă ȘI renunțare pe comenzi PROPRII), Viewer doar
+            // `shipments.view`. `shipments.delete` gates „Discard" pe un shipment
+            // `label_failed`; vezi nota de la rolul Agent, mai jos, pentru de ce a primit „D"
+            // în Faza 4 peste litera matricei.
             'shipments' => ['shipments.view', 'shipments.create', 'shipments.edit', 'shipments.delete'],
             'invoices' => ['invoices.view', 'invoices.create', 'invoices.edit', 'invoices.void'],
             'payments' => ['payments.view', 'payments.create'],
@@ -158,7 +158,14 @@ final class Permissions
                 'locations.view',
                 'stock.view',
                 'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.cancel',
-                'shipments.view', 'shipments.create', 'shipments.edit',
+                // `shipments.delete` la Agent (decizia proprietarului, Faza 4) — matricea §7.4
+                // dădea „CU*" pe onorare, deci „Discard" pe un shipment `label_failed` rămânea
+                // exclusiv Owner/Manager. Consecința măsurată în Faza 3: un Agent cu o etichetă
+                // eșuată pe PROPRIA comandă rămâne blocat — nu poate nici expedia, nici renunța,
+                // iar comanda nu se poate anula cât timp shipment-ul există (BR-ORD-01). Dreptul
+                // rămâne îngustat la comenzile proprii de `ShipmentPolicy::discard()`, ca restul
+                // rândului; un Agent tot nu atinge shipment-urile altcuiva.
+                'shipments.view', 'shipments.create', 'shipments.edit', 'shipments.delete',
                 'invoices.view',
                 'bulk.write', 'bulk.export',
                 'saved_views.manage_own', 'saved_views.view_team',

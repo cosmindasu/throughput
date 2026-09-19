@@ -51,13 +51,17 @@ class PermissionMatrixTest extends TestCase
             ],
             'Agent' => [
                 Permissions::AGENT,
-                ['accounts.edit', 'deals.move_stage', 'orders.create', 'shipments.create', 'shipments.edit', 'bulk.write', 'bulk.export', 'activity_log.view_own'],
+                // `shipments.delete` (decizia proprietarului, Faza 4) — matricea §7.4 dădea
+                // „CU*", ceea ce lăsa un Agent cu etichetă eșuată pe PROPRIA comandă blocat:
+                // nici expediere, nici renunțare, iar comanda nu se poate anula cât timp
+                // shipment-ul există (BR-ORD-01). Permisiunea dă dreptul, îngustarea la
+                // comenzile proprii rămâne în `ShipmentPolicy::discard()` — vezi
+                // `ShipmentsHttpTest`, care verifică ambele capete.
+                ['accounts.edit', 'deals.move_stage', 'orders.create', 'shipments.create', 'shipments.edit', 'shipments.delete', 'bulk.write', 'bulk.export', 'activity_log.view_own'],
                 // „—" în matrice: stoc, plăți, import, membri, pipeline, jurnal complet,
                 // schimbarea proprietarului unui deal SAU al unei comenzi (code review
                 // P2-002 — `orders.change_owner` nou, simetric cu `deals.change_owner`).
-                // `shipments.delete` — matricea §7.4 dă Agentului „CU*", nu „D": nu poate
-                // renunța (Discard) nici la propriul shipment eșuat (Faza 3, valul 2).
-                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner', 'orders.change_owner', 'shipments.delete'],
+                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner', 'orders.change_owner'],
             ],
             'Viewer' => [
                 Permissions::VIEWER,
