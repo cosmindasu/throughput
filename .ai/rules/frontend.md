@@ -49,6 +49,29 @@ coloanelor pe cel mai lung total din seed, nu pe un exemplu scurt.
 - Props comune (`auth`, `workspace`, `workspaces`, `flash`, `demoMode`, `theme`) vin dintr-un
   singur loc, `HandleInertiaRequests::share()`. Niciun controller nu le repetă.
 
+## Focusul nu se pierde niciodată pe `<body>`
+
+Trei forme ale aceluiași defect, găsite la auditul de accesibilitate al Fazei 3 (selectorul de
+coloane, dialogul de dezactivare a unui membru). Toate trec testele funcționale și lasă
+utilizatorul de tastatură „în gol", la începutul paginii:
+
+- **`disabled` pe un buton care are focus.** Browserul blurează elementul, iar focusul cade pe
+  `<body>`, chiar și într-un `<dialog>` modal. Butoanele care se blochează în timpul unei cereri
+  sau la capătul unei liste (Move up/down) folosesc `aria-disabled="true"` plus un handler care
+  nu face nimic, cu starea spusă în text („Deactivating…"). `disabled` nativ rămâne doar pe
+  controale care nu pot avea focus în momentul schimbării.
+- **Dialogul închis și la eroare.** `onFinish` rulează și la 422. Dialogul se închide în
+  `onSuccess`, iar erorile se leagă de câmp prin `Form/Field` (`aria-describedby`,
+  `aria-invalid`) sau, fără câmp, într-un `role="alert"` în dialog. `FlashMessages` nu afișează
+  `errors`.
+- **Declanșatorul dispare după succes** (rândul își schimbă starea, bara de selecție se golește).
+  `<dialog>` nu mai are unde să readucă focusul. Focusul se mută explicit pe un element stabil,
+  de obicei un mesaj `role="status"` cu `tabIndex={-1}` care spune ce s-a întâmplat.
+
+Un nume accesibil repetat pe fiecare rând („Deactivate member" × N) se disambiguizează cu
+`aria-label` („Deactivate Jane Doe"), iar o regiune `aria-live` peste o listă cu polling anunță
+doar schimbările de stare, nu fiecare poll.
+
 ## Inertia 3, nu 2
 
 `Inertia::lazy()` / `LazyProp` **au fost eliminate** — se folosește `Inertia::optional()`.

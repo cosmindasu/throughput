@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import type { PropsWithChildren } from 'react';
+import { useEffect, useRef, type PropsWithChildren } from 'react';
 import DemoBanner from '@/Components/DemoBanner';
 import FlashMessages from '@/Components/FlashMessages';
 import GlobalSearch from '@/Components/GlobalSearch';
@@ -49,6 +49,31 @@ export default function AppLayout({ children }: PropsWithChildren) {
     const logout = () => {
         router.post('/logout');
     };
+
+    // Într-un SPA, navigarea nu mută focusul singură: după un `Link`, focusul rămâne pe
+    // declanșatorul care tocmai a dispărut din DOM, iar un utilizator de tastatură sau de
+    // cititor de ecran reia pagina nouă de la început (`.ai/rules/frontend.md`, „Focusul nu
+    // se pierde niciodată pe `<body>`"). Mutăm focusul pe `<main>` la fiecare schimbare
+    // REALĂ de pagină.
+    //
+    // Cheia e componenta + calea, NU fiecare vizită Inertia: un `router.reload()` de polling
+    // (progresul unei operații în masă, eticheta de curierat) și o schimbare de filtru cu
+    // `preserveState` păstrează aceeași componentă și aceeași cale, deci nu fură focusul din
+    // câmpul în care tocmai scrie utilizatorul. Prima randare nu mută nimic (`previousKey`
+    // pornește chiar de la cheia curentă) — altfel fiecare încărcare completă ar sări peste
+    // header și peste linkul „Skip to content".
+    const mainRef = useRef<HTMLElement>(null);
+    const navigationKey = `${page.component}|${url.split('?')[0]}`;
+    const previousKey = useRef(navigationKey);
+
+    useEffect(() => {
+        if (previousKey.current === navigationKey) {
+            return;
+        }
+
+        previousKey.current = navigationKey;
+        mainRef.current?.focus();
+    }, [navigationKey]);
 
     return (
         <div className="min-h-screen bg-bg text-text">
@@ -136,7 +161,18 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 </nav>
             </header>
 
-            <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            {/*
+                `tabIndex={-1}` ca `<main>` să poată primi focus programatic (și ca ținta
+                linkului „Skip to content" să funcționeze în toate browserele). Inelul rămâne
+                pe `focus-visible`, nu ascuns cu `outline-none`: cine navighează cu tastatura
+                vede unde a ajuns, cine dă click nu vede un contur pe toată pagina.
+            */}
+            <main
+                id="main-content"
+                ref={mainRef}
+                tabIndex={-1}
+                className="mx-auto max-w-7xl px-4 py-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:px-6 lg:px-8"
+            >
                 <FlashMessages />
                 {children}
             </main>

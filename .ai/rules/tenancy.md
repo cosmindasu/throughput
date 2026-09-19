@@ -92,6 +92,23 @@ sensuri opuse țin fiecare câte un rând nou și îl așteaptă pe al celeilalt
 Joburile cu I/O extern își gestionează contextul prin **două tranzacții scurte**, cu apelul
 extern între ele — altfel middleware-ul de job reintroduce exact problema rezolvată de ADR-013.
 
+## Memoizarea per cerere: `scoped()` fără `bound()` pe o închidere care capturează valori
+
+Worker-ul de coadă e un proces cu viață lungă, care rulează joburi pentru tenanți diferiți.
+Laravel apelează `forgetScopedInstances()` doar acolo, înainte de fiecare job
+(`QueueServiceProvider`), și șterge **instanța rezolvată**, nu binding-ul. Un tipar ca
+`if (app()->bound($key)) return app($key); … app()->scoped($key, fn () => $ids);` păstrează
+deci `$ids` de la primul job pe toată viața worker-ului, iar un job pentru alt tenant citește
+setul primului. Găsit pe eticheta „(deactivated)" (FR-TEN-04): un user dezactivat într-un
+tenant apărea dezactivat și în altul.
+
+Forma corectă e una din două: re-legare **necondiționată** la fiecare cerere sau job (cum face
+`ResolveWorkspace` cu `tenant`), sau o clasă înregistrată o singură dată ca `scoped` într-un
+provider, cu cache-ul în instanță, **cheiat pe tenant**, și golit explicit când datele se schimbă
+în aceeași cerere. În testele HTTP, mai multe cereri din același test rulează în același proces și
+instanța supraviețuiește între ele; un test care numără interogări apelează
+`$this->app->forgetScopedInstances()` înaintea fiecărei cereri măsurate.
+
 ## Testele rulează cu coadă `database`, nu `sync`
 
 Cu `sync` (sau `Queue::fake()`), jobul rulează în procesul care l-a dispecerizat, cu contextul

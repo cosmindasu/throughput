@@ -17,13 +17,20 @@ const dealStatusTone = { open: 'accent', won: 'success', lost: 'danger' } as con
 export default function ContactsShow() {
     const { contact, can, workspace } = usePage<ContactsShowPageProps>().props;
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const destroy = () => {
         if (!workspace) {
             return;
         }
 
-        router.delete(`/${workspace.slug}/contacts/${contact.id}`);
+        setDeleting(true);
+        router.delete(`/${workspace.slug}/contacts/${contact.id}`, {
+            onFinish: () => {
+                setDeleting(false);
+                setConfirmingDelete(false);
+            },
+        });
     };
 
     return (
@@ -112,6 +119,7 @@ export default function ContactsShow() {
                     onConfirm={destroy}
                     confirmLabel="Delete"
                     confirmVariant="danger"
+                    processing={deleting}
                 >
                     This can’t be undone. If {contact.fullName} isn’t referenced by any deals or orders, the contact is deleted.
                     Otherwise, its personal data (name, email, phone, title) is removed and the record is kept, so deal and order

@@ -17,9 +17,16 @@ export default function Show() {
     const { account, contacts, deals, activity, deletionBlockedReason, can, workspace } = usePage<AccountsShowPageProps>().props;
     const base = workspace ? `/${workspace.slug}` : '';
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const destroy = () => {
-        router.delete(`${base}/accounts/${account.id}`, { onFinish: () => setConfirmingDelete(false) });
+        setDeleting(true);
+        router.delete(`${base}/accounts/${account.id}`, {
+            onFinish: () => {
+                setDeleting(false);
+                setConfirmingDelete(false);
+            },
+        });
     };
 
     return (
@@ -147,6 +154,7 @@ export default function Show() {
                 onConfirm={deletionBlockedReason ? undefined : destroy}
                 confirmVariant="danger"
                 confirmLabel="Delete"
+                processing={deleting}
                 onClose={() => setConfirmingDelete(false)}
             >
                 {deletionBlockedReason ?? 'This action cannot be undone.'}
