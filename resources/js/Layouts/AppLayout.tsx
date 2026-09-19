@@ -28,6 +28,10 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Orders', permission: 'orders.view', href: (w) => `/${w}/orders` },
     { label: 'Invoices', permission: 'invoices.view', href: (w) => `/${w}/invoices` },
     { label: 'Reports', permission: 'reports.view', href: (w) => `/${w}/reports` },
+    // FR-TEN-05 — Owner/Manager (`unassigned.view`, §6.4.1). Indicatorul numeric se
+    // randează separat, mai jos, lângă acest link — `unassignedRecordsCount` e un prop
+    // comun distinct, nu parte din `navigation`.
+    { label: 'Unassigned', permission: 'unassigned.view', href: (w) => `/${w}/unassigned` },
     { label: 'Settings', permission: 'settings.view', href: (w) => `/${w}/settings` },
 ];
 
@@ -39,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
  */
 export default function AppLayout({ children }: PropsWithChildren) {
     const page = usePage();
-    const { auth, workspace, workspaces, navigation } = page.props;
+    const { auth, workspace, workspaces, navigation, unassignedRecordsCount } = page.props;
     const { url } = page;
 
     const logout = () => {
@@ -93,12 +97,23 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             const href = workspace ? item.href(workspace.slug) : '#';
                             const active = workspace ? url.startsWith(item.href(workspace.slug)) : false;
 
+                            const showUnassignedBadge = item.permission === 'unassigned.view' && unassignedRecordsCount > 0;
+
                             return (
                                 <Link
                                     key={item.permission}
                                     href={href}
                                     // FR-PERF-02 — pagina e deja pe drum când cursorul ajunge pe link.
                                     prefetch
+                                    // Eticheta accesibilă include numărul o SINGURĂ dată (nu și pe
+                                    // badge-ul vizual, marcat `aria-hidden`) — altfel un cititor de
+                                    // ecran ar anunța „Unassigned 3 unassigned records", redundant.
+                                    // Acord de număr: „1 record needs…" / „N records need…".
+                                    aria-label={
+                                        showUnassignedBadge
+                                            ? `${item.label}, ${unassignedRecordsCount} record${unassignedRecordsCount === 1 ? '' : 's'} need${unassignedRecordsCount === 1 ? 's' : ''} a new owner`
+                                            : undefined
+                                    }
                                     className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
                                         active
                                             ? 'border-accent-fill text-accent-text'
@@ -106,6 +121,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                     }`}
                                 >
                                     {item.label}
+                                    {showUnassignedBadge && (
+                                        <span
+                                            aria-hidden="true"
+                                            className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent-fill px-1.5 py-0.5 text-xs font-semibold text-accent-on numeric"
+                                        >
+                                            {unassignedRecordsCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}

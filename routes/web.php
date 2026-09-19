@@ -68,5 +68,7 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/orders.php';
         // Pachetul C (Faza 3, specs.md §13, plan §9) — mecanismul generic de operații în masă.
         require __DIR__.'/web/bulk.php';
+        // US-TEN-03, §6.4.1 — vederea „Unassigned" (FR-TEN-05).
+        require __DIR__.'/web/unassigned.php';
     });
 });

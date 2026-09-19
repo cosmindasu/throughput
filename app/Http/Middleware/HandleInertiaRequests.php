@@ -6,6 +6,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Resources\WorkspaceResource;
 use App\Models\Membership;
 use App\Models\User;
+use App\Support\Members\UnassignedRecordsCounter;
 use App\Support\ThemePreference;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -96,6 +97,15 @@ class HandleInertiaRequests extends Middleware
             // cele ale paginii superficial. Primul `can` de pagină ar fi înlocuit tot
             // obiectul, iar meniul principal ar fi dispărut exact pe ecranele cu acțiuni.
             'navigation' => fn () => $this->navigationPermissions($request),
+
+            // FR-TEN-05 — indicatorul numeric permanent din `AppLayout` pe intrarea
+            // „Unassigned", cât timp vederea nu e goală. Calculat DOAR pentru Owner/Manager
+            // (`unassigned.view` mai sus, în `navigation`) — restul rolurilor nici nu văd
+            // linkul, deci n-are rost să numărăm pentru ei. Cost măsurat în raportul
+            // pachetului (`App\Support\Members\UnassignedRecordsCounter`).
+            'unassignedRecordsCount' => fn () => app()->bound('tenant') && $request->user()?->can('unassigned.view')
+                ? UnassignedRecordsCounter::count()
+                : 0,
         ];
     }
 
@@ -136,7 +146,7 @@ class HandleInertiaRequests extends Middleware
         $permissions = [
             'accounts.view', 'contacts.view', 'deals.view', 'products.view', 'orders.view',
             'invoices.view', 'reports.view', 'settings.view', 'billing.view', 'members.view',
-            'api_tokens.view',
+            'api_tokens.view', 'unassigned.view',
         ];
 
         return collect($permissions)

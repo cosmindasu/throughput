@@ -66,9 +66,32 @@ class MembershipPolicy
             return Response::deny('Only an Owner can deactivate another Owner.');
         }
 
+        // P2-001 (review general, lotul „Membri și roluri") — idempotență. Un al doilea
+        // POST pe un membership deja dezactivat (dublu-click, retry, două cereri
+        // concurente) trecea de Policy, rescria `deactivated_at`/`deactivated_by` cu date
+        // noi, scria în `activity_log` un `old_values.status = active` FALS (rândul era
+        // deja `deactivated`), retrimitea notificarea „N records need a new owner" și
+        // putea porni un al doilea grup de reatribuire pentru aceleași înregistrări.
+        // ÎNAINTE de verificarea ultimului Owner — un membership deja dezactivat nu mai e
+        // Owner activ, deci ar trece silențios pe lângă acea verificare oricum.
+        if (! $membership->isActive()) {
+            return Response::deny('This member is already deactivated.');
+        }
+
         if ($this->isLastActiveOwner($membership)) {
             // Singurul caz în care blocarea e corectă — și singurul fără buton de forțare.
             return Response::deny('Transfer ownership before deactivating the last Owner.');
+        }
+
+        // P2-004 (review general) — decizie: auto-dezactivarea e blocată. DUPĂ verificarea
+        // ultimului Owner, deliberat: dacă cineva e ȘI ultimul Owner activ ȘI se
+        // dezactivează pe sine, mesajul „Transfer ownership…" rămâne cel corect (mai
+        // specific — arată calea de urmat), nu „nu te poți dezactiva singur" (adevărat,
+        // dar mai puțin util aici). Pentru restul cazurilor (nu ești ultimul Owner, dar
+        // încerci să-ți revoci singur accesul): acțiunea n-are niciun „mai târziu" de
+        // gestionat de pe acest ecran — cere altui Owner/Manager s-o facă.
+        if ($membership->user_id === $user->getKey()) {
+            return Response::deny("You can't deactivate yourself. Ask another Owner or Manager.");
         }
 
         // Deliberat NU verificăm ce deține membrul. 47 de conturi, 12 oportunități deschise

@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Models\ActivityLog;
+use App\Models\Membership;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
@@ -24,7 +26,9 @@ class ActivityEntryResource extends JsonResource
         return [
             'id' => $this->id,
             'description' => $this->description(),
-            'actor' => $this->user?->name ?? 'System',
+            // FR-TEN-04 — placeholder „(deactivated)" pe autorul unei acțiuni dacă
+            // membership-ul lui în tenantul curent a fost dezactivat între timp.
+            'actor' => DeactivatedMemberNames::label($this->user?->name, $this->user_id) ?? 'System',
             'at' => $this->created_at?->toIso8601String(),
         ];
     }
@@ -32,6 +36,15 @@ class ActivityEntryResource extends JsonResource
     private function description(): string
     {
         $subject = $this->auditable_type ? Str::headline(class_basename($this->auditable_type)) : 'record';
+
+        // US-TEN-03 — `MembersController::applyDeactivation()` scrie `action = 'updated'`
+        // pe un `Membership` (enum-ul Postgres al coloanei n-are o valoare dedicată,
+        // §17.1): „Updated Membership" ar fi corect, dar opac. Un singur caz special,
+        // înaintea switch-ului generic.
+        if ($this->auditable_type === Membership::class
+            && ($this->new_values['status'] ?? null) === Membership::STATUS_DEACTIVATED) {
+            return 'Deactivated a member';
+        }
 
         return match ($this->action) {
             'created' => "Created {$subject}",

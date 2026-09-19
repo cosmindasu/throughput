@@ -19,6 +19,22 @@ final class AccountList extends ResourceList implements ExportableList
 {
     public const STATUSES = [Account::STATUS_PROSPECT, Account::STATUS_ACTIVE, Account::STATUS_INACTIVE];
 
+    /**
+     * Pseudo-status pentru „conturile nearhivate ale membrului" (plan §9, reatribuirea la
+     * dezactivare, US-TEN-03) — `prospect` SAU `active`, niciodată `inactive`. Nu e un
+     * `Account::STATUS_*` real: un singur rând `bulk_operations` (BR-BULK-04) nu poate
+     * exprima „status IN (...)" cu filtrul `status` existent, care acceptă o singură
+     * valoare exactă.
+     *
+     * Construit pentru `MembersController::dispatchReassignment()`, dar `accepts()` de
+     * mai jos nu-l poate distinge de un filtru venit din URL — orice cerere poate trimite
+     * `?filter[status]=not_archived`. Acceptabil, deliberat: valoarea doar AGREGĂ două
+     * statusuri deja vizibile separat (`prospect`, `active`) pe același ecran, cu aceeași
+     * izolare de tenant/RLS ca restul filtrelor — nu expune nimic ce n-ar fi vizibil deja
+     * prin două cereri separate.
+     */
+    public const STATUS_NOT_ARCHIVED = 'not_archived';
+
     protected function filterKeys(): array
     {
         return ['q', 'status', 'owner'];
@@ -52,7 +68,7 @@ final class AccountList extends ResourceList implements ExportableList
     protected function accepts(string $key, string $value): bool
     {
         return match ($key) {
-            'status' => in_array($value, self::STATUSES, true),
+            'status' => in_array($value, self::STATUSES, true) || $value === self::STATUS_NOT_ARCHIVED,
             'owner' => in_array($value, ['me', 'all', 'unassigned'], true) || Str::isUlid($value),
             default => true,
         };
@@ -70,7 +86,11 @@ final class AccountList extends ResourceList implements ExportableList
         }
 
         if (($status = $list->filter('status')) !== null) {
-            $query->where('status', $status);
+            if ($status === self::STATUS_NOT_ARCHIVED) {
+                $query->whereIn('status', [Account::STATUS_PROSPECT, Account::STATUS_ACTIVE]);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         match ($owner = $list->filter('owner')) {

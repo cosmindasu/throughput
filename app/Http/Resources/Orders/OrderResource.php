@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Orders;
 
 use App\Models\Order;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -53,9 +54,10 @@ final class OrderResource extends JsonResource
                 'id' => $this->deal->id,
                 'title' => $this->deal->title,
             ] : null),
+            // FR-TEN-04 — placeholder „(deactivated)" pe owner (§6.4.1).
             'owner' => $this->whenLoaded('owner', fn () => [
                 'id' => $this->owner->id,
-                'name' => $this->owner->name,
+                'name' => DeactivatedMemberNames::label($this->owner->name, $this->owner->id),
             ]),
             'lines' => OrderLineResource::collection($this->whenLoaded('orderLines')),
             // Faza 3, valul 2 (§11.2 pas 4, FR-ORD-03) — secțiunea Shipments + timeline.

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Tenant;
+use App\Support\Members\DeactivatedMemberIds;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
@@ -14,6 +15,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // FR-TEN-04 — cache-ul „(deactivated)" ține stare ÎN instanță (cheiată pe
+        // tenant), deci trebuie o SINGURĂ instanță per cerere/job: `scoped()`, aruncată
+        // de worker-ul de coadă înainte de fiecare job (`QueueServiceProvider`), altfel
+        // un al doilea `app(DeactivatedMemberIds::class)` ar crea o instanță nouă, cu
+        // propriul cache gol, chiar în aceeași cerere.
+        $this->app->scoped(DeactivatedMemberIds::class);
+
         // Billable e TENANTUL, nu utilizatorul (ADR-006): abonamentul e al organizației
         // și nu trebuie să dispară când pleacă persoana care a introdus cardul.
         Cashier::useCustomerModel(Tenant::class);

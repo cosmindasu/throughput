@@ -16,13 +16,14 @@ const settings: HelpTopic = {
     whatCanYouDo: [
         'Open "Preferences" to change your theme (System, Light or Dark).',
         'Open "Pipeline" to see the stages used by the deals board — and change them, if you are an Owner or Manager.',
+        'Open "Members" to see who has access to this workspace, and deactivate someone who left, if you are an Owner or Manager.',
         'See which workspace sections your role has: cards marked "Coming in a later phase" have no "Open" button yet.',
     ],
     rules: [
-        'Every role sees "Preferences". "Pipeline" shows for Owner, Manager and Viewer; "Members" and "API Tokens" for Owner and Manager; "Billing & Subscription" only for Owner — so an Agent sees just "Preferences".',
+        'Every role sees "Preferences". "Pipeline" shows for Owner, Manager and Viewer; "Members" for Owner and Manager; "Billing & Subscription" only for Owner — so an Agent sees just "Preferences".',
         'Manager has full operational access everywhere else, but not to billing: the "Billing & Subscription" card never appears for them.',
         "What you see on this page is computed from your role's actual permissions on the server, not hidden with CSS — a section you can't use doesn't appear at all, rather than appearing and then refusing you.",
-        '"Members", "Billing & Subscription" and "API Tokens" are placeholders for now: they show the "Coming in a later phase" badge instead of a link.',
+        '"Billing & Subscription" and "API Tokens" are still placeholders: they show the "Coming in a later phase" badge instead of a link.',
     ],
     howItsBuilt: {
         summary:

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Accounts;
 
 use App\Models\Account;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,7 +27,9 @@ class AccountResource extends JsonResource
             'domain' => $this->domain,
             'industry' => $this->industry,
             'status' => $this->status,
-            'owner' => $this->owner ? ['id' => $this->owner->id, 'name' => $this->owner->name] : null,
+            // FR-TEN-04 — placeholder „(deactivated)" pe owner dacă membership-ul lui a
+            // fost dezactivat (§6.4.1); rândul rămâne atribuit, doar afișarea se schimbă.
+            'owner' => $this->owner ? ['id' => $this->owner->id, 'name' => DeactivatedMemberNames::label($this->owner->name, $this->owner->id)] : null,
             'createdAt' => $this->created_at?->toIso8601String(),
             'canEdit' => (bool) $request->user()?->can('update', $this->resource),
         ];

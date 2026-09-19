@@ -937,3 +937,71 @@ export interface OrderVariantOption {
     available: number;
 }
 
+// ── Membri și roluri — specs.md §6.4/§6.4.1, US-TEN-02/03, ADR-011 ──────────────
+
+export type MembershipStatus = 'active' | 'pending' | 'deactivated';
+
+// App\Http\Resources\Members\MembershipResource — BR-TEN-06, numărul exact afișat în
+// confirmarea de dezactivare.
+export interface MembershipOpenRecords {
+    deals: number;
+    orders: number;
+    total: number;
+}
+
+export interface MembershipRow {
+    id: string;
+    user: { id: string; name: string; email: string };
+    role: string | null;
+    status: MembershipStatus;
+    joinedAt: string | null;
+    deactivatedAt: string | null;
+    deactivatedBy: { id: string; name: string } | null;
+    openRecords: MembershipOpenRecords;
+    canDeactivate: boolean;
+    // BR-TEN-01 — „blocare server-side, NU doar ascunsă în UI": dialogul de confirmare
+    // arată mesajul de blocare, fără butoane de acțiune, în loc să ascundă butonul.
+    isLastActiveOwner: boolean;
+}
+
+export interface MembersIndexPageProps {
+    members: MembershipRow[];
+    activeMembers: Array<{ id: string; name: string }>;
+    can: {
+        invite: boolean;
+    };
+    [key: string]: unknown;
+}
+
+// ── Unassigned — specs.md §6.4.1, FR-TEN-05 ──────────────────────────────────────
+// NU conturi — DECIZIE deja luată (vezi raportul pachetului „Membri și roluri"): deals
+// deschise + comenzi active ale membrilor dezactivați, literal după Gherkin-ul US-TEN-03.
+
+export interface UnassignedIndexPageProps {
+    deals: CursorPage<DealSummary>;
+    orders: CursorPage<OrderSummary>;
+    can: {
+        reassign: boolean;
+    };
+    activeMembers: Array<{ id: string; name: string }>;
+    [key: string]: unknown;
+}
+
+// ── Progres agregat pe `group_id` — specs.md §13.2, BR-BULK-04 ──────────────────
+// App\Http\Resources\Bulk\BulkOperationGroupResource — Bulk/Groups/Show. Singurul caz din
+// MVP: reatribuirea la dezactivarea unui membru (US-TEN-03), trei `BulkOperationPayload`
+// (conturi/deals/comenzi) sub același `groupId`.
+
+export interface BulkOperationGroupPayload {
+    groupId: string;
+    status: BulkOperationStatus;
+    totalRows: number;
+    operations: BulkOperationPayload[];
+    canCancel: boolean;
+}
+
+export interface BulkGroupShowPageProps {
+    group: BulkOperationGroupPayload;
+    [key: string]: unknown;
+}
+

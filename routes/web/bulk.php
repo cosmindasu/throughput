@@ -10,6 +10,7 @@
 // altă valoare e 404 înainte să ajungă la `BulkWritableResources::resolve()`.
 
 use App\Http\Controllers\Web\Bulk\BulkOperationController;
+use App\Http\Controllers\Web\Bulk\BulkOperationGroupController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/{resourceType}/bulk/reassign-owner', [BulkOperationController::class, 'reassignOwner'])
@@ -25,3 +26,11 @@ Route::post('/products/bulk/set-active', [BulkOperationController::class, 'setPr
 
 Route::get('/bulk/{operation}', [BulkOperationController::class, 'show'])->name('bulk.show');
 Route::post('/bulk/{operation}/cancel', [BulkOperationController::class, 'cancel'])->name('bulk.cancel');
+
+// BR-BULK-04 — progresul AGREGAT al unui `group_id` (US-TEN-03, „Membri și roluri"):
+// `{group}` e un ULID de coloană (`bulk_operations.group_id`), NU un model legat — mai
+// multe rânduri `bulk_operations` îl împart. Trei segmente (`/bulk/groups/{group}`), deci
+// fără ambiguitate cu `/bulk/{operation}` de mai sus (două segmente) — ordinea de
+// înregistrare nu contează aici, dar rutele stau grupate una lângă alta pentru lizibilitate.
+Route::get('/bulk/groups/{group}', [BulkOperationGroupController::class, 'show'])->name('bulk.groups.show');
+Route::post('/bulk/groups/{group}/cancel', [BulkOperationGroupController::class, 'cancel'])->name('bulk.groups.cancel');

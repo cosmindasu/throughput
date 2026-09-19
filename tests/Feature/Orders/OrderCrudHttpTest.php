@@ -123,6 +123,14 @@ class OrderCrudHttpTest extends TestCase
             });
             $this->clearDatabaseTenantContext();
 
+            // Instanțele `scoped()` (ex: `App\Support\Members\DeactivatedMemberIds`)
+            // supraviețuiesc între cereri ÎN ACEST PROCES de test — spre deosebire de
+            // producție, unde fiecare cerere HTTP pornește un proces PHP-FPM nou.
+            // Laravel le aruncă doar la începutul fiecărui job de coadă; aici o facem
+            // manual, ca fiecare măsurătoare să pornească de la un cache gol, la fel ca
+            // o cerere reală.
+            $this->app->forgetScopedInstances();
+
             // `flushQueryLog()` — `disableQueryLog()` NU golește jurnalul, doar oprește
             // înregistrarea; fără flush aici, a doua măsurătoare din acest test ar
             // acumula și interogările primei.

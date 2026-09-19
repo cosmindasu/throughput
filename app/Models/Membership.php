@@ -14,7 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Legătura user ↔ tenant (§6.4). Tabela cu singura politică RLS neuniformă din aplicație
  * (ADR-014, pct. 2) — vezi migrația pentru argumentație.
  */
-#[Fillable(['user_id', 'status', 'invitation_token', 'invitation_expires_at'])]
+// `deactivated_at`/`deactivated_by` adăugate aici (US-TEN-03, BR-TEN-04) — lipseau din
+// lista inițială (scrisă înainte de fluxul de dezactivare), deci `update([...])` din
+// `MembersController::applyDeactivation()` le renunța tăcut la mass-assignment, fără
+// nicio eroare: `status` trecea pe „deactivated", dar `deactivated_at`/`deactivated_by`
+// rămâneau `null`. Prins de `MemberDeactivationTest`, nu la review.
+#[Fillable(['user_id', 'status', 'invitation_token', 'invitation_expires_at', 'deactivated_at', 'deactivated_by'])]
 class Membership extends Model
 {
     use BelongsToTenant, HasUlids;

@@ -1,5 +1,6 @@
 import accountDetail from '@/help/topics/account-detail';
 import accountsList from '@/help/topics/accounts-list';
+import bulkGroupOperation from '@/help/topics/bulk-group-operation';
 import bulkOperation from '@/help/topics/bulk-operation';
 import contactDetail from '@/help/topics/contact-detail';
 import contactsList from '@/help/topics/contacts-list';
@@ -8,6 +9,7 @@ import dealDetail from '@/help/topics/deal-detail';
 import dealsKanban from '@/help/topics/deals-kanban';
 import dealsList from '@/help/topics/deals-list';
 import exportsTopic from '@/help/topics/exports';
+import members from '@/help/topics/members';
 import orderDetail from '@/help/topics/order-detail';
 import ordersList from '@/help/topics/orders-list';
 import pipeline from '@/help/topics/pipeline';
@@ -17,6 +19,7 @@ import productsList from '@/help/topics/products-list';
 import settings from '@/help/topics/settings';
 import stock from '@/help/topics/stock';
 import stockHistory from '@/help/topics/stock-history';
+import unassigned from '@/help/topics/unassigned';
 import variantForm from '@/help/topics/variant-form';
 import type { HelpTopic } from '@/help/types';
 
@@ -58,9 +61,13 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
 
     'Settings/Index': settings,
     'Settings/Preferences': preferences,
+    'Settings/Members/Index': members,
+
+    'Unassigned/Index': unassigned,
 
     'Exports/Show': exportsTopic,
     'Bulk/Show': bulkOperation,
+    'Bulk/Groups/Show': bulkGroupOperation,
 
     'Products/Index': productsList,
     'Products/Show': productDetail,

@@ -67,6 +67,11 @@ final class Permissions
         return [
             'settings' => ['settings.view', 'settings.update'],
             'members' => ['members.view', 'members.invite', 'members.update_role', 'members.deactivate'],
+            // US-TEN-03/FR-TEN-05 — vederea „Unassigned" (§6.4.1): Owner/Manager, ca
+            // `members.*` mai sus, dar o permisiune SEPARATĂ (nu reutilizează
+            // `members.view`): cele două ecrane pot diverge mai târziu, iar catalogul nu
+            // trebuie să presupună azi că rămân mereu identice.
+            'unassigned' => ['unassigned.view'],
             'data_exports' => ['data_exports.view', 'data_exports.create'],
             'billing' => ['billing.view', 'billing.manage'],
             'api_tokens' => ['api_tokens.view', 'api_tokens.create', 'api_tokens.revoke'],

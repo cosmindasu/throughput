@@ -24,9 +24,8 @@ const SECTIONS: SettingsSection[] = [
     {
         key: 'members',
         title: 'Members',
-        description: 'Invite teammates and manage their roles.',
+        description: 'See who has access, and deactivate someone who left.',
         href: (w) => `/${w}/settings/members`,
-        comingSoon: true,
     },
     {
         key: 'billing',

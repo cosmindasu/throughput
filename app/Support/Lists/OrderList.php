@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Support\Exports\ExportableList;
 use App\Support\ListQuery;
+use App\Support\Members\OpenRecordCounts;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,21 @@ use Illuminate\Support\Str;
  */
 final class OrderList extends ResourceList implements ExportableList
 {
+    /**
+     * Pseudo-status pentru „comenzi active" (plan §9, reatribuirea la dezactivare,
+     * US-TEN-03; și indicatorul „Unassigned", FR-TEN-05) — `draft`, `confirmed` sau
+     * `partially_fulfilled`. Nu e un `OrderStatus` real: filtrul `status` existent
+     * acceptă o singură valoare exactă, iar un singur rând `bulk_operations` (BR-BULK-04)
+     * nu poate exprima „status IN (...)" altfel.
+     *
+     * Construit pentru `MembersController`/`UnassignedController`, dar `accepts()` de mai
+     * jos nu-l poate distinge de un filtru venit din URL — orice cerere poate trimite
+     * `?filter[status]=active`. Acceptabil, deliberat: valoarea doar AGREGĂ trei statusuri
+     * deja vizibile separat pe `Orders/Index`, cu aceeași izolare de tenant/RLS ca restul
+     * filtrelor — nu expune nimic ce n-ar fi vizibil deja prin trei cereri separate.
+     */
+    public const STATUS_ACTIVE = 'active';
+
     /** @return list<string> */
     protected function filterKeys(): array
     {
@@ -50,7 +66,7 @@ final class OrderList extends ResourceList implements ExportableList
     protected function accepts(string $key, string $value): bool
     {
         return match ($key) {
-            'status' => OrderStatus::tryFrom($value) !== null,
+            'status' => $value === self::STATUS_ACTIVE || OrderStatus::tryFrom($value) !== null,
             'account' => Str::isUlid($value),
             'owner' => in_array($value, ['me', 'all', 'unassigned'], true) || Str::isUlid($value),
             'from', 'to' => strtotime($value) !== false,
@@ -76,7 +92,11 @@ final class OrderList extends ResourceList implements ExportableList
         }
 
         if (($status = $list->filter('status')) !== null) {
-            $query->where('status', $status);
+            if ($status === self::STATUS_ACTIVE) {
+                $query->whereIn('status', OpenRecordCounts::activeOrderStatuses());
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if (($account = $list->filter('account')) !== null) {

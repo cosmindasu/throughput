@@ -32,6 +32,21 @@ final class DemoMode
             'routes' => ['workspace.destroy'],
             'message' => 'Deleting a workspace is disabled in the public demo. The demo data resets every night at 03:00 UTC.',
         ],
+
+        // US-TEN-03, adăugat de pachetul „Membri și roluri" (nu era în tabelul §22.2
+        // — semnalat în raportul pachetului, recomandat spre specs.md). Motivul e
+        // specific acestei acțiuni, nu generic: conturile demo (§4.2) sunt LOGIN-URI
+        // PARTAJATE — `demo.owner@throughput.dev` e folosit de fiecare vizitator care
+        // apasă „Log in as Owner". Dezactivarea unui asemenea membru ar rupe
+        // autentificarea tuturor vizitatorilor următori până la reset-ul de la 03:00
+        // UTC, un risc distructiv de aceeași natură ca ștergerea unui workspace, deci
+        // tratat la fel — activ de la publicare, nu amânat, spre deosebire de restul
+        // rândului „Eliminarea ultimului Owner" din §22.2 (acela rămâne oricum blocat
+        // necondiționat de BR-TEN-01, cu sau fără DEMO_MODE).
+        'members.deactivate' => [
+            'routes' => ['settings.members.deactivate'],
+            'message' => 'Deactivating a member is disabled in the public demo — these are the shared logins other visitors use.',
+        ],
     ];
 
     public static function enabled(): bool

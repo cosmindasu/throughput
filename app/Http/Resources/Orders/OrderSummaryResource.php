@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Orders;
 
 use App\Models\Order;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -35,9 +36,10 @@ final class OrderSummaryResource extends JsonResource
                 'id' => $this->account->id,
                 'name' => $this->account->name,
             ]),
+            // FR-TEN-04 — placeholder „(deactivated)" pe owner (§6.4.1).
             'owner' => $this->whenLoaded('owner', fn () => [
                 'id' => $this->owner->id,
-                'name' => $this->owner->name,
+                'name' => DeactivatedMemberNames::label($this->owner->name, $this->owner->id),
             ]),
             'can' => [
                 'edit' => Gate::allows('update', $this->resource),

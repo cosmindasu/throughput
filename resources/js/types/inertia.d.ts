@@ -50,6 +50,10 @@ declare module '@inertiajs/core' {
                 name: string;
             }>;
             navigation: Record<string, boolean>;
+            // FR-TEN-05 — indicatorul numeric din `AppLayout` pe intrarea „Unassigned",
+            // calculat doar pentru Owner/Manager (`0` pentru restul rolurilor, nu absent —
+            // vezi `App\Http\Middleware\HandleInertiaRequests::share()`).
+            unassignedRecordsCount: number;
             flash: {
                 success: string | null;
                 error: string | null;

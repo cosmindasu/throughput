@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Deal;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -39,9 +40,10 @@ class DealSummaryResource extends JsonResource
                 'id' => $this->account->id,
                 'name' => $this->account->name,
             ]),
+            // FR-TEN-04 — placeholder „(deactivated)" pe owner (§6.4.1).
             'owner' => $this->whenLoaded('owner', fn () => [
                 'id' => $this->owner->id,
-                'name' => $this->owner->name,
+                'name' => DeactivatedMemberNames::label($this->owner->name, $this->owner->id),
             ]),
             'stage' => $this->whenLoaded('stage', fn () => [
                 'id' => $this->stage->id,

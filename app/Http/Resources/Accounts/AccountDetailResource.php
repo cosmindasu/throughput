@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Accounts;
 
 use App\Models\Account;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,7 +33,8 @@ class AccountDetailResource extends JsonResource
             'tags' => $this->tags ?? [],
             'billingAddress' => $this->address($this->billing_address),
             'shippingAddress' => $this->address($this->shipping_address),
-            'owner' => $this->owner ? ['id' => $this->owner->id, 'name' => $this->owner->name] : null,
+            // FR-TEN-04 — vezi `AccountResource` pentru motiv.
+            'owner' => $this->owner ? ['id' => $this->owner->id, 'name' => DeactivatedMemberNames::label($this->owner->name, $this->owner->id)] : null,
             'createdAt' => $this->created_at?->toIso8601String(),
             'updatedAt' => $this->updated_at?->toIso8601String(),
         ];
