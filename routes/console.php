@@ -1,10 +1,12 @@
 <?php
 
+use App\Jobs\System\DispatchScheduledReportsJob;
 use App\Jobs\System\FailStuckBulkOperationsJob;
 use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\PruneSentEmailsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -47,6 +49,23 @@ Schedule::command('queue:prune-batches')->daily();
 // întârzierea maximă vizibilă sub o treime din prag, cu o interogare îngustă, indexată,
 // per tenant — cost neglijabil pe bugetul de memorie al scheduler-ului (ADR-017).
 Schedule::job(new FailStuckBulkOperationsJob, 'default')->everyFiveMinutes();
+
+// Rapoarte și livrare programată (specs.md §16.2 pct. 1, plan §10, lotul K din Faza 4).
+// ORAR, nu mai des: specificația cere explicit „verifică ce report_definitions sunt
+// scadente ÎN ORA CURENTĂ" — `schedule_time` se compară doar pe componenta de oră
+// (`App\Support\Reports\ReportSchedule`), deci un tick mai des n-ar avansa nimic, doar ar
+// interoga fiecare tenant de mai multe ori pe oră. Jobul e de SISTEM: iterează el însuși
+// tenanții (ADR-014 pct. 4) — scheduler-ul doar dispecerizează, ca la restul listei de mai
+// sus. `ShouldBeUnique` pe job (vezi docblock-ul clasei) previne dublarea dacă `schedule:run`
+// pornește acest tick de două ori (redeploy, tick suprapus cu un run anterior lung).
+//
+// Fix P2 (review) — ora de referință se CAPTUREAZĂ AICI, la tick (`new DispatchScheduledReportsJob(...)`
+// se construiește la fiecare invocare a lui `schedule:run`, deci practic în același moment
+// în care cron-ul de sistem îl declanșează), NU în `handle()`. Proiectul are UN SINGUR
+// worker de coadă (ADR-017): dacă jobul stă în coadă și se execută cu întârziere peste
+// granița orei, `CarbonImmutable::now()` apelat înăuntrul jobului ar vedea ora GREȘITĂ, iar
+// un raport scadent la ora de tick ar fi sărit tăcut. Scalar în constructor (§6.3).
+Schedule::job(new DispatchScheduledReportsJob(CarbonImmutable::now('UTC')->startOfHour()->toIso8601String()), 'default')->hourly();
 
 // §22.3 (lotul L din Faza 4) — retenția jurnalului „Sent Emails". Fără `when()`, ca la
 // `PruneExpiredExportsJob`: jurnalul există doar cât timp DEMO_MODE=true, dar dacă demo-ul

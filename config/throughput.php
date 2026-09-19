@@ -85,6 +85,15 @@ return [
         // deci valoarea veche rămâne nesigură chiar și după fix.
         'export_pdf_max_rows' => (int) env('EXPORT_PDF_MAX_ROWS', 250),
 
+        // §16, format xlsx — plafon propriu, simetric cu cel de PDF de mai sus și din același
+        // motiv: `maatwebsite/excel` (PhpSpreadsheet) MATERIALIZEAZĂ toate rândurile în
+        // memorie înainte de a scrie fișierul, exact ca DomPDF, deci nu e protejat de
+        // `export_sync_max_rows` (care păzește doar durata cererii, nu memoria unui job).
+        // Mai permisiv decât PDF-ul fiindcă un rând de foaie de calcul costă mult mai puțin
+        // decât un rând trecut prin layout-ul de tabel al DomPDF — dar tot plafonat, fiindcă
+        // workerul de coadă are `memory_limit=256M` (vezi `docker/app/Dockerfile`).
+        'export_xlsx_max_rows' => (int) env('EXPORT_XLSX_MAX_ROWS', 5000),
+
         // §22.3 — retenția jurnalului „Sent Emails". Cât timp `DEMO_MODE=true`, `demo:reset`
         // golește oricum tabela în fiecare noapte; jobul zilnic de purjare e plasa de
         // siguranță pentru un reset picat (`ResetDemoDataJob` are `tries=1`), nu mecanismul
