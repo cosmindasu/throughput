@@ -15,12 +15,22 @@ use App\Models\Account;
 use App\Models\Membership;
 use App\Models\Order;
 use App\Models\Scopes\NotAnonymizedContactScope;
+use App\Models\Shipment;
+use App\Support\Bulk\BulkChunkActions;
+use App\Support\Bulk\BulkConfirmationThreshold;
+use App\Support\Bulk\BulkMatchingRowCount;
+use App\Support\Bulk\BulkWritableResources;
+use App\Support\Exports\ExportFormat;
+use App\Support\Exports\ListExport;
 use App\Support\Lists\CursorPage;
 use App\Support\Lists\OrderList;
 use App\Support\RecentlyViewed;
+use App\Support\SavedViews\ListColumns;
+use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,9 +43,16 @@ use Inertia\Response;
  */
 final class OrderController extends Controller
 {
-    public function index(Request $request, OrderList $list): Response
+    public function index(Request $request, OrderList $list): Response|RedirectResponse
     {
         Gate::authorize('viewAny', Order::class);
+
+        // Selector de coloane (specs.md §15.1, D2) — vezi docblock-ul echivalent din
+        // `AccountController::index()`: implicitul salvat câștigă în fața filtrului de rol,
+        // dar doar pe un URL fără NIMIC explicit încă (filtru, sortare, cursor SAU coloane).
+        if (($redirect = SavedViewDefaultRedirect::resolve($request, 'orders')) !== null) {
+            return $redirect;
+        }
 
         $user = $request->user();
         $query = $list->parse($request);
@@ -46,11 +63,60 @@ final class OrderController extends Controller
                 $paginator,
                 OrderSummaryResource::class,
             )),
+            // Pachetul C („bulk"), lotul E — vezi docblock-ul echivalent din
+            // `AccountController::index()`: N-ul EXACT pe care operația de REASIGNARE l-ar
+            // atinge pe filtrul curent, cu restricția de proprietate a Agentului deja
+            // aplicată (P2-003, `BulkMatchingRowCount`).
+            'total' => Inertia::defer(fn () => BulkMatchingRowCount::for(
+                $user,
+                BulkWritableResources::resolve('orders'),
+                $list->query($query, $user),
+            )),
+            // Distinct de `total` de mai sus: anularea în masă atinge DOAR `draft`
+            // (§13.5) — „Select all N draft orders" și pragul de confirmare al ACELEI
+            // acțiuni trebuie să numere rândurile efectiv afectate, nu tot filtrul (defectul
+            // (g) din v1.24, reprodus altfel dacă `draftTotal` ar lipsi și bara ar folosi
+            // `total` pentru amândouă acțiunile). Aceeași îngustare ca la dispatch
+            // (`BulkChunkActions::narrowQuery`), o singură expresie.
+            'draftTotal' => Inertia::defer(fn () => BulkMatchingRowCount::for(
+                $user,
+                BulkWritableResources::resolve('orders'),
+                BulkChunkActions::narrowQuery(BulkChunkActions::CANCEL_DRAFT_ORDERS, $list->query($query, $user)),
+            )),
             'filters' => $query->toArray(),
+            // Selector de coloane (specs.md §15.1) — validate server-side ca orice filtru;
+            // un `?columns=` necunoscut/gol cade pe `SavedViewResourceType::defaultColumns()`.
+            'columns' => ListColumns::fromRequest($request, 'orders'),
             'can' => [
                 'create' => Gate::allows('create', Order::class),
+                // Separat de `bulkReassignOwner`/`bulkCancelDrafts` (§7.4 nota ³, §13.5):
+                // exportul e o citire, permisă și Viewer-ului.
+                'export' => Gate::allows('export', Order::class),
+                'bulkReassignOwner' => Gate::allows('bulkReassignOwner', Order::class),
+                'bulkCancelDrafts' => Gate::allows('bulkCancel', Order::class),
             ],
+            // Gol când reasignarea nu e permisă — ca la `create()`/`edit()` mai jos.
+            'owners' => Gate::allows('bulkReassignOwner', Order::class) ? $this->ownerOptions() : [],
+            'bulkConfirmationThreshold' => BulkConfirmationThreshold::for($user),
+            'bulkRowCap' => BulkConfirmationThreshold::rowCapForRole($user),
         ]);
+    }
+
+    /**
+     * US-CRM-03, §13.2/§13.5 — exact interogarea ecranului curent (`OrderList` pe URL-ul
+     * curent), sincron sub prag pentru CSV, job în coadă peste el; PDF-ul e mereu în coadă
+     * (`ListExport::respond()`). Ruta e declarată ÎNAINTEA `orders/{order}`
+     * (routes/web/orders.php), altfel „export" ar fi interpretat ca un id de comandă.
+     *
+     * `ExportFormat::fromRequest()` (code review P2) — `format` absent → CSV; orice altă
+     * valoare necunoscută (`xlsx`, „PDF" cu majusculă) → 422 explicit, nu o cădere tăcută
+     * pe CSV.
+     */
+    public function export(Request $request): RedirectResponse|HttpResponse
+    {
+        Gate::authorize('export', Order::class);
+
+        return app(ListExport::class)->respond($request, 'orders', ExportFormat::fromRequest($request));
     }
 
     /**

@@ -16,13 +16,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ExportResource extends JsonResource
 {
     /**
-     * @return array{id: string, resourceType: string, status: string, totalRows: int, canDownload: bool, expiresAt: string|null, isExpired: bool}
+     * @return array{id: string, resourceType: string, format: string, status: string, totalRows: int, canDownload: bool, expiresAt: string|null, isExpired: bool}
      */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'resourceType' => $this->resource_type,
+            // §13.5 (decizie DomPDF) — implicit `csv`: rândurile scrise înainte de acest
+            // câmp (Accounts/Contacts, valul 1) nu-l au deloc în `filter_snapshot`.
+            // `Exports/Show.tsx` citește asta pentru eticheta butonului de descărcare.
+            'format' => $this->filter_snapshot['format'] ?? 'csv',
             'status' => $this->status,
             'totalRows' => $this->total_rows,
             'canDownload' => (bool) $request->user()?->can('download', $this->resource),

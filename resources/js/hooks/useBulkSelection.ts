@@ -1,4 +1,21 @@
+import { usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+
+/**
+ * Partea din querystring care contează pentru „aceeași selecție mai are sens" — filtrul și
+ * sortul, NU paginarea (`cursor`, §15.2) și NU selectorul de coloane (`columns`, specs.md
+ * §15.1): schimbarea paginii sau a coloanelor vizibile nu schimbă CE rânduri corespund
+ * filtrului curent, deci selecția tot are sens. Normalizată (chei sortate) ca două URL-uri
+ * echivalente, scrise în ordine diferită, să nu declanșeze un reset fals.
+ */
+function filterSortKey(url: string): string {
+    const params = new URLSearchParams(url.split('?')[1] ?? '');
+    params.delete('cursor');
+    params.delete('columns');
+    params.sort();
+
+    return params.toString();
+}
 
 /**
  * §13.1 — pattern „Select all matching filter": checkbox de HEADER selectează doar rândurile
@@ -7,10 +24,28 @@ import { useMemo, useState } from 'react';
  *
  * Selecția trăiește în React, NU în URL: spre deosebire de filtre/sort (§15.2, partajabile),
  * o selecție n-are sens păstrată la reîncărcare sau trimisă altcuiva.
+ *
+ * P2 (code review) — cu `preserveState: true` (`useListFilters`), componenta NU se
+ * remontează la o schimbare de filtru/sort, deci `useState` de mai jos ar fi păstrat
+ * tăcut o selecție făcută pe filtrul VECHI, aplicată apoi (id-uri sau „select all
+ * matching") pe filtrul NOU. Golește selecția (inclusiv modul „matching filter") de
+ * fiecare dată când `filterSortKey(usePage().url)` se schimbă — „ajustare de stare la
+ * randare", pattern React documentat, nu `useEffect` (ar lăsa un cadru cu selecția veche
+ * vizibilă înainte de golire).
  */
 export function useBulkSelection(pageIds: string[]) {
+    const { url } = usePage();
+    const key = filterSortKey(url);
+
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [matchingFilter, setMatchingFilter] = useState(false);
+    const [trackedKey, setTrackedKey] = useState(key);
+
+    if (key !== trackedKey) {
+        setTrackedKey(key);
+        setSelected(new Set());
+        setMatchingFilter(false);
+    }
 
     const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
 

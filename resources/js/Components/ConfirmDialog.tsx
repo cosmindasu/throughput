@@ -17,6 +17,14 @@ interface ConfirmDialogProps {
  * Dialog de confirmare pe `<dialog>` nativ, cu `showModal()`: browserul dă gratuit
  * capcana de focus, închiderea cu Esc și fundalul inert — exact partea pe care o
  * implementare de mână o greșește primul. Focusul revine pe declanșator la închidere.
+ *
+ * Butonul de confirmare NU folosește `disabled` nativ cât `processing` e adevărat
+ * (capcană de accesibilitate găsită de mai multe ori în acest val, pe ecrane diferite):
+ * `disabled` pe elementul care ARE focusul (exact butonul pe care utilizatorul tocmai
+ * l-a apăsat) îl blurează — browserul mută focusul pe `<body>`, chiar și în interiorul
+ * unui `<dialog>` modal, ceea ce rupe tab-order-ul din modal. `aria-disabled` + un
+ * `onClick` no-op păstrează elementul focusabil (doar non-interactiv), iar eticheta
+ * schimbată în „{confirmLabel}…" dă feedback-ul vizual pe care `disabled` l-ar fi dat.
  */
 export default function ConfirmDialog({
     open,
@@ -60,8 +68,13 @@ export default function ConfirmDialog({
                 <div className="mt-5 flex justify-end gap-2">
                     <Button onClick={onClose}>{onConfirm ? 'Cancel' : 'Close'}</Button>
                     {onConfirm && (
-                        <Button variant={confirmVariant} onClick={onConfirm} disabled={processing}>
-                            {confirmLabel}
+                        <Button
+                            variant={confirmVariant}
+                            onClick={processing ? undefined : onConfirm}
+                            aria-disabled={processing || undefined}
+                            className={processing ? 'cursor-not-allowed opacity-60' : ''}
+                        >
+                            {processing ? `${confirmLabel}…` : confirmLabel}
                         </Button>
                     )}
                 </div>

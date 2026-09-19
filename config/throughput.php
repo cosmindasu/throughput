@@ -53,6 +53,18 @@ return [
         // scrierea fișierului nu are voie să țină tranzacția cererii deschisă).
         'export_sync_max_rows' => (int) env('EXPORT_SYNC_MAX_ROWS', 5000),
 
+        // Export PDF (§13.5, Orders) — mereu în coadă (ADR-013: DomPDF randează HTML în
+        // proces, un cost care nu are ce căuta în tranzacția cererii), deci pragul de mai
+        // sus nu i se aplică. **500, nu 1.000** — măsurat direct pe container (worker de
+        // coadă izolat, `PdfExporter::save()`, tabel simplu, `OrderList`):
+        //   100 rânduri → 0.5s / 97 MB · 250 → 1.4s / 137 MB · 500 → 2.8s / 227 MB
+        //   750 → 5.3s / 347 MB · 1.000 → 8.3s / 499 MB
+        // Creșterea nu e liniară (layout-ul de tabel al DomPDF, nu I/O) — 1.000 rânduri
+        // trece de bugetul de memorie al containerului (`.ai/rules/project.md`, 250-400 MB
+        // la vârf, pe un VPS împărțit cu 11 proiecte, deja cu OOM-uri măsurate). 500 rânduri
+        // rămâne sub 250 MB, cu marjă pentru baza de proces (framework, driver, coadă).
+        'export_pdf_max_rows' => (int) env('EXPORT_PDF_MAX_ROWS', 500),
+
         // FR-GDPR-01 (specs.md §20.5): link de descărcare valabil 7 zile. Aceeași valoare
         // pentru exportul de listă (`bulk_operations`, §13.2) — `PruneExpiredExportsJob`
         // (plan §7.2) golește `result_path` peste acest prag; fișierul dispare de pe disc.
@@ -70,6 +82,14 @@ return [
         // rânduri per job de coadă). Un singur loc: planificatorul (`PlanBulkOperationJob`)
         // și estimarea de progres (`BulkOperationResource`) trebuie să vadă aceeași valoare.
         'bulk_chunk_size' => (int) env('BULK_CHUNK_SIZE', 500),
+
+        // §13.2 (code review, fix operațional) — o operație de SCRIERE rămasă `pending`/
+        // `running` FĂRĂ `batch_id` mai mult decât atât e considerată blocată (procesul a
+        // murit exact între `Bus::batch()->dispatch()` și scrierea `batch_id`) —
+        // `App\Jobs\System\FailStuckBulkOperationsJob` o închide ca `failed`. 15 minute:
+        // mult peste orice timp normal de planificare (`PlanBulkOperationJob::timeout` =
+        // 120s), deci nu atinge niciodată o operație încă în curs de planificare legitimă.
+        'bulk_stuck_operation_minutes' => (int) env('BULK_STUCK_OPERATION_MINUTES', 15),
     ],
 
 ];

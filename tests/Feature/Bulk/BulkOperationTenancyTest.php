@@ -120,8 +120,8 @@ class BulkOperationTenancyTest extends TestCase
         // `PlanBulkOperationJob`) o aplică tuturor joburilor din batch — aici, fără batch,
         // trebuie repetată manual, altfel joburile ajung pe coada `default` și
         // `queue:work --queue=bulk` nu găsește nimic de procesat.
-        ProcessBulkChunkJob::dispatch($this->marlin->getKey(), $marlinOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$marlinAccount->getKey()], ['owner_user_id' => $newOwnerMarlin->getKey()])->onQueue('bulk');
-        ProcessBulkChunkJob::dispatch($this->cascade->getKey(), $cascadeOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$cascadeAccount->getKey()], ['owner_user_id' => $newOwnerCascade->getKey()])->onQueue('bulk');
+        ProcessBulkChunkJob::dispatch($this->marlin->getKey(), $marlinOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$marlinAccount->getKey()], ['owner_user_id' => $newOwnerMarlin->getKey()], 0)->onQueue('bulk');
+        ProcessBulkChunkJob::dispatch($this->cascade->getKey(), $cascadeOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$cascadeAccount->getKey()], ['owner_user_id' => $newOwnerCascade->getKey()], 0)->onQueue('bulk');
 
         $this->assertSame(2, DB::table('jobs')->count(), 'Joburile n-au ajuns în coadă — driverul e tot `sync`?');
 

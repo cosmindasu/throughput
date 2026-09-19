@@ -9,8 +9,13 @@ use App\Http\Resources\Products\ProductDetailResource;
 use App\Http\Resources\Products\ProductResource;
 use App\Models\Product;
 use App\Models\Variant;
+use App\Support\Bulk\BulkConfirmationThreshold;
+use App\Support\Bulk\BulkMatchingRowCount;
+use App\Support\Bulk\BulkWritableResources;
 use App\Support\Lists\CursorPage;
 use App\Support\Lists\ProductList;
+use App\Support\SavedViews\ListColumns;
+use App\Support\SavedViews\SavedViewDefaultRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,9 +29,16 @@ use Inertia\Response;
  */
 final class ProductController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $this->authorize('viewAny', Product::class);
+
+        // Selector de coloane (specs.md §15.1, D2) — vezi docblock-ul echivalent din
+        // `AccountController::index()`: implicitul salvat câștigă în fața filtrului de rol,
+        // dar doar pe un URL fără NIMIC explicit încă (filtru, sortare, cursor SAU coloane).
+        if (($redirect = SavedViewDefaultRedirect::resolve($request, 'products')) !== null) {
+            return $redirect;
+        }
 
         $list = new ProductList;
         $listQuery = $list->parse($request);
@@ -37,10 +49,28 @@ final class ProductController extends Controller
                 $listQuery->paginate($list->query($listQuery, $user)),
                 ProductResource::class,
             )),
+            // Pachetul C („bulk"), lotul E — vezi docblock-ul echivalent din
+            // `AccountController::index()`. Fără restricție de proprietate (produsele n-au
+            // owner, §7.4) — `BulkMatchingRowCount::for()` rămâne totuși sursa unică, ca
+            // formula să nu se dubleze dacă regula se schimbă vreodată.
+            'total' => Inertia::defer(fn () => BulkMatchingRowCount::for(
+                $user,
+                BulkWritableResources::resolve('products'),
+                $list->query($listQuery, $user),
+            )),
             'list' => $listQuery->toArray(),
+            // Selector de coloane (specs.md §15.1) — validate server-side ca orice filtru;
+            // un `?columns=` necunoscut/gol cade pe `SavedViewResourceType::defaultColumns()`.
+            'columns' => ListColumns::fromRequest($request, 'products'),
             'can' => [
                 'create' => $user->can('create', Product::class),
+                // §13.5 — preț în masă + activare/dezactivare, un singur drept pentru
+                // amândouă (Owner/Manager, `ProductPolicy::bulkWrite()`); Agent/Viewer nu
+                // ajung aici (n-au `products.edit`).
+                'bulkWrite' => $user->can('bulkWrite', Product::class),
             ],
+            'bulkConfirmationThreshold' => BulkConfirmationThreshold::for($user),
+            'bulkRowCap' => BulkConfirmationThreshold::rowCapForRole($user),
         ]);
     }
 

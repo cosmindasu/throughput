@@ -38,9 +38,14 @@ final class ExportController extends Controller
     {
         $this->authorize('download', $export);
 
+        // §13.5 (decizie DomPDF) — extensia urmează fișierul SCRIS de `ExportListJob`, nu o
+        // presupunere fixă `.csv`: `Storage::download()` deduce `Content-Type` din ea
+        // (`application/pdf` vs. `text/csv`), corect pentru ambele formate fără branching aici.
+        $extension = pathinfo((string) $export->result_path, PATHINFO_EXTENSION) ?: 'csv';
+
         return Storage::disk('local')->download(
             (string) $export->result_path,
-            $export->resource_type.'-export.csv',
+            $export->resource_type.'-export.'.$extension,
         );
     }
 }

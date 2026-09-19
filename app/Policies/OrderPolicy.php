@@ -101,6 +101,44 @@ class OrderPolicy
     }
 
     /**
+     * §13.4/§13.5 (Pachetul C, valul „bulk", lotul E) — reasignare owner în masă pe
+     * Orders, simetric cu `AccountPolicy`/`DealPolicy::bulkReassignOwner()`. Legată de
+     * `orders.change_owner`, ca `changeOwner()` de mai sus: doar Owner/Manager au
+     * permisiunea în catalog. Îngustarea la subsetul propriu (BR-BULK-02, Agent — dar
+     * Agentul n-are `orders.change_owner`, deci nici pe Orders nu ajunge aici, la fel ca
+     * pe Deals) e la nivel de INTEROGARE (`OrderBulkResource::scopeToOwnRecords()`), nu în
+     * Policy. Folosită de mecanismul generic (§13.2) ȘI de reatribuirea la dezactivarea
+     * unui membru (US-TEN-03, BR-BULK-04), unde comenzile sunt al treilea tip din același
+     * `group_id`.
+     */
+    public function bulkReassignOwner(User $user): bool
+    {
+        return $user->can('orders.change_owner') && $user->can('bulk.write');
+    }
+
+    /**
+     * §13.5 — anulare în masă a comenzilor `draft`. Legată de `orders.cancel`, PERMISIUNE
+     * pe care Agentul O ARE (spre deosebire de `orders.change_owner`) — un Agent poate
+     * anula în masă draft-urile lui, cu plafonul de rânduri BR-BULK-02, verificat separat
+     * în `DispatchBulkOperationAction`, ca la reasignare. Fără îngustare ABAC aici: la fel
+     * ca `bulkReassignOwner()`, subsetul propriu al Agentului e la nivel de interogare
+     * (`OrderBulkResource::scopeToOwnRecords()`), nu de Policy.
+     */
+    public function bulkCancel(User $user): bool
+    {
+        return $user->can('orders.cancel') && $user->can('bulk.write');
+    }
+
+    /**
+     * §7.4 nota ³, §13.5 (BR-BULK-03) — exportul e o CITIRE, permisă și Viewer-ului:
+     * simetric cu `AccountPolicy::export()`.
+     */
+    public function export(User $user): bool
+    {
+        return $user->can('orders.view') && $user->can('bulk.export');
+    }
+
+    /**
      * §7.5: un Agent lucrează doar pe comenzile unde e responsabil (ca la Deals/Accounts).
      */
     private function isWithinOwnRecords(User $user, Order $order): bool

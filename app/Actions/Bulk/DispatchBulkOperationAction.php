@@ -5,6 +5,7 @@ namespace App\Actions\Bulk;
 use App\Jobs\Bulk\PlanBulkOperationJob;
 use App\Models\BulkOperation;
 use App\Models\User;
+use App\Support\Bulk\BulkChunkActions;
 use App\Support\Bulk\BulkConfirmationThreshold;
 use App\Support\Bulk\BulkMatchingRowCount;
 use App\Support\Bulk\BulkWritableResource;
@@ -52,6 +53,12 @@ final class DispatchBulkOperationAction
         $query = $ids !== null
             ? $resource->newQuery()->whereIn($resource->newQuery()->getModel()->getKeyName(), $ids)
             : app($resource->listClass())->query($listQuery, $user);
+
+        // Rândurile EFECTIV atinse, nu tot filtrul/selecția — vezi docblock-ul
+        // `BulkChunkActions::narrowQuery()` (defect (g) din v1.24, reprodus altfel pe
+        // anularea de draft-uri dacă lipsea aici). No-op pentru orice acțiune care atinge
+        // toată selecția (reasignare, preț, activare).
+        $query = BulkChunkActions::narrowQuery($action, $query);
 
         // P2-003 (code review) — ACEEAȘI funcție cu care `AccountController`/
         // `DealController::index()` calculează N-ul din „Select all N matching this

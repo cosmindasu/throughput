@@ -27,6 +27,9 @@ const LABELS: Record<BulkOperationStatus, string> = {
 const ACTION_LABELS: Record<string, string> = {
     reassign_owner: 'Reassign owner',
     export: 'Export',
+    cancel_draft_orders: 'Cancel draft orders',
+    update_price: 'Update price',
+    set_active: 'Update product status',
 };
 
 /**
@@ -90,7 +93,7 @@ export default function Show() {
                     )}
 
                     {operation.status === 'cancelled' && (
-                        <span className="text-sm text-text-2">Cancelled — rows already processed keep their new owner, the rest were left unchanged.</span>
+                        <span className="text-sm text-text-2">Cancelled — rows already processed keep their change, the rest were left unchanged.</span>
                     )}
                 </div>
 

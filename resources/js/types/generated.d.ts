@@ -532,8 +532,16 @@ export interface ProductDetail {
 
 export interface ProductsIndexPageProps {
     products: CursorPage<ProductRow>;
+    // Pachetul C („bulk"), lotul E — vezi `AccountsIndexPageProps.total`, aceeași formă.
+    total: number;
     list: ListState;
-    can: { create: boolean };
+    // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
+    columns: string[];
+    // `bulkWrite` acoperă atât prețul în masă, cât și activarea/dezactivarea — un singur
+    // drept (`ProductPolicy::bulkWrite()`, Owner/Manager).
+    can: { create: boolean; bulkWrite: boolean };
+    bulkConfirmationThreshold: number;
+    bulkRowCap: number | null;
     [key: string]: unknown;
 }
 
@@ -709,6 +717,9 @@ export type ExportStatus = 'pending' | 'running' | 'completed' | 'cancelled' | '
 export interface ExportStatusPayload {
     id: string;
     resourceType: string;
+    // §13.5 (decizie DomPDF, Orders) — 'csv' implicit pentru exporturile scrise înainte de
+    // acest câmp (Accounts/Contacts, valul 1).
+    format: 'csv' | 'pdf';
     status: ExportStatus;
     totalRows: number;
     canDownload: boolean;
@@ -813,10 +824,25 @@ export interface OrderSummary {
 
 export interface OrdersIndexPageProps {
     orders: CursorPage<OrderSummary>;
+    // Pachetul C („bulk"), lotul E — vezi `AccountsIndexPageProps.total`, aceeași formă:
+    // N-ul EXACT pe care REASIGNAREA l-ar atinge pe filtrul curent.
+    total: number;
+    // Distinct de `total`: N-ul EXACT pe care ANULAREA ÎN MASĂ (doar `draft`, §13.5) l-ar
+    // atinge — nu tot filtrul. Vezi `App\Support\Bulk\BulkChunkActions::narrowQuery()`.
+    draftTotal: number;
     filters: ListState;
+    // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
+    columns: string[];
     can: {
         create: boolean;
+        export: boolean;
+        bulkReassignOwner: boolean;
+        bulkCancelDrafts: boolean;
     };
+    // Gol când `can.bulkReassignOwner` e fals.
+    owners: OrderPartyRef[];
+    bulkConfirmationThreshold: number;
+    bulkRowCap: number | null;
     [key: string]: unknown;
 }
 

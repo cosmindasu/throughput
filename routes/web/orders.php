@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 // primul și ar căuta o comandă cu id-ul literal „create" sau „variants".
 Route::get('/orders/create', [OrderController::class, 'create'])->name('orders.create');
 Route::get('/orders/variants/lookup', VariantLookupController::class)->name('orders.variants.lookup');
+// US-CRM-03, §13.2/§13.5 — la fel ca `routes/web/accounts.php`: segment static, ÎNAINTEA
+// resursei, altfel „export" s-ar potrivi pe `/orders/{order}` ca id literal.
+Route::get('/orders/export', [OrderController::class, 'export'])->name('orders.export');
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
 Route::get('/orders/{order}/edit', [OrderController::class, 'edit'])->name('orders.edit');

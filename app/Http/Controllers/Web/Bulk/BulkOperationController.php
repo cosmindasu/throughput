@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Web\Bulk;
 
 use App\Actions\Bulk\DispatchBulkOperationAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Bulk\CancelDraftOrdersRequest;
 use App\Http\Requests\Bulk\ReassignOwnerRequest;
+use App\Http\Requests\Bulk\SetProductActiveRequest;
+use App\Http\Requests\Bulk\UpdateProductPriceRequest;
 use App\Http\Resources\Bulk\BulkOperationResource;
 use App\Models\BulkOperation;
 use App\Support\Bulk\BulkChunkActions;
@@ -16,9 +19,10 @@ use Inertia\Response;
 
 /**
  * Mecanismul generic de operații în masă de SCRIERE (§13.2) — dispecerizare, status și
- * anulare, comune oricărui `resource_type`/`action`. `reassignOwner()` e singura acțiune a
- * acestui val (Accounts + Deals, §13.5); o resursă nouă își adaugă doar o intrare în
- * `BulkWritableResources`, nu o rută nouă.
+ * anulare, comune oricărui `resource_type`/`action`. `reassignOwner()` e generic pe
+ * `{resourceType}` (Accounts, Deals, Orders — §13.5); `cancelDraftOrders()`,
+ * `updateProductPrice()` și `setProductActive()` sunt specifice unei singure resurse, deci
+ * au fiecare propria rută, fără segmentul `{resourceType}`.
  *
  * Distinct de `App\Http\Controllers\Web\Exports\ExportController` (operații de CITIRE,
  * Faza 2): modelul `BulkOperation` e comun, dar prezentarea diferă (progres + „Cancel", nu
@@ -51,6 +55,91 @@ final class BulkOperationController extends Controller
         return redirect()
             ->route('bulk.show', $operation)
             ->with('success', 'Bulk operation started — this page updates automatically.');
+    }
+
+    /**
+     * §13.5, §11.3 — anulare în masă a comenzilor `draft`. Fără payload de acțiune: statul
+     * țintă (`cancelled`) și precondiția (`status = draft`) sunt fixe în
+     * `App\Actions\Bulk\CancelDraftOrdersAction`, nu vin din cerere.
+     */
+    public function cancelDraftOrders(
+        CancelDraftOrdersRequest $request,
+        DispatchBulkOperationAction $dispatch,
+    ): RedirectResponse {
+        $resource = BulkWritableResources::resolve('orders');
+
+        $this->authorize('bulkCancel', $resource->modelClass());
+
+        $list = app($resource->listClass());
+        $listQuery = $list->parse($request);
+
+        $operation = $dispatch->execute(
+            user: $request->user(),
+            resource: $resource,
+            action: BulkChunkActions::CANCEL_DRAFT_ORDERS,
+            listQuery: $listQuery,
+            ids: $request->idsOrNull(),
+            actionPayload: [],
+            confirmed: $request->confirmed(),
+        );
+
+        return redirect()
+            ->route('bulk.show', $operation)
+            ->with('success', 'Cancelling draft orders — this page updates automatically.');
+    }
+
+    /** §13.5 — preț în masă pe variantele produselor selectate (procent/sumă, +/-). */
+    public function updateProductPrice(
+        UpdateProductPriceRequest $request,
+        DispatchBulkOperationAction $dispatch,
+    ): RedirectResponse {
+        $resource = BulkWritableResources::resolve('products');
+
+        $this->authorize('bulkWrite', $resource->modelClass());
+
+        $list = app($resource->listClass());
+        $listQuery = $list->parse($request);
+
+        $operation = $dispatch->execute(
+            user: $request->user(),
+            resource: $resource,
+            action: BulkChunkActions::UPDATE_PRICE,
+            listQuery: $listQuery,
+            ids: $request->idsOrNull(),
+            actionPayload: $request->pricePayload(),
+            confirmed: $request->confirmed(),
+        );
+
+        return redirect()
+            ->route('bulk.show', $operation)
+            ->with('success', 'Updating prices — this page updates automatically.');
+    }
+
+    /** §13.5 — activare/dezactivare în masă a produselor selectate. */
+    public function setProductActive(
+        SetProductActiveRequest $request,
+        DispatchBulkOperationAction $dispatch,
+    ): RedirectResponse {
+        $resource = BulkWritableResources::resolve('products');
+
+        $this->authorize('bulkWrite', $resource->modelClass());
+
+        $list = app($resource->listClass());
+        $listQuery = $list->parse($request);
+
+        $operation = $dispatch->execute(
+            user: $request->user(),
+            resource: $resource,
+            action: BulkChunkActions::SET_ACTIVE,
+            listQuery: $listQuery,
+            ids: $request->idsOrNull(),
+            actionPayload: ['active' => $request->boolean('active')],
+            confirmed: $request->confirmed(),
+        );
+
+        return redirect()
+            ->route('bulk.show', $operation)
+            ->with('success', 'Updating product status — this page updates automatically.');
     }
 
     public function show(BulkOperation $operation): Response

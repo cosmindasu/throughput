@@ -4,6 +4,8 @@ namespace App\Support\Bulk;
 
 use App\Support\Bulk\Resources\AccountBulkResource;
 use App\Support\Bulk\Resources\DealBulkResource;
+use App\Support\Bulk\Resources\OrderBulkResource;
+use App\Support\Bulk\Resources\ProductBulkResource;
 use InvalidArgumentException;
 
 /**
@@ -12,8 +14,6 @@ use InvalidArgumentException;
  * pentru `DispatchBulkOperationAction`, `PlanBulkOperationJob` și `ProcessBulkChunkJob`:
  * toți trei rezolvă resursa prin același nume, deci nu pot ajunge să interogheze lucruri
  * diferite pentru aceeași operație.
- *
- * Comenzi și Produse (§13.5) își adaugă câte o linie aici în valurile care le construiesc.
  */
 final class BulkWritableResources
 {
@@ -23,6 +23,8 @@ final class BulkWritableResources
         return [
             'accounts' => AccountBulkResource::class,
             'deals' => DealBulkResource::class,
+            'orders' => OrderBulkResource::class,
+            'products' => ProductBulkResource::class,
         ];
     }
 

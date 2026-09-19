@@ -4,6 +4,7 @@ namespace App\Support\Exports;
 
 use App\Support\Lists\AccountList;
 use App\Support\Lists\ContactList;
+use App\Support\Lists\OrderList;
 use App\Support\Lists\ResourceList;
 use InvalidArgumentException;
 
@@ -13,8 +14,7 @@ use InvalidArgumentException;
  * (`ListExport`) și pentru `ExportListJob` (exportul în coadă) — amândoi rezolvă lista prin
  * același nume, deci nu pot ajunge să interogheze lucruri diferite pentru aceeași operație.
  *
- * Celelalte resurse din specs.md §13.5 (Comenzi, Produse, Facturi) își adaugă câte o linie
- * aici, în fazele care le construiesc.
+ * Facturile (§13.5, export PDF zip) își adaugă linia în faza care le construiește.
  */
 final class ExportableResources
 {
@@ -24,6 +24,7 @@ final class ExportableResources
         return [
             'accounts' => AccountList::class,
             'contacts' => ContactList::class,
+            'orders' => OrderList::class,
         ];
     }
 

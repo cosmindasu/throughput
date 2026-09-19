@@ -3,6 +3,8 @@
 namespace App\Jobs\Bulk;
 
 use App\Jobs\Middleware\ApplyTenantContextToJob;
+use App\Models\BulkOperationChunk;
+use App\Models\Scopes\TenantScope;
 use App\Support\Bulk\BulkChunkActions;
 use App\Support\Bulk\BulkWritableResources;
 use Illuminate\Bus\Batchable;
@@ -11,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 /**
  * Job de CHUNK (§13.2, pct. 3/5) — job de TENANT (ADR-014), FĂRĂ I/O extern, deci întreg
@@ -18,8 +21,18 @@ use Illuminate\Queue\SerializesModels;
  * deosebire de `PlanBulkOperationJob`/`ExportListJob`, care au nevoie de vizibilitate
  * intermediară (starea „running" trebuie comisă separat de restul).
  *
- * Idempotent prin construcție (executorul de acțiune scrie un `UPDATE` condiționat pe
- * stare, niciodată un increment) — sigur la reîncercare (`tries`).
+ * Idempotență PER CHUNK (code review „P2-001", decizia proprietarului) — NU doar prin
+ * construcția executorului: un marcaj „ultima operație" pe rândul țintă nu e suficient
+ * când efectul depinde de valoarea VECHE a rândului (prețul, de exemplu) — o reîncercare
+ * a ACELUIAȘI chunk, cu ACELAȘI marcaj, tot ar dubla efectul dacă nimic n-o oprește
+ * ÎNAINTE de `apply()`. Aici: `insertOrIgnore` pe `(bulk_operation_id, chunk)` — un rând
+ * per chunk EFECTIV aplicat — chiar în interiorul tranzacției pe care
+ * `ApplyTenantContextToJob` → `TenantContext::run()` → `DB::transaction()` o deschide deja
+ * pentru tot `handle()`; dacă inserarea întoarce 0, chunk-ul a mai fost aplicat (job
+ * redelivrat după un crash între commit și ack — `retry_after`, OOM real pe VPS) și
+ * `apply()` NU se mai cheamă. `App\Support\Bulk\BulkChunkAction` rămâne recomandarea de
+ * idempotență DE RÂND, acolo unde e posibilă (`UPDATE ... WHERE`) — garanția de aici e
+ * independentă de ea și se aplică tuturor acțiunilor, ca plasă de siguranță comună.
  *
  * Verifică `$this->batch()->cancelled()` la ÎNCEPUTUL lui `handle()` (§13.2, pct. 7):
  * job-urile deja pornite se termină, cele neîncepute se opresc cooperativ — Laravel nu
@@ -36,6 +49,9 @@ class ProcessBulkChunkJob implements ShouldQueue
     /**
      * @param  list<string>  $ids
      * @param  array<string, mixed>  $payload
+     * @param  int  $chunk  Indexul chunk-ului, dat de `PlanBulkOperationJob` — stabil și
+     *                      determinist în cadrul UNEI planificări (§13.2). Cheia (împreună
+     *                      cu `bulkOperationId`) a marcajului de idempotență de mai sus.
      */
     public function __construct(
         public string $tenantId,
@@ -44,6 +60,7 @@ class ProcessBulkChunkJob implements ShouldQueue
         public string $action,
         public array $ids,
         public array $payload,
+        public int $chunk,
     ) {}
 
     /** @return array<int, object> */
@@ -55,6 +72,24 @@ class ProcessBulkChunkJob implements ShouldQueue
     public function handle(): void
     {
         if ($this->batch()?->cancelled()) {
+            return;
+        }
+
+        // `insertOrIgnore` ocolește evenimentele Eloquent (ca în
+        // `LocksInventoryLevels::ensureLevelsExist()`), deci `id`/`tenant_id`/`created_at`
+        // se completează explicit. Verificat: rulează ÎN ACEEAȘI tranzacție cu `apply()`
+        // de mai jos — `ApplyTenantContextToJob` deschide UNA singură pentru tot
+        // `handle()` (`TenantContext::run()` → `DB::transaction()`), deci fie ambele se
+        // comit împreună, fie niciuna.
+        $inserted = BulkOperationChunk::query()->insertOrIgnore([
+            'id' => strtolower((string) Str::ulid()),
+            'tenant_id' => TenantScope::requireCurrentTenantId(),
+            'bulk_operation_id' => $this->bulkOperationId,
+            'chunk' => $this->chunk,
+            'created_at' => now(),
+        ]);
+
+        if ($inserted === 0) {
             return;
         }
 

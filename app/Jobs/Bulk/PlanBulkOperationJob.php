@@ -5,6 +5,7 @@ namespace App\Jobs\Bulk;
 use App\Models\BulkOperation;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Bulk\BulkChunkActions;
 use App\Support\Bulk\BulkWritableResource;
 use App\Support\Bulk\BulkWritableResources;
 use Illuminate\Bus\Batch;
@@ -102,6 +103,13 @@ class PlanBulkOperationJob implements ShouldQueue
 
         $query = $this->queryFor($resource, $snapshot, $actor);
 
+        // Aceeași îngustare aplicată la dispatch (`DispatchBulkOperationAction`) — vezi
+        // docblock-ul `BulkChunkActions::narrowQuery()`: chunk-urile trebuie să pagineze
+        // DOAR rândurile pe care acțiunea chiar le atinge (ex: draft-urile, la anulare),
+        // altfel `total_rows` capturat la dispatch și numărul de id-uri chunk-uite aici
+        // ar diverge din nou.
+        $query = BulkChunkActions::narrowQuery($operation->action, $query);
+
         if ($snapshot['restrict_to_own_records'] ?? false) {
             $resource->scopeToOwnRecords($query, $actor);
         }
@@ -123,8 +131,13 @@ class PlanBulkOperationJob implements ShouldQueue
 
         /** @var list<ProcessBulkChunkJob> $jobs */
         $jobs = [];
+        // Indexul chunk-ului, dat aici — stabil și determinist ÎN CADRUL acestei
+        // planificări (`chunkById` parcurge în ordinea cheii primare). Cheia idempotenței
+        // de chunk din `ProcessBulkChunkJob` (`bulk_operation_chunks`, code review
+        // „P2-001").
+        $chunkIndex = 0;
 
-        $query->chunkById($chunkSize, function ($rows) use (&$jobs, $keyName, $tenantId, $operationId, $resourceType, $action, $payload): void {
+        $query->chunkById($chunkSize, function ($rows) use (&$jobs, &$chunkIndex, $keyName, $tenantId, $operationId, $resourceType, $action, $payload): void {
             $jobs[] = new ProcessBulkChunkJob(
                 $tenantId,
                 $operationId,
@@ -132,7 +145,10 @@ class PlanBulkOperationJob implements ShouldQueue
                 $action,
                 $rows->pluck($keyName)->map(static fn ($id): string => (string) $id)->all(),
                 $payload,
+                $chunkIndex,
             );
+
+            $chunkIndex++;
         }, $keyName);
 
         // P1-001 (code review) — fereastra dintre scrierea „running" (prima tranzacție a

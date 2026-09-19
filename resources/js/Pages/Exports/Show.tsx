@@ -74,7 +74,7 @@ export default function Show() {
                 {exportStatus.canDownload && workspace && (
                     <div>
                         <ButtonLink variant="primary" href={`/${workspace.slug}/exports/${exportStatus.id}/download`}>
-                            Download CSV
+                            Download {exportStatus.format.toUpperCase()}
                         </ButtonLink>
                     </div>
                 )}

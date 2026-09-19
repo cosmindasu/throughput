@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\System\FailStuckBulkOperationsJob;
 use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
@@ -36,3 +37,12 @@ Schedule::command('stock:reconcile')->weekly();
 // fără parametri: implicit șterge batch-urile terminate de peste 24h). Fără `when()`, ca la
 // `PruneExpiredExportsJob`: operațiile în masă există independent de DEMO_MODE.
 Schedule::command('queue:prune-batches')->daily();
+
+// §13.2 (code review, fix operațional) — plasă de siguranță pentru fereastra dintre
+// `Bus::batch()->dispatch()` și scrierea `batch_id` (`PlanBulkOperationJob`, tries=1
+// deliberat, deci fără reîncercare proprie): la 5 minute, nu zilnic ca restul acestei
+// liste, fiindcă utilizatorul se uită ACTIV la o bară de progres blocată — pragul de
+// „blocat" e 15 minute (`bulk_stuck_operation_minutes`), iar 5 minute de verificare ține
+// întârzierea maximă vizibilă sub o treime din prag, cu o interogare îngustă, indexată,
+// per tenant — cost neglijabil pe bugetul de memorie al scheduler-ului (ADR-017).
+Schedule::job(new FailStuckBulkOperationsJob, 'default')->everyFiveMinutes();
