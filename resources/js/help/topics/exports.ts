@@ -9,7 +9,9 @@ import type { HelpTopic } from '@/help/types';
  * (etichetele de status, polling la 2 s, „Download CSV"/„Download PDF" după format, data de
  * expirare), `ListExport` (prag `EXPORT_SYNC_MAX_ROWS` = 5.000 inclusiv pentru CSV; PDF-ul
  * NU are cale sincronă — decizie a proprietarului, DomPDF — și are propriul plafon,
- * `EXPORT_PDF_MAX_ROWS` = 500, măsurat direct: peste el timpul și memoria de randare cresc
+ * `EXPORT_PDF_MAX_ROWS` = 250 (coborât de la 500 în Faza 4, după remăsurarea pe container —
+ * vezi comentariul cheii din `config/throughput.php`), măsurat direct: peste el timpul și
+ * memoria de randare cresc
  * mai repede decât liniar; plafonul demo `BULK_MAX_ROWS_ABSOLUTE` = 60.000), `ExportableResources`
  * (Accounts, Contacts, Orders), `BulkOperationPolicy` (doar autorul), `ExportListJob`,
  * `CsvExporter` și `PdfExporter`. `PruneExpiredExportsJob` (plan §7.2) rulează zilnic, cu
@@ -31,7 +33,7 @@ const exportsTopic: HelpTopic = {
     ],
     rules: [
         "A CSV export of up to 5,000 rows downloads straight from the list, no waiting screen. A larger one, or any PDF export, runs as a background job so the request doesn't hang — you land here to watch it finish instead.",
-        'A PDF export is capped at 500 rows and always runs in the background, even for a single row — rendering a PDF costs real CPU time and memory, which never belongs inside the request that served the page. For anything bigger, use CSV.',
+        'A PDF export is capped at 250 rows and always runs in the background, even for a single row — rendering a PDF costs real CPU time and memory, which never belongs inside the request that served the page. For anything bigger, use CSV.',
         'The file contains every row matching the filters and sort you had when you clicked "Export CSV"/"Export PDF" — all pages, not just the one on screen — including a default such as "My accounts".',
         "Only the person who started an export can open this page or download the file — not even an Owner can open a teammate's export.",
         "Every role that can view the list can export it, including Viewer — exporting what's already visible to you is a read, not a write.",

@@ -9,6 +9,9 @@ import dealDetail from '@/help/topics/deal-detail';
 import dealsKanban from '@/help/topics/deals-kanban';
 import dealsList from '@/help/topics/deals-list';
 import exportsTopic from '@/help/topics/exports';
+import importDetail from '@/help/topics/import-detail';
+import importUpload from '@/help/topics/import-upload';
+import importsList from '@/help/topics/imports-list';
 import members from '@/help/topics/members';
 import orderDetail from '@/help/topics/order-detail';
 import ordersList from '@/help/topics/orders-list';
@@ -16,6 +19,10 @@ import pipeline from '@/help/topics/pipeline';
 import preferences from '@/help/topics/preferences';
 import productDetail from '@/help/topics/product-detail';
 import productsList from '@/help/topics/products-list';
+import reportDetail from '@/help/topics/report-detail';
+import reportForm from '@/help/topics/report-form';
+import reportsList from '@/help/topics/reports-list';
+import sentEmails from '@/help/topics/sent-emails';
 import settings from '@/help/topics/settings';
 import stock from '@/help/topics/stock';
 import stockHistory from '@/help/topics/stock-history';
@@ -62,6 +69,7 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Settings/Index': settings,
     'Settings/Preferences': preferences,
     'Settings/Members/Index': members,
+    'Settings/SentEmails/Index': sentEmails,
 
     'Unassigned/Index': unassigned,
 
@@ -83,6 +91,15 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Orders/Show': orderDetail,
     'Orders/Create': orderDetail,
     'Orders/Edit': orderDetail,
+
+    'Imports/Index': importsList,
+    'Imports/Create': importUpload,
+    'Imports/Show': importDetail,
+
+    'Reports/Index': reportsList,
+    'Reports/Show': reportDetail,
+    'Reports/Create': reportForm,
+    'Reports/Edit': reportForm,
 };
 
 /**
