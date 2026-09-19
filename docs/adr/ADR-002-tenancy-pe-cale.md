@@ -1,10 +1,12 @@
 # ADR-002: Multi-tenancy pe cale (workspace slug), nu pe subdomeniu
 
-- **Status**: Accepted
+- **Status**: Accepted — **amendat de [[ADR-022]]** (segmentul de limbă exclus explicit din URL, vezi nota de mai jos)
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
 - **Related**: [[ADR-003]] (mecanismul de izolare), [[ADR-001]]
 - **Tags**: multi-tenancy, dns, tls, routing, sprint-1
+
+> **Amendament, 2026-09-20 — [[ADR-022]].** Decizia de mai jos nu se schimbă. Când aplicația a devenit bilingvă (EN + FR), s-a luat în calcul și un segment de limbă în URL (`/fr/{workspace}/...`) — respins explicit, cu același raționament de aici: „URL-ul e decor." Limba e o preferință per utilizator (`users.locale`), nu un segment de cale. Notă adăugată ca argumentul de mai jos să nu fie redeschis fără context.
 
 ## Context și problema
 

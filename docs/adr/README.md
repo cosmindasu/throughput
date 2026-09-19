@@ -29,6 +29,7 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-019](ADR-019-export-pdf-liste-dompdf-nu-chromium.md) | Exportul PDF de listă (Orders) cu DomPDF, nu cu Chromium în imagine | Accepted | 2026-09-14 | Faza 3 |
 | [ADR-020](ADR-020-politica-rls-proprie-pentru-jurnalul-de-email.md) | Politică RLS proprie pentru jurnalul de email, cu tenant opțional | Accepted | 2026-09-19 | Faza 4 |
 | [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | Factura de abonament rămâne pe `DompdfInvoiceRenderer`, implicitul Cashier — nu pe `spatie/laravel-pdf` — supersedează parțial [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Accepted | 2026-09-19 | Faza 5 |
+| [ADR-022](ADR-022-locale-en-fr-per-utilizator-nu-in-url.md) | Interfața devine bilingvă (EN implicit + FR), limba e preferință per utilizator (`users.locale`) — nu segment de URL — amendează [ADR-002](ADR-002-tenancy-pe-cale.md) | Accepted | 2026-09-20 | după Faza 5 |
 
 ## Convenții
 
