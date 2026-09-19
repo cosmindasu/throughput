@@ -1,6 +1,6 @@
 import { Head, usePage, usePoll } from '@inertiajs/react';
 import { useEffect, type ReactNode } from 'react';
-import { ButtonLink } from '@/Components/Button';
+import { buttonClass } from '@/Components/Button';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
@@ -73,9 +73,17 @@ export default function Show() {
 
                 {exportStatus.canDownload && workspace && (
                     <div>
-                        <ButtonLink variant="primary" href={`/${workspace.slug}/exports/${exportStatus.id}/download`}>
+                        {/* Defect real găsit la auditul E2E (raportul pachetului) — un `<Link>`
+                            Inertia (`ButtonLink`) intercepta acest click și trata răspunsul
+                            binar (`Content-Disposition: attachment`, fără antet `X-Inertia`)
+                            ca o excepție HTTP neașteptată (`handleNonInertiaResponse()` din
+                            `@inertiajs/core`): dialogul de eroare al Inertia se deschidea în
+                            loc să se declanșeze descărcarea. `<a href>` simplu, EXACT ca
+                            exportul sincron din `Orders/Index.tsx` — o navigare reală de
+                            browser, nu o vizită Inertia. */}
+                        <a href={`/${workspace.slug}/exports/${exportStatus.id}/download`} className={buttonClass('primary')}>
                             Download {exportStatus.format.toUpperCase()}
-                        </ButtonLink>
+                        </a>
                     </div>
                 )}
             </div>

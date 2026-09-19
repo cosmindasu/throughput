@@ -65,13 +65,24 @@ export default function ShipmentsSection({
     workspaceSlug: string;
 }) {
     const hasPendingLabel = order.shipments.some((shipment) => shipment.status === 'label_pending');
-    const { stop } = usePoll(3000, { only: ['order'] }, { autoStart: hasPendingLabel });
+    // Defect real găsit la auditul E2E (raportul pachetului) — `usePoll` pornește
+    // polling-ul într-un `useEffect` cu dependențe GOALE (`@inertiajs/react`, citit direct
+    // în sursă): `autoStart` se evaluează O SINGURĂ DATĂ, la montare. `ShipmentsSection`
+    // montează ÎMPREUNĂ cu `Orders/Show`, ÎNAINTE să existe vreun shipment — la acel
+    // moment `hasPendingLabel` e mereu `false`, deci `autoStart: hasPendingLabel` îngheață
+    // polling-ul PERMANENT oprit. Fără `start()` simetric aici, un shipment creat DUPĂ
+    // montare (fluxul normal — „Create shipment" se apasă pe o pagină deja deschisă)
+    // rămânea pe „Generating label…" la nesfârșit, chiar dacă eticheta se cumpăra corect
+    // pe server: clientul nu mai cerea niciodată pagina din nou.
+    const { start, stop } = usePoll(3000, { only: ['order'] }, { autoStart: hasPendingLabel });
 
     useEffect(() => {
-        if (!hasPendingLabel) {
+        if (hasPendingLabel) {
+            start();
+        } else {
             stop();
         }
-    }, [hasPendingLabel, stop]);
+    }, [hasPendingLabel, start, stop]);
 
     const [confirmTarget, setConfirmTarget] = useState<{ action: ConfirmAction; shipment: Shipment } | null>(null);
     const [rowProcessingId, setRowProcessingId] = useState<string | null>(null);

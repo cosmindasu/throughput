@@ -120,7 +120,6 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
             <button
                 ref={buttonRef}
                 type="button"
-                aria-haspopup="true"
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => (open ? closePanel() : setOpen(true))}

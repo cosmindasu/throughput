@@ -302,10 +302,13 @@ function OrdersTable({
     const { orders } = usePage<OrdersIndexPageProps>().props;
 
     if (orders.data.length === 0) {
+        // Text corectat (raportul E2E) — „or from an account page" trimitea la un link
+        // „New order" care nu există pe `Accounts/Show.tsx` (doar „New deal"); singura
+        // cale reală azi e butonul „New order" de mai sus.
         return (
             <EmptyState
                 message="No orders match this filter."
-                action={canCreate ? <p className="text-xs text-text-3">Start one from "New order", or from an account page.</p> : undefined}
+                action={canCreate ? <p className="text-xs text-text-3">Start one from "New order" above.</p> : undefined}
             />
         );
     }
