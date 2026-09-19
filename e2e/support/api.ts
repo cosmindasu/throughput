@@ -154,3 +154,58 @@ export async function confirmOrder(page: Page, base: string, orderId: string, ac
     });
     await expectOk(response, `Confirmare comandă la ${base}/orders/${orderId}/confirm`);
 }
+
+/**
+ * Creează un raport BUILT-IN (§16.1) direct prin `POST /reports`, fără să treacă prin
+ * `ReportForm.tsx` — fixture pentru teste care au nevoie de un `ReportDefinition` existent,
+ * dar nu testează ele însele formularul de creare (deja acoperit de `reports.spec.ts`,
+ * fluxul principal, prin UI). `saved_view_id` nu se trimite deloc: opțional, `nullable`
+ * pentru orice `report_type` diferit de `saved_view_export` (`StoreReportRequest`).
+ *
+ * Întoarce id-ul citit din antetul `Location` al redirectului (`ReportController::store()` →
+ * `reports.show`), la fel ca `createOrderWithLine`.
+ */
+export async function createReport(
+    page: Page,
+    base: string,
+    params: { name: string; reportType: string; recipients: string[]; format?: string },
+): Promise<string> {
+    const headers = await xsrfHeader(page);
+    const response = await page.request.post(`${base}/reports`, {
+        headers,
+        data: {
+            name: params.name,
+            report_type: params.reportType,
+            format: params.format ?? 'csv',
+            schedule_frequency: 'none',
+            recipients: params.recipients,
+            is_active: true,
+        },
+        maxRedirects: 0,
+        failOnStatusCode: false,
+    });
+    await expectOk(response, `Creare raport (fixture) la ${base}/reports`);
+
+    const location = response.headers()['location'];
+    if (!location) {
+        throw new Error(`Răspunsul de creare a raportului n-a avut antet Location (status ${response.status()}).`);
+    }
+
+    const reportId = location.split('/').filter(Boolean).pop();
+    if (!reportId) {
+        throw new Error(`Nu s-a putut citi id-ul raportului din antetul Location „${location}".`);
+    }
+
+    return reportId;
+}
+
+/** `ReportController::runNow()` — dispecerizează `GenerateReportJob` pentru un raport existent (US-REP-02). */
+export async function runReportNow(page: Page, base: string, reportId: string): Promise<void> {
+    const headers = await xsrfHeader(page);
+    const response = await page.request.post(`${base}/reports/${reportId}/run`, {
+        headers,
+        maxRedirects: 0,
+        failOnStatusCode: false,
+    });
+    await expectOk(response, `Rulare manuală a raportului la ${base}/reports/${reportId}/run`);
+}

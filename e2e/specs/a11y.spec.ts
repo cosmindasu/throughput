@@ -66,6 +66,45 @@ const TARGETS: AxeTarget[] = [
         // fără asta, axe ar putea scana un `<main>` gol pe randarea inițială.
         waitFor: (page) => page.getByRole('heading', { name: 'New', level: 2 }).waitFor(),
     },
+    // Faza 4 — ecranele noi ale acestui lot (§14 import, §16 rapoarte, §22.3 jurnalul de
+    // email). Rulează pe DB proaspătă (acest fișier e primul alfabetic din `specs/`,
+    // `workers: 1`): Imports/Reports/Sent Emails sunt încă GOALE aici (`EmptyState`), deci
+    // scanarea acoperă structura de bază (titlu, buton „New …", stare goală), NU tabelul cu
+    // date real — acela e deja verificat separat, o singură dată, temă implicită (dark), în
+    // `imports.spec.ts`/`reports.spec.ts` (ecranul „Show", cu conținut real: pași de mapare,
+    // rezultat built-in, istoric de rulări).
+    {
+        label: 'Imports list',
+        path: '/marlin/imports',
+        waitFor: (page) => page.getByRole('heading', { name: 'Imports', level: 1 }).waitFor(),
+    },
+    {
+        label: 'New import',
+        path: '/marlin/imports/create',
+        waitFor: (page) => page.getByRole('heading', { name: 'New import' }).waitFor(),
+    },
+    {
+        label: 'Reports list',
+        path: '/marlin/reports',
+        waitFor: (page) => page.getByRole('heading', { name: 'Reports', level: 1 }).waitFor(),
+    },
+    {
+        label: 'New report',
+        path: '/marlin/reports/create',
+        waitFor: (page) => page.getByRole('heading', { name: 'New report' }).waitFor(),
+    },
+    {
+        label: 'Sent emails',
+        path: '/marlin/settings/sent-emails',
+        // Deferred (`Inertia::defer`, `SentEmailController::index()`) — axe trebuie să vadă
+        // starea REZOLVATĂ (tabel SAU mesajul de listă goală), nu `TableSkeleton`.
+        waitFor: (page) =>
+            page
+                .locator('table')
+                .or(page.getByText('No emails have been sent or intercepted yet.'))
+                .first()
+                .waitFor(),
+    },
 ];
 
 test.use({ storageState: authFile('manager') });
