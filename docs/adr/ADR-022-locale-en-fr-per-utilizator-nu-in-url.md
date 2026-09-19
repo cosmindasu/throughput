@@ -9,7 +9,7 @@
 
 ## Context și problema
 
-`specs_si_design/README.md:7` afirmă explicit: „Piața e exclusiv internațională. Interfața e în engleză." `specs_si_design/specs.md:9` repetă aceeași premisă, motivată prin piața țintă: „construită ca piesă de portofoliu pentru cumpărători tehnici de pe platforme internaționale de freelancing... Interfața aplicației e în engleză... Piața țintă e exclusiv internațională: nu există e-Factura ANAF, TVA românesc sau Netopia în acest produs, deliberat."
+`specs_si_design/README.md:7` afirmă explicit: „Piața e exclusiv internațională. Interfața e în engleză." `specs_si_design/specs.md:9` repeta aceeași premisă **până la v1.21**, motivată prin piața țintă: „construită ca piesă de portofoliu pentru cumpărători tehnici de pe platforme internaționale de freelancing... Interfața aplicației e în engleză... Piața țintă e exclusiv internațională: nu există e-Factura ANAF, TVA românesc sau Netopia în acest produs, deliberat." (Linia a fost rescrisă în v1.22, ca urmare a acestui ADR — citatul de mai sus e premisa înlocuită, nu textul curent.)
 
 Acest ADR **schimbă** premisa de mai sus, nu o completează. De acum, aplicația e bilingvă: **engleză (implicit) + franceză.**
 
@@ -50,7 +50,7 @@ Clasă `LocalePreference`, replică forma lui `ThemePreference` (`app/Support/Th
 **Opțiunea A (ALEASĂ): `react-i18next`, cataloage JSON în `resources/js/locales/`.**
 
 - **Pro**: motor de pluralizare CLDR gata făcut — vezi cele trei tipare hardcodate de mai sus, care dispar prin adoptarea lui. ~15-20 KB gzip. Aplicația nu are SSR și e `noindex` — constrângerea de hidratare care ar face alegerea sensibilă pe alt proiect nu există aici.
-- **Contra**: o dependență JS în plus, un catalog de întreținut. Acceptat — e exact suprafața pe care Faza 6 (i18n) o adaugă prin definiție.
+- **Contra**: o dependență JS în plus, un catalog de întreținut. Acceptat — e exact suprafața pe care lotul de i18n o adaugă prin definiție. (Lotul e o secțiune dedicată **între** Faza 5 și Faza 6, nu Faza 6 însăși — aceea rămâne „Prezentare", fără cod nou de business.)
 
 **Opțiunea B (RESPINSĂ): `@lingui/react`.**
 
@@ -92,13 +92,13 @@ Maparea rămâne pe cheie stabilă — `ImportRowMapper` (`app/Support/Imports/I
 
 ### Negative / trade-offs, asumate explicit
 
-1. **Joburile de coadă primesc `locale` ca scalar în constructor**, exact cum [[ADR-013]]/[[ADR-014]] impun pentru `tenantId`, plus `App::setLocale($this->locale)` la începutul lui `handle()`. Motivul concret: worker-ul de coadă e un proces de viață lungă; `App::setLocale()` scrie pe singleton-ul `Translator` din container, iar Laravel resetează între joburi doar instanțele `scoped()` — un job FR urmat de unul EN, pe același worker, scurge limba primului către al doilea. E aceeași clasă de bug pe care `.ai/rules/tenancy.md:123-138` o documentează deja pentru memoizarea per cerere sub un worker cu viață lungă, aplicată acum limbii, nu tenantului. **Pentru joburile scrise acum** (facturi, dunning, sub Faza 5), asta aterizează ca **fix punctual** peste ele când vine lotul de i18n — nu ca rescriere — cu condiția ca tiparul de mai sus să fie cunoscut din timp de cine le scrie.
+1. **Joburile de coadă primesc `locale` ca scalar în constructor**, exact cum [[ADR-013]]/[[ADR-014]] impun pentru `tenantId`, plus `App::setLocale($this->locale)` la începutul lui `handle()`. Motivul concret: worker-ul de coadă e un proces de viață lungă; `App::setLocale()` scrie pe singleton-ul `Translator` din container, iar Laravel resetează între joburi doar instanțele `scoped()` — un job FR urmat de unul EN, pe același worker, scurge limba primului către al doilea. E aceeași clasă de bug pe care `.ai/rules/tenancy.md:123-138` o documentează deja pentru memoizarea per cerere sub un worker cu viață lungă, aplicată acum limbii, nu tenantului. **Pentru joburile din domeniul facturare/curierat** (Faza 5, per scope-ul deja planificat în `plan-implementare.md` §11), asta aterizează ca **fix punctual** peste ele când vine lotul de i18n — nu ca rescriere — cu condiția ca tiparul de mai sus să fie cunoscut din timp de cine le scrie, indiferent de momentul la care sunt scrise.
 2. **`e2e/setup/auth.setup.ts:24`** caută butonul de login demo după text literal (`` `Log in as ${DEMO_ROLE_LABELS[role]}` ``) și produce `storageState`-ul citit de toate cele 65 de teste din suită. E un punct unic de eșec: dacă acel buton devine vreodată tradus condiționat de limbă, pică toată suita la pasul de autentificare, nu la vreo aserțiune de business. Cuplarea text-literal ↔ setup e **deliberată** (vezi comentariul din `e2e/support/auth.ts:12-17`: „Text literal, nu derivat: dacă eticheta din backend se schimbă, testul de setup trebuie să pice, nu să tacă.") — deci consecința se scrie aici, nu se presupune. Mitigare: suita `en` existentă rămâne pe login în engleză; subsetul FR nou are propriul `storageState`, cu propriul text de buton, nu împrumută fișierul `en`.
 3. **`User` trebuie să implementeze `Illuminate\Notifications\HasLocalePreference`**, altfel `users.locale` nu produce niciun efect automat pe notificări (email-uri trimise prin `Notifiable` ignoră preferința fără acest contract explicit).
 
 ### Cost, scris onest
 
-~130-160 ore de inginerie. Traducerea franceză e scrisă de asistent și revizuită de proprietar — risc de calitate asumat pe o piesă de portofoliu, mitigat prin revizie țintită pe pasajele marcate plus un test automat de acoperire care blochează CI la o cheie de traducere lipsă (catalog EN/FR incomplet = build roșu, nu string neobservat în producție).
+Ordinul de mărime e de **câteva sute de ore**, defalcat pe valuri în `plan-implementare.md`, secțiunea „Lot I18N" — acolo e sursa unică pentru cifre de efort, ca să nu existe două totaluri care se contrazic. Traducerea franceză e scrisă de asistent și revizuită de proprietar — risc de calitate asumat pe o piesă de portofoliu, mitigat prin revizie țintită pe pasajele marcate plus un test automat de acoperire care blochează CI la o cheie de traducere lipsă (catalog EN/FR incomplet = build roșu, nu string neobservat în producție).
 
 ## Legături
 
