@@ -34,11 +34,16 @@ final class PdfExporter
         string $workspaceName,
         array $filters,
     ): void {
+        // Aceeași problemă ca `CsvExporter` (code review, scenariile k6): `cursor()` nu
+        // aplică eager-load-ul din `with()`, deci exportRow() ar declanșa o interogare
+        // lazy per rând, per relație — vezi docblock-ul `ExportQueryChunker`.
         $rows = [];
 
-        foreach ($query->cursor() as $row) {
-            $rows[] = $list->exportRow($row);
-        }
+        ExportQueryChunker::each($query, function ($chunk) use (&$rows, $list): void {
+            foreach ($chunk as $row) {
+                $rows[] = $list->exportRow($row);
+            }
+        });
 
         Pdf::view('exports.pdf.list', [
             'headers' => $list->exportHeaders(),

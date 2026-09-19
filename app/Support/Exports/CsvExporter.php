@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\Builder;
  * loc care decide ordinea coloanelor și cum se scrie un rând, ca cele două căi să producă
  * byte-cu-byte același fișier pentru același filtru.
  *
- * `Builder::cursor()`, nu `get()`: hidratează un singur model Eloquent deodată, nu toată
- * colecția — dar pe `pdo_pgsql` driverul NU face streaming la nivel de rețea (PDO
- * bufferează tot rezultatul înainte să întoarcă primul rând), deci nu ține memoria jos
- * pentru un `SELECT` cu milioane de rânduri, doar pentru costul de hidratare Eloquent per
- * rând. Pentru volume mari (comenzile din Faza 3), trecem pe `chunkById`, care paginează
- * interogarea propriu-zisă.
+ * `ExportQueryChunker::each()`, NU `Builder::cursor()` (code review, scenariile k6) —
+ * `cursor()` NU apelează `eagerLoadRelations()`, deci `->with(['account:id,name', ...])`
+ * era ignorat tăcut și fiecare rând declanșa o interogare lazy per relație: 5.817
+ * interogări măsurate pentru un export de 2.908 rânduri, în loc de ~18. Chunker-ul
+ * paginează pe cursor (keyset, nu OFFSET) — memoria rămâne mărginită la un chunk, ca la
+ * `cursor()`, dar eager-load-ul se aplică o dată per chunk.
  *
  * P1-001 — injecție de formule CSV (OWASP CSV/Formula Injection): orice celulă text care
  * începe cu `=`, `+`, `-`, `@`, tab sau retur de car se deschide ca formulă în Excel/Sheets
@@ -40,9 +40,11 @@ final class CsvExporter
 
         fputcsv($handle, $list->exportHeaders());
 
-        foreach ($query->cursor() as $row) {
-            fputcsv($handle, self::sanitizeRow($list->exportRow($row)));
-        }
+        ExportQueryChunker::each($query, function ($rows) use ($handle, $list): void {
+            foreach ($rows as $row) {
+                fputcsv($handle, self::sanitizeRow($list->exportRow($row)));
+            }
+        });
 
         rewind($handle);
 

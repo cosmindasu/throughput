@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Exports\ExportQueryChunker;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -66,6 +67,89 @@ class OrderExportTest extends TestCase
         $lines = array_filter(explode("\n", trim($response->getContent())));
         // Antet + exact 2 rânduri draft — nu și cel confirmat.
         $this->assertCount(3, $lines);
+    }
+
+    /**
+     * P1 (code review, scenariile k6) — regresie: `CsvExporter`/`PdfExporter` foloseau
+     * `Builder::cursor()`, care NU aplică eager-load-ul din `with()` (spre deosebire de
+     * `get()`), deci `exportRow()` declanșa o interogare lazy per rând, per relație —
+     * măsurat, 5.817 interogări pentru un export de 2.908 rânduri (1 + 2×2.908), în loc de
+     * ~18. Numărul de interogări trebuie să rămână MĂRGINIT (proporțional cu numărul de
+     * chunk-uri, nu cu numărul de rânduri) — fără acest test, cineva pune `cursor()` la
+     * loc peste o interogare cu `with()` și nimeni nu observă.
+     */
+    public function test_the_export_query_count_stays_bounded_by_chunks_not_rows(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            for ($i = 0; $i < 50; $i++) {
+                $this->makeOrder(OrderStatus::Draft);
+            }
+        });
+        $this->clearDatabaseTenantContext();
+
+        DB::enableQueryLog();
+        $response = $this->actingAs($this->owner)->get('/marlin/orders/export');
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $response->assertOk();
+        // Fără fix: ~2×50 = 100 interogări lazy (account + owner), peste orice prag
+        // rezonabil. Cu fix: o cerere HTTP completă (auth, context de tenant, policy) plus
+        // o singură pagină de export (50 de rânduri < 500/chunk) rămâne mult sub 50.
+        $this->assertLessThan(
+            50,
+            $queryCount,
+            "Exportul nu trebuie să facă o interogare per rând per relație; a făcut {$queryCount} interogări pentru 50 de rânduri."
+        );
+    }
+
+    /**
+     * `ExportQueryChunker` direct (nu prin HTTP) — păstrează ordinea PESTE granițele de
+     * chunk (sortare pe o coloană oarecare, cu tiebreaker pe cheia primară, exact ca
+     * `App\Support\ListQuery::applySort()`) și aplică eager-load-ul o dată per chunk, nu
+     * per rând: `chunkSize: 3` pe 7 rânduri → 3 chunk-uri, 6 interogări (nu 7×2).
+     */
+    public function test_the_chunker_preserves_order_and_eager_loads_across_chunk_boundaries(): void
+    {
+        $totals = [50, 10, 40, 20, 60, 30, 70];
+
+        TenantContext::run($this->marlin, function () use ($totals): void {
+            foreach ($totals as $total) {
+                $order = $this->makeOrder(OrderStatus::Draft);
+                $order->grand_total = $total;
+                $order->save();
+            }
+        });
+        $this->clearDatabaseTenantContext();
+
+        TenantContext::run($this->marlin, function (): void {
+            $query = Order::query()
+                ->with('account:id,name')
+                ->where('account_id', $this->account->getKey())
+                ->orderBy('grand_total')
+                ->orderBy('id');
+
+            $seenTotals = [];
+
+            DB::enableQueryLog();
+            ExportQueryChunker::each($query, function ($rows) use (&$seenTotals): void {
+                foreach ($rows as $row) {
+                    $this->assertTrue($row->relationLoaded('account'), 'account trebuia eager-loaded per chunk, nu lazy per rând.');
+                    $row->account?->name;
+                    $seenTotals[] = (float) $row->grand_total;
+                }
+            }, chunkSize: 3);
+            $queryCount = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            $this->assertSame(
+                [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0],
+                $seenTotals,
+                'Ordinea trebuie păstrată peste granițele de chunk.'
+            );
+            // 3 chunk-uri (3+3+1 rânduri) × (1 SELECT + 1 eager-load „account") = 6.
+            $this->assertLessThanOrEqual(6, $queryCount);
+        });
     }
 
     public function test_a_viewer_can_export_orders_even_without_write_access(): void
