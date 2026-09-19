@@ -59,6 +59,34 @@ ascunde problema, fiindcă adaugă `tenant_id = ?` fără cast, așa că plătes
 agregatele și joburile. `IsolationTest::test_no_policy_casts_the_indexed_column` citește
 `pg_policies`. Vezi [ADR-016](../../docs/adr/ADR-016-cast-rls-pe-setare-nu-pe-coloana.md).
 
+## Un index funcțional pe o funcție ne-`LEAKPROOF` e mort sub RLS
+
+`CREATE INDEX ON accounts (tenant_id, lower(name))` pare soluția evidentă pentru o căutare
+case-insensitive. **Sub RLS nu se folosește niciodată.** O tabelă cu RLS activ e o barieră de
+securitate: PostgreSQL evaluează întâi politica, și refuză să coboare sub ea orice predicat al
+utilizatorului care conține o funcție ne-`LEAKPROOF` — altfel funcția ar putea scurge, printr-un
+mesaj de eroare, valori din rânduri pe care apelantul n-are voie să le vadă. `lower()` **nu** e
+leakproof (`select proleakproof from pg_proc where proname = 'lower'` → `f`), deci predicatul
+ajunge filtru după citirea rândurilor, iar indexul pe expresie rămâne nefolosit.
+
+Eșecul e **tăcut**: indexul există, `\d tabela` îl arată, nimic nu dă eroare. Se vede doar în
+plan — `Rows Removed by Filter: 3999` pe un tenant cu 4.000 de conturi. Nici măcar
+`enable_seqscan = off` nu-l scoate din joc; măsurat.
+
+Forma care merge e o **coloană generată și stocată**, plus un index obișnuit pe ea:
+
+```sql
+ALTER TABLE accounts ADD COLUMN name_lower text GENERATED ALWAYS AS (lower(name)) STORED;
+CREATE INDEX ON accounts (tenant_id, name_lower);
+```
+
+Comparația devine `name_lower = ?`, adică `texteq`, care **e** leakproof. Măsurat pe același
+set: 0,951 ms → 0,061 ms, ca `throughput_app`, sub RLS.
+
+Regula se aplică oricărei funcții, nu doar lui `lower()`: verifică `proleakproof` înainte să te
+bazezi pe un index funcțional. Găsit în Faza 4, pe cheile de duplicat ale importului CSV — un
+code review recomandase indexul funcțional, iar măsurătoarea l-a infirmat.
+
 ## Blocarea unui rând părinte: `FOR NO KEY UPDATE`, nu `FOR UPDATE`
 
 O invariantă care nu trăiește pe un singur rând se serializează blocând rândul părinte: numărul

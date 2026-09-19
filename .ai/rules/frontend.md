@@ -72,6 +72,36 @@ Un nume accesibil repetat pe fiecare rând („Deactivate member" × N) se disam
 `aria-label` („Deactivate Jane Doe"), iar o regiune `aria-live` peste o listă cu polling anunță
 doar schimbările de stare, nu fiecare poll.
 
+## `usePoll` are nevoie de `start()`, nu doar de `autoStart`
+
+`usePoll` pornește polling-ul într-un `useEffect` cu dependențe **goale** (citit direct în sursa
+`@inertiajs/react`). `autoStart` se evaluează **o singură dată, la montare**. O condiție care
+devine adevărată mai târziu nu repornește nimic:
+
+```tsx
+// GREȘIT — dacă la montare condiția e falsă, polling-ul rămâne oprit PERMANENT.
+const { stop } = usePoll(3000, {}, { autoStart: inProgress });
+useEffect(() => { if (! inProgress) { stop(); } }, [inProgress, stop]);
+
+// CORECT — ramura `start()` e obligatorie, simetric cu `stop()`.
+const { start, stop } = usePoll(3000, {}, { autoStart: inProgress });
+useEffect(() => { inProgress ? start() : stop(); }, [inProgress, start, stop]);
+```
+
+Tiparul greșit e periculos fiindcă **arată** complet: are `useEffect`, are dependențe corecte,
+are `stop()`. Îi lipsește doar ramura cealaltă, iar defectul apare doar în fluxul real — cel în
+care utilizatorul declanșează acțiunea pe o pagină **deja deschisă**, nu o reîncarcă după.
+
+Găsit de două ori: prima dată de E2E-urile Fazei 3 (eticheta de curierat rămânea pe
+„Generating label…" la nesfârșit, deși serverul o cumpărase), a doua oară la review-ul Fazei 4
+(„Run now" pe un raport nu actualiza niciodată pagina, deși mesajul flash promitea exact asta).
+A doua oară, tiparul corect exista deja în `ShipmentsSection.tsx`, cu comentariu explicativ, la
+trei fișiere distanță. De aici regula, nu un al treilea comentariu.
+
+**Corolar pentru orice ecran cu polling:** verifică fluxul în care starea urmărită devine
+adevărată **după** montare. Dacă răspunsul serverului e un redirect către **aceeași** rută,
+componenta nu se remontează, deci `autoStart` nu se reevaluează niciodată.
+
 ## Inertia 3, nu 2
 
 `Inertia::lazy()` / `LazyProp` **au fost eliminate** — se folosește `Inertia::optional()`.

@@ -90,7 +90,13 @@ class DashboardController extends Controller
             ActivityLog::query()
                 ->when(! $seesWholeTenant, fn (Builder $query) => $query->where('user_id', $user->getKey()))
                 ->with('user')
+                // Departajare pe `id`, nu doar `created_at` (Faza 4, prins de un test care
+                // a devenit instabil când suita a crescut): două acțiuni din aceeași secundă
+                // — de pildă dezactivarea unui membru și scrierea care o urmează — ieșeau în
+                // ordine arbitrară, dictată de planul de execuție. `id` e ULID, deci
+                // lexicografic în ordinea timpului: departajează corect, nu doar stabil.
                 ->latest('created_at')
+                ->orderByDesc('id')
                 ->limit(10)
                 ->get()
         );

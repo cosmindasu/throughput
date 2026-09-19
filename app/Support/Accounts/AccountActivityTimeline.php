@@ -97,6 +97,10 @@ final class AccountActivityTimeline
             ->where('auditable_type', Account::class)
             ->where('auditable_id', $account->id)
             ->orderByDesc('created_at')
+            // Aceeași departajare ca în `DashboardController::recentActivity()` — `id` e
+            // ULID, deci lexicografic în ordinea timpului. Fără ea, două intrări din aceeași
+            // secundă apar în ordine arbitrară.
+            ->orderByDesc('id')
             ->limit(self::LIMIT)
             ->get(['id', 'action', 'created_at'])
             ->each(function (ActivityLog $log) use ($entries): void {
