@@ -13,7 +13,7 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-003](ADR-003-izolare-tenant-doua-straturi.md) | Izolarea tenanților în două straturi — global scope + Row-Level Security | Accepted | 2026-09-12 | Sprint 1 |
 | [ADR-004](ADR-004-stoc-registru-append-only.md) | Stocul ca registru append-only, nu ca o cantitate mutabilă | Accepted | 2026-09-12 | Sprint 3 |
 | [ADR-005](ADR-005-facturare-separata-de-stripe.md) | Facturarea către clienți e separată de abonamentul Stripe | Accepted | 2026-09-12 | Sprint 4 |
-| [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Laravel Cashier 16 pentru abonamentul tenantului | Accepted | 2026-09-12 | Sprint 4 |
+| [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Laravel Cashier 16 pentru abonamentul tenantului | Accepted · fraza despre randarea PDF superseded parțial de [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | 2026-09-12 | Sprint 4 |
 | [ADR-007](ADR-007-audit-log-cod-propriu.md) | Jurnal de activitate cu cod propriu, nu `owen-it/laravel-auditing` | Accepted | 2026-09-12 | Sprint 5 |
 | [ADR-008](ADR-008-versionare-api-pe-cale.md) | Versionarea API-ului public pe cale (`/api/v1/...`) | Accepted | 2026-09-12 | Sprint 5 |
 | [ADR-009](ADR-009-resend-email-tranzactional.md) | Resend ca furnizor de email tranzacțional | Accepted | 2026-09-12 | Sprint 4 |
@@ -28,6 +28,7 @@ Fiecare ADR documentează o decizie arhitecturală cu impact pe termen lung — 
 | [ADR-018](ADR-018-cautare-sub-rls-fara-index-trigram.md) | Căutarea globală sub RLS filtrează pe rândurile tenantului, fără indexuri GIN trigram | Accepted | 2026-09-13 | Faza 2 |
 | [ADR-019](ADR-019-export-pdf-liste-dompdf-nu-chromium.md) | Exportul PDF de listă (Orders) cu DomPDF, nu cu Chromium în imagine | Accepted | 2026-09-14 | Faza 3 |
 | [ADR-020](ADR-020-politica-rls-proprie-pentru-jurnalul-de-email.md) | Politică RLS proprie pentru jurnalul de email, cu tenant opțional | Accepted | 2026-09-19 | Faza 4 |
+| [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | Factura de abonament rămâne pe `DompdfInvoiceRenderer`, implicitul Cashier — nu pe `spatie/laravel-pdf` — supersedează parțial [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Accepted | 2026-09-19 | Faza 5 |
 
 ## Convenții
 
@@ -43,5 +44,5 @@ Toate deciziile deschise de la 2026-09-12 au fost luate (ADR-005…015). Se scri
 
 Rămâne de reevaluat pe parcurs:
 
-- **Unificarea generării de PDF** — [[ADR-006]] folosește `spatie/laravel-pdf` pentru facturile de abonament; dacă facturile către clienți ([[ADR-005]]) ajung pe alt mecanism, se unifică.
+- ~~**Unificarea generării de PDF**~~ — **închis la 2026-09-19, dar nu prin unificare: prin corecție.** Premisa era greșită — [[ADR-006]] afirma că facturile de abonament folosesc `spatie/laravel-pdf`; codul instalat arată că renderer-ul efectiv, implicit al Cashier 16, e `DompdfInvoiceRenderer`. [[ADR-021]] confirmă explicit rămânerea pe implicitul Cashier și documentează, ca decizie asumată, coexistența a două puncte de intrare spre DomPDF: cel al Cashier și `spatie/laravel-pdf` cu driver explicit (facturi către clienți — [[ADR-005]] — și exporturi/rapoarte — [[ADR-019]]). Vezi nota din capul lui [[ADR-021]].
 - ~~**Amânarea celei de-a doua integrări de curierat**~~ — **rezolvat la 2026-09-12: supapa a fost trasă.** EasyPost condiționează accesul la cheile de API, inclusiv cele de test, de un abonament lunar, deci adaptorul iese din MVP. Rămân `demo` + `shippo`; interfața, testele de contract și ecranul de setări per tenant nu se schimbă. Vezi nota din capul lui [[ADR-010]].

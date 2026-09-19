@@ -1,9 +1,9 @@
 # ADR-006: Laravel Cashier 16 pentru abonamentul tenantului
 
-- **Status**: Accepted
+- **Status**: Accepted — **fraza despre randarea PDF-ului de factură e superseded parțial de [[ADR-021]]**
 - **Date**: 2026-09-12
 - **Deciders**: Proprietar
-- **Related**: [[ADR-005]] (delimitarea fluxurilor de bani)
+- **Related**: [[ADR-005]] (delimitarea fluxurilor de bani), [[ADR-021]] (randarea PDF-ului de factură de abonament — corecție)
 - **Tags**: stripe, cashier, abonament, sprint-4
 
 ## Context și problema
