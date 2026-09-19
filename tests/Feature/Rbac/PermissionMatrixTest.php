@@ -37,31 +37,36 @@ class PermissionMatrixTest extends TestCase
         return [
             'Owner' => [
                 Permissions::OWNER,
-                ['billing.manage', 'members.deactivate', 'carrier_settings.manage', 'api_tokens.create', 'data_exports.create', 'deals.delete', 'bulk.write'],
+                ['billing.manage', 'members.deactivate', 'carrier_settings.manage', 'api_tokens.create', 'data_exports.create', 'deals.delete', 'bulk.write', 'shipments.delete'],
                 [],
             ],
             'Manager' => [
                 Permissions::MANAGER,
                 // `orders.change_owner` (code review P2-002) — simetric cu
-                // `deals.change_owner`, care e deja aici.
-                ['members.invite', 'orders.create', 'orders.change_owner', 'imports.create', 'reports.manage', 'activity_log.view', 'api_tokens.create'],
+                // `deals.change_owner`, care e deja aici. `shipments.delete` (Faza 3, valul 2,
+                // §7.4 „Onorare / expediere") — Manager are CRUD complet, ca Owner.
+                ['members.invite', 'orders.create', 'orders.change_owner', 'imports.create', 'reports.manage', 'activity_log.view', 'api_tokens.create', 'shipments.delete'],
                 // Fără billing (doar citire), fără setări de curierat, fără export GDPR nou.
                 ['billing.manage', 'carrier_settings.manage', 'carrier_settings.view', 'data_exports.create'],
             ],
             'Agent' => [
                 Permissions::AGENT,
-                ['accounts.edit', 'deals.move_stage', 'orders.create', 'shipments.create', 'bulk.write', 'bulk.export', 'activity_log.view_own'],
+                ['accounts.edit', 'deals.move_stage', 'orders.create', 'shipments.create', 'shipments.edit', 'bulk.write', 'bulk.export', 'activity_log.view_own'],
                 // „—" în matrice: stoc, plăți, import, membri, pipeline, jurnal complet,
                 // schimbarea proprietarului unui deal SAU al unei comenzi (code review
                 // P2-002 — `orders.change_owner` nou, simetric cu `deals.change_owner`).
-                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner', 'orders.change_owner'],
+                // `shipments.delete` — matricea §7.4 dă Agentului „CU*", nu „D": nu poate
+                // renunța (Discard) nici la propriul shipment eșuat (Faza 3, valul 2).
+                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'deals.change_owner', 'orders.change_owner', 'shipments.delete'],
             ],
             'Viewer' => [
                 Permissions::VIEWER,
                 // Exportul E o citire a rândurilor deja vizibile pe ecran (nota ³ / BR-BULK-03,
                 // persona „contabil extern" din §5). Un refuz aici n-ar proteja nimic.
-                ['accounts.view', 'orders.view', 'invoices.view', 'payments.view', 'bulk.export', 'saved_views.manage_own'],
-                ['accounts.create', 'accounts.edit', 'deals.move_stage', 'bulk.write', 'orders.create', 'billing.view', 'reports.view', 'activity_log.view'],
+                ['accounts.view', 'orders.view', 'shipments.view', 'invoices.view', 'payments.view', 'bulk.export', 'saved_views.manage_own'],
+                // Viewer are doar „R" pe onorare/expediere (§7.4) — nici creare, nici editare,
+                // nici renunțare (Faza 3, valul 2).
+                ['accounts.create', 'accounts.edit', 'deals.move_stage', 'bulk.write', 'orders.create', 'billing.view', 'reports.view', 'activity_log.view', 'shipments.create', 'shipments.edit', 'shipments.delete'],
             ],
         ];
     }

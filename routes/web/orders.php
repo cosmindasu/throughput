@@ -5,6 +5,10 @@
 use App\Http\Controllers\Web\Orders\CancelOrderController;
 use App\Http\Controllers\Web\Orders\ConfirmOrderController;
 use App\Http\Controllers\Web\Orders\OrderController;
+use App\Http\Controllers\Web\Orders\Shipments\CreateShipmentController;
+use App\Http\Controllers\Web\Orders\Shipments\DiscardShipmentController;
+use App\Http\Controllers\Web\Orders\Shipments\MarkShipmentShippedController;
+use App\Http\Controllers\Web\Orders\Shipments\RetryShippingLabelController;
 use App\Http\Controllers\Web\Orders\VariantLookupController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,3 +28,10 @@ Route::put('/orders/{order}', [OrderController::class, 'update'])->name('orders.
 Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
 Route::patch('/orders/{order}/confirm', ConfirmOrderController::class)->name('orders.confirm');
 Route::patch('/orders/{order}/cancel', CancelOrderController::class)->name('orders.cancel');
+
+// Onorare/expediere — Faza 3, valul 2 (§11.2 pași 4-6, US-ORD-02/03). Fiecare
+// acțiune, propriul controller subțire, la fel ca tranzițiile de comandă de mai sus.
+Route::post('/orders/{order}/shipments', CreateShipmentController::class)->name('orders.shipments.store');
+Route::patch('/orders/{order}/shipments/{shipment}/retry', RetryShippingLabelController::class)->name('orders.shipments.retry');
+Route::delete('/orders/{order}/shipments/{shipment}', DiscardShipmentController::class)->name('orders.shipments.discard');
+Route::patch('/orders/{order}/shipments/{shipment}/ship', MarkShipmentShippedController::class)->name('orders.shipments.ship');

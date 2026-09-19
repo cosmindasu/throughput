@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\InventoryLevel;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\Shipment;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
@@ -113,6 +114,51 @@ class CancelOrderActionTest extends TestCase
             $level->refresh();
             $this->assertSame(0, $level->reserved);
             $this->assertGreaterThanOrEqual(0, $level->reserved, '`reserved` nu coboară sub zero.');
+        });
+    }
+
+    /**
+     * Code review P1 — cursă `CreateShipmentAction` vs. `CancelOrderAction`, reprodusă
+     * cu simularea exactă cerută de review: un shipment apare DUPĂ momentul în care
+     * `OrderPolicy::cancel()` ar fi citit `shipments()->exists() === false` (citire fără
+     * blocare) și ÎNAINTE ca această acțiune să ajungă la blocarea ei. Fără reverificare
+     * SUB blocare, BR-ORD-01 s-ar încălca în date — comanda ar deveni `cancelled` cu un
+     * shipment `label_pending` agățat.
+     */
+    public function test_cancelling_is_refused_when_a_shipment_appears_after_the_policy_check_but_before_the_lock(): void
+    {
+        TenantContext::run($this->tenant, function (): void {
+            $location = $this->makeDefaultLocation();
+            $variant = $this->makeVariant();
+            $this->setInventory($variant, $location, onHand: 50);
+
+            $order = $this->draftOrder([['variant_id' => $variant->getKey(), 'quantity' => 5]]);
+            $confirmed = (new ConfirmOrderAction)->execute($order, acknowledgeBackorder: false);
+
+            // Momentul „citirii" din `OrderPolicy::cancel()` — fără shipment încă.
+            $this->assertFalse($confirmed->shipments()->exists());
+
+            // Fereastra cursei: shipment-ul apare ÎNTRE citirea de mai sus (Policy) și
+            // blocarea pe care `CancelOrderAction` o ia mai jos.
+            Shipment::query()->create([
+                'order_id' => $confirmed->getKey(),
+                'location_id' => $location->getKey(),
+                'carrier' => 'demo',
+                'service_level' => 'Ground',
+                'status' => Shipment::STATUS_LABEL_PENDING,
+            ]);
+
+            try {
+                (new CancelOrderAction)->execute($confirmed->fresh());
+                $this->fail('Expected a ValidationException — BR-ORD-01.');
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('status', $e->errors());
+                $this->assertSame('This order has a shipment and can no longer be cancelled.', $e->errors()['status'][0]);
+            }
+
+            $level = InventoryLevel::query()->where('variant_id', $variant->getKey())->first();
+            $this->assertSame(5, $level->reserved, '`reserved` rămâne neatins.');
+            $this->assertSame(OrderStatus::Confirmed, $confirmed->fresh()->status, 'Comanda rămâne `confirmed`, nu `cancelled`.');
         });
     }
 

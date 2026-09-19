@@ -39,6 +39,22 @@ use Illuminate\Support\Str;
 final class StockAndOrdersSeeder
 {
     /**
+     * Faza 3, valul 2 (US-ORD-03) — mesaje plauzibile, SPECIFICE (nu „Something went
+     * wrong"), pentru shipment-urile semănate `label_failed`. Aceleași categorii de eșec
+     * pe care le-ar produce un adaptor real (adresă, containment, plată) — `DemoShippingCarrier`
+     * nu eșuează niciodată singur (ADR-010), deci fără astea niciun tenant semănat n-ar
+     * arăta vreodată un eșec real de etichetă.
+     *
+     * @var list<string>
+     */
+    private const LABEL_FAILURE_MESSAGES = [
+        'Destination address failed validation (ZIP+4 mismatch).',
+        'Package weight exceeds the carrier limit for the selected service level.',
+        'Carrier account is missing a valid payment method on file.',
+        'Origin address is not recognized as a pickup location by the carrier.',
+    ];
+
+    /**
      * @param  array{pipeline_id: string, stages: list<array>, locations: array{main: string, overflow: string}, variants: list<array>}  $catalog
      * @param  array{accounts: list<array>, contacts_by_account: array<string, list<string>>}  $accountsResult
      * @param  array{won_deal_ids_by_account: array<string, list<string>>}  $dealsResult
@@ -267,6 +283,11 @@ final class StockAndOrdersSeeder
                 $shipmentRow['shipped_at'] = $shippedAt;
                 $shipmentRow['delivered_at'] = $shipmentStatus === Shipment::STATUS_DELIVERED ? DemoClock::shortlyAfter($shippedAt, 24, 120) : null;
                 $shipmentRow['cost'] = Rand::money(5.5, 95.0);
+                // Faza 3, valul 2 — `error_message` (coloană nouă) trebuie prezentă pe
+                // FIECARE rând din acest `ChunkedWriter` (`Model::insert()` cere aceleași
+                // chei pe tot bufferul de 1000): `null` aici, un mesaj plauzibil mai jos,
+                // pe ramura `label_failed`.
+                $shipmentRow['error_message'] = null;
                 $shipmentRow['created_at'] = $placedAt;
                 $shipmentRow['updated_at'] = $shipmentRow['delivered_at'] ?? $shippedAt;
 
@@ -314,6 +335,11 @@ final class StockAndOrdersSeeder
                 $shipmentRow['shipped_at'] = null;
                 $shipmentRow['delivered_at'] = null;
                 $shipmentRow['cost'] = null;
+                // US-ORD-03 — „mesajul specific al furnizorului (nu Something went wrong)",
+                // exact ce ar scrie `GenerateShippingLabelJob` la un eșec real.
+                $shipmentRow['error_message'] = $shipmentStatus === Shipment::STATUS_LABEL_FAILED
+                    ? self::LABEL_FAILURE_MESSAGES[array_rand(self::LABEL_FAILURE_MESSAGES)]
+                    : null;
                 $shipmentRow['created_at'] = $placedAt;
                 $shipmentRow['updated_at'] = $placedAt;
 

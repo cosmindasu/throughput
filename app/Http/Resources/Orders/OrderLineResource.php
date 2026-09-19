@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Orders;
 
 use App\Models\OrderLine;
+use App\Support\Orders\RemainingToShip;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,11 @@ final class OrderLineResource extends JsonResource
             'discount' => (float) $this->discount,
             'lineTotal' => (float) $this->line_total,
             'quantityFulfilled' => $this->quantity_fulfilled,
+            // Faza 3, valul 2 — „Shipped X of Y" / cantitatea maximă pe formularul „Create
+            // shipment" (§11.2 pas 4): `quantity − quantity_fulfilled − shipment-urile
+            // DESCHISE încă neexpediate`. Cere `orderLines.shipmentLines.shipment` încărcat
+            // în controller (`RemainingToShip::forLine()` altfel ar face N+1).
+            'remainingToShip' => $this->relationLoaded('shipmentLines') ? RemainingToShip::forLine($this->resource) : null,
         ];
     }
 }

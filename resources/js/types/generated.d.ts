@@ -779,6 +779,47 @@ export interface OrderLine {
     discount: number;
     lineTotal: number;
     quantityFulfilled: number;
+    // Faza 3, valul 2 (§11.2 pas 4) — `quantity − quantityFulfilled − shipment-urile
+    // DESCHISE încă neexpediate` (App\Support\Orders\RemainingToShip). `null` doar dacă
+    // resource-ul a fost randat fără liniile de shipment încărcate (nu se întâmplă pe
+    // `Orders/Show` — controllerul le încarcă mereu).
+    remainingToShip: number | null;
+}
+
+// ── Onorare/expediere — specs.md §11.2 pași 4-6, US-ORD-02/03, plan §9 valul 2 ───
+
+export type ShipmentStatus = 'label_pending' | 'label_failed' | 'label_purchased' | 'in_transit' | 'delivered' | 'exception';
+
+// App\Http\Resources\Orders\ShipmentLineResource.
+export interface ShipmentLine {
+    id: string;
+    orderLineId: string;
+    description: string | null;
+    quantity: number;
+}
+
+// App\Http\Resources\Orders\ShipmentResource.
+export interface Shipment {
+    id: string;
+    status: ShipmentStatus;
+    carrier: string;
+    serviceLevel: string | null;
+    trackingNumber: string | null;
+    labelUrl: string | null;
+    // `null` pentru un furnizor fără adaptor încă (`shippo`, Faza 5) — vezi docblock-ul
+    // `ShipmentResource`. UI-ul pur și simplu nu randează linkul când e `null`.
+    trackingUrl: string | null;
+    errorMessage: string | null;
+    shippedAt: string | null;
+    deliveredAt: string | null;
+    cost: number | null;
+    createdAt: string | null;
+    lines: ShipmentLine[];
+    can: {
+        retryLabel: boolean;
+        discard: boolean;
+        markShipped: boolean;
+    };
 }
 
 // App\Http\Resources\Orders\OrderResource — detaliul complet (`Orders/Show`, `Orders/Edit`).
@@ -802,6 +843,9 @@ export interface Order {
     deal: { id: string; title: string } | null;
     owner: OrderPartyRef;
     lines: OrderLine[];
+    // Faza 3, valul 2 — cele mai recente primele (`ORDER BY created_at DESC`, vezi
+    // `OrderController::show()`).
+    shipments: Shipment[];
 }
 
 // App\Http\Resources\Orders\OrderSummaryResource — un rând din `Orders/Index`.
@@ -853,6 +897,10 @@ export interface OrdersShowPageProps {
         delete: boolean;
         confirm: boolean;
         cancel: boolean;
+        // Faza 3, valul 2 — `Gate::allows('create', [Shipment::class, $order])`. Per-shipment
+        // `can` (retryLabel/discard/markShipped) vine pe fiecare `Shipment`, nu aici — depinde
+        // de shipment, nu doar de comandă.
+        createShipment: boolean;
     };
     [key: string]: unknown;
 }

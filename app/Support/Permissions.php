@@ -84,7 +84,12 @@ final class Permissions
             // nu doar în `OrderPolicy`, ca valul 2 (reasignare în masă pe Orders) s-o
             // găsească deja în `forRoles()`, ca `deals.change_owner`.
             'orders' => ['orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.cancel', 'orders.change_owner'],
-            'shipments' => ['shipments.view', 'shipments.create', 'shipments.edit'],
+            // §7.4, rândul „Onorare / expediere": Owner/Manager CRUD, Agent CU* (creare +
+            // reîncercare/etichetă pe comenzi PROPRII, fără `shipments.delete` — matricea nu-i
+            // dă „D"), Viewer doar `shipments.view`. `shipments.delete` (nou, valul 2) gates
+            // „Discard" pe un shipment `label_failed`; intră automat la Owner/Manager prin
+            // `all()`/`array_diff()` mai jos, fără să fie listată explicit la Agent/Viewer.
+            'shipments' => ['shipments.view', 'shipments.create', 'shipments.edit', 'shipments.delete'],
             'invoices' => ['invoices.view', 'invoices.create', 'invoices.edit', 'invoices.void'],
             'payments' => ['payments.view', 'payments.create'],
             'bulk' => ['bulk.write', 'bulk.export'],

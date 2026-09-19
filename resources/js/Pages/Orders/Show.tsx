@@ -2,6 +2,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
+import OrderTimeline from '@/Components/Orders/OrderTimeline';
+import ShipmentsSection from '@/Components/Orders/ShipmentsSection';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
@@ -155,6 +157,9 @@ export default function Show() {
                     </section>
                 )}
 
+                {/* FR-ORD-03 — creat → confirmat → shipment(uri). */}
+                <OrderTimeline order={order} />
+
                 <section aria-label="Lines" className="overflow-x-auto rounded-lg border border-border bg-surface">
                     <table className="w-full text-left text-sm">
                         <thead>
@@ -181,7 +186,13 @@ export default function Show() {
                                 <tr key={line.id} className="border-b border-border-soft last:border-b-0">
                                     <td className="px-4 py-2">{line.description}</td>
                                     <td className="numeric px-4 py-2 text-right">{line.quantity}</td>
-                                    <td className="numeric px-4 py-2 text-right">{line.quantityFulfilled}</td>
+                                    <td className="px-4 py-2 text-right">
+                                        <span className="numeric block">
+                                            {line.quantityFulfilled > 0
+                                                ? `Shipped ${line.quantityFulfilled} of ${line.quantity}`
+                                                : 'Not yet shipped'}
+                                        </span>
+                                    </td>
                                     <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.unitPrice, order.currency)}</td>
                                     <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.lineTotal, order.currency)}</td>
                                 </tr>
@@ -196,6 +207,9 @@ export default function Show() {
                         </tbody>
                     </table>
                 </section>
+
+                {/* US-ORD-02/03 — Shipments: creare, status, „Retry label"/„Discard"/„Mark as shipped". */}
+                <ShipmentsSection order={order} canCreateShipment={can.createShipment} workspaceSlug={workspaceSlug} />
             </div>
 
             <ConfirmDialog

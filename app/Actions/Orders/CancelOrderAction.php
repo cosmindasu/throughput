@@ -10,11 +10,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * `draft|confirmed -> cancelled` (§11.3). `OrderPolicy::cancel()` a verificat deja
- * dreptul + BR-ORD-01 (`shipments()->exists()`); acest cod verifică STAREA (poate
- * ACEASTĂ comandă, ACUM, să tranziționeze la `cancelled`) și face efectul: eliberează
- * `reserved` dacă exista (adică dacă era `confirmed`), fără nicio mișcare de stoc —
- * fizic nimic n-a părăsit depozitul (§10.5, §11.3).
+ * `draft|confirmed -> cancelled` (§11.3). `OrderPolicy::cancel()` verifică dreptul +
+ * BR-ORD-01 (`shipments()->exists()`) ÎNAINTE de acțiune, FĂRĂ blocare — un shipment
+ * creat concurent, DUPĂ verificarea Policy dar înainte ca această acțiune să apuce
+ * `lockForUpdate()` de mai jos, ar trece neobservat. Code review P1 (reprodus cu două
+ * sesiuni `psql`): `CreateShipmentAction` blochează ACEEAȘI comandă înainte de a insera
+ * shipment-ul, deci a doua verificare de mai jos, SUB blocare, vede sigur orice shipment
+ * apucat să existe — comanda nu poate ajunge `cancelled` cu un shipment agățat.
  */
 final class CancelOrderAction
 {
@@ -29,6 +31,19 @@ final class CancelOrderAction
             if (! $locked->status->canTransitionTo(OrderStatus::Cancelled)) {
                 throw ValidationException::withMessages([
                     'status' => "This order can't be cancelled from its current status ({$locked->status->label()}).",
+                ]);
+            }
+
+            // Code review P1 — reverificare SUB blocare, nu doar în Policy. `Policy::cancel()`
+            // a citit `shipments()->exists()` FĂRĂ blocare, într-o interogare separată de
+            // această tranzacție: un `CreateShipmentAction` concurent, care blochează
+            // ACEEAȘI comandă înainte de a insera shipment-ul, poate insera ÎNTRE acea
+            // citire și acest `lockForUpdate()`. Fără reverificare aici, BR-ORD-01 s-ar
+            // încălca în date (comandă `cancelled` cu shipment `label_pending` agățat),
+            // iar `GenerateShippingLabelJob` ar cumpăra o etichetă pentru o comandă anulată.
+            if ($locked->shipments()->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => 'This order has a shipment and can no longer be cancelled.',
                 ]);
             }
 

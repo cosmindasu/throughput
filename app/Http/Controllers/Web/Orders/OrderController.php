@@ -181,7 +181,14 @@ final class OrderController extends Controller
             'contact' => fn ($query) => $query
                 ->withoutGlobalScope(NotAnonymizedContactScope::class)
                 ->select(['id', 'first_name', 'last_name', 'anonymized_at']),
+            // Faza 3, valul 2 (§11.2 pas 4) — `orderLines.shipmentLines.shipment` alimentează
+            // `OrderLineResource::remainingToShip()` (`RemainingToShip::forLine()`) FĂRĂ N+1;
+            // `shipments.shipmentLines.orderLine` alimentează secțiunea Shipments + timeline
+            // (FR-ORD-03).
             'orderLines.variant:id,sku',
+            'orderLines.shipmentLines.shipment',
+            'shipments' => fn ($query) => $query->latest('created_at'),
+            'shipments.shipmentLines.orderLine:id,description',
         ]);
 
         return Inertia::render('Orders/Show', [
@@ -191,6 +198,9 @@ final class OrderController extends Controller
                 'delete' => Gate::allows('delete', $order),
                 'confirm' => Gate::allows('confirm', $order),
                 'cancel' => Gate::allows('cancel', $order),
+                // Faza 3, valul 2 — `Gate::authorize('create', [Shipment::class, $order])`,
+                // pattern Laravel pentru „create" cu context suplimentar (comanda).
+                'createShipment' => Gate::allows('create', [Shipment::class, $order]),
             ],
         ]);
     }

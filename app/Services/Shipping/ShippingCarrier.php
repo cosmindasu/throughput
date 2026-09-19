@@ -15,6 +15,14 @@ use App\Models\Shipment;
  * al acestei interfețe trebuie să ruleze într-o coadă, niciodată în cererea HTTP.
  * `DemoShippingCarrier` nu are această constrângere (n-are niciun apel extern), dar
  * interfața nu poate presupune asta pentru toate implementările.
+ *
+ * Contractul de eroare al `createLabel()` (code review P2, US-ORD-03): un eșec RAPORTAT
+ * de furnizor (adresă invalidă, serviciu indisponibil, cântar peste limită) se aruncă
+ * exclusiv ca `ShippingLabelFailed`, cu mesajul EXACT primit de la furnizor — apelantul
+ * (`GenerateShippingLabelJob`) îl scrie direct pe `shipments.error_message`, vizibil
+ * oricărui rol care vede comanda. Orice altă excepție (rețea, credențiale, un bug intern
+ * al adaptorului) rămâne tipul ei natural — apelantul o tratează ca eroare INTERNĂ,
+ * salvează un mesaj generic pe shipment și loghează detaliile complete separat.
  */
 interface ShippingCarrier
 {

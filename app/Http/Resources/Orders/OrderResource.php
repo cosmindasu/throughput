@@ -58,6 +58,8 @@ final class OrderResource extends JsonResource
                 'name' => $this->owner->name,
             ]),
             'lines' => OrderLineResource::collection($this->whenLoaded('orderLines')),
+            // Faza 3, valul 2 (§11.2 pas 4, FR-ORD-03) — secțiunea Shipments + timeline.
+            'shipments' => ShipmentResource::collection($this->whenLoaded('shipments')),
         ];
     }
 }
