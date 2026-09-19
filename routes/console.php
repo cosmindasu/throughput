@@ -2,7 +2,9 @@
 
 use App\Jobs\System\DispatchScheduledReportsJob;
 use App\Jobs\System\FailStuckBulkOperationsJob;
+use App\Jobs\System\FailStuckImportsJob;
 use App\Jobs\System\PruneExpiredExportsJob;
+use App\Jobs\System\PruneExpiredImportFilesJob;
 use App\Jobs\System\PruneSentEmailsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
@@ -74,3 +76,17 @@ Schedule::job(new DispatchScheduledReportsJob(CarbonImmutable::now('UTC')->start
 // (`ResetDemoDataJob` are `tries=1`), nu mecanismul principal.
 Schedule::job(new PruneSentEmailsJob, 'default')->daily();
 
+// §14/§22.5 (lotul J din Faza 4, fix din review) — plasa de siguranță a limitei „un import
+// activ per tenant". Fără ea, UN import abandonat sau UN proces ucis de OOM blochează orice
+// import viitor al tenantului, definitiv. La 5 minute, ca `FailStuckBulkOperationsJob` și din
+// același motiv: utilizatorul se uită ACTIV la o bară de progres. Jobul are două praguri
+// (`import_stuck_minutes` pentru lanțul rupt, `import_abandoned_hours` pentru fișierul uitat),
+// fiindcă maparea coloanelor e activitate umană, cu pauze — vezi comentariile cheilor.
+Schedule::job(new FailStuckImportsJob, 'default')->everyFiveMinutes();
+
+// §20.5 (lotul J din Faza 4, fix din review) — retenția FIȘIERULUI încărcat, care conține și
+// coloanele nemapate, adică date care n-au ajuns niciodată în aplicație. Nimic nu le ștergea:
+// nici o retenție proprie, nici `demo:reset` (care curăța doar `exports/`). Ca
+// `PruneExpiredExportsJob`, fără `when()`. `import_rows.raw_data` rămâne neatins — BR-IMP-01
+// îl cere pentru raportul reimportabil.
+Schedule::job(new PruneExpiredImportFilesJob, 'default')->daily();

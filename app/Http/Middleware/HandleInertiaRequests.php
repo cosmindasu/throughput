@@ -145,8 +145,8 @@ class HandleInertiaRequests extends Middleware
 
         $permissions = [
             'accounts.view', 'contacts.view', 'deals.view', 'products.view', 'orders.view',
-            'invoices.view', 'reports.view', 'settings.view', 'billing.view', 'members.view',
-            'api_tokens.view', 'unassigned.view',
+            'invoices.view', 'reports.view', 'imports.view', 'settings.view', 'billing.view',
+            'members.view', 'api_tokens.view', 'unassigned.view',
         ];
 
         return collect($permissions)

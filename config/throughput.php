@@ -45,8 +45,50 @@ return [
 
     'limits' => [
         'bulk_max_rows' => (int) env('BULK_MAX_ROWS_ABSOLUTE', 60000),
-        'import_max_rows' => (int) env('IMPORT_MAX_ROWS', 50000),
         'api_rate_limit_per_minute' => (int) env('API_RATE_LIMIT_PER_MINUTE', 300),
+
+        // FR-IMP-02 (specs.md §14.4) — plafonul de fișier la import, pe AMBELE dimensiuni.
+        // Numărul de rânduri e verificat după citirea antetului, dimensiunea la upload; un
+        // fișier de 20 MB cu rânduri scurte poate depăși 50.000 de rânduri și invers, deci
+        // niciuna dintre limite nu o implică pe cealaltă.
+        'import_max_rows' => (int) env('IMPORT_MAX_ROWS', 50000),
+        'import_max_file_mb' => (int) env('IMPORT_MAX_FILE_MB', 20),
+
+        // §14.1, pct. 3 — `WithChunkReading`. Aceeași valoare pentru proba uscată și pentru
+        // commit: un singur loc, ca progresul raportat și munca efectivă să nu diveargă.
+        // Separată de `bulk_chunk_size`: importul ține în memorie rândul brut (`raw_data`),
+        // operația în masă doar un id.
+        'import_chunk_size' => (int) env('IMPORT_CHUNK_SIZE', 500),
+
+        // §22.5 — un singur import activ per tenant. Spre deosebire de limita de operații în
+        // masă (3 per user, amânată la Faza 5), asta e per TENANT și intră acum: două importuri
+        // concurente pe aceeași resursă își pot detecta reciproc duplicatele greșit (FR-IMP-01
+        // citește rândurile deja scrise), iar un fișier de 50.000 de rânduri e singurul consumator
+        // de memorie din coadă comparabil cu exportul PDF.
+        'import_concurrent_per_tenant' => (int) env('IMPORT_CONCURRENT_PER_TENANT', 1),
+
+        // Plasă de siguranță pentru limita de mai sus, simetrică cu
+        // `bulk_stuck_operation_minutes` (§13.2) — găsită la review: fără ea, UN import
+        // abandonat sau UN proces ucis de OOM blochează orice import viitor al tenantului,
+        // la nesfârșit. Două praguri, fiindcă sunt două situații diferite:
+        //
+        //  - `import_stuck_minutes` — importul are joburi în lucru (`validating`/`importing`)
+        //    și nu a mai avansat de atâtea minute. Lanțul de joburi auto-continue scrie
+        //    progresul la fiecare chunk, deci lipsa oricărei scrieri înseamnă că lanțul s-a
+        //    rupt. 15 minute e peste `retry_after` de pe coada Redis (900s), ca sweeper-ul
+        //    să nu închidă un import pe care coada tocmai urmează să-l redelivreze.
+        //  - `import_abandoned_hours` — importul n-a pornit niciun job (`uploaded`/`mapped`):
+        //    omul a încărcat fișierul și n-a mai revenit. Aici pragul trebuie să fie GENEROS,
+        //    nu strict: maparea coloanelor e o activitate umană, cu pauze. Butonul „Cancel
+        //    import" rămâne calea principală; asta e doar plasa.
+        'import_stuck_minutes' => (int) env('IMPORT_STUCK_MINUTES', 15),
+        'import_abandoned_hours' => (int) env('IMPORT_ABANDONED_HOURS', 24),
+
+        // Retenția fișierului ÎNCĂRCAT (§20.5, același principiu ca `export_retention_days`).
+        // Fișierul brut conține și coloanele nemapate, deci date de business care n-au ajuns
+        // niciodată în aplicație. `import_rows.raw_data` NU intră aici — BR-IMP-01 îl cere
+        // păstrat pentru raportul reimportabil; retenția vizează doar fișierul de pe disc.
+        'import_retention_days' => (int) env('IMPORT_RETENTION_DAYS', 7),
 
         // US-CRM-03, §13.2: sub prag, exportul CSV răspunde sincron în cererea curentă;
         // peste el, devine un `bulk_operations` + job pe coada `bulk` (§13.2, ADR-013 —

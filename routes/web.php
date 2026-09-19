@@ -70,5 +70,9 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/bulk.php';
         // US-TEN-03, §6.4.1 — vederea „Unassigned" (FR-TEN-05).
         require __DIR__.'/web/unassigned.php';
+        // Faza 4 (specs.md §14, plan §10) — importul CSV în 4 pași.
+        require __DIR__.'/web/imports.php';
+        // Faza 4 (specs.md §16, plan §10) — rapoarte și livrare programată.
+        require __DIR__.'/web/reports.php';
     });
 });

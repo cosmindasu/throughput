@@ -28,6 +28,9 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Orders', permission: 'orders.view', href: (w) => `/${w}/orders` },
     { label: 'Invoices', permission: 'invoices.view', href: (w) => `/${w}/invoices` },
     { label: 'Reports', permission: 'reports.view', href: (w) => `/${w}/reports` },
+    // §7.4, rândul „Import CSV": CRUD pentru Owner/Manager, „—" pentru Agent și Viewer —
+    // singura intrare din navigație pe care Agentul NU o vede deloc, alături de Unassigned.
+    { label: 'Imports', permission: 'imports.view', href: (w) => `/${w}/imports` },
     // FR-TEN-05 — Owner/Manager (`unassigned.view`, §6.4.1). Indicatorul numeric se
     // randează separat, mai jos, lângă acest link — `unassignedRecordsCount` e un prop
     // comun distinct, nu parte din `navigation`.
