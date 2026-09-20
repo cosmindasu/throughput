@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tenancy;
 
+use App\Http\Middleware\EnsureSubscriptionAccess;
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SetSessionContext;
 use App\Models\Account;
@@ -89,6 +90,12 @@ class MiddlewareOrderTest extends TestCase
 
             $this->assertContains(SetSessionContext::class, $middleware, "Ruta `{$route->uri()}` nu deschide contextul de sesiune.");
             $this->assertContains(ResolveWorkspace::class, $middleware, "Ruta `{$route->uri()}` nu rezolvă workspace-ul.");
+
+            // P3 (review-ul lotului de abonament, pct. 7) — exact tiparul de regresie tăcută
+            // pentru care există acest test: o rută nouă, adăugată direct pe grup fără
+            // `subscription.access`, ar ocoli degradarea pe 3 trepte (specs.md §12.2) fără
+            // nicio eroare vizibilă — funcționează normal până la primul tenant `unpaid`.
+            $this->assertContains(EnsureSubscriptionAccess::class, $middleware, "Ruta `{$route->uri()}` nu aplică degradarea de abonament (specs.md §12.2).");
         }
     }
 

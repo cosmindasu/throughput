@@ -49,6 +49,15 @@ final class ScrubSensitiveData
         'stripe',
         'shippo',
         'dsn',
+        // P3 securitate (review-ul lotului de abonament) — payload-urile `invoice.*` de la
+        // Stripe cară `customer_email`. Niciun cod de azi le transportă spre Sentry (joburile
+        // de webhook trec doar id-uri scalare), dar lista e a APLICAȚIEI ÎNTREGI, nu doar a
+        // acestui lot — lipsa se plătește la prima excepție necontrolată de oriunde, cu un
+        // payload brut atașat la `extra`/`request`. `mail` prinde deja `email` ca substring
+        // (`str_contains`), dar ambele intră explicit — clar pentru cine citește lista, nu
+        // dedus din suprapunere.
+        'email',
+        'mail',
     ];
 
     public static function handle(Event $event, ?EventHint $hint = null): ?Event

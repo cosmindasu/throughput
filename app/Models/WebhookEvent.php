@@ -16,6 +16,12 @@ class WebhookEvent extends Model
     // Tabela nu are `created_at`/`updated_at` — doar `received_at`/`processed_at`.
     public $timestamps = false;
 
+    // §12.3 — `source` e extensibil pentru evenimente de curierat, nu doar Stripe;
+    // lotul de abonament (acest fișier) folosește exclusiv `SOURCE_STRIPE`.
+    public const SOURCE_STRIPE = 'stripe';
+
+    public const SOURCE_CARRIER = 'carrier';
+
     public const STATUS_RECEIVED = 'received';
 
     public const STATUS_PROCESSING = 'processing';
