@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Reports;
 
 use App\Models\ReportDefinition;
+use App\Support\Members\DeactivatedMemberNames;
 use App\Support\Reports\BuiltInReports;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -47,7 +48,10 @@ class ReportDefinitionResource extends JsonResource
             'scheduleDay' => $this->schedule_day,
             'recipients' => $this->recipients,
             'isActive' => (bool) $this->is_active,
-            'createdBy' => $this->createdBy?->name,
+            // FR-TEN-04 — un raport programat supraviețuiește autorului lui: cine l-a creat
+            // rămâne vizibil în listă, cu marcajul „(deactivated)" când membership-ul lui a
+            // fost dezactivat între timp (plan §11 — la nivelul `Resource`-ului).
+            'createdBy' => DeactivatedMemberNames::label($this->createdBy?->name, $this->createdBy?->id),
             'lastRun' => $this->latestRun !== null ? new ReportRunResource($this->latestRun) : null,
             'canUpdate' => (bool) $request->user()?->can('update', $this->resource),
             'canDelete' => (bool) $request->user()?->can('delete', $this->resource),

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Web\Settings;
 
 use App\Actions\Bulk\DispatchBulkOperationAction;
+use App\Actions\Members\UpdateMemberRoleAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Members\DeactivateMembershipRequest;
+use App\Http\Requests\Members\UpdateMemberRoleRequest;
 use App\Http\Resources\Members\MembershipResource;
 use App\Models\Account;
 use App\Models\ActivityLog;
@@ -48,8 +50,21 @@ final class MembersController extends Controller
 
         $memberships = Membership::query()
             ->with(['user:id,name,email', 'user.roles', 'deactivatedBy:id,name'])
-            ->orderByDesc('status')
+            // Ordine EXPLICITĂ, nu alfabetică pe `status`: `orderByDesc('status')` dădea
+            // `pending` > `deactivated` > `active` — adică, din clipa în care invitațiile
+            // au apărut (US-TEN-01), membrii activi cădeau sub cei dezactivați. Cazul
+            // util e invers: cine are acces acum, apoi cine a fost invitat și n-a răspuns,
+            // apoi arhiva.
+            ->orderByRaw('case status when ? then 0 when ? then 1 else 2 end', [
+                Membership::STATUS_ACTIVE,
+                Membership::STATUS_PENDING,
+            ])
+            // `created_at` are precizie 0 în tot proiectul (`.ai/rules/tenancy.md`): doi
+            // membri creați în aceeași cerere au EXACT aceeași valoare, deci ordinea lor
+            // era la latitudinea planului de execuție. ULID-ul e sortabil cronologic la
+            // milisecundă și rupe egalitatea determinist.
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         $activeUserIds = $memberships
@@ -64,11 +79,30 @@ final class MembersController extends Controller
         $currentUser = $request->user();
         $currentUserIsOwner = $currentUser->hasRole(Permissions::OWNER);
 
+        $canInvite = $currentUser->can('members.invite');
+
+        // §22.2 — al doilea strat, simetric cu `members.deactivate` de mai jos: lotul I a
+        // guardat `settings.members.role.update` în DEMO_MODE, fiindcă al doilea drum către
+        // „workspace fără Owner" e RETROGRADAREA, nu doar eliminarea (BR-TEN-01 le numește
+        // împreună), iar conturile demo sunt LOGIN-URI PARTAJATE — un
+        // `demo.manager@throughput.dev` retrogradat la Viewer strică experiența fiecărui
+        // vizitator până la resetul de la 03:00 UTC. Butonul trebuie să LIPSEASCĂ, nu să
+        // ducă la un refuz (FR-RBAC-01, §7.3).
+        //
+        // Garda de MEDIU nu ține loc de REGULA de business: BR-TEN-01/02 rămân aplicate
+        // necondiționat, în `MembershipPolicy::updateRole()` + `UpdateMemberRoleAction`
+        // (sub blocare), cu sau fără DEMO_MODE. `DemoMode::allows()` pe o cheie
+        // neînregistrată încă întoarce `true`, deci linia e inertă până la integrare.
+        $canUpdateRoleAtAll = $currentUser->can('members.update_role')
+            && DemoMode::allows('members.change-role');
+
         $rows = $memberships->map(function (Membership $membership) use (
             $currentUser,
             $currentUserIsOwner,
             $activeOwnerCount,
             $openRecordsByUser,
+            $canInvite,
+            $canUpdateRoleAtAll,
         ): MembershipResource {
             $targetIsOwner = $membership->user?->hasRole(Permissions::OWNER) ?? false;
 
@@ -85,11 +119,33 @@ final class MembersController extends Controller
 
             $isLastActiveOwner = $targetIsOwner && $membership->isActive() && $activeOwnerCount <= 1;
 
+            // BR-TEN-02 — un Manager gestionează Agent/Viewer și atât: pe rândul unui
+            // Owner butonul LIPSEȘTE (FR-RBAC-01, „absent, nu dezactivat cu tooltip"),
+            // nu apare și apoi refuză. Pe rândul propriu tot lipsește: o retrogradare de
+            // sine ar fi, pentru ultimul Owner, chiar cazul blocat de BR-TEN-01, iar
+            // pentru restul o cale de a-ți tăia singur accesul de pe ecranul ăsta.
+            $canUpdateRole = $canUpdateRoleAtAll
+                && $membership->isActive()
+                && (! $targetIsOwner || $currentUserIsOwner)
+                && $membership->user_id !== $currentUser->getKey();
+
+            // Rolurile pe care ACEST utilizator le poate acorda (BR-TEN-02: „Owner" doar
+            // pentru un Owner). Calculat server-side, ca select-ul din interfață să nu
+            // conțină niciodată o opțiune care ar fi refuzată la submit (FR-RBAC-01).
+            $assignableRoles = $currentUserIsOwner
+                ? Permissions::roles()
+                : array_values(array_diff(Permissions::roles(), [Permissions::OWNER]));
+
+            $isPending = $membership->status === Membership::STATUS_PENDING;
+
             return new MembershipResource(
                 $membership,
                 canDeactivate: $canDeactivate,
                 isLastActiveOwner: $isLastActiveOwner,
                 openRecords: $openRecordsByUser[$membership->user_id] ?? ['deals' => 0, 'orders' => 0, 'total' => 0],
+                canUpdateRole: $canUpdateRole,
+                assignableRoles: $assignableRoles,
+                canManageInvitation: $isPending && $canInvite && (! $targetIsOwner || $currentUserIsOwner),
             );
         })->values();
 
@@ -105,10 +161,47 @@ final class MembersController extends Controller
         return Inertia::render('Settings/Members/Index', [
             'members' => $rows,
             'activeMembers' => $activeMembers,
+            // BR-TEN-02 — lista de roluri a FORMULARULUI de invitare, calculată o singură
+            // dată pentru pagină: un Manager nu vede deloc opțiunea „Owner", nu o vede și
+            // primește refuz la submit.
+            'invitableRoles' => $currentUserIsOwner
+                ? Permissions::roles()
+                : array_values(array_diff(Permissions::roles(), [Permissions::OWNER])),
             'can' => [
-                'invite' => $request->user()->can('members.invite'),
+                'invite' => $canInvite,
+                'updateRole' => $canUpdateRoleAtAll,
             ],
         ]);
+    }
+
+    /**
+     * US-TEN-02 — „schimb rolul unui Manager în Viewer → modificarea e efectivă imediat și
+     * înregistrată în activity_log (§17) cu valorile vechi și noi".
+     *
+     * Refuzul vine ca `withErrors()`, nu ca 403: aceeași motivare, verbatim, ca la
+     * `deactivate()` mai jos — pe o cerere Inertia un 403 brut se citește ca „aplicație
+     * stricată", iar clientul are nevoie de `page.props.errors` ca să distingă `onError`
+     * de `onSuccess` și să țină dialogul deschis.
+     */
+    public function updateRole(UpdateMemberRoleRequest $request, Membership $membership): RedirectResponse
+    {
+        $newRole = $request->newRole();
+        $memberName = $membership->user?->name ?? 'This member';
+
+        $response = app(UpdateMemberRoleAction::class)->execute(
+            actor: $request->user(),
+            membership: $membership,
+            newRole: $newRole,
+            request: $request,
+        );
+
+        if ($response->denied()) {
+            return back()->withErrors(['role' => $response->message()]);
+        }
+
+        return redirect()
+            ->route('settings.members.index')
+            ->with('success', "{$memberName} is now {$newRole} in this workspace.");
     }
 
     public function deactivate(DeactivateMembershipRequest $request, Membership $membership): RedirectResponse

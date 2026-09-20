@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\DealStageEvent;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,9 +30,12 @@ class DealStageEventResource extends JsonResource
                 'id' => $this->toStage->id,
                 'name' => $this->toStage->name,
             ]),
+            // FR-TEN-04 — „Jane Doe (deactivated) moved this deal to Negotiation": istoricul
+            // de etape e chiar tiparul din Gherkin-ul US-TEN-03 („nu o eroare, nu un nume
+            // gol"). Eticheta se pune în `Resource` (plan §11), nu în `StageHistory.tsx`.
             'changedBy' => $this->whenLoaded('changedBy', fn () => $this->changedBy ? [
                 'id' => $this->changedBy->id,
-                'name' => $this->changedBy->name,
+                'name' => DeactivatedMemberNames::label($this->changedBy->name, $this->changedBy->id),
             ] : null),
             'changedAt' => $this->changed_at?->toIso8601String(),
             'durationInPreviousStageSeconds' => $this->duration_in_previous_stage_seconds,

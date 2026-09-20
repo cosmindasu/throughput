@@ -4,6 +4,7 @@ namespace App\Http\Resources\Imports;
 
 use App\Models\Import;
 use App\Support\Imports\ImportableResources;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,9 +32,13 @@ class ImportResource extends JsonResource
             'validRows' => $this->valid_rows,
             'errorRows' => $this->error_rows,
             'columnMapping' => $this->column_mapping,
+            // FR-TEN-04 — „orice referință de owner/creator/actor către un membru
+            // dezactivat" include și autorul unui import: lista de importuri e istoric, iar
+            // un nume care se schimbă tăcut (sau dispare) e exact ce cerința interzice.
+            // Aplicat AICI, în `Resource` (plan §11, specs.md §1.2 regula 1), nu în TSX.
             'createdBy' => $this->whenLoaded('createdBy', fn () => [
                 'id' => $this->createdBy->id,
-                'name' => $this->createdBy->name,
+                'name' => DeactivatedMemberNames::label($this->createdBy->name, $this->createdBy->id),
             ]),
             'createdAt' => $this->created_at?->toISOString(),
             'completedAt' => $this->completed_at?->toISOString(),

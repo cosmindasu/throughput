@@ -34,6 +34,62 @@ class MembershipPolicy
     }
 
     /**
+     * BR-TEN-02, a doua jumătate — „doar Owner și Manager pot invita membri; doar Owner
+     * poate schimba rolul unui alt Owner". Nota ¹ de la matricea §7.4 o spune explicit
+     * pentru invitare: Managerul invită Agent/Viewer, „dar nu poate promova pe cineva la
+     * Owner". O invitație CU rolul Owner e o promovare făcută înainte ca persoana să
+     * existe ca membru — aceeași regulă, altă poartă.
+     *
+     * Simetrică deliberat cu `updateRole()`: un Manager care nu poate PROMOVA la Owner, dar
+     * ar putea INVITA direct un Owner, ar avea o cale ocolită către exact acelaşi rezultat.
+     *
+     * `Response`, nu `bool`: refuzul se întoarce în dialog cu textul lui (audit de
+     * accesibilitate P1 — vezi `MembersController::deactivate()`), nu ca 403 opac.
+     */
+    public function inviteWithRole(User $user, string $role): Response
+    {
+        if (! $user->can('members.invite')) {
+            return Response::deny('You cannot invite members to this workspace.');
+        }
+
+        if ($role === Permissions::OWNER && ! $user->hasRole(Permissions::OWNER)) {
+            return Response::deny('Only an Owner can invite another Owner.');
+        }
+
+        return Response::allow();
+    }
+
+    /**
+     * Retrimiterea unui link de acceptare e aceeași acțiune ca invitarea (aceeași
+     * permisiune, același invitat, alt token) — deci aceeași regulă de rol. Blocată pe un
+     * rând care nu mai e „pending": un membru activ n-are ce accepta, iar un link nou pe un
+     * rând dezactivat ar fi o reinstaurare tăcută, nu o retrimitere.
+     */
+    public function resendInvitation(User $user, Membership $membership): Response
+    {
+        if ($membership->status !== Membership::STATUS_PENDING) {
+            return Response::deny('This invitation is no longer pending.');
+        }
+
+        return $this->inviteWithRole($user, (string) $membership->user?->getRoleNames()->first());
+    }
+
+    /**
+     * Retragerea unei invitații neacceptate. Nu e „eliminarea unui membru" (BR-TEN-01/04 nu
+     * se aplică: un invitat nu e Owner activ și n-are istoric de păstrat), dar rămâne sub
+     * aceeași regulă de rol ca invitarea lui — cine n-ar fi putut trimite invitația nu
+     * trebuie nici s-o poată retrage.
+     */
+    public function revokeInvitation(User $user, Membership $membership): Response
+    {
+        if ($membership->status !== Membership::STATUS_PENDING) {
+            return Response::deny('This invitation is no longer pending.');
+        }
+
+        return $this->inviteWithRole($user, (string) $membership->user?->getRoleNames()->first());
+    }
+
+    /**
      * BR-TEN-02: doar un Owner poate schimba rolul unui alt Owner sau poate promova pe
      * cineva la Owner. Un Manager gestionează Agent/Viewer și atât.
      */

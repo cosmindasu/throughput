@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Stock;
 
 use App\Models\StockMovement;
+use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,7 +28,14 @@ class StockMovementResource extends JsonResource
             'refId' => $this->ref_id,
             'note' => $this->note,
             'location' => ['id' => $this->location_id, 'name' => $this->location?->name ?? '—'],
-            'createdBy' => $this->createdBy ? ['id' => $this->createdBy->id, 'name' => $this->createdBy->name] : null,
+            // FR-TEN-04 — istoricul de stoc e prin definiție retrospectiv: autorul unei
+            // ajustări de acum trei luni poate fi între timp dezactivat, iar rândul trebuie
+            // să-l arate ca „Nume (deactivated)", nu cu numele nemarcat (plan §11 — la
+            // nivelul `Resource`-ului, nu în componenta React).
+            'createdBy' => $this->createdBy ? [
+                'id' => $this->createdBy->id,
+                'name' => DeactivatedMemberNames::label($this->createdBy->name, $this->createdBy->id),
+            ] : null,
             'createdAt' => $this->created_at?->toIso8601String(),
         ];
     }

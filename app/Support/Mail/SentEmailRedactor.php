@@ -51,6 +51,21 @@ final class SentEmailRedactor
             $content,
         ) ?? $content;
 
+        // `/invitations/{workspace}/{token}` (US-TEN-01, §6.4, Faza 5) — tiparul cerut
+        // explicit de REGULA DE PROCES din docblock-ul clasei („o viitoare invitație de
+        // membru cu token în URL își adaugă tiparul AICI înainte de a fi construit în
+        // cod"). Tokenul e 64 de caractere hex (`App\Actions\Members\InvitationToken`),
+        // iar acceptarea lui creează o SESIUNE în workspace-ul invitatorului — deci are
+        // exact aceeași putere ca linkul de resetare a parolei. Consecință asumată,
+        // semnalată în raportul lotului: linkul nu e CLICABIL din ecranul „Sent Emails" al
+        // demo-ului public; fluxul de acceptare se demonstrează cu o adresă din
+        // `DEMO_EMAIL_ALLOWLIST`, care primește emailul real, întreg.
+        $redacted = preg_replace(
+            '/(invitations(?:\/|%2F)[A-Za-z0-9\-_]+(?:\/|%2F))[A-Za-z0-9\-_.]{20,}/i',
+            '$1'.self::PLACEHOLDER,
+            $redacted,
+        ) ?? $redacted;
+
         $redacted = preg_replace(
             '/([?&]token=)[^&\s"\'<]+/i',
             '$1'.self::PLACEHOLDER,
