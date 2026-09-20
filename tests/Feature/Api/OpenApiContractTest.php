@@ -149,6 +149,35 @@ class OpenApiContractTest extends TestCase
         $this->assertStringContainsString('/api/openapi.yaml', $response->getContent());
     }
 
+    /**
+     * Decizia proprietarului (2026-09-20): Swagger UI e SELF-HOSTED, nu de pe un CDN.
+     *
+     * Prima versiune îl încărca de pe jsDelivr, ceea ce funcționa exact pentru că ruta
+     * trăiește pe grupul `api`, unde `SecurityHeaders` nu era aplicat — deci era singura
+     * pagină HTML a aplicației fără CSP, într-un proiect al cărui `script-src` e `'self'`
+     * fără nicio excepție. Regresia pe care o păzește testul ăsta e tăcută în ambele
+     * direcții: un script străin readăugat n-ar da nicio eroare vizibilă (pagina ar merge
+     * perfect), iar scoaterea middleware-ului de pe rută la fel.
+     */
+    public function test_the_documentation_page_carries_csp_and_loads_no_third_party_script(): void
+    {
+        $response = $this->get('/api/documentation');
+
+        $response->assertOk();
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("script-src 'self'", $csp, 'Pagina de contract a rămas fără CSP — vezi `routes/api.php`.');
+
+        $html = (string) $response->getContent();
+        $this->assertStringNotContainsString('//cdn.', $html);
+        $this->assertStringNotContainsString('jsdelivr', $html);
+        $this->assertStringNotContainsString('unpkg', $html);
+
+        // Un `<script>` inline ar fi blocat de politica de mai sus, deci URL-ul
+        // documentului ajunge în JS printr-un atribut `data-`.
+        $this->assertStringContainsString('data-spec-url', $html);
+    }
+
     public function test_the_specification_itself_is_served(): void
     {
         $response = $this->get('/api/openapi.yaml');

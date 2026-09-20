@@ -16,6 +16,7 @@ use App\Http\Middleware\EnsureApiSubscriptionAccess;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\RequireIdempotencyKey;
 use App\Http\Middleware\ResolveTenantFromApiToken;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleApiToken;
 use App\Models\ApiToken;
 use Illuminate\Support\Facades\Route;
@@ -30,7 +31,12 @@ use Illuminate\Support\Facades\Route;
 | fără să întrebe"). `throttle` clasic, cheiat pe IP — nu există jeton de cheiat aici.
 |
 */
-Route::middleware('throttle:60,1')->group(function () {
+// `SecurityHeaders` (CSP `script-src 'self'`, §20.2) e aplicat pe grupul `web`, nu pe
+// `api` — ceea ce făcea din `/api/documentation` SINGURA pagină HTML a aplicației fără
+// CSP. Aplicat aici explicit, nu prin mutarea rutei pe `web`: pagina n-are nevoie de
+// sesiune, de CSRF sau de props Inertia, doar de politica de scripturi. Swagger UI e
+// self-hosted prin Vite tocmai ca să treacă de `'self'` — vezi `DocumentationController`.
+Route::middleware(['throttle:60,1', SecurityHeaders::class])->group(function () {
     Route::get('/documentation', [DocumentationController::class, 'index'])->name('api.documentation');
     Route::get('/openapi.yaml', [DocumentationController::class, 'spec'])->name('api.documentation.spec');
 });

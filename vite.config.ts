@@ -6,7 +6,11 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.tsx'],
+            // `swagger.ts` e un punct de intrare SEPARAT, nu un import din `app.tsx`:
+            // pagina de contract API (FR-API-04) e singura care nu e Inertia + React, iar
+            // bundle-ul Swagger UI (~1 MB) n-are ce căuta în cel al consolei, încărcat de
+            // fiecare utilizator la fiecare sesiune.
+            input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.ts'],
             refresh: true,
         }),
         react(),
