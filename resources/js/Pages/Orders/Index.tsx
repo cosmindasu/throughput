@@ -6,6 +6,7 @@ import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelect
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
+import RowCheckbox from '@/Components/Form/RowCheckbox';
 import PageHeader from '@/Components/PageHeader';
 import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
@@ -317,16 +318,15 @@ function OrdersTable({
         <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Orders</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             {canBulk && (
                                 <th scope="col" className="w-10 px-4 py-2">
-                                    <input
-                                        type="checkbox"
+                                    <RowCheckbox
                                         aria-label="Select all orders on this page"
                                         checked={selection.allOnPageSelected}
                                         onChange={selection.toggleAllOnPage}
-                                        className="size-4 rounded border-control"
                                     />
                                 </th>
                             )}
@@ -396,12 +396,10 @@ function OrderRow({
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
             {canBulk && (
                 <td className="px-4 py-2">
-                    <input
-                        type="checkbox"
+                    <RowCheckbox
                         aria-label={`Select ${order.orderNumber ?? 'draft order'}`}
                         checked={selection.isSelected(order.id)}
                         onChange={() => selection.toggleRow(order.id)}
-                        className="size-4 rounded border-control"
                     />
                 </td>
             )}

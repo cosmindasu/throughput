@@ -12,6 +12,14 @@ interface CursorPaginationProps {
  *
  * Fără „pagina X din Y": un cursor nu știe câte pagini sunt, iar un `count(*)` pe fiecare
  * navigare ar plăti exact costul pe care paginarea pe cursor îl evită.
+ *
+ * SC 4.1.3 (Status messages) — anunțul „Results updated." la schimbarea de pagină NU
+ * trăiește aici. Această componentă e parte a componentei de PAGINĂ, care se remontează la
+ * fiecare navigare GET (`Date.now()` ca `key`, vezi `.ai/rules/frontend.md`, „Pagina se
+ * remontează la fiecare navigare") — orice `useState`/`useRef` local moare și renaște la
+ * fiecare clic pe „Next"/"Previous", înainte ca un efect să apuce să vadă o schimbare reală.
+ * Anunțul trăiește în `ListUpdateAnnouncer` (`resources/js/Components/ListUpdateAnnouncer.tsx`),
+ * montat o singură dată în layout-ul PERSISTENT (`AppLayout`).
  */
 export default function CursorPagination({ nextCursor, prevCursor }: CursorPaginationProps) {
     const { url } = usePage();

@@ -5,6 +5,7 @@ import { ButtonLink } from '@/Components/Button';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
+import RowCheckbox from '@/Components/Form/RowCheckbox';
 import PageHeader from '@/Components/PageHeader';
 import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
@@ -185,16 +186,15 @@ export default function Index() {
                     {products && products.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-left text-sm">
+                                <caption className="sr-only">Products</caption>
                                 <thead className="bg-raised text-text-2">
                                     <tr>
                                         {can.bulkWrite && (
                                             <th scope="col" className="w-10 px-4 py-2">
-                                                <input
-                                                    type="checkbox"
+                                                <RowCheckbox
                                                     aria-label="Select all products on this page"
                                                     checked={selection.allOnPageSelected}
                                                     onChange={selection.toggleAllOnPage}
-                                                    className="size-4 rounded border-control"
                                                 />
                                             </th>
                                         )}
@@ -211,12 +211,10 @@ export default function Index() {
                                         <tr key={product.id} className="hover:bg-row-hover">
                                             {can.bulkWrite && (
                                                 <td className="px-4 py-2.5">
-                                                    <input
-                                                        type="checkbox"
+                                                    <RowCheckbox
                                                         aria-label={`Select ${product.name}`}
                                                         checked={selection.isSelected(product.id)}
                                                         onChange={() => selection.toggleRow(product.id)}
-                                                        className="size-4 rounded border-control"
                                                     />
                                                 </td>
                                             )}

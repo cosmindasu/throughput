@@ -6,6 +6,7 @@ import CursorPagination from '@/Components/CursorPagination';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
+import RowCheckbox from '@/Components/Form/RowCheckbox';
 import PageHeader from '@/Components/PageHeader';
 import SavedViewPicker from '@/Components/SavedViewPicker';
 import StatusBadge from '@/Components/StatusBadge';
@@ -263,16 +264,15 @@ function DealsTable({
 
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Deals</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             {can.bulkWrite && (
                                 <th scope="col" className="w-10 px-4 py-2">
-                                    <input
-                                        type="checkbox"
+                                    <RowCheckbox
                                         aria-label="Select all deals on this page"
                                         checked={selection.allOnPageSelected}
                                         onChange={selection.toggleAllOnPage}
-                                        className="size-4 rounded border-control"
                                     />
                                 </th>
                             )}
@@ -346,13 +346,7 @@ function DealRow({
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
             {showCheckbox && (
                 <td className="px-4 py-2">
-                    <input
-                        type="checkbox"
-                        aria-label={`Select ${deal.title}`}
-                        checked={selected}
-                        onChange={onToggle}
-                        className="size-4 rounded border-control"
-                    />
+                    <RowCheckbox aria-label={`Select ${deal.title}`} checked={selected} onChange={onToggle} />
                 </td>
             )}
             <td className="px-4 py-2">

@@ -181,6 +181,7 @@ export default function PipelineIndex() {
                 ) : (
                     <div className="overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
+                            <caption className="sr-only">Pipeline stages</caption>
                             <thead className="bg-raised text-xs font-medium uppercase tracking-wide text-text-2">
                                 <tr>
                                     {can.manage && (

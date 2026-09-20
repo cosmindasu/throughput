@@ -35,6 +35,7 @@ export default function Index() {
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
+                            <caption className="sr-only">Imports</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
                                     <th scope="col" className="px-4 py-2 font-medium">File</th>

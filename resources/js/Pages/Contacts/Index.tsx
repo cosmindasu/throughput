@@ -148,6 +148,7 @@ function ContactsTable() {
     return (
         <div className="flex flex-col gap-3">
             <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-border bg-surface text-sm">
+                <caption className="sr-only">Contacts</caption>
                 <thead>
                     <tr className="text-left text-text-2">
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">

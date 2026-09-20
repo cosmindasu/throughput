@@ -38,6 +38,29 @@ la 4,17:1 când tenta se amesteca peste `--raised`.
 mono (IBM Plex Mono), care **ocupă mai mult** la aceeași dimensiune — verifică lățimea
 coloanelor pe cel mai lung total din seed, nu pe un exemplu scurt.
 
+## Numele accesibil al unui `<table>`
+
+Găsit la audit: trei convenții diferite pe tabelele de listă (`<caption>`, `aria-labelledby`,
+nimic). Regula, aplicată pe toate listele existente:
+
+- **Implicit, `<caption className="sr-only">`** cu numele entității (`Accounts`, `Orders`,
+  `Deals`…). E mecanismul nativ (tehnica WCAG H39), nu depinde de un `id` extern care se poate
+  rupe tăcut dacă cineva redenumește sau mută un heading — auto-conținut în tabel.
+- **Excepție**: când o pagină are MAI MULTE tabele, fiecare cu propriul heading vizibil chiar
+  deasupra (nu titlul paginii — un `h2`/`h3` DEDICAT acelui tabel, ca în `Unassigned/Index.tsx`:
+  „Open deals (N)" / „Active orders (N)"), tabelul se leagă cu `aria-labelledby` la headingul
+  respectiv, în loc de un `<caption>` separat. Altfel numele ar exista în două locuri
+  (headingul vizibil + caption invizibil) care pot ajunge să diveargă în timp — `aria-labelledby`
+  refolosește textul deja vizibil, o singură sursă de adevăr.
+- Un tabel simplu, singur pe pagină, sub filtre (fără heading propriu — titlul de mai sus e al
+  PAGINII, nu al tabelului) intră mereu pe cazul implicit: caption.
+
+Notă (nu o obligație WCAG): un `<table>` fără nume NU e, prin el însuși, o încălcare a SC 1.3.1
+sau 4.1.2 — ambele privesc relația header/celulă (`<th scope>`), nu un nume al tabelului
+însuși. Caption-ul e totuși valoare reală de orientare (navigare pe tabele cu cititorul de
+ecran) și cost aproape zero — de-asta regula de mai sus se aplică oricum, dar nu o raporta
+ca „am reparat o încălcare AA": e o îmbunătățire de calitate, nu un blocaj de conformitate.
+
 ## Props Inertia
 
 - Niciun model sau collection Eloquent trimis direct în `Inertia::render()` — doar
@@ -101,6 +124,81 @@ trei fișiere distanță. De aici regula, nu un al treilea comentariu.
 **Corolar pentru orice ecran cu polling:** verifică fluxul în care starea urmărită devine
 adevărată **după** montare. Dacă răspunsul serverului e un redirect către **aceeași** rută,
 componenta nu se remontează, deci `autoStart` nu se reevaluează niciodată.
+
+## Componenta de pagină se remontează la fiecare navigare — `key: Date.now()`
+
+Defectul opus celui de mai sus, găsit la auditul de accesibilitate (lotul L1): o regiune
+`aria-live` pusă ÎNTR-O COMPONENTĂ DE PAGINĂ (`CursorPagination.tsx`, ca să anunțe „Results
+updated." la Next/Previous) nu anunța NICIODATĂ nimic, deși `tsc`/`eslint` treceau curat și
+markup-ul (`role="status"`) exista în DOM.
+
+Motivul, verificat direct în sursă, nu dedus — `node_modules/@inertiajs/react/dist/index.js`:
+
+```
+// swapComponent (linia ~127)
+key: preserveState ? current2.key : Date.now()
+
+// renderChildren (linia ~154)
+const child = createElement(Component, { key, ...props });
+```
+
+Componenta de pagină (`child`) primește o `key` **nouă la fiecare navigare** ori de câte ori
+`preserveState` nu e explicit `true` — adică implicit pe orice `<Link>`/`<ButtonLink>` obișnuit
+(inclusiv Next/Previous). O `key` nouă = React vede alt element = **demontează și remontează**
+componenta de pagină, indiferent cât de banală pare navigarea (aceeași rută, doar `?cursor=`
+schimbat). Orice `useState`/`useRef` local moare și renaște înainte ca vreun efect să apuce să
+observe o schimbare reală.
+
+Layout-ul (`Component.layout`, ex. `AppLayout`) e wrapper-ul aplicat SEPARAT, în jurul lui
+`child`, **fără** `key` proprie — deci React îl păstrează (poziție + tip neschimbate). **Doar
+layout-ul e persistent peste o navigare Inertia, niciodată componenta de pagină.**
+
+Consecințe directe:
+- **Orice regiune `aria-live` care trebuie să supraviețuiască unei navigări stă în layout-ul
+  persistent** (ex. `ListUpdateAnnouncer.tsx`, montat o singură dată în `AppLayout`), niciodată
+  într-o componentă de pagină — sursa de adevăr pentru „ce s-a schimbat" e `usePage().url` (prin
+  context, actualizat pe loc) sau evenimentele router-ului (`router.on('navigate', …)`),
+  niciodată starea locală a unei componente care tocmai s-a remontat.
+- Mai general: **nicio stare de pagină nu supraviețuiește unei navigări** — un `useState` care
+  „ține minte" ceva peste un clic pe un link e, cel mai probabil, o presupunere greșită. Dacă
+  ceva TREBUIE să supraviețuiască (un draft de formular, o selecție), el stă fie în layout, fie
+  în URL/sessionStorage, niciodată doar în `useState`-ul paginii.
+- **`preserveState: true`** (ex. `useListFilters`, deja documentat în `useBulkSelection`) e
+  EXCEPȚIA care ține pagina montată — verifică explicit dacă o navigare o folosește înainte să
+  presupui oricare din cele două comportamente.
+
+## O regiune `aria-live` nu reacționează la `setState`, ci la mutația DOM-ului
+
+A doua jumătate a aceleiași capcane, găsită imediat după prima, pe același anunț de paginare.
+Regiunea mutată corect în layout-ul persistent tot nu anunța decât **prima** schimbare din
+sesiune:
+
+```tsx
+// GREȘIT — al doilea „Next" scrie ACELAȘI șir.
+setAnnouncement('Results updated.');
+```
+
+React iese din `setState` la valoare identică, **înainte** de a programa randarea —
+`react-dom-client.development.js` (react-dom 19.3.0), în `dispatchSetStateInternal`:
+
+```js
+if (objectIs(eagerState, currentState))
+  return (enqueueUpdate$1(fiber, queue, update, 0), …, !1);
+```
+
+Fără randare nu există mutație de DOM, iar o regiune `aria-live` raportează **schimbarea
+conținutului**, nu intenția de a-l scrie. Deci: pagina 1→2 se aude, 2→3 și 3→4 nu — cod care
+arată complet, trece `tsc`, `eslint` și orice test care verifică prezența lui `role="status"`.
+
+Forma corectă e să garantezi tranziția `'' → text` la **fiecare** anunț: golire sincronă, apoi
+scrierea textului pe `requestAnimationFrame`, cu `cancelAnimationFrame` la cleanup
+(`ListUpdateAnnouncer.tsx`). Ordinea contează — „anunță acum, golește după un timp" are o cursă
+reală: un al doilea clic dat înainte ca golirea întârziată să treacă prin DOM reproduce exact
+bug-ul. Un text care „variază natural" (direcția Next/Previous) **nu** rezolvă nimic: trei
+clicuri pe Next produc iarăși de trei ori același șir.
+
+Regula generală, dincolo de `aria-live`: **când un efect secundar depinde de faptul că DOM-ul
+chiar s-a schimbat, valoarea identică nu e o actualizare.**
 
 ## Inertia 3, nu 2
 
