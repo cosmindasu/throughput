@@ -143,6 +143,34 @@ Cu `sync` (sau `Queue::fake()`), jobul rulează în procesul care l-a dispeceriz
 cererii încă viu — adică exact condiția în care bug-ul de serializare e **invizibil**. Un job
 care primește un model tenant-scoped ar trece verde și ar cădea în producție.
 
+## `queue:work --stop-when-empty` minte despre „goală" — plafonul de memorie câștigă
+
+`Worker::stopIfNecessary()` evaluează condițiile în ordine, iar plafonul de memorie stă
+**înaintea** cozii goale:
+
+```php
+$this->memoryExceeded($options->memory)  => EXIT_MEMORY_LIMIT
+$options->stopWhenEmpty && is_null($job) => EXIT_SUCCESS
+```
+
+Implicitul e `--memory=128`, iar măsurătoarea e `memory_get_usage(true)` — memoria **reală a
+procesului**, nu a jobului. Într-un worker de producție e exact ce trebuie. În suită, procesul
+e PHPUnit: acumulează memorie de la toate testele de dinainte și trece de 128 MB pe la
+jumătatea rulării. De acolo, orice drenare procesează **un singur job** și iese cu cod 0, ca și
+cum ar fi golit coada.
+
+Eșecul e dependent de **ordine**, nu de test, și nu seamănă cu cauza lui. În Faza 5 a dat 15
+teste roșii din 5 fișiere, cu mesaje aparent fără legătură — „un job în plus în coadă",
+„eticheta a rămas `label_pending`", „grupul a rămas `running`", „raportul a rămas `queued`" —
+toate trecând în izolare **și** în oricare jumătate a suitei. Singura formă care le reproducea
+era suita întreagă, deci diagnosticul costă 6 minute pe încercare, până când ipoteza se
+verifică în 3 secunde alocând 200 MB înaintea fișierului.
+
+Plafonul e scos o singură dată, în `Tests\TestCase::setUp()` (`--memory=0` dezactivează
+verificarea), **nu** la cele ~45 de apeluri `queue:work` din suită: un test nou nu trebuie să
+poată reintroduce capcana uitând o opțiune. Garda e
+`QueueDrainMemoryLimitTest` — umflă procesul deliberat peste plafon și pretinde coada goală.
+
 ## `actingAs` golește sesiunea
 
 `AuthenticateSession` e activ global (FR-PUB-05 cere invalidarea sesiunilor la reset de parolă).
