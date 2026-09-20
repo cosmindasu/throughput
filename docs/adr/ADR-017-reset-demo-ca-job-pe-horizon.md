@@ -1,75 +1,75 @@
-# ADR-017: Resetul zilnic al demo-ului rulează ca job pe Horizon, nu în containerul `scheduler`
+# ADR-017: The daily demo reset runs as a job on Horizon, not inside the `scheduler` container
 
 - **Status**: Accepted
-- **Data**: 2026-09-13
-- **Decidenți**: proprietarul proiectului
+- **Date**: 2026-09-13
+- **Deciders**: project owner
 - **Related**: [[ADR-001]], [[ADR-014]]
 
-## Context și problema
+## Context and problem statement
 
-FR-DEMO-03 (specs.md §22.1) cere ca demo-ul public să fie readus zilnic, la 03:00 UTC, la setul semănat, activ de la publicare (finalul Fazei 2). Planul (§8) îl descria ca „o linie în `routes/console.php`" peste comanda `demo:reset`, existentă din Faza 1: `migrate:fresh` pe conexiunea de migrare, apoi seed-ul complet (3 tenanți, 8.000 de conturi, 50.000 de comenzi).
+FR-DEMO-03 (specs.md §22.1) requires the public demo to be restored daily, at 03:00 UTC, to the seeded data set, starting from publication (end of Phase 2). The plan (§8) described it as "one line in `routes/console.php`" over the `demo:reset` command, which has existed since Phase 1: `migrate:fresh` on the migration connection, then the full seed (3 tenants, 8,000 accounts, 50,000 orders).
 
-`Schedule::command()` nu trimite comanda nicăieri. O rulează ca subproces **în containerul care rulează scheduler-ul**, adică serviciul `scheduler` din `docker-compose.coolify.yml`: `mem_limit: 128m`, descris în plan §3.1 ca „doar dispecerizează — nu execută el însuși job-uri grele". Imaginea păstrează `memory_limit` PHP implicit, 128M.
+`Schedule::command()` does not send the command anywhere. It runs it as a subprocess **inside the container that runs the scheduler**, that is, the `scheduler` service in `docker-compose.coolify.yml`: `mem_limit: 128m`, described in plan §3.1 as "it only dispatches — it does not itself execute heavy jobs". The image keeps PHP's default `memory_limit`, 128M.
 
-Durata comenzii era cunoscută din Faza 1 (~57 s). Vârful ei de memorie nu fusese măsurat niciodată.
+The command's duration was known from Phase 1 (~57 s). Its memory peak had never been measured.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Măsurat, nu estimat.** Un reset care moare la jumătate e mai rău decât niciun reset: `migrate:fresh` a șters deja schema, iar demo-ul public rămâne gol până la rularea următoare.
-- **Bugetul de memorie al VPS-ului partajat** (`.ai/rules/project.md`: 250–400 MB la vârf, 11 ucideri OOM măsurate). De preferat fără plafoane noi.
-- **Scheduler-ul rămâne dispecer**, cum îl descrie planul.
-- **Testabil în CI**, nu configurare manuală în afara repo-ului.
+- **Measured, not estimated.** A reset that dies halfway is worse than no reset at all: `migrate:fresh` has already dropped the schema, and the public demo stays empty until the next run.
+- **The memory budget of the shared VPS** (`.ai/rules/project.md`: 250–400 MB at peak, 11 measured OOM kills). Preferably without new caps.
+- **The scheduler stays a dispatcher**, as the plan describes it.
+- **Testable in CI**, not manual configuration outside the repo.
 
-## Măsurătoarea
+## The measurement
 
-Mediu: PHP 8.4 CLI local, PostgreSQL 16.14, bază dedicată `throughput_reset_probe` (ca măsurătoarea să nu perturbe baza de dev), seed complet. Runtime-ul real e PHP 8.3 într-un container Linux: cifrele absolute pot diferi, ordinul de mărime nu.
+Environment: local PHP 8.4 CLI, PostgreSQL 16.14, a dedicated `throughput_reset_probe` database (so the measurement would not disturb the dev database), fully seeded. The real runtime is PHP 8.3 inside a Linux container: the absolute figures may differ, the order of magnitude does not.
 
-| Proces | Heap PHP de vârf | RSS max | Durată |
+| Process | Peak PHP heap | Max RSS | Duration |
 |---|---|---|---|
-| `demo:reset`, înainte de fixul de seed | 206,5 MB | 208 MB | 59 s |
-| `demo:reset`, după fixul de seed (`0772c63`), rulat cu `memory_limit=128M` | 80,5 MB | 90,2 MB | 67,7 s¹ |
-| `schedule:work`, inactiv | — | 63,2 MB | — |
-| `schedule:run`, o trecere fără nimic scadent | — | 63,2 MB | — |
+| `demo:reset`, before the seed fix | 206.5 MB | 208 MB | 59 s |
+| `demo:reset`, after the seed fix (`0772c63`), run with `memory_limit=128M` | 80.5 MB | 90.2 MB | 67.7 s¹ |
+| `schedule:work`, idle | — | 63.2 MB | — |
+| `schedule:run`, one pass with nothing due | — | 63.2 MB | — |
 
-¹ Pe o mașină încărcată în paralel de alte procese; fără încărcare, ~57 s (Faza 1).
+¹ On a machine loaded in parallel by other processes; unloaded, ~57 s (Phase 1).
 
-**Fixul de seed.** Rezumatele celor 30.000 de comenzi ale tenantului Marlin țineau câte două obiecte Carbon pe rând până la facturare: 134,6 MB, față de 16,1 MB cu timestamp-uri întregi (măsurat izolat). După fix, datele au rămas echivalente: 0 facturi cu `issue_date` diferit de data comenzii, 0 comenzi sau deals mai vechi decât contul, aceleași volume.
+**The seed fix.** The summaries of tenant Marlin's 30,000 orders held two Carbon objects per row until invoicing: 134.6 MB, against 16.1 MB with integer timestamps (measured in isolation). After the fix, the data stayed equivalent: 0 invoices with an `issue_date` different from the order date, 0 orders or deals older than their account, the same volumes.
 
-**Chiar după fix**, la 03:00 containerul `scheduler` ar ține simultan `schedule:work` (63 MB), `schedule:run`-ul pornit în acel minut (63 MB) și resetul (90 MB): ~216 MB pe un plafon de 128m.
+**Even after the fix**, at 03:00 the `scheduler` container would hold, simultaneously, `schedule:work` (63 MB), the `schedule:run` started that minute (63 MB) and the reset (90 MB): ~216 MB against a 128m cap.
 
-## Opțiuni considerate
+## Considered options
 
-1. **`Schedule::command('demo:reset')` direct în `scheduler`, plafon neschimbat.** Varianta din plan. Nu încape nici măcar resetul singur lângă `schedule:work`. Respinsă.
-2. **Aceeași intrare, cu `scheduler` urcat la 256m.** Cea mai simplă. Dar ridică plafonul unui serviciu pe un VPS care a avut deja ucideri OOM, contrazice rolul de simplu dispecer, iar la ~216 MB măsurați ar fi rămas oricum la limită. Respinsă.
-3. **Scheduled Task în Coolify, în containerul `app` (256m).** Fără cod. Dar configurarea stă în afara repo-ului, nu e testabilă în CI, iar `DEMO_RESET_CRON` ar rămâne nefolosit. Respinsă.
-4. **Scheduler-ul dispecerizează `ResetDemoDataJob`, iar resetul rulează în `horizon` (384m, deja bugetat).** **Aleasă.**
+1. **`Schedule::command('demo:reset')` directly in `scheduler`, cap unchanged.** The variant from the plan. The reset does not fit even on its own next to `schedule:work`. Rejected.
+2. **The same entry, with `scheduler` raised to 256m.** The simplest. But it raises the cap of a service on a VPS that has already had OOM kills, it contradicts the pure-dispatcher role, and at the ~216 MB measured it would have stayed at the limit anyway. Rejected.
+3. **A Scheduled Task in Coolify, inside the `app` container (256m).** No code. But the configuration lives outside the repo, it is not testable in CI, and `DEMO_RESET_CRON` would go unused. Rejected.
+4. **The scheduler dispatches `ResetDemoDataJob`, and the reset runs in `horizon` (384m, already budgeted).** **Chosen.**
 
-## Decizia
+## Decision
 
 - `routes/console.php`: `Schedule::job(new ResetDemoDataJob, 'default')->cron(config('throughput.demo.reset_cron'))->when(DemoMode::enabled)`.
-- `ResetDemoDataJob` e un job de sistem, fără tenant ([[ADR-014]]):
+- `ResetDemoDataJob` is a system job, with no tenant ([[ADR-014]]):
   - `tries = 1`, `timeout = 600`, `failOnTimeout`;
-  - `ShouldBeUnique` pe 15 minute;
-  - reverifică `DEMO_MODE` la execuție;
-  - un cod de ieșire nenul aruncă excepție, cu ieșirea comenzii în mesaj.
-- `queue.connections.redis.retry_after` urcă de la 90 la **900** s, peste timeout-ul jobului. Altfel Redis ar pune resetul înapoi în coadă cât încă rulează.
-- Fixul de memorie din seed (`0772c63`) e precondiție: fără el, resetul nu încape nici în `memory_limit` 128M al worker-ului Horizon.
+  - `ShouldBeUnique` for 15 minutes;
+  - it re-checks `DEMO_MODE` at execution time;
+  - a non-zero exit code throws an exception, with the command's output in the message.
+- `queue.connections.redis.retry_after` goes up from 90 to **900** s, above the job's timeout. Otherwise Redis would put the reset back on the queue while it is still running.
+- The seed memory fix (`0772c63`) is a precondition: without it, the reset does not fit inside the Horizon worker's 128M `memory_limit` either.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Niciun plafon de memorie nu se schimbă. Resetul folosește ~90 MB din cei 384m ai `horizon`, la 03:00, când coada e liniștită.
-- Scheduler-ul rămâne dispecer. Intrarea și contractul jobului sunt acoperite de `DemoResetScheduleTest`: cron-ul, filtrul DEMO_MODE, eșecul zgomotos, `retry_after` peste timeout.
-- Seed-ul inițial prin `APP_RUN_SEEDERS` beneficiază de același fix de memorie.
+- No memory cap changes. The reset uses ~90 MB out of `horizon`'s 384m, at 03:00, when the queue is quiet.
+- The scheduler stays a dispatcher. The schedule entry and the job's contract are covered by `DemoResetScheduleTest`: the cron expression, the DEMO_MODE filter, loud failure, `retry_after` above the timeout.
+- The initial seed via `APP_RUN_SEEDERS` benefits from the same memory fix.
 
 ### Negative / trade-offs
 
-- **Worker-ul unic e ocupat ~70 s** cât rulează resetul (`maxProcesses = 1`). Joburile dispecerizate în acel interval așteaptă. Acceptat, la 03:00 UTC.
-- **`retry_after` de 15 minute pentru toate joburile de pe conexiune.** Jobul unui worker mort se reia după până la 15 minute, nu după 90 s.
-- **Aplicația dă erori ~70 s** cât rulează `migrate:fresh` și seed-ul. La fel în toate variantele. O pagină de mentenanță pe durata resetului rămâne o îmbunătățire posibilă, nefăcută.
-- Cifrele sunt de pe PHP 8.4 local. Se reverifică pe stack-ul de producție la publicare (plan §15: „rulat o dată pe stack-ul de producție, durata măsurată").
+- **The single worker is busy for ~70 s** while the reset runs (`maxProcesses = 1`). Jobs dispatched in that window wait. Accepted, at 03:00 UTC.
+- **A `retry_after` of 15 minutes for every job on that connection.** A dead worker's job is retried after up to 15 minutes, not after 90 s.
+- **The application returns errors for ~70 s** while `migrate:fresh` and the seed run. The same in every variant. A maintenance page for the duration of the reset remains a possible improvement, not made.
+- The figures come from local PHP 8.4. They get re-verified on the production stack at publication (plan §15: "run once on the production stack, duration measured").
 
-## Istoric
+## History
 
-- 2026-09-13 — creat. Proprietarul a ales varianta 4 dintre variantele 2–4, pe măsurătorile de mai sus.
+- 2026-09-13 — created. The owner chose variant 4 out of variants 2–4, on the measurements above.

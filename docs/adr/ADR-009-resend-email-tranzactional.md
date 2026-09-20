@@ -1,37 +1,37 @@
-# ADR-009: Resend ca furnizor de email tranzacțional
+# ADR-009: Resend as the transactional email provider
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: §22.3 din specificație (interceptarea email-urilor în demo)
-- **Tags**: email, rapoarte, notificari, sprint-4
+- **Deciders**: Owner
+- **Related**: §22.3 of the specification (intercepting emails in the demo)
+- **Tags**: email, reports, notifications, sprint-4
 
-## Context și problema
+## Context and problem statement
 
-Aplicația trimite email: rapoarte programate cu atașament, invitații în workspace, notificări, resetare de parolă. Îi trebuie un furnizor.
+The application sends email: scheduled reports with attachments, workspace invitations, notifications, password resets. It needs a provider.
 
-Nota din specificație (§16) formula problema ca „coadă proprie vs serviciu extern" pentru livrarea rapoartelor. Formularea era înșelătoare: **nu există un serviciu extern rezonabil** pentru „rulează interogarea asta luni la 8 și trimite-mi CSV-ul", iar research-ul confirmă că nu există un pachet Laravel canonic pentru programarea rapoartelor.
+The note in the specification (§16) framed the problem as "own queue vs external service" for report delivery. The framing was misleading: **there is no reasonable external service** for "run this query on Monday at 8 and email me the CSV", and the research confirms there is no canonical Laravel package for report scheduling.
 
-Mecanismul e deci decis de la sine — Laravel Scheduler → job → `Mailable` cu atașament. Întrebarea reală, ascunsă sub ea, era **cine transportă email-ul**.
+The mechanism therefore decides itself — Laravel Scheduler → job → `Mailable` with an attachment. The real question, hidden underneath, was **who transports the email**.
 
-## Decizia luată
+## Decision outcome
 
 **Resend.**
 
-- Configurare minimă și API modern; driver Laravel disponibil.
-- Nivel gratuit suficient pentru volumul unui demo (unde, în plus, email-urile către adrese din afara listei albe sunt oricum interceptate — §22.3).
-- Alternativa serioasă e Postmark, cu reputație de livrare mai bună pentru volume reale. Nerelevant aici: volumul e neglijabil, iar destinatarii sunt controlați.
+- Minimal configuration and a modern API; a Laravel driver is available.
+- A free tier sufficient for demo volume (where, on top of that, emails to addresses outside the allow-list are intercepted anyway — §22.3).
+- The serious alternative is Postmark, with a better deliverability reputation for real volume. Irrelevant here: the volume is negligible and the recipients are controlled.
 
-**De verificat înainte de implementare:** termenii nivelului gratuit din 2026. Decizia se ia pe baza caracteristicilor de configurare, nu pe cifre de preț pe care nu le-am confirmat.
+**To verify before implementation:** the 2026 free-tier terms. The decision is made on configuration characteristics, not on pricing figures we have not confirmed.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Mecanismul de rapoarte rămâne integral în stack, fără dependență SaaS pentru programare — important pe un VPS cu buget de memorie strâns.
-- Schimbarea furnizorului e o variabilă de mediu: Laravel abstractizează transportul.
+- The reporting mechanism stays entirely in the stack, with no SaaS dependency for scheduling — important on a VPS with a tight memory budget.
+- Switching provider is an environment variable: Laravel abstracts the transport.
 
 ### Negative / trade-offs
 
-- Încă un cont extern și încă un set de chei de gestionat.
-- Dacă volumul ar crește vreodată real, reputația de livrare ar trebui reevaluată. Nu se pune pentru un demo.
+- One more external account and one more set of keys to manage.
+- If volume ever became real, the deliverability reputation would have to be re-evaluated. Not a concern for a demo.

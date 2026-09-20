@@ -1,66 +1,66 @@
-# ADR-011: Dezactivarea unui membru nu e blocată de înregistrările pe care le deține
+# ADR-011: Deactivating a member is not blocked by the records they own
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-007]] (jurnal de activitate — istoricul cere referințe intacte)
-- **Tags**: multi-tenancy, securitate, rbac, sprint-2
+- **Deciders**: Owner
+- **Related**: [[ADR-007]] (activity log — history requires intact references)
+- **Tags**: multi-tenancy, security, rbac, sprint-2
 
-## Context și problema
+## Context and problem statement
 
-Când un membru pleacă dintr-un workspace, înregistrările pe care le deține — conturi, oportunități, comenzi — rămân în urmă. Întrebarea e ce se întâmplă cu ele și, mai ales, **dacă plecarea poate fi blocată până când cineva le preia**.
+When a member leaves a workspace, the records they own — accounts, deals, orders — stay behind. The question is what happens to them and, above all, **whether the departure can be blocked until someone takes them over**.
 
-Versiunea v1.3 a specificației adoptase **reatribuirea obligatorie totală**: eliminarea era blocată până când toate cele 62 de înregistrări din exemplu erau reatribuite. Research-ul din aceeași zi a argumentat explicit împotriva acestei variante, iar argumentul e decisiv și nu fusese cântărit:
+Version v1.3 of the specification had adopted **mandatory full reassignment**: removal was blocked until all 62 records in the example had been reassigned. The research from the same day argued explicitly against that variant, and the argument is decisive and had not been weighed:
 
-> **Blocarea dezactivării blochează revocarea accesului.**
+> **Blocking deactivation blocks access revocation.**
 
-Dacă cineva pleacă în conflict, accesul trebuie tăiat imediat. O politică ce cere mai întâi reatribuirea a mii de înregistrări istorice transformă o acțiune de securitate într-o sarcină de curățenie — și, în practică, întârzie revocarea cu zile.
+If someone leaves in conflict, access has to be cut immediately. A policy that first demands the reassignment of thousands of historical records turns a security action into a housekeeping chore — and, in practice, delays revocation by days.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Revocarea accesului nu se negociază cu ergonomia.** E singura acțiune din tot modulul care are consecințe de securitate imediate.
-- **Nimic nu trebuie să dispară tăcut.** Un cont fără proprietar vizibil e un cont pe care nu-l mai vede nimeni.
-- **Istoricul rămâne auditabil** ([[ADR-007]]) — deci referințele la utilizatorul plecat nu se pot rupe.
+- **Access revocation is not negotiated against ergonomics.** It is the only action in the whole module with immediate security consequences.
+- **Nothing may disappear silently.** A record without a visible owner is a record nobody looks at again.
+- **History stays auditable** ([[ADR-007]]) — so references to the departed user cannot be broken.
 
-## Opțiuni considerate
+## Considered options
 
-Research-ul a comparat patru produse reale și a găsit **trei tipare distincte, fără consens**:
+The research compared four real products and found **three distinct patterns, with no consensus**:
 
-| Produs | Tipar |
+| Product | Pattern |
 |---|---|
-| HubSpot | Placeholder, fără blocare — proprietarul devine `Deactivated/Removed (email)` |
-| Salesforce | Reatribuire manuală înainte; nu automatizează nativ (e un *Idea* deschis pe portalul lor) |
-| Jira | Coadă de neatribuite — `ASSIGNEE = NULL` e stare validă de sistem, nu eroare |
-| Zoho CRM | Blocare cu pas obligatoriu de transfer |
+| HubSpot | Placeholder, no blocking — the owner becomes `Deactivated/Removed (email)` |
+| Salesforce | Manual reassignment first; no native automation (it is an open *Idea* on their portal) |
+| Jira | An unassigned queue — `ASSIGNEE = NULL` is a valid system state, not an error |
+| Zoho CRM | Blocking, with a mandatory transfer step |
 
-## Decizia luată
+## Decision outcome
 
-**Hibrid, cu dezactivarea niciodată blocată definitiv.**
+**A hybrid, with deactivation never permanently blocked.**
 
-1. **Dezactivarea e imediată.** Accesul se revocă acum. `memberships.status = deactivated`, niciodată `DELETE` fizic — istoricul din `activity_log` cere referința intactă.
-2. **Placeholder pe referințele istorice** — „Jane Doe (deactivated)", nu un nume gol și nu o eroare.
-3. **Vedere „Unassigned" per tenant**, populată automat cu înregistrările **deschise** ale membrilor dezactivați. Managerul reatribuie de acolo, în ritmul lui. Nimic nu se pierde, nimic nu blochează.
-4. **Confirmare suplimentară pentru subsetul critic** — comenzi active și oportunități deschise. Dezactivarea cere o confirmare explicită, cu opțiunea de a reatribui pe loc. **Owner-ul poate alege „Deactivate anyway"**, iar înregistrările trec în vederea „Unassigned".
+1. **Deactivation is immediate.** Access is revoked now. `memberships.status = deactivated`, never a physical `DELETE` — the history in `activity_log` requires the reference to stay intact.
+2. **A placeholder on historical references** — "Jane Doe (deactivated)", not an empty name and not an error.
+3. **An "Unassigned" view per tenant**, populated automatically with the **open** records of deactivated members. The manager reassigns from there, at their own pace. Nothing is lost, nothing blocks.
+4. **An extra confirmation for the critical subset** — active orders and open deals. Deactivation requires an explicit confirmation, with the option to reassign on the spot. **The Owner can choose "Deactivate anyway"**, and the records move into the "Unassigned" view.
 
-Punctul 4 e compromisul: păstrează rigoarea vizibilă (ești avertizat că lași 12 oportunități deschise fără proprietar) fără să reintroducă blocajul pe care punctul 1 îl exclude.
+Point 4 is the compromise: it keeps the rigor visible (you are warned that you are leaving 12 open deals without an owner) without reintroducing the block that point 1 rules out.
 
-**Excepție cu consens puternic: ultimul Owner.** Slack, ClickUp, Webflow și Figma blochează toate eliminarea ultimului Owner al unui workspace. Aici blocarea e corectă — nu există „mai târziu" pentru un workspace fără proprietar. Transferul de proprietate e o acțiune separată, precondiție.
+**An exception with strong consensus: the last Owner.** Slack, ClickUp, Webflow and Figma all block the removal of a workspace's last Owner. Here blocking is correct — there is no "later" for a workspace without an owner. Transferring ownership is a separate action, a precondition.
 
-**Out of scope, deliberat:** cazul în care ultimul Owner a plecat deja fără să transfere. Webflow îl documentează ca flux mediat de suport, nu self-service. Facem la fel.
+**Deliberately out of scope:** the case where the last Owner has already left without transferring. Webflow documents it as a support-mediated flow, not self-service. We do the same.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Revocarea accesului rămâne instantanee, indiferent de câte înregistrări deține cineva.
-- Vederea „Unassigned" e o demonstrație mai bună decât blocarea: *„nimic nu se pierde când cineva pleacă din echipă"*.
-- Un singur drum de cod pentru dezactivare, cu o confirmare deasupra — nu două politici paralele.
+- Access revocation stays instantaneous, no matter how many records someone owns.
+- The "Unassigned" view is a better demonstration than blocking: *"nothing is lost when someone leaves the team"*.
+- A single code path for deactivation, with a confirmation on top — not two parallel policies.
 
 ### Negative / trade-offs
 
-- Înregistrările pot rămâne neatribuite la nesfârșit dacă nimeni nu se uită în vederea „Unassigned". Mitigare: notificare către Owner la dezactivare, plus un indicator numeric permanent pe vedere.
-- Se pierde efectul demonstrativ al blocării ferme. Acceptat — vederea „Unassigned" e la fel de vizibilă și mai onestă operațional.
+- Records can stay unassigned indefinitely if nobody looks at the "Unassigned" view. Mitigation: a notification to the Owner on deactivation, plus a permanent count badge on the view.
+- The demonstrative effect of a hard block is lost. Accepted — the "Unassigned" view is just as visible and more honest operationally.
 
-## Istoric
+## History
 
-Această decizie **schimbă** ce scria specificația în v1.3 (§6.4.1, BR-TEN-03, US-TEN-03), unde reatribuirea totală era obligatorie și blocantă. Varianta aceea fusese introdusă la indicația mea, contrar recomandării explicite din `docs/research/best-practices-goluri-2026-09-12.md` §3.2. Specificația se aliniază la acest ADR în v1.6.
+This decision **changes** what the specification said in v1.3 (§6.4.1, BR-TEN-03, US-TEN-03), where full reassignment was mandatory and blocking. That variant had been introduced at my own instruction, against the explicit recommendation in `docs/research/best-practices-goluri-2026-09-12.md` §3.2. The specification is aligned with this ADR in v1.6.

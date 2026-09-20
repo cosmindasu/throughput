@@ -1,32 +1,32 @@
-# ADR-015: Laravel 13 și Inertia 3, nu Laravel 12 și Inertia 2
+# ADR-015: Laravel 13 and Inertia 3, not Laravel 12 and Inertia 2
 
 - **Status**: Accepted
-- **Data**: 2026-09-12
-- **Decidenți**: proprietarul proiectului
-- **Supersedează parțial**: [[ADR-001]] — exclusiv versiunile de framework și de Inertia. Restul lui ADR-001 (alegerea Laravel + Inertia + React + PostgreSQL față de Next.js, Filament sau Livewire, și motivele acelei alegeri) rămâne în vigoare, neatins.
+- **Date**: 2026-09-12
+- **Deciders**: project owner
+- **Partially supersedes**: [[ADR-001]] — exclusively the framework and Inertia versions. The rest of ADR-001 (choosing Laravel + Inertia + React + PostgreSQL over Next.js, Filament or Livewire, and the reasons for that choice) remains in force, untouched.
 
-## Context și enunțul problemei
+## Context and problem statement
 
-[[ADR-001]] a fost scris la 2026-09-12 dimineață și pinuiește stack-ul la **Laravel 12 + Inertia v2 + React 19 + PostgreSQL 16**. La prima rulare efectivă a scaffold-ului, în aceeași zi, `composer create-project laravel/laravel` a instalat **Laravel 13.31.0**, iar cel mai recent `@inertiajs/react` e **3.7.1** (`inertiajs/inertia-laravel` v3.3.4).
+[[ADR-001]] was written on the morning of 2026-09-12 and pins the stack to **Laravel 12 + Inertia v2 + React 19 + PostgreSQL 16**. On the first actual scaffold run, the same day, `composer create-project laravel/laravel` installed **Laravel 13.31.0**, and the latest `@inertiajs/react` is **3.7.1** (`inertiajs/inertia-laravel` v3.3.4).
 
-Cu alte cuvinte: ambele au trecut o versiune majoră peste ce presupun documentele, iar discrepanța a apărut în minutul în care s-a scris prima linie de cod, nu peste luni. Trebuia rezolvată înainte de orice altceva — un re-scaffold costă zero acum și crește cu fiecare fază.
+In other words: both moved a major version past what the documents assume, and the discrepancy appeared the minute the first line of code was written, not months later. It had to be settled before anything else — re-scaffolding costs zero now and grows more expensive with every phase.
 
-Convenția proiectului (`docs/adr/README.md`) spune că **un ADR acceptat nu se rescrie**: dacă decizia se schimbă, se scrie unul nou care îl supersedează. De aici acest document, în loc de o editare tăcută în ADR-001.
+The project convention (`docs/adr/README.md`) says that **an accepted ADR is never rewritten**: if the decision changes, a new one is written that supersedes it. Hence this document, instead of a silent edit in ADR-001.
 
-## Factori de decizie
+## Decision drivers
 
-1. **Cost de compatibilitate pe stack-ul deja planificat** — dacă un pachet din plan nu suportă Laravel 13, discuția se închide singură.
-2. **Fereastra de suport** a versiunii pe care pornește un proiect *nou*.
-3. **Ce vede audiența secundară** din `specs.md` §1.5 — recrutorul tehnic / CTO care face un code review rapid, și care rulează el însuși `laravel new` ca punct de comparație.
-4. **Costul de sincronizare** a documentelor.
+1. **Compatibility cost on the already-planned stack** — if a package in the plan does not support Laravel 13, the discussion closes itself.
+2. **The support window** of the version a *new* project starts on.
+3. **What the secondary audience from `specs.md` §1.5 sees** — the technical recruiter / CTO doing a quick code review, who will run `laravel new` themselves as a point of comparison.
+4. **The cost of keeping the documents in sync.**
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea A — Laravel 13 + Inertia 3 (aleasă)
+### Option A — Laravel 13 + Inertia 3 (chosen)
 
-Am **măsurat** compatibilitatea, nu am presupus-o: am rezolvat întreg setul de pachete din plan pe ambele variante de framework, cu `composer update --dry-run`, platformă fixată pe PHP 8.3 și `minimum-stability: stable`.
+I **measured** compatibility rather than assuming it: I resolved the plan's entire package set against both framework variants, with `composer update --dry-run`, the platform pinned to PHP 8.3 and `minimum-stability: stable`.
 
-| Pachet | Pe `laravel/framework ^12.0` | Pe `^13.0` |
+| Package | On `laravel/framework ^12.0` | On `^13.0` |
 |---|---|---|
 | `inertiajs/inertia-laravel` | v3.3.4 | v3.3.4 |
 | `laravel/cashier` | v16.8.0 | v16.8.0 |
@@ -38,48 +38,48 @@ Am **măsurat** compatibilitatea, nu am presupus-o: am rezolvat întreg setul de
 | `pestphp/pest` | v4.7.8 | v4.7.8 |
 | **framework** | **v12.69.2** | **v13.31.0** |
 
-**Rezoluția e identică pe toate cele opt pachete.** Singura diferență între cele două variante e versiunea framework-ului. Costul de compatibilitate al lui Laravel 13, pe exact stack-ul din `plan-implementare.md`, e **zero** — iar asta e o măsurătoare reproductibilă, nu o impresie.
+**The resolution is identical across all eight packages.** The only difference between the two variants is the framework version. The compatibility cost of Laravel 13, on exactly the stack in `plan-implementare.md`, is **zero** — and that is a reproducible measurement, not an impression.
 
-Restul stack-ului din ADR-001 se confirmă neschimbat: **React 19** (19.3.0), **Tailwind 4** (4.3.3), **PostgreSQL 16**.
+The rest of the stack from ADR-001 is confirmed unchanged: **React 19** (19.3.0), **Tailwind 4** (4.3.3), **PostgreSQL 16**.
 
-### Opțiunea B — rămânem pe Laravel 12, ca în documente
+### Option B — stay on Laravel 12, as in the documents
 
-Zero muncă de sincronizare pe partea de framework și ADR-001 neatins. Respinsă:
+Zero sync work on the framework side and ADR-001 untouched. Rejected:
 
-- Laravel 12 a apărut în februarie 2025. După politica de suport publicată de Laravel (bug-fix ~18 luni, securitate ~2 ani), fereastra de **bug-fix activ s-a închis în august 2026** — adică o lună înainte de data acestei decizii. Rămâne doar suportul de securitate. A porni un proiect *nou* acolo e o alegere greu de apărat în fața cititorului de la factorul 3.
-- Argumentul central al proiectului către cumpărător e „cod actual, idiomatic". Un reviewer care rulează `laravel new` și compară vede imediat o versiune majoră în urmă, iar explicația („planul era scris pentru 12") e exact tipul de răspuns pe care proiectul ăsta există ca să nu-l dea.
-- Nu elimină oricum munca de sincronizare: pachetul de Inertia e la v3 pe ambele variante, deci mențiunile „Inertia v2" trebuiau atinse indiferent de framework. Opțiunea B micșorează sincronizarea, nu o anulează.
+- Laravel 12 was released in February 2025. Under Laravel's published support policy (bug fixes ~18 months, security ~2 years), the **active bug-fix window closed in August 2026** — one month before the date of this decision. Only security support remains. Starting a *new* project there is a hard choice to defend in front of the reader from driver 3.
+- The project's central argument to the buyer is "current, idiomatic code". A reviewer who runs `laravel new` and compares sees a major version behind immediately, and the explanation ("the plan was written for 12") is exactly the kind of answer this project exists in order not to give.
+- It does not remove the sync work anyway: the Inertia package is at v3 in both variants, so the "Inertia v2" mentions had to be touched regardless of the framework. Option B shrinks the sync work, it does not eliminate it.
 
-### Opțiunea C — Laravel 13 cu Inertia 2
+### Option C — Laravel 13 with Inertia 2
 
-Respinsă fără testare serioasă: ar însemna să pinuiesc deliberat un pachet cu o versiune majoră în urmă, fără niciun beneficiu măsurabil, într-o combinație pe care nimeni n-o rulează. Complexitate în plus pentru nimic.
+Rejected without serious testing: it would mean deliberately pinning a package a major version behind, with no measurable benefit, in a combination nobody runs. Extra complexity for nothing.
 
-## Decizie
+## Decision
 
-**Laravel 13 + Inertia 3 + React 19 + Tailwind 4 + PostgreSQL 16.** Scaffold-ul instalat la Sprint 0 rămâne cum e; se sincronizează documentele.
+**Laravel 13 + Inertia 3 + React 19 + Tailwind 4 + PostgreSQL 16.** The scaffold installed in Sprint 0 stays as it is; the documents get synced.
 
-Consecințe operaționale imediate:
+Immediate operational consequences:
 
-1. `composer.json` fixează `config.platform.php = 8.3` — PHP-ul local e 8.4, iar runtime-ul din container e 8.3 (`plan-implementare.md` §3). Fără asta, rezolvarea locală ar putea alege pachete care cer 8.4 și ar cădea în producție.
-2. Cerințele care depind explicit de funcții introduse în Inertia 2 — **FR-PERF-01** (deferred props) și **FR-PERF-02** (prefetch on hover), plus polling-ul folosit pentru progresul operațiilor în masă și pentru starea etichetelor de curierat ([[ADR-013]]) — se **verifică pe API-ul lui Inertia 3 înainte de a fi implementate**, nu se presupun transferate. Dacă vreuna s-a schimbat de formă, se notează în faza care o construiește.
-3. Mențiunile „Laravel 12" și „Inertia v2" din `specs.md`, `plan-implementare.md` și `stack-options.md` se actualizează, cu notă de versiune — nu tăcut.
+1. `composer.json` pins `config.platform.php = 8.3` — the local PHP is 8.4, while the container runtime is 8.3 (`plan-implementare.md` §3). Without it, local resolution could pick packages that require 8.4 and would break in production.
+2. The requirements that depend explicitly on features introduced in Inertia 2 — **FR-PERF-01** (deferred props) and **FR-PERF-02** (prefetch on hover), plus the polling used for bulk-operation progress and for shipping label state ([[ADR-013]]) — are **verified against the Inertia 3 API before being implemented**, not assumed to carry over. If any of them changed shape, it gets noted in the phase that builds it.
+3. The "Laravel 12" and "Inertia v2" mentions in `specs.md`, `plan-implementare.md` and `stack-options.md` are updated, with a version note — not silently.
 
-## Consecințe
+## Consequences
 
-**Pozitive**
+**Positive**
 
-- Proiectul pornește pe versiunea curentă a framework-ului, cu suport activ de bug-fix.
-- Costul măsurat e zero pe pachete; singura muncă e textuală.
-- Discrepanța a fost prinsă la prima comandă de scaffold, nu în Faza 3, când ar fi însemnat rescriere.
+- The project starts on the current version of the framework, with active bug-fix support.
+- The measured cost is zero on packages; the only work is textual.
+- The discrepancy was caught on the first scaffold command, not in Phase 3, where it would have meant a rewrite.
 
-**Negative / de acceptat**
+**Negative / to be accepted**
 
-- Documentele proiectului conțin, de la această dată, un strat de corecție de versiune: cititorul lui ADR-001 trebuie să ajungă și aici. Mitigat prin nota de supersedare din ADR-001 și prin rândul din indexul `docs/adr/README.md`.
-- Laravel 13 e recent, deci ecosistemul de pachete mai mici (cele care nu apar în tabelul de mai sus) poate avea întârzieri. Nu afectează nimic din MVP-ul planificat — tot ce e planificat a fost testat mai sus.
-- Un ADR care supersedează parțial altul e mai greu de citit decât unul care îl înlocuiește complet. Am preferat-o oricum: ADR-001 conține argumentarea alegerii stack-ului față de patru alternative, care rămâne valabilă integral și n-are de ce să fie rescrisă ca să schimb două numere.
+- From this date on, the project documents carry a version-correction layer: a reader of ADR-001 has to get here as well. Mitigated by the supersession note in ADR-001 and by the row in the `docs/adr/README.md` index.
+- Laravel 13 is recent, so the ecosystem of smaller packages (the ones not in the table above) may lag. It affects nothing in the planned MVP — everything planned was tested above.
+- An ADR that partially supersedes another is harder to read than one that replaces it entirely. I preferred it anyway: ADR-001 contains the argument for the stack against four alternatives, which remains valid in full and has no reason to be rewritten so I can change two numbers.
 
-## Legături
+## Links
 
-- [[ADR-001]] — stack tehnic (superseded parțial: doar versiunile)
-- [[ADR-013]] — apelurile externe ies din cererea HTTP (depinde de polling-ul Inertia)
-- `specs_si_design/stack-options.md` — cele patru opțiuni de stack evaluate
+- [[ADR-001]] — technical stack (partially superseded: the versions only)
+- [[ADR-013]] — external calls leave the HTTP request (depends on Inertia's polling)
+- `specs_si_design/stack-options.md` — the four stack options evaluated

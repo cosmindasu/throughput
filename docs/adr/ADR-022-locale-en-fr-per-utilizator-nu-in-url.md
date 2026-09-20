@@ -1,112 +1,112 @@
-# ADR-022: Interfața devine bilingvă (EN implicit + FR) — limba e o preferință per utilizator, nu un segment de URL
+# ADR-022: The interface becomes bilingual (EN default + FR) — language is a per-user preference, not a URL segment
 
 - **Status**: Accepted
-- **Data**: 2026-09-20
-- **Decidenți**: proprietarul proiectului
-- **Amendează**: [[ADR-002]] — adaugă o notă care exclude explicit segmentul de limbă din URL, ca dezbaterea despre forma URL-ului să nu se redeschidă fără context. [[ADR-002]] rămâne Accepted, nesuperseded.
-- **Related**: [[ADR-013]], [[ADR-014]] (regula de serializare a contextului în joburi — `tenantId` scalar în constructor, restaurat la începutul lui `handle()`; `locale` urmează același tipar)
-- **Tags**: i18n, frontend, backend, locale, cozi, e2e, portofoliu
+- **Date**: 2026-09-20
+- **Deciders**: project owner
+- **Amends**: [[ADR-002]] — adds a note that explicitly excludes the language segment from the URL, so that the debate about URL shape is not reopened without context. [[ADR-002]] stays Accepted, not superseded.
+- **Related**: [[ADR-013]], [[ADR-014]] (the rule for serializing context into jobs — scalar `tenantId` in the constructor, restored at the start of `handle()`; `locale` follows the same pattern)
+- **Tags**: i18n, frontend, backend, locale, queues, e2e, portfolio
 
-## Context și problema
+## Context and problem statement
 
-`specs_si_design/README.md:7` afirmă explicit: „Piața e exclusiv internațională. Interfața e în engleză." `specs_si_design/specs.md:9` repeta aceeași premisă **până la v1.21**, motivată prin piața țintă: „construită ca piesă de portofoliu pentru cumpărători tehnici de pe platforme internaționale de freelancing... Interfața aplicației e în engleză... Piața țintă e exclusiv internațională: nu există e-Factura ANAF, TVA românesc sau Netopia în acest produs, deliberat." (Linia a fost rescrisă în v1.22, ca urmare a acestui ADR — citatul de mai sus e premisa înlocuită, nu textul curent.)
+`specs_si_design/README.md:7` states explicitly: "The market is exclusively international. The interface is in English." `specs_si_design/specs.md:9` repeated the same premise **up to v1.21**, justified by the target market: "built as a portfolio piece for technical buyers on international freelancing platforms... The application's interface is in English... The target market is exclusively international: there is no ANAF e-Factura, no Romanian VAT and no Netopia in this product, deliberately." (The line was rewritten in v1.22 as a result of this ADR — the quote above is the premise being replaced, not the current text.)
 
-Acest ADR **schimbă** premisa de mai sus, nu o completează. De acum, aplicația e bilingvă: **engleză (implicit) + franceză.**
+This ADR **changes** the premise above, it does not extend it. From now on, the application is bilingual: **English (default) + French.**
 
-**Motivul real, scris ca atare, nu dedus:** demonstrație de competență i18n pentru cumpărători tehnici — motor de pluralizare CLDR, rezoluție de limbă corectă sub RLS și în joburi de coadă, catalog de traduceri complet (UI, validări, email, PDF, export, panou de ajutor). **Nu** e o piață francofonă țintită. Proiectul rămâne exact ce era: un demo B2B internațional, fără e-Factura, fără TVA românesc, fără Netopia — nimic din premisa de piață din `specs_si_design/README.md:7`/`specs.md:9` nu se schimbă în afară de numărul de limbi ale interfeței. A inventa o justificare de piață francofonă ar fi o afirmație falsă într-o piesă de portofoliu care se vinde tocmai pe onestitatea deciziilor documentate.
+**The real reason, written as such rather than inferred:** a demonstration of i18n competence for technical buyers — a CLDR pluralization engine, correct language resolution under RLS and inside queued jobs, a complete translation catalog (UI, validation, email, PDF, export, help panel). It is **not** a targeted francophone market. The project remains exactly what it was: an international B2B demo, with no e-Factura, no Romanian VAT, no Netopia — nothing in the market premise from `specs_si_design/README.md:7`/`specs.md:9` changes except the number of interface languages. Inventing a francophone market justification would be a false claim inside a portfolio piece that sells precisely on the honesty of its documented decisions.
 
-**Momentul livrării:** un lot dedicat, **după Faza 5**, peste o suprafață de ecrane înghețată. Motivul: extragerea string-urilor din UI, validări, email și PDF se face o singură dată — peste o suprafață care include deja ecranele Faza 5 (abonament, facturare) — cu un singur proprietar pe catalogul de traduceri. A face i18n în paralel cu fazele care încă adaugă ecrane ar fi însemnat fie extragere repetată, fie un catalog mereu în urma codului.
+**Delivery timing:** a dedicated batch, **after Phase 5**, over a frozen screen surface. The reason: extracting strings from the UI, validation, email and PDF is done once — over a surface that already includes the Phase 5 screens (subscription, billing) — with a single owner for the translation catalog. Doing i18n in parallel with phases that are still adding screens would have meant either repeated extraction, or a catalog permanently behind the code.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Valoare demonstrativă, nu cerință de piață.** Semnal de competență full-stack i18n pentru cumpărători tehnici (Upwork), nu localizare pentru un segment de clienți reali.
-- **Zero mecanism nou unde unul deja funcționează.** `users.theme` + `ThemePreference` (`app/Support/ThemePreference.php`) e deja pattern-ul verificat de rezoluție a unei preferințe per utilizator, cu cookie de fallback și randare server-side fără licărire. Limba refolosește exact acest tipar, nu inventează unul paralel.
-- **URL-ul e deja decor, prin decizie anterioară.** [[ADR-002]] a stabilit asta explicit pentru workspace; extinderea firească e ca nici limba să nu intre în URL.
-- **Regula de serializare a contextului în joburi e deja scrisă** ([[ADR-013]], [[ADR-014]], `.ai/rules/tenancy.md:123-138`) — `locale` o respectă, nu o redeschide.
-- **Cost conținut, nu recurent.** Un singur lot, peste o suprafață înghețată, cu suita E2E existentă neatinsă (fixată pe `en`) și un subset FR nou, rulat doar pe push la `main`.
-- **Motorul de pluralizare nu se reinventă.** Proiectul are deja **trei** tipare de pluralizare hardcodată, independente, găsite la scrierea acestui ADR: `resources/js/Components/BulkSelectionBar.tsx:107` (`effectiveCount === 1 ? resourceNounSingular : resourceNounPlural`), `resources/js/Components/BulkSelectionBar.tsx:321` (`effectiveCount === 1 ? 'draft order' : 'draft orders'`) și `resources/js/Components/GlobalSearch.tsx:267` (`` `${flatResults.length} result${flatResults.length === 1 ? '' : 's'}` ``). Trei implementări independente ale aceluiași `=== 1 ? singular : plural` sunt exact semnalul că lipsește un motor, nu o bibliotecă de string-uri.
+- **Demonstrative value, not a market requirement.** A full-stack i18n competence signal for technical buyers (Upwork), not localization for a segment of real customers.
+- **No new mechanism where one already works.** `users.theme` + `ThemePreference` (`app/Support/ThemePreference.php`) is already the verified pattern for resolving a per-user preference, with a cookie fallback and server-side rendering without flicker. Language reuses exactly this pattern; it does not invent a parallel one.
+- **The URL is already decoration, by a prior decision.** [[ADR-002]] established that explicitly for the workspace; the natural extension is to keep the language out of the URL as well.
+- **The rule for serializing context into jobs is already written** ([[ADR-013]], [[ADR-014]], `.ai/rules/tenancy.md:123-138`) — `locale` follows it, it does not reopen it.
+- **A contained cost, not a recurring one.** A single batch, over a frozen surface, with the existing E2E suite untouched (pinned to `en`) and a new FR subset, run only on push to `main`.
+- **The pluralization engine is not reinvented.** The project already has **three** independent hardcoded pluralization patterns, found while writing this ADR: `resources/js/Components/BulkSelectionBar.tsx:107` (`effectiveCount === 1 ? resourceNounSingular : resourceNounPlural`), `resources/js/Components/BulkSelectionBar.tsx:321` (`effectiveCount === 1 ? 'draft order' : 'draft orders'`) and `resources/js/Components/GlobalSearch.tsx:267` (`` `${flatResults.length} result${flatResults.length === 1 ? '' : 's'}` ``). Three independent implementations of the same `=== 1 ? singular : plural` are exactly the signal that an engine is missing, not a string library.
 
-## Opțiuni considerate
+## Considered options
 
-### 1. Mecanismul de selecție a limbii
+### 1. The language selection mechanism
 
-**Opțiunea A (ALEASĂ): coloană `users.locale`, pe modelul exact al lui `users.theme`.**
+**Option A (CHOSEN): a `users.locale` column, on the exact model of `users.theme`.**
 
-Clasă `LocalePreference`, replică forma lui `ThemePreference` (`app/Support/ThemePreference.php`): ordine de rezoluție explicită — alegerea userului autentificat > cookie `locale` > implicit `en` — `App::setLocale()` apelat dintr-un middleware devreme, prop `locale` propagat prin `HandleInertiaRequests::share()` (unde azi se propagă deja `theme`, linia 68), și `<html lang="...">` randat server-side în `resources/views/app.blade.php` **înainte** de orice JS (azi, linia 26, `lang` e hardcodat `"en"` — devine dinamic, ca `class="{{ $theme === 'dark' ? ... }}"` de pe aceeași linie). Aceeași tehnică evită aceeași licărire pe care `ThemePreference` o evită azi pentru temă.
+A `LocalePreference` class, replicating the shape of `ThemePreference` (`app/Support/ThemePreference.php`): an explicit resolution order — the authenticated user's choice > the `locale` cookie > the `en` default — `App::setLocale()` called from an early middleware, a `locale` prop propagated through `HandleInertiaRequests::share()` (where `theme` is already propagated today, line 68), and `<html lang="...">` rendered server-side in `resources/views/app.blade.php` **before** any JS (today, on line 26, `lang` is hardcoded to `"en"` — it becomes dynamic, like `class="{{ $theme === 'dark' ? ... }}"` on the same line). The same technique avoids the same flicker that `ThemePreference` avoids today for the theme.
 
-`users` e identitate globală, fără `tenant_id`/RLS ([[ADR-014]]) — preferința de limbă persistă la comutarea workspace-ului, la fel ca tema, fără nimic suplimentar de scris.
+`users` is a global identity, with no `tenant_id`/RLS ([[ADR-014]]) — the language preference persists across workspace switches, just like the theme, with nothing extra to write.
 
-- **Pro**: zero mecanism nou de proiectat sau verificat — cel existent e deja testat, deja documentat, deja fără licărire. Onboarding zero pentru cine citește codul: cine a înțeles `theme` a înțeles și `locale`.
-- **Contra**: niciunul specific mecanismului; contra-urile reale sunt cele discutate mai jos, la consecințe (joburi, E2E).
+- **Pro**: no new mechanism to design or verify — the existing one is already tested, already documented, already flicker-free. Zero onboarding for anyone reading the code: whoever understood `theme` has understood `locale`.
+- **Con**: none specific to the mechanism; the real trade-offs are the ones discussed below, under consequences (jobs, E2E).
 
-**Opțiunea B (RESPINSĂ): segment de limbă în URL (`/fr/{workspace}/...`).**
+**Option B (REJECTED): a language segment in the URL (`/fr/{workspace}/...`).**
 
-- **Contra, decisiv**: tensiune directă cu [[ADR-002]], care argumentează explicit că „URL-ul e decor" — valoarea demonstrativă vine din ce vede cumpărătorul la comutare, nu din forma căii. A pune limba în URL contrazice acel raționament fără motiv nou.
-- **Contra**: `ResolveWorkspace` scoate deja `{workspace}` din parametrii rutei cu `forgetParameter` (`.ai/rules/tenancy.md:35-38`), tocmai pentru că dispatcher-ul Laravel pasează parametrii pozițional și un parametru tipizat necurățat dă 500. Un segment `locale` suplimentar ar cere același `forgetParameter` dublat peste tot unde `ResolveWorkspace` deja îl aplică pentru workspace — același risc de 500 pe controllere cu parametri tipizați, de data asta pe două segmente în loc de unul.
-- **Contra**: ar cere extinderea `URL::defaults()` (deja folosit pentru workspace, [[ADR-002]]) pe **toate** generările server-side de URL, ca `route()` să nu piardă segmentul de limbă la fiecare link — al doilea loc unde regula „un segment în plus în cale = un loc în plus de propagat" s-ar aplica identic cu cea deja documentată pentru workspace.
+- **Con, decisive**: direct tension with [[ADR-002]], which argues explicitly that "the URL is decoration" — the demonstrative value comes from what the buyer sees when switching, not from the shape of the path. Putting the language in the URL contradicts that reasoning with no new justification.
+- **Con**: `ResolveWorkspace` already strips `{workspace}` from the route parameters with `forgetParameter` (`.ai/rules/tenancy.md:35-38`), precisely because the Laravel dispatcher passes parameters positionally and an uncleaned typed parameter causes a 500. An additional `locale` segment would require the same `forgetParameter` duplicated everywhere `ResolveWorkspace` already applies it for the workspace — the same 500 risk on controllers with typed parameters, this time over two segments instead of one.
+- **Con**: it would require extending `URL::defaults()` (already used for the workspace, [[ADR-002]]) across **all** server-side URL generation, so that `route()` does not drop the language segment on every link — a second place where the rule "one more path segment = one more place to propagate it" would apply identically to the one already documented for the workspace.
 
-### 2. Motorul de traducere pe frontend
+### 2. The frontend translation engine
 
-**Opțiunea A (ALEASĂ): `react-i18next`, cataloage JSON în `resources/js/locales/`.**
+**Option A (CHOSEN): `react-i18next`, JSON catalogs in `resources/js/locales/`.**
 
-- **Pro**: motor de pluralizare CLDR gata făcut — vezi cele trei tipare hardcodate de mai sus, care dispar prin adoptarea lui. ~15-20 KB gzip. Aplicația nu are SSR și e `noindex` — constrângerea de hidratare care ar face alegerea sensibilă pe alt proiect nu există aici.
-- **Contra**: o dependență JS în plus, un catalog de întreținut. Acceptat — e exact suprafața pe care lotul de i18n o adaugă prin definiție. (Lotul e o secțiune dedicată **între** Faza 5 și Faza 6, nu Faza 6 însăși — aceea rămâne „Prezentare", fără cod nou de business.)
+- **Pro**: a ready-made CLDR pluralization engine — see the three hardcoded patterns above, which disappear by adopting it. ~15-20 KB gzipped. The application has no SSR and is `noindex` — the hydration constraint that would make the choice sensitive on another project does not exist here.
+- **Con**: one more JS dependency, one more catalog to maintain. Accepted — that is exactly the surface the i18n batch adds by definition. (The batch is a dedicated section **between** Phase 5 and Phase 6, not Phase 6 itself — that one stays "Presentation", with no new business code.)
 
-**Opțiunea B (RESPINSĂ): `@lingui/react`.**
+**Option B (REJECTED): `@lingui/react`.**
 
-- **Contra, decisiv**: pas de build separat de Vite; macro-uri care cer rescriere JSX pentru fiecare string existent. Cost de migrare mai mare pentru un câștig echivalent cu Opțiunea A.
+- **Con, decisive**: a build step separate from Vite; macros that require JSX rewriting for every existing string. A larger migration cost for a gain equivalent to Option A.
 
-**Opțiunea C (RESPINSĂ): traduceri ca prop Inertia, servite din `lang/`.**
+**Option C (REJECTED): translations as an Inertia prop, served from `lang/`.**
 
-- **Contra, decisiv**: reinventează motorul de pluralizare CLDR pe cod propriu, fără niciun câștig față de o bibliotecă matură — exact tiparul „trei implementări independente ale `=== 1 ? singular : plural`" pe care Opțiunea A îl elimină.
+- **Con, decisive**: it reinvents the CLDR pluralization engine in our own code, with no gain over a mature library — exactly the "three independent implementations of `=== 1 ? singular : plural`" pattern that Option A eliminates.
 
 ### 3. Backend
 
-`lang/en/*.php` + `lang/fr/*.php`, nativ Laravel. Nicio opțiune alternativă discutată — e alegerea idiomatică, fără dependență nouă, consecventă cu „Do Things the Laravel Way".
+`lang/en/*.php` + `lang/fr/*.php`, native Laravel. No alternative was discussed — it is the idiomatic choice, with no new dependency, consistent with "Do Things the Laravel Way".
 
-## Decizia luată
+## Decision outcome
 
-**Opțiunea A la fiecare din cele trei puncte de mai sus.**
+**Option A on each of the three points above.**
 
-### Ce se traduce
+### What gets translated
 
-UI, validări, email, PDF, exporturi, panoul de ajutor (30 de subiecte, ~13.900 de cuvinte) și datele demo (pool de nume FR în `database/seeders/Support/DemoNames.php`).
+UI, validation, email, PDF, exports, the help panel (30 topics, ~13,900 words) and the demo data (a pool of FR names in `database/seeders/Support/DemoNames.php`).
 
-### Ce NU se traduce
+### What does NOT get translated
 
-Conținutul introdus de utilizator (`saved_views.name`, `report_definitions.name`) — rămâne în limba în care a fost scris. Nu există „traducere automată" a datelor de business; ar fi o afirmație falsă despre ce face aplicația.
+User-entered content (`saved_views.name`, `report_definitions.name`) — it stays in the language it was written in. There is no "automatic translation" of business data; that would be a false claim about what the application does.
 
-### Import CSV
+### CSV import
 
-Maparea rămâne pe cheie stabilă — `ImportRowMapper` (`app/Support/Imports/ImportRowMapper.php`) neatins. Se adaugă aliasuri FR pe `ImportField` (`app/Support/Imports/ImportField.php`), altfel auto-sugestia coloanelor cade la reimportul unui export produs în franceză de aceeași aplicație.
+Mapping stays on a stable key — `ImportRowMapper` (`app/Support/Imports/ImportRowMapper.php`) untouched. FR aliases are added on `ImportField` (`app/Support/Imports/ImportField.php`), otherwise column auto-suggestion breaks when re-importing an export the same application produced in French.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Refolosește un mecanism deja verificat (`ThemePreference`) în loc să inventeze unul nou — risc de proiectare redus la minimum.
-- Motorul CLDR elimină cele trei tipare de pluralizare hardcodată găsite la scrierea acestui ADR.
-- Un singur lot, peste o suprafață înghețată — extragerea de string-uri nu se repetă la fiecare fază ulterioară.
-- Costul de CI rămâne conținut: suita E2E existentă (65 de teste) rămâne fixată pe `en`; un subset FR nou rulează doar pe push la `main`, refolosind mecanismul `@smoke` deja existent (`.github/workflows/ci.yml:308`), fără cost suplimentar pe fiecare PR.
-- Backend nativ Laravel — zero dependență nouă pe partea de server.
+- It reuses an already-verified mechanism (`ThemePreference`) instead of inventing a new one — design risk reduced to a minimum.
+- The CLDR engine eliminates the three hardcoded pluralization patterns found while writing this ADR.
+- A single batch, over a frozen surface — string extraction does not repeat with every later phase.
+- The CI cost stays contained: the existing E2E suite (65 tests) stays pinned to `en`; a new FR subset runs only on push to `main`, reusing the `@smoke` mechanism that already exists (`.github/workflows/ci.yml:308`), with no extra cost per PR.
+- A native Laravel backend — zero new dependency on the server side.
 
-### Negative / trade-offs, asumate explicit
+### Negative / trade-offs, explicitly accepted
 
-1. **Joburile de coadă primesc `locale` ca scalar în constructor**, exact cum [[ADR-013]]/[[ADR-014]] impun pentru `tenantId`, plus `App::setLocale($this->locale)` la începutul lui `handle()`. Motivul concret: worker-ul de coadă e un proces de viață lungă; `App::setLocale()` scrie pe singleton-ul `Translator` din container, iar Laravel resetează între joburi doar instanțele `scoped()` — un job FR urmat de unul EN, pe același worker, scurge limba primului către al doilea. E aceeași clasă de bug pe care `.ai/rules/tenancy.md:123-138` o documentează deja pentru memoizarea per cerere sub un worker cu viață lungă, aplicată acum limbii, nu tenantului. **Pentru joburile din domeniul facturare/curierat** (Faza 5, per scope-ul deja planificat în `plan-implementare.md` §11), asta aterizează ca **fix punctual** peste ele când vine lotul de i18n — nu ca rescriere — cu condiția ca tiparul de mai sus să fie cunoscut din timp de cine le scrie, indiferent de momentul la care sunt scrise.
-2. **`e2e/setup/auth.setup.ts:24`** caută butonul de login demo după text literal (`` `Log in as ${DEMO_ROLE_LABELS[role]}` ``) și produce `storageState`-ul citit de toate cele 65 de teste din suită. E un punct unic de eșec: dacă acel buton devine vreodată tradus condiționat de limbă, pică toată suita la pasul de autentificare, nu la vreo aserțiune de business. Cuplarea text-literal ↔ setup e **deliberată** (vezi comentariul din `e2e/support/auth.ts:12-17`: „Text literal, nu derivat: dacă eticheta din backend se schimbă, testul de setup trebuie să pice, nu să tacă.") — deci consecința se scrie aici, nu se presupune. Mitigare: suita `en` existentă rămâne pe login în engleză; subsetul FR nou are propriul `storageState`, cu propriul text de buton, nu împrumută fișierul `en`.
-3. **`User` trebuie să implementeze `Illuminate\Notifications\HasLocalePreference`**, altfel `users.locale` nu produce niciun efect automat pe notificări (email-uri trimise prin `Notifiable` ignoră preferința fără acest contract explicit).
+1. **Queued jobs receive `locale` as a scalar in the constructor**, exactly as [[ADR-013]]/[[ADR-014]] require for `tenantId`, plus `App::setLocale($this->locale)` at the start of `handle()`. The concrete reason: the queue worker is a long-lived process; `App::setLocale()` writes on the `Translator` singleton in the container, and Laravel only resets `scoped()` instances between jobs — an FR job followed by an EN one, on the same worker, leaks the first one's language into the second. It is the same class of bug that `.ai/rules/tenancy.md:123-138` already documents for per-request memoization under a long-lived worker, applied now to language instead of the tenant. **For the billing/shipping jobs** (Phase 5, per the scope already planned in `plan-implementare.md` §11), this lands as a **targeted fix** on top of them when the i18n batch arrives — not as a rewrite — provided that whoever writes them knows the pattern above in advance, whenever they are written.
+2. **`e2e/setup/auth.setup.ts:24`** looks for the demo login button by literal text (`` `Log in as ${DEMO_ROLE_LABELS[role]}` ``) and produces the `storageState` read by all 65 tests in the suite. It is a single point of failure: if that button ever becomes translated conditionally on language, the whole suite fails at the authentication step, not on some business assertion. The literal-text ↔ setup coupling is **deliberate** (see the comment in `e2e/support/auth.ts:12-17`: "Literal text, not derived: if the backend label changes, the setup test must fail, not stay silent.") — so the consequence is written down here rather than assumed. Mitigation: the existing `en` suite keeps logging in in English; the new FR subset gets its own `storageState`, with its own button text, and does not borrow the `en` file.
+3. **`User` has to implement `Illuminate\Notifications\HasLocalePreference`**, otherwise `users.locale` has no automatic effect on notifications (emails sent through `Notifiable` ignore the preference without that explicit contract).
 
-### Cost, scris onest
+### Cost, stated honestly
 
-Ordinul de mărime e de **câteva sute de ore**, defalcat pe valuri în `plan-implementare.md`, secțiunea „Lot I18N" — acolo e sursa unică pentru cifre de efort, ca să nu existe două totaluri care se contrazic. Traducerea franceză e scrisă de asistent și revizuită de proprietar — risc de calitate asumat pe o piesă de portofoliu, mitigat prin revizie țintită pe pasajele marcate plus un test automat de acoperire care blochează CI la o cheie de traducere lipsă (catalog EN/FR incomplet = build roșu, nu string neobservat în producție).
+The order of magnitude is **a few hundred hours**, broken down by wave in `plan-implementare.md`, the "Lot I18N" section — that is the single source for effort figures, so that there are never two totals contradicting each other. The French translation is written by the assistant and reviewed by the owner — a quality risk accepted on a portfolio piece, mitigated by targeted review of the flagged passages plus an automated coverage test that fails CI on a missing translation key (an incomplete EN/FR catalog = a red build, not an unnoticed string in production).
 
-## Legături
+## Links
 
-- [[ADR-002]] — amendat de acest ADR: notă adăugată care exclude explicit segmentul de limbă din URL, ca argumentul „URL-ul e decor" să nu fie redeschis fără context de fiecare dată.
-- [[ADR-013]] — apelurile externe ies din cererea HTTP, în cozi; regula de bază pentru context serializat pe job.
-- [[ADR-014]] — familiile de joburi (tenant / sistem) și regula „context serializat, restaurat la începutul lui `handle()`" pe care `locale` o respectă identic.
-- `app/Support/ThemePreference.php` — mecanismul replicat pentru `LocalePreference`.
-- `.ai/rules/tenancy.md:35-38` (regula `forgetParameter` pe `ResolveWorkspace`), `.ai/rules/tenancy.md:123-138` (memoizarea pe worker cu viață lungă) — ambele citate ca motiv de respingere/atenție, neatinse.
-- `specs_si_design/README.md:7`, `specs_si_design/specs.md:9` — premisa „interfața e în engleză", schimbată de acest ADR.
-- `e2e/setup/auth.setup.ts:24`, `e2e/support/auth.ts:12-17` — cuplarea text-literal la autentificarea E2E.
-- `.github/workflows/ci.yml:308` — mecanismul `@smoke` refolosit pentru subsetul FR.
+- [[ADR-002]] — amended by this ADR: a note is added that explicitly excludes the language segment from the URL, so that the "the URL is decoration" argument is not reopened without context every time.
+- [[ADR-013]] — external calls leave the HTTP request, into queues; the base rule for context serialized onto a job.
+- [[ADR-014]] — the job families (tenant / system) and the "context serialized, restored at the start of `handle()`" rule, which `locale` follows identically.
+- `app/Support/ThemePreference.php` — the mechanism replicated for `LocalePreference`.
+- `.ai/rules/tenancy.md:35-38` (the `forgetParameter` rule on `ResolveWorkspace`), `.ai/rules/tenancy.md:123-138` (memoization on a long-lived worker) — both cited as a reason for rejection/caution, untouched.
+- `specs_si_design/README.md:7`, `specs_si_design/specs.md:9` — the "the interface is in English" premise, changed by this ADR.
+- `e2e/setup/auth.setup.ts:24`, `e2e/support/auth.ts:12-17` — the literal-text coupling in E2E authentication.
+- `.github/workflows/ci.yml:308` — the `@smoke` mechanism reused for the FR subset.

@@ -1,58 +1,58 @@
-# ADR-002: Multi-tenancy pe cale (workspace slug), nu pe subdomeniu
+# ADR-002: Path-based multi-tenancy (workspace slug), not subdomain-based
 
-- **Status**: Accepted — **amendat de [[ADR-022]]** (segmentul de limbă exclus explicit din URL, vezi nota de mai jos)
+- **Status**: Accepted — **amended by [[ADR-022]]** (the language segment is explicitly kept out of the URL, see the note below)
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
-- **Related**: [[ADR-003]] (mecanismul de izolare), [[ADR-001]]
+- **Related**: [[ADR-003]] (the isolation mechanism), [[ADR-001]]
 - **Tags**: multi-tenancy, dns, tls, routing, sprint-1
 
-> **Amendament, 2026-09-20 — [[ADR-022]].** Decizia de mai jos nu se schimbă. Când aplicația a devenit bilingvă (EN + FR), s-a luat în calcul și un segment de limbă în URL (`/fr/{workspace}/...`) — respins explicit, cu același raționament de aici: „URL-ul e decor." Limba e o preferință per utilizator (`users.locale`), nu un segment de cale. Notă adăugată ca argumentul de mai jos să nu fie redeschis fără context.
+> **Amendment, 2026-09-20 — [[ADR-022]].** The decision below does not change. When the application became bilingual (EN + FR), a language segment in the URL (`/fr/{workspace}/...`) was also considered — and explicitly rejected, on the same reasoning as here: "the URL is decoration." Language is a per-user preference (`users.locale`), not a path segment. The note is added so that the argument below is not reopened without context.
 
-## Context și problema
+## Context and problem statement
 
-Throughput e multi-tenant: mai multe organizații, date complet izolate, comutator de spațiu de lucru în interfață. Rămâne de ales **cum se identifică tenantul în URL**: subdomeniu (`acme.throughput.dbg.ro`) sau cale (`throughput.dbg.ro/acme`).
+Throughput is multi-tenant: several organizations, fully isolated data, a workspace switcher in the interface. What remains to be chosen is **how the tenant is identified in the URL**: subdomain (`acme.throughput.dbg.ro`) or path (`throughput.dbg.ro/acme`).
 
-Decizia trebuie luată înainte de primul deploy, pentru că determină înregistrările DNS și forma certificatului TLS.
+The decision has to be made before the first deploy, because it determines the DNS records and the shape of the TLS certificate.
 
-Verificare făcută pe DNS-ul real (2026-09-12): domeniul `dbg.ro` are un wildcard `*.dbg.ro` care trimite spre `86.35.3.192/193` (găzduire partajată), iar cele 11 proiecte îl suprascriu cu înregistrări A explicite spre VPS. Wildcard-ul rezolvă **și pe două niveluri** — `acme.throughput.dbg.ro` întoarce deja IP-ul de parking.
+Check performed against the real DNS (2026-09-12): the `dbg.ro` domain has a `*.dbg.ro` wildcard pointing at `86.35.3.192/193` (shared hosting), and the 11 projects override it with explicit A records pointing at the VPS. The wildcard resolves **at two levels as well** — `acme.throughput.dbg.ro` already returns the parking IP.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Fiabilitatea certificatului** — e un demo de portofoliu; un certificat expirat exact când se uită un client potențial e cel mai prost mod de a pierde un contract.
-- **Efort de operare** — orice pas manual recurent se va rata într-o zi.
-- **Valoare demonstrativă** — ce anume convinge un cumpărător că aplicația e cu adevărat multi-tenant.
+- **Certificate reliability** — this is a portfolio demo; an expired certificate exactly when a prospective client is looking is the worst possible way to lose a contract.
+- **Operational effort** — any recurring manual step will be missed one day.
+- **Demonstrative value** — what actually convinces a buyer that the application really is multi-tenant.
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Tenancy pe subdomeniu
+### Option 1: Subdomain tenancy
 
-- **Pro**: percepția de „SaaS adevărat"; izolare vizuală clară între organizații; precedent Slack, Freshdesk.
-- **Contra**: cere înregistrare A explicită `*.throughput.dbg.ro` (wildcard-ul existent duce spre parking) **și** certificat TLS wildcard. Wildcard-urile Let's Encrypt se emit exclusiv prin provocare DNS-01, nu HTTP-01. DNS-ul e la Romarg; fără API pentru automatizare, înseamnă reînnoire manuală la fiecare 90 de zile.
+- **Pro**: the "real SaaS" perception; clear visual isolation between organizations; precedent in Slack, Freshdesk.
+- **Con**: requires an explicit `*.throughput.dbg.ro` A record (the existing wildcard leads to parking) **and** a wildcard TLS certificate. Let's Encrypt wildcards are issued exclusively through the DNS-01 challenge, not HTTP-01. DNS is with Romarg; without an API for automation, that means a manual renewal every 90 days.
 
-### Opțiunea 2: Tenancy pe cale, cu comutator de spațiu de lucru (ALEASĂ)
+### Option 2: Path tenancy, with a workspace switcher (CHOSEN)
 
-- **Pro**: certificat normal, emis și reînnoit automat ca la celelalte 11 proiecte. Zero pași manuali recurenți. Precedent puternic: Linear, Notion, Vercel, Height.
-- **Contra**: URL-ul nu mai poartă identitatea organizației; ceva mai puțin „SaaS" la prima privire.
+- **Pro**: an ordinary certificate, issued and renewed automatically as on the other 11 projects. Zero recurring manual steps. Strong precedent: Linear, Notion, Vercel, Height.
+- **Con**: the URL no longer carries the organization's identity; slightly less "SaaS" at first glance.
 
-## Decizia luată
+## Decision outcome
 
-**Aleasă: Opțiunea 2 — tenancy pe cale.**
+**Chosen: Option 2 — path tenancy.**
 
-Tenantul se rezolvă din segmentul de cale (`/{workspace}/...`) după autentificare, cu un comutator de spațiu de lucru în interfață. Un singur certificat, pe `throughput.dbg.ro`.
+The tenant is resolved from the path segment (`/{workspace}/...`) after authentication, with a workspace switcher in the interface. A single certificate, on `throughput.dbg.ro`.
 
-Raționamentul de fond: **valoarea demonstrativă nu vine din forma URL-ului, ci din ce vede cumpărătorul** — comuți spațiul de lucru și toate datele se schimbă, cu izolarea impusă în bază ([[ADR-003]]). Aia e demonstrația; URL-ul e decor.
+The underlying reasoning: **the demonstrative value does not come from the shape of the URL, but from what the buyer sees** — you switch workspace and all the data changes, with isolation enforced in the database ([[ADR-003]]). That is the demonstration; the URL is decoration.
 
-Dacă un client cere explicit tenancy pe subdomeniu, se adaugă **un singur** subdomeniu de probă, cu înregistrare și certificat proprii, ca să demonstreze mecanismul — fără wildcard.
+If a client explicitly asks for subdomain tenancy, **a single** trial subdomain is added, with its own record and certificate, to demonstrate the mechanism — without a wildcard.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Emitere și reînnoire TLS complet automate, identic cu restul portofoliului.
-- Un singur A record de întreținut: `throughput` → VPS.
-- Nicio dependență de capacitățile API ale DNS-ului Romarg.
+- Fully automatic TLS issuance and renewal, identical to the rest of the portfolio.
+- A single A record to maintain: `throughput` → VPS.
+- No dependency on the API capabilities of Romarg's DNS.
 
 ### Negative / trade-offs
 
-- Rutele poartă un segment în plus; `route()` și link-urile din Inertia trebuie să îl propage consecvent. Se rezolvă cu un helper central plus un default în `URL::defaults()`, stabilit în Sprint 1.
-- Dacă produsul ar deveni vreodată real, trecerea la subdomenii ar cere redirecționări. Acceptat: e un demo.
+- Routes carry one extra segment; `route()` and Inertia's links have to propagate it consistently. Solved with a central helper plus a default in `URL::defaults()`, established in Sprint 1.
+- If the product ever became real, moving to subdomains would require redirects. Accepted: it is a demo.

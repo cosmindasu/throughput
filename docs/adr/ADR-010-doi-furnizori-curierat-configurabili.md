@@ -1,70 +1,70 @@
-# ADR-010: Doi furnizori de curierat, selectabili per tenant, plus un furnizor de demonstrație
+# ADR-010: Two shipping carriers, selectable per tenant, plus a demo carrier
 
-- **Status**: Accepted — **supapa de scop a fost trasă la 2026-09-12** (vezi nota de mai jos)
+- **Status**: Accepted — **the scope escape valve was pulled on 2026-09-12** (see the note below)
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-001]] (componente proprii, nu configurare)
-- **Tags**: curierat, integrari, multi-tenancy, adaptoare, sprint-5
+- **Deciders**: Owner
+- **Related**: [[ADR-001]] (hand-built components, not configuration)
+- **Tags**: shipping, integrations, multi-tenancy, adapters, sprint-5
 
-> **Supapa trasă — EasyPost iese, 2026-09-12.** Acest ADR prevedea explicit că adaptorul EasyPost se poate amâna „fără a atinge arhitectura". Declanșatorul nu a fost lipsa de timp, ci o constatare la înscriere: **EasyPost condiționează accesul la cheile de API — inclusiv cele de test — de un abonament lunar.** Un furnizor cu plată recurentă pentru al treilea tenant al unui demo de portofoliu nu se justifică.
+> **Valve pulled — EasyPost is out, 2026-09-12.** This ADR explicitly allowed the EasyPost adapter to be deferred "without touching the architecture". The trigger was not a lack of time but a finding at sign-up: **EasyPost gates access to API keys — test keys included — behind a monthly subscription.** A provider with a recurring fee, for the third tenant of a portfolio demo, is not justifiable.
 >
-> **Ce rămâne:** interfața `ShippingCarrier`, suita de teste de contract rulată identic pe fiecare implementare, ecranul de setări per tenant cu credențiale criptate, și **două** implementări — `demo` și `shippo`. Enumul `provider` are acum doar valorile implementate (`shippo`, `demo`): o valoare fără adaptor ar fi cod mort pe care un reviewer o vede imediat.
+> **What remains:** the `ShippingCarrier` interface, the contract test suite run identically against every implementation, the per-tenant settings screen with encrypted credentials, and **two** implementations — `demo` and `shippo`. The `provider` enum now holds only the implemented values (`shippo`, `demo`): a value without an adapter would be dead code that a reviewer spots immediately.
 >
-> **Ce se pierde, explicit:** demonstrația „două integrări externe diferite, aceeași interfață". Ce rămâne demonstrat e „furnizorul se configurează **per tenant**, cu credențiale proprii" — Cascade și Northgate pornesc amândouă pe `shippo`, cu rânduri separate în `tenant_carrier_settings`. Argumentul central al deciziei (configurabilitate per tenant peste o interfață stabilă) nu depinde de numărul de furnizori; costul real al unui al treilea e acum documentat ca **o valoare în enum + un adaptor + aceeași suită de contract**, ceea ce e chiar dovada că abstracția ține.
+> **What is lost, explicitly:** the "two different external integrations, one interface" demonstration. What remains demonstrated is "the provider is configured **per tenant**, with its own credentials" — Cascade and Northgate both start on `shippo`, with separate rows in `tenant_carrier_settings`. The decision's central argument (per-tenant configurability over a stable interface) does not depend on the number of providers; the real cost of a third is now documented as **one enum value + one adapter + the same contract suite**, which is itself the proof that the abstraction holds.
 >
-> **Câștig secundar, nu neglijabil:** Faza 5 era marcată supraîncărcată de audit (P2-002). Pierde ~o zi de muncă, exact pe faza cea mai strânsă. Supapa a funcționat cum a fost gândită.
+> **A secondary gain, not a negligible one:** Phase 5 was flagged as overloaded by the audit (P2-002). It loses about a day of work, on exactly the tightest phase. The valve worked as intended.
 
-## Context și problema
+## Context and problem statement
 
-Specificația (§11.5) definea o interfață `ShippingCarrier` (`createLabel`, `void`, `trackingUrl`) și lăsa deschisă alegerea furnizorului: EasyPost **sau** Shippo. Recomandarea inițială era Shippo, pe motiv practic — există deja o integrare Shippo funcțională în proiectul mai vechi `demo.dbg.ro`, deci ar fi fost mai rapid.
+The specification (§11.5) defined a `ShippingCarrier` interface (`createLabel`, `void`, `trackingUrl`) and left the choice of provider open: EasyPost **or** Shippo. The initial recommendation was Shippo, on practical grounds — there is already a working Shippo integration in the older `demo.dbg.ro` project, so it would have been faster.
 
-Proprietarul a respins alegerea unuia singur, cu un argument mai bun: **e un demo, iar clienții potențiali vin cu conturi existente.** Unii au Shippo, alții EasyPost. A arăta ambele integrări e o afirmație comercială mai puternică decât a arăta una.
+The owner rejected picking just one, with a better argument: **this is a demo, and prospective clients arrive with existing accounts.** Some have Shippo, others EasyPost. Showing both integrations is a stronger commercial claim than showing one.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Argument comercial** — „pot lucra cu contul de curierat pe care îl ai deja" e o propoziție care închide obiecții. „Am integrat Shippo" nu e.
-- **Argument de inginerie** — o interfață cu o singură implementare e o presupunere, nu o abstracție. Nu știi dacă `ShippingCarrier` e bine proiectată până nu o implementezi de două ori. A doua implementare **validează** designul primei.
-- **Demonstrarea configurării per tenant** — dacă fiecare workspace își alege furnizorul și își pune propriile credențiale, demo-ul arată o capabilitate SaaS în plus, gratis: configurare per organizație cu secrete stocate criptat.
+- **Commercial argument** — "I can work with the carrier account you already have" is a sentence that closes objections. "I have integrated Shippo" is not.
+- **Engineering argument** — an interface with a single implementation is an assumption, not an abstraction. You do not know whether `ShippingCarrier` is well designed until you implement it twice. The second implementation **validates** the design of the first.
+- **Demonstrating per-tenant configuration** — if each workspace picks its own provider and supplies its own credentials, the demo shows one more SaaS capability for free: per-organization configuration with secrets stored encrypted.
 
-## Decizia luată
+## Decision outcome
 
-**Ambele implementări, selectabile per tenant, plus o a treia de demonstrație.**
+**Both implementations, selectable per tenant, plus a third one for demo purposes.**
 
-### Configurare per tenant
+### Per-tenant configuration
 
-Tabel `tenant_carrier_settings`: `tenant_id`, `provider` (enum: `shippo` | `easypost` | `demo`), credențiale **criptate la repaus** cu encrypterul Laravel, `is_active`. Ecran de setări vizibil rolului Owner.
+A `tenant_carrier_settings` table: `tenant_id`, `provider` (enum: `shippo` | `easypost` | `demo`), credentials **encrypted at rest** with Laravel's encrypter, `is_active`. A settings screen visible to the Owner role.
 
-Stocarea criptată a credențialelor nu e un detaliu birocratic — e încă un lucru pe care un recenzent tehnic îl caută și rar îl găsește într-un demo.
+Storing credentials encrypted is not a bureaucratic detail — it is one more thing a technical reviewer looks for and rarely finds in a demo.
 
-### A treia implementare: `DemoShippingCarrier`
+### The third implementation: `DemoShippingCarrier`
 
-**Adăugare față de cererea inițială, propusă pentru rezistență.** Returnează o etichetă PDF plauzibilă și un număr de urmărire fals, fără apel extern.
+**An addition beyond the original request, proposed for resilience.** It returns a plausible PDF label and a fake tracking number, with no external call.
 
-Motivul: cu doi furnizori reali, demo-ul public depinde de două medii sandbox externe. Dacă unul pică într-o sâmbătă, un cumpărător care apasă „Ship" vede o eroare — exact momentul în care nu-ți permiți una. Furnizorul de demonstrație e implicit pentru tenanții publici; cei doi reali rămân selectabili și configurați pe sandbox.
+The reason: with two real providers, the public demo depends on two external sandboxes. If one goes down on a Saturday, a buyer who clicks "Ship" sees an error — exactly the moment when you cannot afford one. The demo provider is the default for public tenants; the two real ones remain selectable and configured against their sandboxes.
 
-### Configurarea celor trei tenanți semănați
+### Configuration of the three seeded tenants
 
-Fiecare tenant din seed pornește cu alt furnizor, astfel încât un vizitator vede toate cele trei stări **fără să configureze nimic**:
+Every seeded tenant starts on a different provider, so that a visitor sees all three states **without configuring anything**:
 
-| Tenant | Furnizor | Ce demonstrează |
+| Tenant | Provider | What it demonstrates |
 |---|---|---|
-| 1 (implicit la intrare) | `demo` | Fluxul complet, fără dependență externă |
-| 2 | `shippo` (sandbox) | Integrare reală |
-| 3 | `shippo` (sandbox, credențiale proprii) | Configurare **per tenant**: același furnizor, rând separat, credențiale separate |
+| 1 (default on entry) | `demo` | The full flow, with no external dependency |
+| 2 | `shippo` (sandbox) | A real integration |
+| 3 | `shippo` (sandbox, its own credentials) | **Per-tenant** configuration: same provider, separate row, separate credentials |
 
-*(Rândul 3 cerea `easypost` până la 2026-09-12 — vezi nota de supapă din capul documentului. „Toate cele trei stări" devine „ambele stări": fără dependență externă și cu integrare reală.)*
+*(Row 3 called for `easypost` until 2026-09-12 — see the valve note at the top of the document. "All three states" becomes "both states": no external dependency, and a real integration.)*
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Interfața `ShippingCarrier` e validată de două implementări reale, nu presupusă.
-- Demo-ul nu se poate strica din cauza unui sandbox extern căzut.
-- Se demonstrează în plus: configurare per tenant și stocare criptată de credențiale.
-- Argument de vânzare direct pentru clienții care au deja un cont de curierat.
+- The `ShippingCarrier` interface is validated by two real implementations, not assumed.
+- The demo cannot break because an external sandbox is down.
+- Two extra things are demonstrated: per-tenant configuration and encrypted credential storage.
+- A direct sales argument for clients who already have a carrier account.
 
 ### Negative / trade-offs
 
-- **Aproximativ o zi în plus în Faza 5** — a doua implementare, ecranul de setări, criptarea credențialelor. Faza 5 e deja cea mai încărcată; dacă auditul o confirmă supraîncărcată, `easypost` se poate amâna fără a atinge arhitectura, pentru că interfața rămâne aceeași.
-- Două conturi sandbox de întreținut, cu chei care pot expira.
-- Trei căi de cod de testat în loc de una. Mitigat: testele de contract rulează aceeași suită împotriva tuturor celor trei implementări — ceea ce e, din nou, ceva ce merită arătat.
+- **About one extra day in Phase 5** — the second implementation, the settings screen, credential encryption. Phase 5 is already the heaviest; if the audit confirms it is overloaded, `easypost` can be deferred without touching the architecture, because the interface stays the same.
+- Two sandbox accounts to maintain, with keys that can expire.
+- Three code paths to test instead of one. Mitigated: the contract tests run the same suite against all three implementations — which is, again, something worth showing.

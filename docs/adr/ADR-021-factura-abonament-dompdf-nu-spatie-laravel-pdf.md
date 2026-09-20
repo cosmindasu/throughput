@@ -1,94 +1,94 @@
-# ADR-021: Factura de abonament rămâne pe `DompdfInvoiceRenderer`, implicitul Cashier — nu pe `spatie/laravel-pdf`
+# ADR-021: The subscription invoice stays on `DompdfInvoiceRenderer`, the Cashier default — not on `spatie/laravel-pdf`
 
 - **Status**: Accepted
-- **Data**: 2026-09-19
-- **Decidenți**: proprietarul proiectului
-- **Supersedează parțial**: [[ADR-006]] — exclusiv fraza „Generarea PDF-urilor de factură de abonament folosește `spatie/laravel-pdf`, nu `dompdf` — schimbarea introdusă în Cashier 16." Restul [[ADR-006]] rămâne în vigoare, neatins: Cashier 16 pe API `2025-06-30.basil`, `Billable` = tenantul (organizația, nu utilizatorul), idempotența webhook-urilor prin `webhook_events`/unicitate pe `event_id`.
-- **Related**: [[ADR-005]] (facturile către clienți, flux separat), [[ADR-013]] (apelurile/procesele grele nu în cererea HTTP), [[ADR-019]] (unde a fost măsurat bugetul de memorie și semnalată prima dată neconcordanța)
-- **Tags**: stripe, cashier, pdf, memorie, faza-5
+- **Date**: 2026-09-19
+- **Deciders**: project owner
+- **Partially supersedes**: [[ADR-006]] — exclusively the sentence "Generating subscription invoice PDFs uses `spatie/laravel-pdf`, not `dompdf` — the change introduced in Cashier 16." The rest of [[ADR-006]] remains in force, untouched: Cashier 16 on API `2025-06-30.basil`, `Billable` = the tenant (the organization, not the user), webhook idempotency through `webhook_events` / uniqueness on `event_id`.
+- **Related**: [[ADR-005]] (customer invoices, a separate flow), [[ADR-013]] (heavy calls/processes not in the HTTP request), [[ADR-019]] (where the memory budget was measured and where the discrepancy was first flagged)
+- **Tags**: stripe, cashier, pdf, memory, phase-5
 
-## Context și problema
+## Context and problem statement
 
-[[ADR-006]] afirmă: „Generarea PDF-urilor de factură de abonament folosește `spatie/laravel-pdf`, nu `dompdf` — schimbarea introdusă în Cashier 16." Afirmația e o interpretare greșită, semnalată deja la 2026-09-14 în nota de închidere a [[ADR-019]] („ADR-006 nu corespunde codului instalat") și lăsată explicit ca „decizia proprietarului, cel târziu în Faza 5" — adică acum.
+[[ADR-006]] states: "Generating subscription invoice PDFs uses `spatie/laravel-pdf`, not `dompdf` — the change introduced in Cashier 16." The claim is a misreading, already flagged on 2026-09-14 in the closing note of [[ADR-019]] ("ADR-006 does not match the installed code") and explicitly left as "the owner's decision, at the latest in Phase 5" — that is, now.
 
-Ce spune codul instalat, nu presupunerea:
+What the installed code says, as opposed to the assumption:
 
-- `vendor/laravel/cashier/config/cashier.php:107` — `'renderer' => env('CASHIER_INVOICE_RENDERER', DompdfInvoiceRenderer::class)`. Cashier 16 a **adăugat** `LaravelPdfInvoiceRenderer` ca opțiune, nu ca implicit — implicitul rămâne `DompdfInvoiceRenderer`.
-- Config-ul Cashier nu e publicat în proiect (`config/cashier.php` nu există în afara `vendor/`), iar `CASHIER_INVOICE_RENDERER` nu apare setat nicăieri (nici în `.env.example`). Renderer-ul efectiv, azi, e deci `DompdfInvoiceRenderer` — exact ce ADR-006 spune că NU se folosește.
-- Dacă s-ar comuta pe renderer-ul pe care [[ADR-006]] îl descrie greșit ca fiind deja activ, `vendor/laravel/cashier/src/Invoices/LaravelPdfInvoiceRenderer.php` apelează `Pdf::html(...)->format($paper)->toResponse(...)`, **fără** `->driver('dompdf')` — adică pe driverul implicit al pachetului `spatie/laravel-pdf`, care e `browsershot` (Chromium), nu DomPDF.
-- [[ADR-019]] a măsurat și a documentat că imaginea de producție **nu are Chromium sau Node la runtime**, pe un VPS cu buget de 250-400 MB și 11 ucideri OOM deja măsurate (`.ai/rules/project.md`). Descărcarea unei facturi de abonament pe acel renderer ar fi eșuat la rulare, nu la build.
-- Codul propriu al proiectului alege deja driverul **explicit**, niciodată implicit din mediu: `app/Support/Exports/PdfExporter.php:55` și `app/Support/Reports/ReportFileWriter.php:57` apelează `Pdf::view(...)->driver('dompdf')`, cu docblock care spune de ce („implicitul pachetului rămâne liber pentru facturile din Faza 5, care pot alege alt driver fără să atingă exportul de liste" — `PdfExporter`). `dompdf/dompdf` ^3.0 e dependență directă din [[ADR-019]].
+- `vendor/laravel/cashier/config/cashier.php:107` — `'renderer' => env('CASHIER_INVOICE_RENDERER', DompdfInvoiceRenderer::class)`. Cashier 16 **added** `LaravelPdfInvoiceRenderer` as an option, not as the default — the default stays `DompdfInvoiceRenderer`.
+- Cashier's config is not published in the project (`config/cashier.php` does not exist outside `vendor/`), and `CASHIER_INVOICE_RENDERER` is set nowhere (not even in `.env.example`). The renderer actually in effect today is therefore `DompdfInvoiceRenderer` — exactly what ADR-006 says is NOT being used.
+- If we switched to the renderer [[ADR-006]] wrongly describes as already active, `vendor/laravel/cashier/src/Invoices/LaravelPdfInvoiceRenderer.php` calls `Pdf::html(...)->format($paper)->toResponse(...)`, **without** `->driver('dompdf')` — that is, on the default driver of the `spatie/laravel-pdf` package, which is `browsershot` (Chromium), not DomPDF.
+- [[ADR-019]] measured and documented that the production image **has no Chromium or Node at runtime**, on a VPS with a 250-400 MB budget and 11 OOM kills already measured (`.ai/rules/project.md`). Downloading a subscription invoice on that renderer would have failed at runtime, not at build time.
+- The project's own code already chooses the driver **explicitly**, never by environment default: `app/Support/Exports/PdfExporter.php:55` and `app/Support/Reports/ReportFileWriter.php:57` call `Pdf::view(...)->driver('dompdf')`, with a docblock saying why ("the package default stays free for the Phase 5 invoices, which can choose another driver without touching the list export" — `PdfExporter`). `dompdf/dompdf` ^3.0 is a direct dependency since [[ADR-019]].
 
-Faza 5 (plan §11) construiește acum abonamentul Stripe efectiv — primul cod care va atinge descărcarea unei facturi de abonament pe entitatea `Billable`. Decizia nu mai poate rămâne deschisă.
+Phase 5 (plan §11) is now building the actual Stripe subscription — the first code that will touch downloading a subscription invoice on the `Billable` entity. The decision can no longer stay open.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Bugetul de memorie e fix, nu se negociază în sus** (`.ai/rules/project.md`) — Chromium în runtime a fost deja respins, cu măsurători, în [[ADR-019]].
-- **„Dacă o soluție cere încă un serviciu, răspunsul implicit e nu"** (`.ai/rules/project.md`) — valabil și pentru un binar/proces Node adăugat în imagine, nu doar pentru un container nou.
-- **Alegerea driverului per apel, niciodată implicit de mediu** — convenția deja stabilită de `PdfExporter`/`ReportFileWriter`: o variabilă de mediu lipsă pe un mediu nou (Coolify, CI, o mașină de dezvoltare) nu trebuie să poată schimba tăcut comportamentul de la „funcționează" la „cade la rulare".
-- **Zero cod nou, zero infrastructură nouă**, dacă alternativa nu aduce beneficiu măsurabil.
-- **Onestitate în ADR, nu tăcere** — dacă decizia lasă două puncte de intrare spre aceeași bibliotecă, se spune explicit, nu se ascunde sub o „unificare" promisă și nerealizată.
+- **The memory budget is fixed, it is not negotiated upwards** (`.ai/rules/project.md`) — Chromium at runtime was already rejected, with measurements, in [[ADR-019]].
+- **"If a solution requires one more service, the default answer is no"** (`.ai/rules/project.md`) — this holds for a binary/Node process added to the image too, not only for a new container.
+- **Driver chosen per call, never by environment default** — the convention already established by `PdfExporter`/`ReportFileWriter`: a missing environment variable on a new environment (Coolify, CI, a development machine) must not be able to silently flip behaviour from "works" to "fails at runtime".
+- **Zero new code, zero new infrastructure**, if the alternative brings no measurable benefit.
+- **Honesty in the ADR, not silence** — if the decision leaves two entry points into the same library, it is stated explicitly, not hidden under a promised and unrealized "unification".
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Rămânem pe implicitul Cashier, `DompdfInvoiceRenderer` (ALEASĂ)
+### Option 1: Stay on the Cashier default, `DompdfInvoiceRenderer` (CHOSEN)
 
-Nu se publică `config/cashier.php`, nu se setează `CASHIER_INVOICE_RENDERER`. Cashier randează factura de abonament cu propriul șablon, prin `dompdf/dompdf` direct — fără nicio implicare a lui `spatie/laravel-pdf`.
+`config/cashier.php` is not published, `CASHIER_INVOICE_RENDERER` is not set. Cashier renders the subscription invoice with its own template, through `dompdf/dompdf` directly — with no involvement of `spatie/laravel-pdf` at all.
 
-- **Pro**: zero cod, zero config nou, zero risc de mediu — comportamentul e cel din pachet, deja activ și stabil. `dompdf/dompdf` e deja dependență directă ([[ADR-019]]), deci nu aduce nimic nou în `composer.json`. Niciun risc ca un mediu nou să cadă la rulare din lipsa unei variabile de mediu.
-- **Contra**: coexistă două puncte de intrare spre DomPDF în proiect — cel al Cashier (șablonul lui, necontrolat de cod propriu) și `spatie/laravel-pdf` cu driver explicit (facturile către clienți din [[ADR-005]], exporturile și rapoartele din [[ADR-019]]). Promisiunea de „unificare" din `docs/adr/README.md` nu se realizează.
+- **Pro**: zero code, zero new config, zero environment risk — the behaviour is the package's own, already active and stable. `dompdf/dompdf` is already a direct dependency ([[ADR-019]]), so it adds nothing new to `composer.json`. No risk of a new environment failing at runtime for want of an environment variable.
+- **Con**: two entry points into DomPDF coexist in the project — Cashier's (its own template, not controlled by our code) and `spatie/laravel-pdf` with an explicit driver (the customer invoices from [[ADR-005]], the exports and reports from [[ADR-019]]). The "unification" promised in `docs/adr/README.md` does not happen.
 
-### Opțiunea 2: `CASHIER_INVOICE_RENDERER=LaravelPdfInvoiceRenderer` + `LARAVEL_PDF_DRIVER=dompdf`
+### Option 2: `CASHIER_INVOICE_RENDERER=LaravelPdfInvoiceRenderer` + `LARAVEL_PDF_DRIVER=dompdf`
 
-Ar unifica pe un singur punct de intrare — `spatie/laravel-pdf` peste tot — exact cum promitea (greșit) formularea inițială din [[ADR-006]].
+This would unify on a single entry point — `spatie/laravel-pdf` everywhere — exactly as the original (mistaken) wording in [[ADR-006]] promised.
 
-- **Contra, decisiv**: mută alegerea driverului pe un **implicit de mediu**. `LaravelPdfInvoiceRenderer` (vezi extrasul de mai sus) nu specifică `->driver()` în cod — depinde strict de `config('laravel-pdf.driver')`/`LARAVEL_PDF_DRIVER`. Dacă variabila lipsește pe un mediu nou (Coolify, CI, o mașină de dezvoltare fără `.env` complet), randarea cade pe implicitul pachetului, `browsershot`/Chromium — inexistent în imagine — iar eșecul apare la **rulare** (primul click pe „descarcă factura"), nu la build. Contrazice direct regula pe care `PdfExporter` o aplică deja explicit în cod, nu prin variabilă de mediu.
-- **Pro**: un singur punct de intrare spre PDF pentru tot ce ține de Stripe/abonament + facturi + exporturi + rapoarte, dacă mediul e mereu configurat corect.
+- **Con, decisive**: it moves the driver choice onto an **environment default**. `LaravelPdfInvoiceRenderer` (see the extract above) does not specify `->driver()` in code — it depends strictly on `config('laravel-pdf.driver')`/`LARAVEL_PDF_DRIVER`. If the variable is missing on a new environment (Coolify, CI, a development machine without a complete `.env`), rendering falls back to the package default, `browsershot`/Chromium — which is not in the image — and the failure shows up at **runtime** (the first click on "download invoice"), not at build time. It directly contradicts the rule `PdfExporter` already applies explicitly in code rather than through an environment variable.
+- **Pro**: a single entry point into PDF for everything Stripe/subscription related + invoices + exports + reports, provided the environment is always configured correctly.
 
-Respinsă: riscul e exact tiparul de eroare tăcută, dependentă de mediu, pe care restul proiectului îl evită prin construcție (`.ai/rules/tenancy.md` documentează un tipar similar la memoizarea per cerere).
+Rejected: the risk is exactly the silent, environment-dependent failure pattern the rest of the project avoids by construction (`.ai/rules/tenancy.md` documents a similar pattern for per-request memoization).
 
-### Opțiunea 3: Fără PDF local de abonament — doar facturile găzduite de Stripe Customer Portal
+### Option 3: No local subscription PDF — only the invoices hosted by the Stripe Customer Portal
 
-- **Pro**: elimină problema — Stripe randează și găzduiește PDF-ul, aplicația nu mai apelează niciun renderer local.
-- **Contra**: pierde descărcarea din aplicație pentru un demo de portofoliu, unde acel ecran demonstrează integrarea Cashier. Respinsă.
+- **Pro**: it removes the problem — Stripe renders and hosts the PDF, the application no longer calls any local renderer.
+- **Con**: it loses the in-app download for a portfolio demo, where that screen demonstrates the Cashier integration. Rejected.
 
-### Opțiunea 4: Chromium în imaginea de producție
+### Option 4: Chromium in the production image
 
-- **Contra**: deja respinsă, cu măsurători, în [[ADR-019]] (vârf de 150-250 MB pe un container deja aproape de plafon, plus suprafață de atac și greutate de imagine în plus). Nu se reia argumentarea aici.
+- **Con**: already rejected, with measurements, in [[ADR-019]] (a 150-250 MB peak on a container already near its cap, plus extra attack surface and image weight). The argument is not repeated here.
 
-## Decizia luată
+## Decision outcome
 
-**Opțiunea 1.** Renderer-ul facturii de abonament rămâne cel implicit al Cashier, `DompdfInvoiceRenderer`. Nu se publică `config/cashier.php`. Nu se setează `CASHIER_INVOICE_RENDERER` în niciun mediu. Costul e zero cod și zero infrastructură nouă.
+**Option 1.** The subscription invoice renderer stays the Cashier default, `DompdfInvoiceRenderer`. `config/cashier.php` is not published. `CASHIER_INVOICE_RENDERER` is not set in any environment. The cost is zero code and zero new infrastructure.
 
-Consecința asumată, explicit: proiectul are **două puncte de intrare** către aceeași bibliotecă (DomPDF):
+The accepted consequence, stated explicitly: the project has **two entry points** into the same library (DomPDF):
 
-1. cel al Cashier, cu șablonul lui de factură, apelat prin `DompdfInvoiceRenderer`, fără nicio implicare a codului propriu;
-2. `spatie/laravel-pdf`, cu driverul ales explicit (`->driver('dompdf')`) în `PdfExporter` și `ReportFileWriter`, pentru exporturile de listă ([[ADR-019]]), rapoartele PDF și facturile către clienți ([[ADR-005]]).
+1. Cashier's, with its own invoice template, called through `DompdfInvoiceRenderer`, with no involvement of our own code;
+2. `spatie/laravel-pdf`, with the driver chosen explicitly (`->driver('dompdf')`) in `PdfExporter` and `ReportFileWriter`, for the list exports ([[ADR-019]]), the PDF reports and the customer invoices ([[ADR-005]]).
 
-Faza 5 construiește abonamentul Stripe: codul acelei faze **nu comută renderer-ul** — nu publică `config/cashier.php`, nu setează `CASHIER_INVOICE_RENDERER`, nu adaugă `->driver()` pe nimic legat de descărcarea facturii de abonament. Dacă apare vreodată nevoia unui download direct din cod propriu, el trece prin API-ul Cashier ca atare, nu prin `PdfExporter`.
+Phase 5 builds the Stripe subscription: the code of that phase **does not switch the renderer** — it does not publish `config/cashier.php`, does not set `CASHIER_INVOICE_RENDERER`, does not add `->driver()` to anything related to downloading the subscription invoice. If the need for a direct download from our own code ever appears, it goes through the Cashier API as such, not through `PdfExporter`.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Zero cod, zero config publicat, zero variabilă de mediu nouă — descărcarea facturii de abonament funcționează identic pe orice mediu (dev, CI, producție), fără o valoare implicită de care depinde.
-- Elimină exact riscul pe care Opțiunea 2 l-ar fi introdus: un eșec la rulare, dependent de mediu, pe calea de business care atinge banii tenantului.
-- Consistent cu bugetul de memorie și cu absența Chromium/Node din imaginea de producție ([[ADR-019]]).
-- Corectează public neconcordanța semnalată în [[ADR-019]], fără să rescrie [[ADR-006]] — respectă regula „un ADR acceptat nu se rescrie" (`.ai/rules/project.md`).
+- Zero code, zero published config, zero new environment variable — downloading a subscription invoice works identically on every environment (dev, CI, production), without depending on a default value.
+- It removes exactly the risk Option 2 would have introduced: an environment-dependent runtime failure on the business path that touches the tenant's money.
+- Consistent with the memory budget and with the absence of Chromium/Node from the production image ([[ADR-019]]).
+- It corrects the discrepancy flagged in [[ADR-019]] publicly, without rewriting [[ADR-006]] — respecting the "an accepted ADR is never rewritten" rule (`.ai/rules/project.md`).
 
-### Negative / trade-offs, asumate
+### Negative / trade-offs, accepted
 
-- Nota „Unificarea generării de PDF" din `docs/adr/README.md` nu se închide pe direcția pe care o presupunea inițial (toate PDF-urile pe `spatie/laravel-pdf`) — se închide pe direcția opusă: rămân două puncte de intrare, prin decizie, nu prin uitare.
-- Șablonul facturii de abonament (`Invoice::view()`, din Cashier) nu e sub același control de stil ca șabloanele proprii (`exports.pdf.list`, `reports.pdf.built-in`) — orice personalizare vizuală a facturii Stripe trece prin publicarea view-urilor Cashier, nu prin `PdfExporter`.
-- Dacă o versiune viitoare de Cashier schimbă implicitul, sau dacă `LaravelPdfInvoiceRenderer` capătă un mod de a primi driverul explicit (nu doar din `env()`), Opțiunea 2 merită reevaluată — nu e respinsă definitiv, e respinsă **cât timp** alegerea ei ar depinde de o variabilă de mediu nesetată implicit.
+- The "Unifying PDF generation" note in `docs/adr/README.md` does not close in the direction it originally assumed (all PDFs on `spatie/laravel-pdf`) — it closes in the opposite direction: two entry points remain, by decision, not by oversight.
+- The subscription invoice template (`Invoice::view()`, from Cashier) is not under the same styling control as our own templates (`exports.pdf.list`, `reports.pdf.built-in`) — any visual customization of the Stripe invoice goes through publishing Cashier's views, not through `PdfExporter`.
+- If a future Cashier version changes the default, or if `LaravelPdfInvoiceRenderer` gains a way to receive the driver explicitly (not only from `env()`), Option 2 deserves a re-evaluation — it is not rejected for good, it is rejected **for as long as** choosing it would depend on an environment variable that has no default.
 
-## Legături
+## Links
 
-- [[ADR-006]] — decizia de bază (Cashier 16, `Billable` = tenantul, idempotența webhook-urilor), superseded parțial de acest ADR exclusiv pe fraza despre randarea PDF.
-- [[ADR-005]] — facturile către clienți, flux separat, folosesc deja `spatie/laravel-pdf` cu driver explicit.
-- [[ADR-013]] — apelurile/procesele grele nu în cererea HTTP; DomPDF rămâne PHP pur, fără proces extern, deci nu ridică aceeași problemă.
-- [[ADR-019]] — unde a fost măsurat bugetul de memorie, unde a fost instalat `dompdf/dompdf`, și unde a fost semnalată prima dată neconcordanța cu [[ADR-006]].
+- [[ADR-006]] — the base decision (Cashier 16, `Billable` = the tenant, webhook idempotency), partially superseded by this ADR on the PDF rendering sentence alone.
+- [[ADR-005]] — customer invoices, a separate flow, already using `spatie/laravel-pdf` with an explicit driver.
+- [[ADR-013]] — heavy calls/processes not in the HTTP request; DomPDF stays pure PHP, with no external process, so it does not raise the same problem.
+- [[ADR-019]] — where the memory budget was measured, where `dompdf/dompdf` was installed, and where the discrepancy with [[ADR-006]] was first flagged.
 
-## Istoric
+## History
 
-- 2026-09-19 (Faza 5) — creat. Proprietarul a confirmat Opțiunea 1 dintre cele patru de mai sus, închizând neconcordanța semnalată în [[ADR-019]] la 2026-09-14.
+- 2026-09-19 (Phase 5) — created. The owner confirmed Option 1 out of the four above, closing the discrepancy flagged in [[ADR-019]] on 2026-09-14.

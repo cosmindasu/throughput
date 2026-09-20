@@ -1,62 +1,62 @@
-# ADR-013: Apelurile externe ies din cererea HTTP, în cozi
+# ADR-013: External calls leave the HTTP request and move to queues
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-003]] (tranzacția vine din mecanismul de izolare), [[ADR-010]] (curierat)
-- **Tags**: performanta, tranzactii, cozi, postgresql, sprint-5
+- **Deciders**: Owner
+- **Related**: [[ADR-003]] (the transaction comes from the isolation mechanism), [[ADR-010]] (shipping)
+- **Tags**: performance, transactions, queues, postgresql, sprint-5
 
-## Context și problema
+## Context and problem statement
 
-[[ADR-003]] impune `SET LOCAL app.tenant_id` pentru fiecare cerere, iar `SET LOCAL` există **doar** în interiorul unei tranzacții. Implementarea literală — middleware-ul `ApplyTenantContext` — înfășoară tot `$next($request)` într-un `DB::transaction()`.
+[[ADR-003]] requires `SET LOCAL app.tenant_id` on every request, and `SET LOCAL` exists **only** inside a transaction. The literal implementation — the `ApplyTenantContext` middleware — wraps the whole of `$next($request)` in a `DB::transaction()`.
 
-Consecința nu e evidentă: **orice apel extern sincron dintr-un controller se execută cu o tranzacție Postgres deschisă.** Specificația descrie două astfel de apeluri:
+The consequence is not obvious: **any synchronous external call from a controller executes with an open Postgres transaction.** The specification describes two such calls:
 
-- **crearea unui shipment** cheamă adapterul de curierat și așteaptă `tracking_number` (§11.2, pasul 4);
-- **generarea unui PDF de factură** pornește un Chromium efemer prin `spatie/laravel-pdf` — planul estimează 150–250 MB și câteva secunde (§3.1).
+- **creating a shipment** calls the carrier adapter and waits for `tracking_number` (§11.2, step 4);
+- **generating an invoice PDF** starts an ephemeral Chromium through `spatie/laravel-pdf` — the plan estimates 150–250 MB and a few seconds (§3.1).
 
-Pe un container cu `shared_buffers=64MB` și `max_connections=30`, o tranzacție ținută deschisă câteva secunde, cu blocările de rând acumulate până acolo, e o problemă reală sub concurență. Nu se manifestă la un singur dezvoltator; se manifestă când doi vizitatori fac simultan expedieri.
+On a container with `shared_buffers=64MB` and `max_connections=30`, a transaction held open for several seconds, with the row locks accumulated up to that point, is a real problem under concurrency. It does not show up with a single developer; it shows up when two visitors ship at the same time.
 
-Auditul (P2-003) a semnalat-o și a propus **îngustarea tranzacției** la interogările propriu-zise.
+The audit (P2-003) flagged it and proposed **narrowing the transaction** down to the queries themselves.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Sub RLS, fiecare interogare are nevoie de context.** Nu poți scoate citirile din tranzacție fără să primești zero rânduri — asta face îngustarea mult mai puțin simplă decât pare.
-- **Un utilizator nu trebuie să aștepte după Chromium.** Trei secunde de așteptare la „Generează factura" e o experiență proastă independent de orice problemă de tranzacții.
-- **Progresul vizibil e cel mai ieftin „wow moment"** al demo-ului, per research. Încă un loc unde apare e un câștig, nu un cost.
+- **Under RLS, every query needs the context.** You cannot move reads out of the transaction without getting zero rows — which makes narrowing far less simple than it looks.
+- **A user must not wait on Chromium.** Three seconds of waiting on "Generate invoice" is a bad experience independently of any transaction problem.
+- **Visible progress is the demo's cheapest "wow moment"**, per the research. One more place where it appears is a gain, not a cost.
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Îngustarea tranzacției (propunerea auditului)
+### Option 1: Narrowing the transaction (the audit's proposal)
 
-- **Pro**: atacă direct simptomul; nicio schimbare de flux.
-- **Contra**: sub RLS, contextul e necesar la **fiecare** interogare, inclusiv citirile din controller. Îngustarea cere fie o a doua strategie de setare a contextului pentru citiri, fie disciplină manuală în fiecare acțiune — exact genul de regulă pe care cineva o încalcă peste șase luni, cu efect tăcut.
+- **Pro**: attacks the symptom directly; no change of flow.
+- **Con**: under RLS, the context is needed on **every** query, including the reads inside the controller. Narrowing requires either a second strategy for setting the context on reads, or manual discipline in every action — exactly the kind of rule someone breaks six months later, silently.
 
-### Opțiunea 2: Apelurile externe ies din cerere, în cozi (ALEASĂ)
+### Option 2: External calls leave the request, into queues (CHOSEN)
 
-- **Pro**: tranzacția rămâne scurtă prin construcție, nu prin disciplină. Cererea răspunde imediat. Chromium iese de pe calea critică. Se adaugă încă un loc cu progres vizibil.
-- **Contra**: fluxul devine asincron — interfața trebuie să afișeze o stare intermediară („Se generează…") și să facă polling.
+- **Pro**: the transaction stays short by construction, not by discipline. The request responds immediately. Chromium leaves the critical path. One more place with visible progress.
+- **Con**: the flow becomes asynchronous — the interface has to show an intermediate state ("Generating…") and poll.
 
-## Decizia luată
+## Decision outcome
 
-**Opțiunea 2.** Niciun apel către un serviciu extern nu se execută în interiorul unei cereri HTTP.
+**Option 2.** No call to an external service executes inside an HTTP request.
 
-- **Eticheta de curierat**: `CreateShipmentAction` persistă shipment-ul cu `status = label_pending` și pune în coadă `GenerateShippingLabelJob`. Jobul apelează adapterul ([[ADR-010]]), apoi deschide o tranzacție **scurtă** doar ca să scrie `tracking_number` și `label_url`. Interfața face polling, ca la operațiile în masă.
-- **PDF-ul de factură**: idem — `invoices.pdf_status` (`pending` / `ready` / `failed`), job de generare, buton de descărcare activ abia când e gata.
+- **Shipping label**: `CreateShipmentAction` persists the shipment with `status = label_pending` and queues `GenerateShippingLabelJob`. The job calls the adapter ([[ADR-010]]), then opens a **short** transaction only to write `tracking_number` and `label_url`. The interface polls, as with bulk operations.
+- **Invoice PDF**: the same — `invoices.pdf_status` (`pending` / `ready` / `failed`), a generation job, a download button that only becomes active when it is ready.
 
-Regula, scrisă ca atare în plan: **dacă o acțiune apelează ceva ce nu e baza de date proprie, acțiunea aceea aparține unei cozi.**
+The rule, written as such in the plan: **if an action calls something that is not our own database, that action belongs in a queue.**
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Tranzacțiile rămân de ordinul milisecundelor, indiferent de starea unui serviciu extern.
-- Un sandbox de curierat căzut nu mai ține blocări de rând — jobul eșuează și se reîncearcă.
-- Două locuri în plus unde demo-ul arată progres live.
-- Chromium nu mai concurează cu PHP-FPM pentru memorie în timpul unei cereri.
+- Transactions stay on the order of milliseconds, whatever the state of an external service.
+- A carrier sandbox that is down no longer holds row locks — the job fails and is retried.
+- Two more places where the demo shows live progress.
+- Chromium no longer competes with PHP-FPM for memory during a request.
 
 ### Negative / trade-offs
 
-- Două fluxuri devin asincrone, cu stare intermediară de afișat. Reutilizează componenta de polling deja construită pentru operațiile în masă (Faza 3), deci costul e de interfață, nu de arhitectură.
-- Un job eșuat trebuie să fie vizibil, altfel utilizatorul așteaptă la nesfârșit. Ambele stări au `failed` explicit, cu mesaj și buton de reîncercare.
-- **Worker-ul de coadă e unul singur** (`maxProcesses: 1`, vezi P3-004). Etichetele și PDF-urile intră pe aceeași coadă cu importurile și rapoartele. Prioritizarea cozilor există deja; măsurătoarea de latență rămâne de făcut înainte de lansare.
+- Two flows become asynchronous, with an intermediate state to display. They reuse the polling component already built for bulk operations (Phase 3), so the cost is in the interface, not in the architecture.
+- A failed job has to be visible, otherwise the user waits forever. Both states have an explicit `failed`, with a message and a retry button.
+- **There is only one queue worker** (`maxProcesses: 1`, see P3-004). Labels and PDFs share a queue with imports and reports. Queue prioritization already exists; the latency measurement remains to be done before launch.

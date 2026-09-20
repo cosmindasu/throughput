@@ -1,52 +1,52 @@
-# ADR-004: Stocul ca registru append-only, nu ca o cantitate mutabilă
+# ADR-004: Stock as an append-only ledger, not as a mutable quantity
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
 - **Related**: [[ADR-001]]
-- **Tags**: inventar, model-date, audit, sprint-3
+- **Tags**: inventory, data-model, audit, sprint-3
 
-## Context și problema
+## Context and problem statement
 
-Modulul de stoc trebuie să răspundă la două întrebări: „câte bucăți am acum" și „de ce atâtea". A doua e cea care creează încredere într-un demo.
+The stock module has to answer two questions: "how many units do I have now" and "why that many". The second one is what builds trust in a demo.
 
-Implementarea naivă ține o coloană `quantity` pe care o incrementează și decrementează. Răspunde rapid la prima întrebare și deloc la a doua.
+The naive implementation keeps a `quantity` column that it increments and decrements. It answers the first question quickly and the second not at all.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Auditabilitate** — „de ce arată 7 bucăți când eu am numărat 9" e întrebarea pe care orice operator de depozit a pus-o măcar o dată. Un sistem care nu poate răspunde pierde încrederea.
-- **Corectitudine sub concurență** — două operații simultane pe aceeași coloană cer blocare; un registru doar-adăugare nu are conflict de scriere.
-- **Semnal de competență** — e distincția care se vede cel mai clar între o implementare de începător și una matură, iar proiectul are ca scop exact demonstrarea acestei diferențe.
+- **Auditability** — "why does it show 7 units when I counted 9" is the question every warehouse operator has asked at least once. A system that cannot answer loses their trust.
+- **Correctness under concurrency** — two simultaneous operations on the same column require locking; an append-only ledger has no write conflict.
+- **Competence signal** — it is the distinction that shows most clearly between a beginner's implementation and a mature one, and the project exists precisely to demonstrate that difference.
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Coloană `quantity` mutabilă
+### Option 1: A mutable `quantity` column
 
-- **Pro**: trivial de implementat; citire instantanee.
-- **Contra**: fără istoric; imposibil de reconciliat; necesită blocare pesimistă la scrieri concurente; o corecție greșită e ireversibilă și invizibilă.
+- **Pro**: trivial to implement; instant reads.
+- **Con**: no history; impossible to reconcile; requires pessimistic locking on concurrent writes; a wrong correction is irreversible and invisible.
 
-### Opțiunea 2: Registru append-only + `on_hand` materializat (ALEASĂ)
+### Option 2: Append-only ledger + materialized `on_hand` (CHOSEN)
 
-- **Pro**: fiecare mișcare are motiv, moment, autor și referință la documentul care a produs-o. Reconciliere completă. Scrierile sunt inserări, deci fără conflict. Corecțiile sunt mișcări noi, nu ștergeri.
-- **Contra**: mai mult cod; `on_hand` trebuie menținut corect, altfel are două surse de adevăr.
+- **Pro**: every movement has a reason, a moment, an author and a reference to the document that produced it. Full reconciliation. Writes are inserts, so no conflict. Corrections are new movements, not deletions.
+- **Con**: more code; `on_hand` has to be kept correct, otherwise there are two sources of truth.
 
-## Decizia luată
+## Decision outcome
 
-**Aleasă: Opțiunea 2.**
+**Chosen: Option 2.**
 
-`stock_movements` e append-only: `variant_id`, `location_id`, `delta` (pozitiv sau negativ), `reason` (`receipt` / `sale` / `adjustment` / `return` / `transfer`), `ref_type` + `ref_id` spre documentul sursă, `created_by`, `created_at`. Fără `UPDATE`, fără `DELETE`.
+`stock_movements` is append-only: `variant_id`, `location_id`, `delta` (positive or negative), `reason` (`receipt` / `sale` / `adjustment` / `return` / `transfer`), `ref_type` + `ref_id` pointing at the source document, `created_by`, `created_at`. No `UPDATE`, no `DELETE`.
 
-Cantitatea disponibilă se materializează într-un tabel `inventory_levels`, actualizat în aceeași tranzacție cu inserarea mișcării. Există o comandă de reconciliere care recalculează din registru și raportează divergențele — folosită și ca test: dacă recalcularea nu dă același rezultat, ceva a scris `on_hand` fără să scrie mișcarea.
+The available quantity is materialized in an `inventory_levels` table, updated in the same transaction as the movement insert. There is a reconciliation command that recomputes from the ledger and reports divergences — also used as a test: if the recomputation does not produce the same result, something wrote `on_hand` without writing the movement.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Orice cantitate afișată e explicabilă până la documentul care a produs-o.
-- Rezervarea de stoc la confirmarea comenzii și eliberarea la anulare devin naturale (mișcări cu motive distincte).
-- Demonstrația „am expediat 500 de comenzi, uite stocul mișcându-se rând cu rând" e posibilă doar cu această structură.
+- Every quantity on screen is explainable all the way back to the document that produced it.
+- Reserving stock when an order is confirmed and releasing it on cancellation become natural (movements with distinct reasons).
+- The "I shipped 500 orders, watch the stock move row by row" demo is only possible with this structure.
 
 ### Negative / trade-offs
 
-- Registrul crește nelimitat. Pentru un demo e irelevant; pentru producție ar cere agregare periodică pe perioade închise. Notat, nu implementat.
-- Două locuri de scris la fiecare mișcare (registru + nivel materializat), obligatoriu în aceeași tranzacție. Protejat de comanda de reconciliere și de un test dedicat.
+- The ledger grows without bound. Irrelevant for a demo; for production it would require periodic aggregation over closed periods. Noted, not implemented.
+- Two places to write on every movement (ledger + materialized level), mandatorily in the same transaction. Protected by the reconciliation command and by a dedicated test.

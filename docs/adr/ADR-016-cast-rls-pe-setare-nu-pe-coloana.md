@@ -1,69 +1,69 @@
-# ADR-016: Politicile RLS pun cast-ul pe setare, nu pe coloană
+# ADR-016: RLS policies cast the setting, not the column
 
 - **Status**: Accepted
-- **Data**: 2026-09-12
-- **Decidenți**: proprietarul proiectului
-- **Supersedează parțial**: [[ADR-014]] — exclusiv forma SQL a comparației din politici (blocul din pct. 2) și forma uniformă `{$column}::text = current_setting(...)` din plan §7.2. Restul ADR-014 rămâne în vigoare, neatins: `set_config` în loc de `SET LOCAL`, cele două variabile de sesiune, politica proprie pentru `memberships` ca decizie, poarta unică `TenantContext`, cele două familii de joburi și `after_commit`.
+- **Date**: 2026-09-12
+- **Deciders**: project owner
+- **Partially supersedes**: [[ADR-014]] — exclusively the SQL form of the comparison in the policies (the block in point 2) and the uniform `{$column}::text = current_setting(...)` form from plan §7.2. The rest of ADR-014 remains in force, untouched: `set_config` instead of `SET LOCAL`, the two session variables, the dedicated `memberships` policy as a decision, the single `TenantContext` gate, the two families of jobs, and `after_commit`.
 - **Related**: [[ADR-003]], [[ADR-014]]
 
-## Context și problema
+## Context and problem statement
 
-Planul (§7.2) și [[ADR-014]] pct. 2 prescriu comparația RLS cu cast pe coloană: `tenant_id::text = current_setting('app.tenant_id', true)`, iar în politica `memberships`, la fel, `user_id::text = current_setting('app.user_id', true)`. Coloanele `tenant_id` și `user_id` sunt `character(26)` (ULID). Tabela `orders` are indexul compus `orders_tenant_id_status_created_at_index` pe `(tenant_id, status, created_at)`, exact regula din addendumul [[ADR-003]] („`tenant_id` coloană de lider").
+The plan (§7.2) and [[ADR-014]] point 2 prescribe the RLS comparison with the cast on the column: `tenant_id::text = current_setting('app.tenant_id', true)`, and the same in the `memberships` policy, `user_id::text = current_setting('app.user_id', true)`. The `tenant_id` and `user_id` columns are `character(26)` (ULID). The `orders` table has the composite index `orders_tenant_id_status_created_at_index` on `(tenant_id, status, created_at)`, exactly the rule from the [[ADR-003]] addendum ("`tenant_id` as leading column").
 
-Cast-ul pus pe coloană **învelește coloana**: `(tenant_id)::text` nu mai e expresia pe care indexul btree o recunoaște, deci planificatorul nu poate folosi indexul pentru condiția din politică. Izolarea rămâne corectă — niciun rând din alt tenant nu scapă — așa că **niciun test funcțional n-a văzut diferența**. Global scope-ul Eloquent adaugă `tenant_id = ?` fără niciun cast, deci cererile obișnuite prin modele rămâneau rapide; costul cădea exact pe căile pentru care RLS există ca a doua plasă ([[ADR-003]]): SQL brut, agregate, joburi.
+Putting the cast on the column **wraps the column**: `(tenant_id)::text` is no longer the expression the btree index recognizes, so the planner cannot use the index for the policy's condition. Isolation stays correct — no row from another tenant escapes — so **no functional test saw the difference**. The Eloquent global scope adds `tenant_id = ?` with no cast at all, so ordinary requests through the models stayed fast; the cost fell exactly on the paths RLS exists for as a second net ([[ADR-003]]): raw SQL, aggregates, jobs.
 
-Descoperit de `db:explain-critical`, la finalul Fazei 1 — adică de la citirea planului de execuție, nu de la citirea codului. Capcana nu stătea în definiția indexului (aceea era corectă, conform addendumului [[ADR-003]]), ci în forma expresiei din politică.
+Discovered by `db:explain-critical`, at the end of Phase 1 — that is, by reading the query plan, not by reading the code. The trap was not in the index definition (that one was correct, per the [[ADR-003]] addendum), but in the shape of the expression inside the policy.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Verificat cu `EXPLAIN`, nu dedus din citirea codului** — aceeași lecție ca în [[ADR-014]]: un mecanism care „arată corect" în cod poate fi greșit la execuție.
-- **Fixul nu slăbește izolarea** deja măsurată și testată în [[ADR-014]] — schimbă doar forma comparației, nu ce rânduri sunt vizibile.
-- **O singură formă generată**, nu comparații scrise de mână per migrație/politică — sursa erorii inițiale a fost tocmai o regulă uniformă aplicată manual, de aceea corecția trebuie automatizată, nu repetată.
-- **Cost de schemă zero** — fără indexuri suplimentare pe expresie, care ar dubla costul de scriere și memoria ocupată.
+- **Verified with `EXPLAIN`, not inferred from reading the code** — the same lesson as in [[ADR-014]]: a mechanism that "looks right" in code can be wrong at execution.
+- **The fix does not weaken the isolation** already measured and tested in [[ADR-014]] — it changes only the form of the comparison, not which rows are visible.
+- **A single generated form**, not hand-written comparisons per migration/policy — the source of the original error was precisely a uniform rule applied by hand, which is why the correction has to be automated, not repeated.
+- **Zero schema cost** — no additional expression indexes, which would double the write cost and the memory occupied.
 
-## Opțiuni considerate
+## Considered options
 
-1. **Cast pe coloană + indexuri pe expresie** (`(tenant_id::text, …)`): dublează fiecare index compus existent, cu cost la scriere și memorie pe un VPS cu buget de 250–400 MB. Respinsă.
-2. **Fără cast explicit** (`tenant_id = current_setting(...)`): măsurat — PostgreSQL rezolvă comparația `bpchar = text` punând el însuși cast-ul pe coloană, deci comportamentul e identic cu varianta cu cast pe coloană. Respinsă.
-3. **Cast pe setare, `::bpchar`, generat dintr-un singur helper** (`EnablesRowLevelSecurity::matchesSetting()`), nicio comparație scrisă de mână. **Aleasă.**
-4. **Schimbarea tipului cheilor** (de ex. `uuid`): schemă modificată pe toate tabelele, iar cast-ul nu dispare — doar se mută (`::uuid`). Respinsă.
+1. **Cast on the column + expression indexes** (`(tenant_id::text, …)`): doubles every existing composite index, with a cost in writes and memory on a VPS with a 250–400 MB budget. Rejected.
+2. **No explicit cast** (`tenant_id = current_setting(...)`): measured — PostgreSQL resolves the `bpchar = text` comparison by putting the cast on the column itself, so the behaviour is identical to the cast-on-column variant. Rejected.
+3. **Cast on the setting, `::bpchar`, generated from a single helper** (`EnablesRowLevelSecurity::matchesSetting()`), with no hand-written comparisons. **Chosen.**
+4. **Changing the key type** (e.g. to `uuid`): the schema changes on every table, and the cast does not disappear — it only moves (`::uuid`). Rejected.
 
-## Măsurătoarea
+## The measurement
 
-Mediu: containerul `postgres:16-alpine`, **PostgreSQL 16.14**, baza de dev după `demo:reset` (3 tenanți, 50.000 de comenzi în total, tenantul Marlin are 30.000), rol `throughput_app` (fără `BYPASSRLS`), context setat pe Marlin. Interogarea e cea din `db:explain-critical` pentru FR-ORD-02:
+Environment: the `postgres:16-alpine` container, **PostgreSQL 16.14**, the dev database after `demo:reset` (3 tenants, 50,000 orders in total, tenant Marlin holding 30,000), role `throughput_app` (without `BYPASSRLS`), context set to Marlin. The query is the one from `db:explain-critical` for FR-ORD-02:
 
 ```sql
 select * from orders where status = 'confirmed' order by created_at desc limit 50;
 ```
 
-Fiecare formă a fost aplicată cu `ALTER POLICY` într-o tranzacție anulată cu `ROLLBACK`, deci politica reală n-a fost modificată.
+Each form was applied with `ALTER POLICY` inside a transaction aborted with `ROLLBACK`, so the real policy was never modified.
 
-| Formă | Plan | Rânduri aruncate de filtru | Execuție |
+| Form | Plan | Rows discarded by the filter | Execution |
 |---|---|---|---|
-| A. `tenant_id::text = current_setting(...)` (plan §7.2 / ADR-014) | `Seq Scan on orders` + sort top-N | 45.500 | 19,2 ms (prima rulare) |
-| B. `tenant_id = current_setting(...)`, fără cast explicit | identic cu A: PostgreSQL rezolvă `bpchar = text` punând cast pe coloană, iar expresia apare deparsată tot ca `(tenant_id)::text = current_setting(...)` | 45.500 | 7,8 ms |
-| C. `tenant_id = current_setting(...)::bpchar` (cod) | `Index Scan Backward using orders_tenant_id_status_created_at_index`, Index Cond pe `tenant_id` și `status` | 0 | 0,107 ms |
+| A. `tenant_id::text = current_setting(...)` (plan §7.2 / ADR-014) | `Seq Scan on orders` + top-N sort | 45,500 | 19.2 ms (first run) |
+| B. `tenant_id = current_setting(...)`, no explicit cast | identical to A: PostgreSQL resolves `bpchar = text` by putting the cast on the column, and the expression is deparsed as `(tenant_id)::text = current_setting(...)` too | 45,500 | 7.8 ms |
+| C. `tenant_id = current_setting(...)::bpchar` (the code) | `Index Scan Backward using orders_tenant_id_status_created_at_index`, Index Cond on `tenant_id` and `status` | 0 | 0.107 ms |
 
-**Notă de onestitate:** la 50.000 de rânduri milisecundele absolute sunt mici, iar timpii de la A și B variază între rulări (cache). Dovada nu e cronometrul, e **forma planului**: `Seq Scan` crește cu toată tabela, adică cu toți tenanții, pe când `Index Scan` cu `LIMIT` nu crește.
+**Honesty note:** at 50,000 rows the absolute milliseconds are small, and the times for A and B vary between runs (cache). The proof is not the stopwatch, it is **the shape of the plan**: `Seq Scan` grows with the whole table, that is, with all tenants, whereas `Index Scan` with a `LIMIT` does not.
 
-## Cade închis — verificat cu forma C, ca `throughput_app`
+## Fails closed — verified with form C, as `throughput_app`
 
-- context lipsă (`current_setting` = `NULL`) → 0 rânduri
-- setare `''` → 0 rânduri
-- tenantul corect → 30.000 rânduri
-- **după `COMMIT`, pe aceeași sesiune, `current_setting('app.tenant_id', true)` întoarce `''`, nu `NULL`** → 0 rânduri. [[ADR-014]] și planul spun „`NULL` când nu e setat"; pe o conexiune reutilizată (PHP-FPM, worker), cazul real e `''`. Rezultatul e același (0 rânduri), dar merită consemnat ca fapt verificat.
+- missing context (`current_setting` = `NULL`) → 0 rows
+- setting `''` → 0 rows
+- the correct tenant → 30,000 rows
+- **after `COMMIT`, on the same session, `current_setting('app.tenant_id', true)` returns `''`, not `NULL`** → 0 rows. [[ADR-014]] and the plan say "`NULL` when not set"; on a reused connection (PHP-FPM, worker), the real case is `''`. The outcome is the same (0 rows), but it is worth recording as a verified fact.
 
-## Decizia
+## Decision
 
-Orice politică RLS compară coloana **necastată** cu setarea castată:
+Every RLS policy compares the **uncast** column against the cast setting:
 
 ```sql
-coloana = current_setting('app.x', true)::bpchar
+column = current_setting('app.x', true)::bpchar
 ```
 
-Generată exclusiv prin `EnablesRowLevelSecurity::matchesSetting()` — nicio comparație scrisă de mână. `bpchar`, nu `character(26)`: indexul btree folosește operatorul `bpchar = bpchar`, iar lungimea declarată nu intră în alegerea operatorului.
+Generated exclusively through `EnablesRowLevelSecurity::matchesSetting()` — no hand-written comparisons. `bpchar`, not `character(26)`: the btree index uses the `bpchar = bpchar` operator, and the declared length plays no part in operator selection.
 
-Politica `memberships` din [[ADR-014]] pct. 2 devine:
+The `memberships` policy from [[ADR-014]] point 2 becomes:
 
 ```sql
 CREATE POLICY membership_visibility ON memberships
@@ -73,21 +73,21 @@ CREATE POLICY membership_visibility ON memberships
   );
 ```
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Calea RLS folosește indexurile compuse: `db:explain-critical` e verde pe toate cele 10 interogări critice, iar lista de comenzi răspunde în 0,8 ms.
-- Regresia e prinsă de `IsolationTest::test_no_policy_casts_the_indexed_column`, care citește `pg_policies` și cade dacă vreun `qual` conține `)::text = current_setting`. Prinde și forma B, fiindcă PostgreSQL o stochează deparsată identic cu A.
-- Suita Pest: 63/63, inclusiv cele șase cazuri de vizibilitate `memberships` din [[ADR-014]] pct. 2, care rămân valabile sub forma nouă.
+- The RLS path uses the composite indexes: `db:explain-critical` is green on all 10 critical queries, and the orders list responds in 0.8 ms.
+- The regression is caught by `IsolationTest::test_no_policy_casts_the_indexed_column`, which reads `pg_policies` and fails if any `qual` contains `)::text = current_setting`. It catches form B as well, since PostgreSQL stores it deparsed identically to A.
+- The Pest suite: 63/63, including the six `memberships` visibility cases from [[ADR-014]] point 2, which remain valid under the new form.
 
 ### Negative / trade-offs
 
-- Helper-ul presupune chei `character(n)` (convenția ULID a proiectului). O coloană de alt tip cere reverificare cu `EXPLAIN`, nu copiere.
-- Migrația `memberships` și trait-ul au fost editate pe loc, fără o migrație corectivă. E valid pentru că `demo:reset` rulează `migrate:fresh` zilnic (FR-DEMO-03), deci orice mediu primește forma nouă la primul reset. O producție cu date persistente ar fi cerut o migrație cu `ALTER POLICY`.
+- The helper assumes `character(n)` keys (the project's ULID convention). A column of another type requires re-verification with `EXPLAIN`, not copying.
+- The `memberships` migration and the trait were edited in place, without a corrective migration. This is valid because `demo:reset` runs `migrate:fresh` daily (FR-DEMO-03), so every environment gets the new form at its first reset. A production database with persistent data would have required a migration with `ALTER POLICY`.
 
-## Verificare
+## Verification
 
-Reprodusă pe `postgres:16-alpine` (PostgreSQL 16.14), bază de dev cu seed complet după `demo:reset` (3 tenanți, 50.000 de comenzi), ca rol `throughput_app` (fără `BYPASSRLS`). Metodă: fiecare formă a comparației aplicată cu `ALTER POLICY` într-o tranzacție anulată cu `ROLLBACK`, ca politica reală să nu fie atinsă în timpul măsurătorii. Rezultatele sunt cele din tabelul de mai sus, plus cazurile „cade închis" verificate separat pe forma finală.
+Reproduced on `postgres:16-alpine` (PostgreSQL 16.14), a dev database fully seeded after `demo:reset` (3 tenants, 50,000 orders), as role `throughput_app` (without `BYPASSRLS`). Method: each form of the comparison applied with `ALTER POLICY` inside a transaction aborted with `ROLLBACK`, so the real policy was never touched during the measurement. The results are the ones in the table above, plus the "fails closed" cases verified separately on the final form.
 
-Forma C e cea din cod, comisă în `8da5f90` (`fix(rls): cast pe setare, nu pe coloană`).
+Form C is the one in the code, committed in `8da5f90` (`fix(rls): cast pe setare, nu pe coloană`).

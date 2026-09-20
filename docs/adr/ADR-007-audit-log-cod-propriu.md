@@ -1,34 +1,34 @@
-# ADR-007: Jurnal de activitate cu cod propriu, nu `owen-it/laravel-auditing`
+# ADR-007: Activity log written in-house, not `owen-it/laravel-auditing`
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Tags**: audit, observers, cozi, sprint-5
+- **Deciders**: Owner
+- **Tags**: audit, observers, queues, sprint-5
 
-## Context și problema
+## Context and problem statement
 
-Pachetul `owen-it/laravel-auditing` e istoric cel mai folosit pentru acest tipar în Laravel. Research-ul din 2026-09-12 l-a menționat, dar a marcat explicit că **nu a fost validat pentru compatibilitate cu Laravel 12** în sesiunea de cercetare.
+The `owen-it/laravel-auditing` package is historically the most widely used for this pattern in Laravel. The research from 2026-09-12 mentioned it, but explicitly flagged that **it had not been validated for Laravel 12 compatibility** during the research session.
 
-Alegerea e între a-l fixa ca dependință pe baza unei presupuneri și a scrie ~o jumătate de zi de cod.
+The choice is between pinning it as a dependency on the strength of an assumption, and writing about half a day of code.
 
-## Decizia luată
+## Decision outcome
 
-**Cod propriu.** Eloquent model observers (`created`, `updated`, `deleted`) pe modelele de business relevante dispatch-uiesc un event; un **listener pe coadă** scrie rândul în `activity_log`, asincron.
+**In-house code.** Eloquent model observers (`created`, `updated`, `deleted`) on the relevant business models dispatch an event; a **queued listener** writes the row into `activity_log`, asynchronously.
 
-Trei motive, în ordinea greutății:
+Three reasons, in order of weight:
 
-1. **Nu fixăm o dependință nevalidată.** Dacă pachetul nu suportă Laravel 12, descoperim asta în Sprint 5, nu acum.
-2. **Scrierea asincronă e cerință**, nu preferință — research-ul §8 o recomandă explicit, iar un pachet care scrie sincron în firul cererii ar trebui oricum ocolit.
-3. **Consecvență cu ADR-001** — proiectul demonstrează construcția, nu configurarea. Un jurnal de audit scris de mână e exact genul de cod pe care un recenzent tehnic îl citește cu atenție.
+1. **We do not pin an unvalidated dependency.** If the package does not support Laravel 12, we find out in Sprint 5, not now.
+2. **Asynchronous writing is a requirement**, not a preference — research §8 recommends it explicitly, and a package that writes synchronously inside the request thread would have to be worked around anyway.
+3. **Consistency with ADR-001** — the project demonstrates construction, not configuration. A hand-written audit log is exactly the kind of code a technical reviewer reads carefully.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Control total pe forma diff-ului și pe politica de retenție.
-- Nicio dependență de ritmul de întreținere al unui pachet terț pe o funcție de conformitate.
+- Full control over the shape of the diff and over the retention policy.
+- No dependency on a third-party package's maintenance cadence for a compliance feature.
 
 ### Negative / trade-offs
 
-- ~O jumătate de zi de cod în plus și responsabilitatea testării.
-- Funcții pe care pachetul le-ar fi oferit gratis (audit al relațiilor many-to-many, restaurarea unei versiuni anterioare) nu există în MVP. Neplanificate; se adaugă dacă apare nevoia.
+- About half a day of extra code, and the responsibility for testing it.
+- Features the package would have provided for free (auditing many-to-many relations, restoring a previous version) do not exist in the MVP. Not planned; they get added if the need appears.

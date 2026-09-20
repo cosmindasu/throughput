@@ -1,36 +1,36 @@
-# ADR-005: Facturarea către clienți e separată de abonamentul Stripe
+# ADR-005: Customer invoicing is separate from the Stripe subscription
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-006]] (Cashier pentru abonament)
-- **Tags**: facturare, plati, domeniu, sprint-4
+- **Deciders**: Owner
+- **Related**: [[ADR-006]] (Cashier for the subscription)
+- **Tags**: invoicing, payments, domain, sprint-4
 
-## Context și problema
+## Context and problem statement
 
-„Facturare" înseamnă două lucruri diferite în Throughput, iar amestecarea lor ar fi mai simplu de construit:
+"Invoicing" means two different things in Throughput, and mixing them would be simpler to build:
 
-1. Facturile pe care **tenantul le emite clienților lui** — creanțe pe termene de credit.
-2. Abonamentul pe care **tenantul îl plătește către Throughput**.
+1. The invoices **the tenant issues to its own customers** — receivables on credit terms.
+2. The subscription **the tenant pays to Throughput**.
 
-Tentația evidentă e „Stripe peste tot": checkout cu cardul și pentru facturile către clienți. Ar reduce codul și ar reutiliza aceeași integrare.
+The obvious temptation is "Stripe everywhere": card checkout for customer invoices too. It would reduce the code and reuse the same integration.
 
-## Decizia luată
+## Decision outcome
 
-**Cele două fluxuri rămân separate.** Facturile către clienți sunt creanțe interne (`credit_terms`, `due_date`, `balance_due`), fără procesator de card, reconciliate manual. Stripe apare exclusiv pentru abonamentul tenantului.
+**The two flows stay separate.** Customer invoices are internal receivables (`credit_terms`, `due_date`, `balance_due`), with no card processor, reconciled manually. Stripe appears only for the tenant's subscription.
 
-Motivul de domeniu: un distribuitor en-gros nu încasează cu cardul la fiecare comandă — lucrează pe net 30 și încasează prin transfer. Un demo care sugerează altceva arată că autorul n-a lucrat niciodată în domeniu.
+The domain reason: a wholesale distributor does not take card payments on every order — they work on net 30 and get paid by bank transfer. A demo that suggests otherwise shows that its author has never worked in the field.
 
-Motivul de portofoliu, la fel de important: **fiecare portofoliu de pe platformele de freelancing are un checkout cu Stripe.** Aproape niciunul nu arată înțelegerea termenelor de credit. Semnalul rar e al doilea.
+The portfolio reason, just as important: **every portfolio on the freelancing platforms has a Stripe checkout.** Almost none shows an understanding of credit terms. The rare signal is the second one.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Demo-ul demonstrează înțelegerea domeniului, nu doar integrarea unui SDK.
-- Modelul `invoices` rămâne curat: fără stări de procesator amestecate cu stări de creanță.
+- The demo demonstrates an understanding of the domain, not just the integration of an SDK.
+- The `invoices` model stays clean: no processor states mixed in with receivable states.
 
 ### Negative / trade-offs
 
-- Demo-ul **nu** va conține un ecran „clientul plătește cu cardul". Asumat conștient.
-- Plata cu cardul a facturilor către clienți (Payment Link) rămâne listată ca extensie de Fază 2 în §3.3 — se poate adăuga fără a schimba modelul.
+- The demo will **not** contain a "the customer pays by card" screen. Consciously accepted.
+- Card payment of customer invoices (Payment Link) remains listed as a Phase 2 extension in §3.3 — it can be added without changing the model.

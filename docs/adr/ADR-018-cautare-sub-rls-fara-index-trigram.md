@@ -1,28 +1,28 @@
-# ADR-018: Căutarea globală sub RLS filtrează pe rândurile tenantului, fără indexuri GIN trigram
+# ADR-018: Global search under RLS filters over the tenant's rows, without GIN trigram indexes
 
 - **Status**: Accepted
-- **Data**: 2026-09-13
-- **Decidenți**: proprietarul proiectului
+- **Date**: 2026-09-13
+- **Deciders**: project owner
 - **Related**: [[ADR-003]], [[ADR-016]]
 
-## Context și problema
+## Context and problem statement
 
-Căutarea globală (FR-SEARCH-01/02) folosește `pg_trgm` direct în PostgreSQL: operatorul `%` pentru toleranța la greșeli de tastare și `ILIKE` pentru subșiruri. BR-SEARCH-01 cerea indexuri GIN trigram pe `accounts.name`, pe `contacts.(first_name || ' ' || last_name)` și pe `deals.title`, iar pachetul de căutare din Faza 2 le-a creat.
+Global search (FR-SEARCH-01/02) uses `pg_trgm` directly in PostgreSQL: the `%` operator for typo tolerance and `ILIKE` for substrings. BR-SEARCH-01 required GIN trigram indexes on `accounts.name`, on `contacts.(first_name || ' ' || last_name)` and on `deals.title`, and the Phase 2 search package created them.
 
-La verificarea cu `db:explain-critical`, interogarea pe contacte a căzut pe `Seq Scan`. Code review-ul a identificat cauza, iar măsurătoarea de mai jos a confirmat-o: **pe o tabelă cu RLS, PostgreSQL nu poate folosi un index pentru o condiție care conține funcții non-LEAKPROOF.** Politica RLS acționează ca o barieră de securitate. Orice funcție care ar putea scurge informații despre rânduri invizibile (prin erori sau timing) se evaluează DUPĂ condiția politicii, niciodată ca `Index Cond`. Nici `similarity` / `similarity_op` (operatorul `%`), nici `texticlike` (`ILIKE`) nu sunt LEAKPROOF.
+On verification with `db:explain-critical`, the contacts query fell back to a `Seq Scan`. The code review identified the cause, and the measurement below confirmed it: **on a table with RLS, PostgreSQL cannot use an index for a condition that contains non-LEAKPROOF functions.** The RLS policy acts as a security barrier. Any function that could leak information about invisible rows (through errors or timing) is evaluated AFTER the policy's condition, never as an `Index Cond`. Neither `similarity` / `similarity_op` (the `%` operator) nor `texticlike` (`ILIKE`) is LEAKPROOF.
 
-Nu e o chestiune de volum. Indexurile nu devin utilizabile la mai multe date; doar filtrul devine mai scump.
+This is not a question of volume. The indexes do not become usable with more data; only the filter becomes more expensive.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Măsurat, nu dedus** — aceeași regulă ca în [[ADR-016]].
-- **Izolarea rămâne neatinsă** ([[ADR-003]]): nicio relaxare a barierei de securitate a bazei.
-- **Buget de memorie și scriere** (`.ai/rules/project.md`): un index care nu poate fi folosit costă la fiecare scriere, fără niciun beneficiu.
-- **Pragul real e p95 < 200 ms pe citiri simple** (specs §20.1), nu „are index".
+- **Measured, not inferred** — the same rule as in [[ADR-016]].
+- **Isolation stays untouched** ([[ADR-003]]): no relaxation of the database's security barrier.
+- **Memory and write budget** (`.ai/rules/project.md`): an index that cannot be used costs on every write, with no benefit whatsoever.
+- **The real threshold is p95 < 200 ms on simple reads** (specs §20.1), not "it has an index".
 
-## Măsurătoarea
+## The measurement
 
-Mediu: PostgreSQL 16.14, baza de dev după `demo:reset` (Marlin: 4.000 de conturi, ~5.200 de contacte dintr-un total de 10.385, 2.200 de deals), indexurile GIN încă prezente. Aceeași interogare ca în `GlobalSearchService`, cu filtrul pe tenant pe care îl adaugă global scope-ul.
+Environment: PostgreSQL 16.14, the dev database after `demo:reset` (Marlin: 4,000 accounts, ~5,200 contacts out of 10,385 in total, 2,200 deals), the GIN indexes still present. The same query as in `GlobalSearchService`, with the tenant filter the global scope adds.
 
 ```
 proname       | proleakproof
@@ -31,40 +31,40 @@ similarity_op | f
 texticlike    | f
 ```
 
-| Tabelă | Fără RLS (superuser) | Sub RLS (`throughput_app`, context Marlin) |
+| Table | Without RLS (superuser) | Under RLS (`throughput_app`, Marlin context) |
 |---|---|---|
-| `accounts` (`name % 'fastners' OR name ILIKE …`) | BitmapAnd: indexul de tenant ∧ `accounts_name_trgm` (Index Cond pe `%` și `~~*`), 8,2 ms | Bitmap Index Scan pe indexul de tenant; `%`/`ILIKE` doar ca **Filter**, 3.842 de rânduri eliminate, 7,6 ms |
-| `contacts` (nume complet) | Bitmap Index Scan pe `contacts_name_trgm`, 0,6 ms | **Seq Scan**, filtru pe tenant + trigram, 10.365 de rânduri eliminate, 22,5 ms |
-| `deals` (`title`) | — | Bitmap Index Scan pe indexul de tenant; trigram ca Filter, 1.923 de rânduri eliminate, 6,4 ms |
+| `accounts` (`name % 'fastners' OR name ILIKE …`) | BitmapAnd: the tenant index ∧ `accounts_name_trgm` (Index Cond on `%` and `~~*`), 8.2 ms | Bitmap Index Scan on the tenant index; `%`/`ILIKE` only as a **Filter**, 3,842 rows removed, 7.6 ms |
+| `contacts` (full name) | Bitmap Index Scan on `contacts_name_trgm`, 0.6 ms | **Seq Scan**, filter on tenant + trigram, 10,365 rows removed, 22.5 ms |
+| `deals` (`title`) | — | Bitmap Index Scan on the tenant index; trigram as a Filter, 1,923 rows removed, 6.4 ms |
 
-Singura diferență dintre coloane e RLS-ul. Fără el, GIN-ul intră în plan; cu el, lipsește din plan pe toate trei tabelele.
+The only difference between the columns is RLS. Without it, the GIN index enters the plan; with it, it is absent from the plan on all three tables.
 
-## Opțiuni considerate
+## Considered options
 
-1. **Funcțiile `pg_trgm` marcate LEAKPROOF** (în scriptul de bootstrap, ca superuser). GIN-ul devine utilizabil, dar e o relaxare deliberată a barierei de securitate. `ILIKE` ar trebui scos (`texticlike` e o funcție de bază, folosită de tot `ILIKE`-ul din aplicație), iar căutarea ar rămâne doar pe `%` / word similarity. Respinsă: câștigul (de la ~20 ms la ~1 ms) nu contează la scara acestui produs, riscul e permanent.
-2. **Filtrul acceptat, indexurile păstrate** pentru o eventuală trecere la opțiunea 1. Costă la scriere și în memorie fără beneficiu azi. Respinsă.
-3. **Filtrul acceptat, indexurile scoase.** **Aleasă.**
+1. **Mark the `pg_trgm` functions LEAKPROOF** (in the bootstrap script, as superuser). The GIN index becomes usable, but this is a deliberate relaxation of the security barrier. `ILIKE` would have to go (`texticlike` is a core function, used by every `ILIKE` in the application), and search would be left with `%` / word similarity only. Rejected: the gain (from ~20 ms to ~1 ms) does not matter at this product's scale, while the risk is permanent.
+2. **Accept the filter, keep the indexes** in case of an eventual move to option 1. They cost in writes and memory with no benefit today. Rejected.
+3. **Accept the filter, drop the indexes.** **Chosen.**
 
-## Decizia
+## Decision
 
-- Căutarea globală rămâne pe `%` (prag implicit 0.3) + `ILIKE`, evaluate pe rândurile tenantului curent. Accesul la aceste rânduri trece prin indexul compus cu `tenant_id` pe prima poziție (addendum [[ADR-003]]) sau prin Seq Scan, după alegerea planificatorului.
-- Migrația cu indexurile GIN trigram se șterge. Nimic nu era împins sau implementat în producție.
-- `db:explain-critical` tratează intrările de căutare separat: Seq Scan-ul e acceptat explicit, iar în locul lui se aplică un buget de timp de execuție (implicit 200 ms, pragul §20.1). Restul interogărilor critice își păstrează regula strictă.
-- BR-SEARCH-01 (specs.md) și plan §8/§14 se corectează, cu intrare în Change Log.
+- Global search stays on `%` (default threshold 0.3) + `ILIKE`, evaluated over the current tenant's rows. Access to those rows goes through the composite index with `tenant_id` in the first position ([[ADR-003]] addendum) or through a Seq Scan, at the planner's discretion.
+- The migration with the GIN trigram indexes is deleted. Nothing had been pushed or deployed to production.
+- `db:explain-critical` treats the search entries separately: the Seq Scan is explicitly accepted, and in its place an execution-time budget applies (200 ms by default, the §20.1 threshold). The remaining critical queries keep the strict rule.
+- BR-SEARCH-01 (specs.md) and plan §8/§14 are corrected, with an entry in the Change Log.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Nicio relaxare a securității bazei. Izolarea pe două straturi rămâne exact cea din [[ADR-003]].
-- Mai puțin cost la scriere și mai puțină memorie (3 indexuri GIN în minus, plus cele pregătite pentru produse).
-- `db:explain-critical` nu mai pică pe un plan corect și nu mai cere un index imposibil de folosit.
+- No relaxation of database security. The two-layer isolation remains exactly the one in [[ADR-003]].
+- Less write cost and less memory (3 fewer GIN indexes, plus the ones prepared for products).
+- `db:explain-critical` no longer fails on a correct plan and no longer demands an index that cannot be used.
 
 ### Negative / trade-offs
 
-- Costul căutării crește liniar cu numărul de rânduri ale tenantului: ~20 ms pe ~5.000 de contacte azi. Un tenant de ordinul sutelor de mii de rânduri ar cere reevaluarea — opțiunea 1 sau un motor dedicat (FR-SEARCH-02 fixează pragul acela la „zeci de milioane de rânduri").
-- Căutarea pe contacte face Seq Scan pe tenantul vitrină. Corect ca plan, dar vizibil în `EXPLAIN`; de aceea regula din `db:explain-critical` e explicit diferită pentru căutare.
+- The cost of search grows linearly with the tenant's row count: ~20 ms over ~5,000 contacts today. A tenant on the order of hundreds of thousands of rows would require a re-evaluation — option 1 or a dedicated engine (FR-SEARCH-02 puts that threshold at "tens of millions of rows").
+- Searching contacts does a Seq Scan on the showcase tenant. Correct as a plan, but visible in `EXPLAIN`; which is why the `db:explain-critical` rule is explicitly different for search.
 
-## Istoric
+## History
 
-- 2026-09-13 — creat. Proprietarul a ales opțiunea 3, pe baza măsurătorii de mai sus și a code review-ului pachetului de căutare.
+- 2026-09-13 — created. The owner chose option 3, on the strength of the measurement above and the code review of the search package.

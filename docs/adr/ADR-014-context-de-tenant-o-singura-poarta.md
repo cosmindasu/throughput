@@ -1,40 +1,40 @@
-# ADR-014: Contextul de tenant — o singură poartă, două variabile de sesiune, politică proprie pentru `memberships`
+# ADR-014: Tenant context — a single gate, two session variables, a dedicated policy for `memberships`
 
-- **Status**: Accepted — **forma SQL a comparației din politicile RLS (pct. 2) e superseded parțial de [[ADR-016]]**
+- **Status**: Accepted — **the SQL form of the comparison in the RLS policies (point 2) is partially superseded by [[ADR-016]]**
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-003]] (izolarea în două straturi), [[ADR-013]] (apelurile externe în cozi), [[ADR-002]]
-- **Tags**: multi-tenancy, rls, postgresql, memberships, cozi, sprint-1
+- **Deciders**: Owner
+- **Related**: [[ADR-003]] (two-layer isolation), [[ADR-013]] (external calls in queues), [[ADR-002]]
+- **Tags**: multi-tenancy, rls, postgresql, memberships, queues, sprint-1
 
-## Context și problema
+## Context and problem statement
 
-[[ADR-003]] cere ca fiecare tabelă tenant-scoped să aibă o politică RLS pe `current_setting('app.tenant_id')`, iar contextul să se seteze cu `SET LOCAL` în tranzacție. Planul a implementat regula literal, uniform, pe toate tabelele. Verificarea pe un PostgreSQL 16 curat (2026-09-12, reprodusă mai jos) a arătat că implementarea literală are **trei găuri**, niciuna vizibilă la citirea codului:
+[[ADR-003]] requires every tenant-scoped table to have an RLS policy over `current_setting('app.tenant_id')`, and the context to be set with `SET LOCAL` inside a transaction. The plan implemented the rule literally and uniformly, on every table. Verification on a clean PostgreSQL 16 (2026-09-12, reproduced below) showed that the literal implementation has **three holes**, none of them visible by reading the code:
 
-1. **`SET LOCAL` nu acceptă parametri legați.** `DB::statement('SET LOCAL app.tenant_id = ?', [$id])` — forma din plan — face `PDO::prepare()` + `execute()`, iar PostgreSQL răspunde `SQLSTATE[42601]: syntax error at or near "$1"`. Mecanismul pe care stă tot ADR-003 nu pornea.
-2. **`memberships` sub RLS pe `tenant_id` face al doilea workspace nedescoperibil.** Comutatorul de spațiu de lucru ([[ADR-002]], FR-TEN-01) și decizia „în ce workspace aterizez după login" cer o interogare **cross-tenant** pe `memberships`, înainte ca vreun tenant să fie cunoscut. Măsurat: un utilizator membru în două organizații vede **0** rânduri fără context și **1** cu contextul primului workspace. Singura interogare care ar găsi al doilea rulează deja scopată pe primul.
-3. **Joburile și comenzile fără tenant nu au mecanism.** `ApplyTenantContextToJob` presupune `$job->tenantId`, dar seed-ul de volum, `demo:reset`, jobul zilnic `sent → overdue`, scheduler-ul de rapoarte, anonimizarea la 36 de luni și purjarea post-anulare sunt toate cross-tenant. Sub o politică cu doar `USING`, PostgreSQL o folosește **și** ca `WITH CHECK`, deci fără context până și `INSERT`-ul eșuează: `new row violates row-level security policy`.
+1. **`SET LOCAL` does not accept bound parameters.** `DB::statement('SET LOCAL app.tenant_id = ?', [$id])` — the form from the plan — performs `PDO::prepare()` + `execute()`, and PostgreSQL answers `SQLSTATE[42601]: syntax error at or near "$1"`. The mechanism the whole of ADR-003 rests on was not starting at all.
+2. **`memberships` under RLS on `tenant_id` makes the second workspace undiscoverable.** The workspace switcher ([[ADR-002]], FR-TEN-01) and the "which workspace do I land in after login" decision both require a **cross-tenant** query on `memberships`, before any tenant is known. Measured: a user who is a member of two organizations sees **0** rows without a context and **1** with the first workspace's context. The only query that would find the second is already scoped to the first.
+3. **Jobs and commands without a tenant have no mechanism.** `ApplyTenantContextToJob` assumes `$job->tenantId`, but the volume seed, `demo:reset`, the daily `sent → overdue` job, the report scheduler, the 36-month anonymization and the post-cancellation purge are all cross-tenant. Under a policy with only `USING`, PostgreSQL uses it **as `WITH CHECK` as well**, so without a context even an `INSERT` fails: `new row violates row-level security policy`.
 
-În plus, [[ADR-013]] a scos apelurile externe din cererea HTTP tocmai pentru că middleware-ul ține o tranzacție deschisă — dar middleware-ul de job înfășura la fel tot `handle()`, deci apelul la curier și Chromium-ul de câteva secunde se întorceau într-o tranzacție, exact ce ADR-013 voia să prevină.
+On top of that, [[ADR-013]] moved external calls out of the HTTP request precisely because the middleware holds a transaction open — but the job middleware wrapped the whole of `handle()` in the same way, so the carrier call and the several-second Chromium ended up back inside a transaction, exactly what ADR-013 set out to prevent.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Mecanismul trebuie să fie verificat, nu dedus.** Trei bug-uri succesive în scriptul de bootstrap au fost livrate ca „reparate" pe baza citirii codului. Aceeași clasă de eroare a lovit și aici.
-- **O singură poartă.** Contextul se setează azi în trei locuri (middleware HTTP, middleware de job, comenzi). Trei locuri = trei feluri de a greși.
-- **Excepțiile trebuie să fie declarate, nu descoperite.** O tabelă care are nevoie de altă politică decât restul trebuie să spună de ce, într-un loc pe care cineva îl găsește căutând.
+- **The mechanism has to be verified, not inferred.** Three successive bugs in the bootstrap script were delivered as "fixed" on the strength of reading the code. The same class of error struck here too.
+- **A single gate.** The context is set in three places today (HTTP middleware, job middleware, commands). Three places = three ways to get it wrong.
+- **Exceptions must be declared, not discovered.** A table that needs a different policy from the rest has to say why, somewhere someone will find by searching.
 
-## Decizia luată
+## Decision outcome
 
-### 1. `set_config`, nu `SET LOCAL`
+### 1. `set_config`, not `SET LOCAL`
 
 ```php
 DB::statement("select set_config('app.tenant_id', ?, true)", [$tenantId]);
 ```
 
-Al treilea argument `true` = scopat tranzacției, echivalentul exact al lui `SET LOCAL`. Verificat: se resetează la commit, deci conexiunea reutilizată de PHP-FPM sau de un worker Horizon nu moștenește tenantul cererii anterioare. Verificat și reversul: cu `false` (echivalentul lui `SET` simplu), valoarea **supraviețuiește** commit-ului — scurgerea pe care ADR-003 o descrie, reprodusă în laborator.
+The third argument, `true`, means transaction-scoped — the exact equivalent of `SET LOCAL`. Verified: it resets on commit, so a connection reused by PHP-FPM or by a Horizon worker does not inherit the previous request's tenant. The reverse was verified too: with `false` (the equivalent of a plain `SET`), the value **survives** the commit — the leak ADR-003 describes, reproduced in the lab.
 
-### 2. Două variabile de sesiune și o politică proprie pentru `memberships`
+### 2. Two session variables and a dedicated policy for `memberships`
 
-`app.user_id` se setează la autentificare, înainte să se știe workspace-ul. `memberships` primește singura politică din aplicație care nu e uniformă:
+`app.user_id` is set at authentication, before the workspace is known. `memberships` gets the only non-uniform policy in the application:
 
 ```sql
 CREATE POLICY membership_visibility ON memberships
@@ -44,63 +44,63 @@ CREATE POLICY membership_visibility ON memberships
   );
 ```
 
-„Rândurile mele de membership, oriunde, **sau** rândurile tenantului curent." Verificat pe toate cele șase cazuri:
+"My own membership rows, anywhere, **or** the current tenant's rows." Verified across all six cases:
 
-| Situație | Rezultat |
+| Situation | Result |
 |---|---|
-| `u1` autenticat, fără workspace rezolvat | vede ambele workspace-uri — comutatorul funcționează |
-| `u1` cu context pe `t1` | vede propriile 2 + colegii din `t1` — ecranul Members funcționează |
-| `u2` cu context pe `t1` | **nu** vede membership-ul lui `u1` din `t2` — fără scurgere |
-| niciun context (rută publică, job de sistem) | 0 rânduri — cade închis |
-| `INSERT` de membership în tenantul curent | permis (invitație) |
-| `INSERT` de membership în alt tenant | respins de RLS |
+| `u1` authenticated, no workspace resolved | sees both workspaces — the switcher works |
+| `u1` with context on `t1` | sees their own 2 + colleagues in `t1` — the Members screen works |
+| `u2` with context on `t1` | does **not** see `u1`'s membership in `t2` — no leak |
+| no context at all (public route, system job) | 0 rows — fails closed |
+| `INSERT` of a membership in the current tenant | allowed (invitation) |
+| `INSERT` of a membership in another tenant | rejected by RLS |
 
-Singurul loc din aplicație unde ocolirea global scope-ului Eloquent e legitimă e `Membership::forCurrentUserAcrossTenants()`, pentru comutator. Un test asertează că `withoutGlobalScope` nu apare nicăieri altundeva.
+The only place in the application where bypassing the Eloquent global scope is legitimate is `Membership::forCurrentUserAcrossTenants()`, for the switcher. A test asserts that `withoutGlobalScope` appears nowhere else.
 
-### 3. `TenantContext` — o singură poartă
+### 3. `TenantContext` — a single gate
 
-Un helper unic deschide tranzacția și setează contextul; middleware-ul HTTP, middleware-ul de job și comenzile de consolă îl apelează identic. Ordinea de middleware devine `Authenticate → SetSessionContext → ResolveWorkspace`: primul deschide tranzacția și setează `app.user_id`, al doilea adaugă `app.tenant_id` **în aceeași tranzacție**, deci nu există tranzacții imbricate. Numele `ApplyTenantContext` din notele de implementare ale [[ADR-013]] se împarte în aceste două.
+One helper opens the transaction and sets the context; the HTTP middleware, the job middleware and the console commands all call it identically. The middleware order becomes `Authenticate → SetSessionContext → ResolveWorkspace`: the first opens the transaction and sets `app.user_id`, the second adds `app.tenant_id` **in the same transaction**, so there are no nested transactions. The name `ApplyTenantContext` from [[ADR-013]]'s implementation notes splits into these two.
 
-### 4. Două familii de joburi
+### 4. Two families of jobs
 
-- **Joburi de tenant** — primesc `tenantId` scalar (regula din [[ADR-003]], addendum punctul 2) și folosesc middleware-ul de context.
-- **Joburi de sistem** — nu au tenant. **Iterează tenanții explicit**, cu o tranzacție și un context per tenant. Verificat că e posibil: comutarea contextului în aceeași tranzacție și pe aceeași conexiune e validă.
+- **Tenant jobs** — they receive a scalar `tenantId` (the rule from [[ADR-003]], addendum point 2) and use the context middleware.
+- **System jobs** — they have no tenant. They **iterate tenants explicitly**, with one transaction and one context per tenant. Verified to be possible: switching context within the same transaction and on the same connection is valid.
 
-Rolul cu `BYPASSRLS` rămâne rezervat exclusiv pentru `artisan migrate` și `demo:reset` — care fac DDL, nu manipulare de date. Motivul pentru care nu se acordă mai larg: „pun jobul pe conexiunea de migrare ca să nu mă bat cu RLS" e scurtătura pe care cineva o ia peste șase luni, și dezactivează plasa a doua tocmai în joburile care scriu în masă.
+The `BYPASSRLS` role stays reserved exclusively for `artisan migrate` and `demo:reset` — which do DDL, not data manipulation. The reason it is not granted more widely: "I'll put the job on the migration connection so I don't have to fight RLS" is the shortcut someone takes six months later, and it disables the second net precisely in the jobs that write in bulk.
 
-Webhook-ul Stripe e singurul loc unde tenantul vine dintr-un payload extern: ruta e publică și fără context, `tenants` nu are RLS, deci lookup-ul după `stripe_id` funcționează — dar jobul de procesare e un **job de tenant**, cu `tenantId` rezolvat de controller. Un `stripe_id` care nu se mapează pe niciun tenant produce `webhook_events.status = failed` cu motiv, nu o excepție necontrolată.
+The Stripe webhook is the only place where the tenant comes from an external payload: the route is public and context-free, `tenants` has no RLS, so the lookup by `stripe_id` works — but the processing job is a **tenant job**, with `tenantId` resolved by the controller. A `stripe_id` that maps to no tenant produces `webhook_events.status = failed` with a reason, not an uncontrolled exception.
 
-### 5. Joburile cu I/O extern își gestionează singure contextul
+### 5. Jobs with external I/O manage their own context
 
-Middleware-ul de context se aplică **per job**, nu global. Joburile care fac I/O în afara Postgres-ului propriu (`GenerateShippingLabelJob`, generarea PDF-urilor, rapoartele) nu îl folosesc — apelează helper-ul de două ori, cu apelul extern între tranzacții:
+The context middleware is applied **per job**, not globally. Jobs that do I/O outside our own Postgres (`GenerateShippingLabelJob`, PDF generation, reports) do not use it — they call the helper twice, with the external call between the transactions:
 
 ```
-[tranzacție scurtă] citește datele de intrare      → commit
-apel extern / Chromium                              (nicio tranzacție deschisă)
-[tranzacție scurtă] scrie rezultatul                → commit
+[short transaction] read the input data           → commit
+external call / Chromium                           (no open transaction)
+[short transaction] write the result               → commit
 ```
 
-Costul e o fereastră între cele două tranzacții, acceptabil pentru că joburile sunt idempotente pe id-ul resursei. Alternativele au fost respinse: o tranzacție scurtă doar pentru context nu funcționează (la commit contextul se pierde, restul jobului vede zero rânduri), iar `set_config(..., false)` scurge dovedit și lasă tenantul greșit jobului următor dacă cel curent aruncă.
+The cost is a window between the two transactions, acceptable because the jobs are idempotent on the resource id. The alternatives were rejected: a short transaction just for the context does not work (on commit the context is lost and the rest of the job sees zero rows), and `set_config(..., false)` demonstrably leaks and leaves the wrong tenant to the next job if the current one throws.
 
-### 6. `after_commit` pe coada Redis
+### 6. `after_commit` on the Redis queue
 
-Cu o tranzacție deschisă pe toată durata cererii, **fiecare** `dispatch()` se întâmplă în interiorul unei tranzacții — worker-ul poate ridica jobul înainte de commit și să nu găsească rândul. `'after_commit' => true` pe conexiunea de coadă, în `config/queue.php`. Fără el: eșecuri intermitente care par aleatorii, exact la eticheta de curierat și la operațiile în masă, unde interfața face polling pe un rând care încă nu există.
+With a transaction open for the whole duration of the request, **every** `dispatch()` happens inside a transaction — the worker can pick the job up before the commit and not find the row. `'after_commit' => true` on the queue connection, in `config/queue.php`. Without it: intermittent failures that look random, exactly on the shipping label and on bulk operations, where the interface polls a row that does not exist yet.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Mecanismul de izolare pornește. Înainte de această verificare, nu pornea.
-- Un singur loc de citit și de greșit pentru context, în loc de trei.
-- Comutatorul de workspace funcționează fără să slăbească RLS pe tabela care decide cine are ce rol unde.
-- Joburile de sistem au o regulă, nu o improvizație per job.
+- The isolation mechanism actually starts. Before this verification, it did not.
+- One place to read and to get wrong for the context, instead of three.
+- The workspace switcher works without weakening RLS on the table that decides who has which role where.
+- System jobs have a rule, not a per-job improvisation.
 
 ### Negative / trade-offs
 
-- O a doua variabilă de sesiune de ținut minte, și o tabelă cu politică diferită de restul — ambele documentate aici tocmai ca să nu fie descoperite prin depanare.
-- Ordinea de middleware devine semnificativă: `SetSessionContext` **trebuie** să ruleze înaintea lui `ResolveWorkspace`. Un test de rută verifică ordinea.
-- Joburile cu I/O extern au două tranzacții, deci o fereastră de concurență. Acceptat, fiind idempotente.
+- A second session variable to keep in mind, and one table with a policy different from the rest — both documented here precisely so they are not discovered through debugging.
+- The middleware order becomes significant: `SetSessionContext` **must** run before `ResolveWorkspace`. A route test verifies the order.
+- Jobs with external I/O have two transactions, hence a concurrency window. Accepted, since they are idempotent.
 
-## Verificare
+## Verification
 
-Reprodusă pe `postgres:16-alpine` (PostgreSQL 16.14), container curat, cu PDO real (PHP 8.4, `pdo_pgsql`) pentru calea de cod Laravel — nu prin `psql`, care interpolează client-side și ar fi ascuns bug-ul de la punctul 1. Scenariile testate corespund 1:1 cu FR-TEST-01/02/03 din specificație și devin baza suitei de izolare din Faza 1.
+Reproduced on `postgres:16-alpine` (PostgreSQL 16.14), a clean container, with real PDO (PHP 8.4, `pdo_pgsql`) for the Laravel code path — not through `psql`, which interpolates client-side and would have hidden the bug in point 1. The scenarios tested map 1:1 onto FR-TEST-01/02/03 from the specification and become the basis of the Phase 1 isolation suite.

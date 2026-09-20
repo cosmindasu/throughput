@@ -1,35 +1,35 @@
-# ADR-006: Laravel Cashier 16 pentru abonamentul tenantului
+# ADR-006: Laravel Cashier 16 for the tenant subscription
 
-- **Status**: Accepted — **fraza despre randarea PDF-ului de factură e superseded parțial de [[ADR-021]]**
+- **Status**: Accepted — **the sentence about invoice PDF rendering is partially superseded by [[ADR-021]]**
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-005]] (delimitarea fluxurilor de bani), [[ADR-021]] (randarea PDF-ului de factură de abonament — corecție)
-- **Tags**: stripe, cashier, abonament, sprint-4
+- **Deciders**: Owner
+- **Related**: [[ADR-005]] (the boundary between the two money flows), [[ADR-021]] (rendering the subscription invoice PDF — correction)
+- **Tags**: stripe, cashier, subscription, sprint-4
 
-## Context și problema
+## Context and problem statement
 
-Proiectul `travel` din același portofoliu a ales SDK-ul raw `stripe/stripe-php`, respingând Cashier. Întrebarea firească: se aplică același precedent și aici?
+The `travel` project in the same portfolio chose the raw `stripe/stripe-php` SDK and rejected Cashier. The natural question: does the same precedent apply here?
 
-**Nu se aplică.** La `travel` erau plăți one-off pentru rezervări de tip guest, fără model `Billable` și fără abonamente — exact cazul în care Cashier aduce migrații și un webhook flow nefolosite. Throughput are abonamente recurente per organizație, adică fix cazul pentru care există Cashier.
+**It does not.** `travel` had one-off payments for guest-type bookings, with no `Billable` model and no subscriptions — exactly the case where Cashier brings in migrations and a webhook flow that go unused. Throughput has recurring subscriptions per organization, which is precisely the case Cashier exists for.
 
-## Decizia luată
+## Decision outcome
 
-**Laravel Cashier 16**, pe versiunea de API Stripe `2025-06-30.basil`.
+**Laravel Cashier 16**, on Stripe API version `2025-06-30.basil`.
 
-Entitatea `Billable` e **tenantul (organizația), nu utilizatorul** — fiecare workspace are propriul Stripe Customer și propriul abonament, gestionat de rolul Owner. E recomandarea de research pentru SaaS B2B și e singura care are sens când mai mulți utilizatori împart un plan.
+The `Billable` entity is **the tenant (the organization), not the user** — each workspace has its own Stripe Customer and its own subscription, managed by the Owner role. It is the research recommendation for B2B SaaS and the only one that makes sense when several users share a plan.
 
-Generarea PDF-urilor de factură de abonament folosește `spatie/laravel-pdf`, nu `dompdf` — schimbarea introdusă în Cashier 16.
+Generating subscription invoice PDFs uses `spatie/laravel-pdf`, not `dompdf` — the change introduced in Cashier 16.
 
-Idempotența webhook-urilor rămâne a noastră, prin tabelul `webhook_events` cu unicitate pe `event_id`: **Stripe garantează livrare at-least-once, niciodată exactly-once.**
+Webhook idempotency stays ours, through the `webhook_events` table with a uniqueness constraint on `event_id`: **Stripe guarantees at-least-once delivery, never exactly-once.**
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Portal de facturare, schimbare de plan și istoric vin din cutie.
-- Abonamentul la nivel de organizație e modelul corect și pentru demonstrație, și pentru realitate.
+- The billing portal, plan changes and history come out of the box.
+- A subscription at the organization level is the correct model both for the demo and for reality.
 
 ### Negative / trade-offs
 
-- Dependență de un pachet care urmează ritmul de versionare al Stripe; o schimbare majoră de API poate cere migrare.
-- Două mecanisme de PDF în proiect dacă facturile către clienți (ADR-005) ajung să folosească altceva. De unificat pe `spatie/laravel-pdf`.
+- A dependency on a package that follows Stripe's release cadence; a major API change may require a migration.
+- Two PDF mechanisms in the project if the customer invoices (ADR-005) end up using something else. To be unified on `spatie/laravel-pdf`.

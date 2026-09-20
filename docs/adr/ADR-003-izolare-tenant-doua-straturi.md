@@ -1,79 +1,79 @@
-# ADR-003: Izolarea tenanților în două straturi — global scope Eloquent + Row-Level Security
+# ADR-003: Tenant isolation in two layers — Eloquent global scope + Row-Level Security
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
-- **Related**: [[ADR-001]] (alegerea PostgreSQL), [[ADR-002]] (identificarea tenantului)
-- **Tags**: multi-tenancy, securitate, postgresql, rls, eloquent, sprint-1
+- **Related**: [[ADR-001]] (choosing PostgreSQL), [[ADR-002]] (identifying the tenant)
+- **Tags**: multi-tenancy, security, postgresql, rls, eloquent, sprint-1
 
-## Context și problema
+## Context and problem statement
 
-Într-o aplicație multi-tenant, scurgerea de date între organizații e singura clasă de defect care nu are grade: e fie absentă, fie fatală. Un client care vede comenzile altui client încheie relația și, în funcție de jurisdicție, raportează incidentul.
+In a multi-tenant application, a data leak between organizations is the one class of defect that has no degrees: it is either absent or fatal. A client who sees another client's orders ends the relationship and, depending on the jurisdiction, reports the incident.
 
-Mecanismul uzual în Laravel e un **global scope** pe fiecare model, care adaugă automat `WHERE tenant_id = ?`. Funcționează, dar are puncte oarbe cunoscute: interogările cu `DB::table()` care ocolesc Eloquent, joburile din coadă care rulează fără contextul cererii, comenzile din consolă, seederele, și orice loc unde cineva scrie `withoutGlobalScopes()` fără să înțeleagă ce face.
+The usual mechanism in Laravel is a **global scope** on every model, which automatically adds `WHERE tenant_id = ?`. It works, but it has well-known blind spots: `DB::table()` queries that bypass Eloquent, queued jobs that run without the request context, console commands, seeders, and anywhere someone writes `withoutGlobalScopes()` without understanding what it does.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Consecința unei scăpări e disproporționată** față de costul unei a doua plase.
-- **Valoare demonstrativă** — pentru recenzentul tehnic al unui client, izolarea impusă în bază e un semnal puternic de maturitate. E, din perspectiva portofoliului, cel mai bun raport impresie/efort din tot proiectul.
-- **Codul se schimbă, baza nu** — un dezvoltator nou care adaugă un query brut nu trebuie să poată produce o scurgere.
+- **The consequence of one slip is out of all proportion** to the cost of a second safety net.
+- **Demonstrative value** — to a client's technical reviewer, isolation enforced in the database is a strong signal of maturity. From the portfolio's point of view, it is the best impression-to-effort ratio in the whole project.
+- **Code changes, the database does not** — a new developer who adds a raw query must not be able to produce a leak.
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Doar global scope Eloquent
+### Option 1: Eloquent global scope only
 
-- **Pro**: simplu, idiomatic Laravel, zero configurare de bază de date.
-- **Contra**: o singură plasă, cu găuri cunoscute (query builder brut, joburi, consolă). Nimic nu oprește o scăpare odată ce cineva ocolește Eloquent.
+- **Pro**: simple, idiomatic Laravel, zero database configuration.
+- **Con**: a single net, with known holes (raw query builder, jobs, console). Nothing stops a leak once someone bypasses Eloquent.
 
-### Opțiunea 2: Doar Row-Level Security în PostgreSQL
+### Option 2: PostgreSQL Row-Level Security only
 
-- **Pro**: imposibil de ocolit din cod; garanție la nivelul bazei.
-- **Contra**: mesaje de eroare opace la dezvoltare (rândurile pur și simplu „nu există"); cere disciplină la setarea contextului pe fiecare conexiune; testele devin mai greu de citit.
+- **Pro**: impossible to bypass from code; a guarantee at the database level.
+- **Con**: opaque error messages during development (rows simply "do not exist"); it requires discipline in setting the context on every connection; tests become harder to read.
 
-### Opțiunea 3: Ambele straturi (ALEASĂ)
+### Option 3: Both layers (CHOSEN)
 
-- **Pro**: scope-ul dă erori inteligibile și cod idiomatic în 99% din cazuri; RLS prinde restul, inclusiv ce nu s-a scris încă. Fiecare strat acoperă slăbiciunea celuilalt.
-- **Contra**: două mecanisme de înțeles și de ținut sincronizate; context de setat corect pe conexiune.
+- **Pro**: the scope gives intelligible errors and idiomatic code in 99% of cases; RLS catches the rest, including what has not been written yet. Each layer covers the other's weakness.
+- **Con**: two mechanisms to understand and keep in sync; context to set correctly on the connection.
 
-## Decizia luată
+## Decision outcome
 
-**Aleasă: Opțiunea 3.**
+**Chosen: Option 3.**
 
-Fiecare tabel cu date de tenant poartă `tenant_id`. Modelele Eloquent au un global scope; în plus, PostgreSQL are `ENABLE ROW LEVEL SECURITY` cu politici pe `current_setting('app.tenant_id')`.
+Every table with tenant data carries `tenant_id`. Eloquent models have a global scope; on top of that, PostgreSQL has `ENABLE ROW LEVEL SECURITY` with policies over `current_setting('app.tenant_id')`.
 
-Două detalii de implementare care decid dacă merge sau nu:
+Two implementation details decide whether this works at all:
 
-1. **Contextul se setează cu `SET LOCAL`, în tranzacție, nu cu `SET` pe conexiune.** Conexiunile sunt refolosite între cereri și între joburi; un `SET` persistent ar lăsa contextul unui tenant activ pentru cererea următoare — exact scurgerea pe care o prevenim.
-2. **Rolul aplicației nu are `BYPASSRLS`.** Migrațiile și comenzile de întreținere rulează cu un rol separat, care îl are. Altfel politicile sunt decorative.
+1. **The context is set with `SET LOCAL`, inside a transaction, not with `SET` on the connection.** Connections are reused between requests and between jobs; a persistent `SET` would leave one tenant's context active for the next request — exactly the leak we are preventing.
+2. **The application role does not have `BYPASSRLS`.** Migrations and maintenance commands run under a separate role that does. Otherwise the policies are decorative.
 
-Testele acoperă explicit ambele straturi: un test care verifică scope-ul și un test care ocolește Eloquent (`DB::table()`) și confirmă că RLS oprește accesul.
+The tests cover both layers explicitly: one test that verifies the scope and one that bypasses Eloquent (`DB::table()`) and confirms that RLS blocks access.
 
-## Addendum 2026-09-12 — detalii confirmate de research
+## Addendum 2026-09-12 — details confirmed by research
 
-Adăugat în aceeași zi cu decizia, după raportul din `docs/research/best-practices-throughput.md`. **Decizia nu se schimbă**; se completează notele de implementare, pentru că research-ul a scos patru puncte pe care nu le aveam.
+Added the same day as the decision, after the report in `docs/research/best-practices-throughput.md`. **The decision does not change**; the implementation notes are extended, because the research surfaced four points we did not have.
 
-1. **Index compus obligatoriu.** `tenant_id` trebuie să fie **coloana de lider** în orice index folosit de interogări filtrate — `(tenant_id, created_at)`, nu `(created_at)`. Altfel RLS poate fi cu ordine de mărime mai lent. Se aplică tuturor tabelelor tenant-scoped cu volum mare.
+1. **A composite index is mandatory.** `tenant_id` must be the **leading column** in any index used by filtered queries — `(tenant_id, created_at)`, not `(created_at)`. Otherwise RLS can be orders of magnitude slower. This applies to every high-volume tenant-scoped table.
 
-2. **Joburile nu primesc modele Eloquent tenant-scoped în payload.** La deserializare, `SerializesModels::restoreModel()` re-aduce modelul din bază **înainte** ca vreun bootstrapper de tenancy să restaureze contextul — deci interogarea rulează fără scope corect sau eșuează tăcut. Regula: serializezi `tenant_id` explicit, iar primul rând din `handle()` re-leagă tenantul în container, înaintea oricărei interogări.
+2. **Jobs do not receive tenant-scoped Eloquent models in their payload.** On deserialization, `SerializesModels::restoreModel()` re-fetches the model from the database **before** any tenancy bootstrapper restores the context — so the query runs without the correct scope or fails silently. The rule: serialize `tenant_id` explicitly, and the first line of `handle()` re-binds the tenant in the container, ahead of any query.
 
-3. **Canalele de broadcast se prefixează cu tenantul** (`tenant.{id}.orders`), altfel autorizarea poate scăpa între tenanți.
+3. **Broadcast channels are prefixed with the tenant** (`tenant.{id}.orders`), otherwise authorization can leak across tenants.
 
-4. **Testele cu `Queue::fake()` sau driver `sync` nu pot vedea scurgerea din joburi.** Suita are nevoie de cel puțin un test cu driver real de coadă, care rulează un job adevărat. Plus un test de izolare per model tenant-scoped: creezi doi tenanți, aserți că al doilea nu vede datele primului.
+4. **Tests with `Queue::fake()` or the `sync` driver cannot see a leak coming from jobs.** The suite needs at least one test on a real queue driver, running a real job. Plus one isolation test per tenant-scoped model: create two tenants, assert that the second does not see the first one's data.
 
-**Notă de onestitate din research:** nu există consens ferm în sursele găsite că RLS e obligatoriu la scara unui proiect single-database de complexitate medie — o parte din surse îl tratează drept „nice to have enterprise-grade". Decizia noastră îl păstrează, dar motivul principal rămâne cel din secțiunea de drivers: raportul impresie/efort pentru un demo de portofoliu, plus faptul că e a doua plasă acolo unde o scăpare e fatală. Nu pretindem că e consensul industriei.
+**Honesty note from the research:** there is no firm consensus in the sources found that RLS is mandatory at the scale of a single-database project of medium complexity — part of the literature treats it as a "nice to have, enterprise-grade" feature. Our decision keeps it, but the main reason remains the one in the drivers section: the impression-to-effort ratio for a portfolio demo, plus the fact that it is a second net where a slip is fatal. We do not claim it is the industry consensus.
 
-**Relevanță de securitate:** scenariul „citesc comanda altui tenant incrementând un ID" e **OWASP API1:2023 — Broken Object Level Authorization**, riscul API numărul 1. RLS îl acoperă la nivel de bază; verificarea de ownership pe fiecare endpoint care primește un ID rămâne obligatorie și la nivel de aplicație.
+**Security relevance:** the "I read another tenant's order by incrementing an ID" scenario is **OWASP API1:2023 — Broken Object Level Authorization**, the number one API risk. RLS covers it at the database level; the ownership check on every endpoint that receives an ID remains mandatory at the application level too.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- O scăpare cere ambele straturi să greșească simultan.
-- Argument tehnic vizibil într-o demonstrație, cu cost mic de implementare.
-- Joburile din coadă și comenzile de consolă sunt la fel de protejate ca cererile HTTP.
+- A leak requires both layers to fail at the same time.
+- A visible technical argument in a demo, at a low implementation cost.
+- Queued jobs and console commands are as protected as HTTP requests.
 
 ### Negative / trade-offs
 
-- La dezvoltare, un context nesetat face rândurile să pară inexistente. Se atenuează cu un guard care aruncă explicit când `app.tenant_id` lipsește într-un context care ar trebui să-l aibă.
-- Migrațiile cer un rol separat, deci configurare de conexiune în plus.
-- Pool-ul de conexiuni trebuie înțeles înainte, nu după. Documentat în `plan-implementare.md`, Sprint 1.
+- In development, an unset context makes rows look nonexistent. Mitigated with a guard that throws explicitly when `app.tenant_id` is missing in a context that ought to have it.
+- Migrations require a separate role, so one more connection to configure.
+- The connection pool has to be understood up front, not afterwards. Documented in `plan-implementare.md`, Sprint 1.

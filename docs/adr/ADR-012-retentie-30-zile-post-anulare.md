@@ -1,44 +1,44 @@
-# ADR-012: Fereastră de retenție de 30 de zile după anularea abonamentului
+# ADR-012: A 30-day retention window after subscription cancellation
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Related**: [[ADR-005]], [[ADR-006]] (abonamentul), [[ADR-007]] (audit)
-- **Tags**: abonament, gdpr, retentie, stergere, sprint-5
+- **Deciders**: Owner
+- **Related**: [[ADR-005]], [[ADR-006]] (the subscription), [[ADR-007]] (audit)
+- **Tags**: subscription, gdpr, retention, deletion, sprint-5
 
-## Context și problema
+## Context and problem statement
 
-După ce abonamentul unui tenant e anulat definitiv — voluntar sau după eșecul repetat al plății — datele lui trebuie să dispară la un moment dat. Întrebarea e **când**.
+Once a tenant's subscription is definitively cancelled — voluntarily or after repeated payment failure — their data has to disappear at some point. The question is **when**.
 
-Research-ul e explicit pe un punct care contează: **nu există un termen corect.** GDPR cere minimizare, nu un număr. Fiecare furnizor își stabilește politica contractual.
+The research is explicit on one point that matters: **there is no correct term.** GDPR requires minimization, not a number. Every provider sets its policy contractually.
 
-## Decizia luată
+## Decision outcome
 
-**30 de zile**, cu ștergere în doi timpi.
+**30 days**, with deletion in two stages.
 
-- La anulare: `subscription_canceled_at` setat, accesul blocat, datele intacte.
-- În fereastră: tenantul **poate exporta** datele (§20.5) și **poate reactiva** abonamentul fără să reia onboarding-ul.
-- La expirare: job programat de purjare.
+- On cancellation: `subscription_canceled_at` is set, access is blocked, the data is intact.
+- Within the window: the tenant **can export** their data (§20.5) and **can reactivate** the subscription without redoing onboarding.
+- On expiry: a scheduled purge job.
 
-Motivul alegerii lui 30 și nu 60 sau 90: e valoarea pe care converg cel mai frecvent implementările din industrie (research: interval observat 30–90, cu grupare pe 30 ca prag de recuperare „accidentală"). Pentru un demo contează că fereastra **există** și că în interiorul ei poți exporta și reactiva — nu lungimea ei.
+Why 30 and not 60 or 90: it is the value industry implementations converge on most often (research: observed range 30–90, clustering at 30 as the "accidental" recovery threshold). For a demo, what matters is that the window **exists** and that inside it you can export and reactivate — not its length.
 
-**Se scrie explicit în specificație că e o decizie de produs, nu o cerință legală.** Un document care spune „30 de zile conform GDPR" arată că autorul n-a citit regulamentul.
+**The specification states explicitly that this is a product decision, not a legal requirement.** A document that says "30 days in accordance with GDPR" shows that its author has not read the regulation.
 
-## Ce nu se șterge la purjare
+## What is not deleted on purge
 
-Facturile și înregistrările din jurnalul de audit legate de tranzacții financiare se **anonimizează**, nu se șterg — Art. 17(3)(b) exceptează datele necesare pentru obligații legale. Se rup legăturile către persoana fizică, se păstrează documentul și cifrele.
+Invoices and audit log records tied to financial transactions are **anonymized**, not deleted — Art. 17(3)(b) exempts data necessary for legal obligations. The links to the natural person are severed; the document and the figures are kept.
 
-Termenul de retenție fiscală **variază pe jurisdicție**. Nu se fixează un număr în cod: e parametru configurabil per tenant. Research-ul refuză explicit să recomande o valoare universală, și pe bună dreptate — piața țintă e internațională.
+The tax retention period **varies by jurisdiction**. No number is fixed in code: it is a parameter configurable per tenant. The research explicitly refuses to recommend a universal value, and rightly so — the target market is international.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Un tenant care anulează din greșeală sau din cauza unui card expirat își poate recupera contul.
-- Exportul rămâne posibil exact când e cel mai probabil să fie cerut.
-- Distincția anonimizare/ștergere e scrisă, nu descoperită la prima cerere de ștergere.
+- A tenant who cancels by mistake, or because of an expired card, can recover their account.
+- Export stays possible exactly when it is most likely to be requested.
+- The anonymization/deletion distinction is written down, not discovered at the first deletion request.
 
 ### Negative / trade-offs
 
-- Datele ocupă spațiu 30 de zile după ce tenantul a plecat. Irelevant la scara unui demo.
-- Cifra e arbitrară prin natura ei. Documentată ca atare — se schimbă printr-un ADR nou, nu printr-o editare tăcută.
+- Data occupies space for 30 days after the tenant has left. Irrelevant at demo scale.
+- The figure is arbitrary by its nature. Documented as such — it changes through a new ADR, not through a silent edit.

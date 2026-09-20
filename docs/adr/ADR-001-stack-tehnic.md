@@ -1,67 +1,67 @@
-# ADR-001: Stack tehnic — Laravel 12 + Inertia v2 + React 19 + PostgreSQL 16
+# ADR-001: Technical stack — Laravel 12 + Inertia v2 + React 19 + PostgreSQL 16
 
-- **Status**: Accepted — **versiunile sunt superseded parțial de [[ADR-015]]**
+- **Status**: Accepted — **the versions are partially superseded by [[ADR-015]]**
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
-- **Related**: [[ADR-003]] (RLS depinde de alegerea PostgreSQL), [[ADR-015]] (versiunile efective)
+- **Related**: [[ADR-003]] (RLS depends on choosing PostgreSQL), [[ADR-015]] (the versions actually in use)
 - **Tags**: stack, laravel, inertia, react, postgresql, sprint-0
 
-> **Corecție de versiune, 2026-09-12 (a se citi împreună cu [[ADR-015]]).** La prima rulare a scaffold-ului, `composer create-project laravel/laravel` a instalat **Laravel 13**, iar pachetul de Inertia e la **v3**. Stack-ul efectiv e deci **Laravel 13 + Inertia 3 + React 19 + Tailwind 4 + PostgreSQL 16**. [[ADR-015]] conține măsurătoarea care arată că întreg setul de pachete al proiectului rezolvă identic pe Laravel 12 și 13, deci schimbarea nu a costat nimic în compatibilitate.
+> **Version correction, 2026-09-12 (read together with [[ADR-015]]).** On the first scaffold run, `composer create-project laravel/laravel` installed **Laravel 13**, and the Inertia package is at **v3**. The stack actually in use is therefore **Laravel 13 + Inertia 3 + React 19 + Tailwind 4 + PostgreSQL 16**. [[ADR-015]] contains the measurement showing that the project's entire package set resolves identically on Laravel 12 and 13, so the change cost nothing in compatibility.
 >
-> **Restul documentului rămâne în vigoare integral** — alegerea Laravel + Inertia + React + PostgreSQL față de Next.js, Filament și Livewire, cu cele patru opțiuni evaluate, nu e afectată de versiuni. Nu am rescris argumentarea ca să schimb două numere.
+> **The rest of the document remains fully in force** — choosing Laravel + Inertia + React + PostgreSQL over Next.js, Filament and Livewire, with the four options evaluated, is unaffected by versions. I did not rewrite the reasoning in order to change two numbers.
 
-## Context și problema
+## Context and problem statement
 
-Throughput e al 12-lea proiect din portofoliu și primul care **nu** e un site de prezentare pentru un IMM. Rolul lui e să demonstreze competența de „internal tooling" — aplicații de business folosite zilnic — în fața cumpărătorilor internaționali de pe platforme de freelancing.
+Throughput is the 12th project in the portfolio and the first that is **not** a brochure site for a small business. Its job is to demonstrate "internal tooling" competence — business applications used daily — to international buyers on freelancing platforms.
 
-Alegerea stack-ului e constrânsă de trei lucruri simultan: ce demonstrează cel mai mult, ce încape pe infrastructura existentă, și ce cere piața.
+The stack choice is constrained by three things at once: what demonstrates the most, what fits on the existing infrastructure, and what the market asks for.
 
-Portofoliul actual conține deja **6 proiecte pe Next.js** și **4 care folosesc Filament** ca panou de administrare.
+The current portfolio already contains **6 Next.js projects** and **4 that use Filament** as an admin panel.
 
-Infrastructura: VPS partajat cu celelalte 11 proiecte, 72 de containere, în curs de migrare la 10 GB RAM. Măsurătoarea din 2026-09-08 a arătat 11 ucideri OOM, 10 dintre ele pe procese `next-server`.
+Infrastructure: a VPS shared with the other 11 projects, 72 containers, in the process of being migrated to 10 GB of RAM. The 2026-09-08 measurement showed 11 OOM kills, 10 of them on `next-server` processes.
 
-## Drivers de decizie
+## Decision drivers
 
-- **Diferențiere de portofoliu** — al 7-lea proiect Next.js sau al 5-lea Filament nu demonstrează nimic nou unui cumpărător care a văzut deja celelalte.
-- **Amprentă de memorie** — proiectul se adaugă pe o mașină cu istoric de presiune pe memorie.
-- **Cerere pe piață** — „Laravel + React internal tool" e o combinație cu cerere constantă pe platformele de freelancing.
-- **Capacitatea de a demonstra UI propriu** — nu doar configurarea unui panou generat.
+- **Portfolio differentiation** — a 7th Next.js project or a 5th Filament one demonstrates nothing new to a buyer who has already seen the others.
+- **Memory footprint** — the project joins a machine with a history of memory pressure.
+- **Market demand** — "Laravel + React internal tool" is a combination with steady demand on freelancing platforms.
+- **The ability to demonstrate a hand-built UI** — not just the configuration of a generated panel.
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Next.js 15 full-stack
+### Option 1: Next.js 15 full-stack
 
-- **Pro**: consecvent cu majoritatea portofoliului; un singur limbaj; ecosistem React nativ.
-- **Contra**: un proces Node care rulează permanent și își păstrează heap-ul chiar inactiv — exact profilul care a produs cele 10 ucideri OOM măsurate. Și nu demonstrează nimic care să nu fie deja demonstrat de celelalte 6.
+- **Pro**: consistent with most of the portfolio; a single language; native React ecosystem.
+- **Con**: a Node process that runs permanently and holds on to its heap even when idle — exactly the profile that produced the 10 measured OOM kills. And it demonstrates nothing that the other 6 do not already demonstrate.
 
-### Opțiunea 2: Laravel 12 + Filament 4
+### Option 2: Laravel 12 + Filament 4
 
-- **Pro**: cel mai rapid drum la un CRUD complet; RBAC și resurse gata făcute.
-- **Contra**: Filament se recunoaște instantaneu. Concluzia unui cumpărător devine „știe să configureze Filament", ceea ce e o afirmație mult mai mică decât „știe să construiască interfața". E deja în 4 proiecte din portofoliu.
+- **Pro**: the fastest route to a complete CRUD; RBAC and resources out of the box.
+- **Con**: Filament is recognized instantly. The buyer's conclusion becomes "he can configure Filament", which is a far smaller claim than "he can build the interface". It is already in 4 projects in the portfolio.
 
-### Opțiunea 3: Laravel 12 + Inertia v2 + React 19 + TypeScript + PostgreSQL 16 (ALEASĂ)
+### Option 3: Laravel 12 + Inertia v2 + React 19 + TypeScript + PostgreSQL 16 (CHOSEN)
 
-- **Pro**: PHP-FPM pe `ondemand` coboară aproape la zero între cereri — diferența dintre a încăpea și a nu încăpea pe mașina actuală. Cozi, scheduler și broadcasting incluse (necesare pentru rapoarte programate și operații în masă). Interfață proprie în React, deci demonstrează construcția, nu configurarea. Combinație cu cerere mare pe piață.
-- **Contra**: două limbaje în același proiect; Inertia cere disciplină la granița props/controller ca să nu devină un API deghizat.
+- **Pro**: PHP-FPM on `ondemand` drops to near zero between requests — the difference between fitting and not fitting on the current machine. Queues, scheduler and broadcasting included (needed for scheduled reports and bulk operations). A hand-built React interface, so it demonstrates construction, not configuration. A combination in high demand on the market.
+- **Con**: two languages in the same project; Inertia demands discipline at the props/controller boundary so that it does not turn into a disguised API.
 
-## Decizia luată
+## Decision outcome
 
-**Aleasă: Opțiunea 3.**
+**Chosen: Option 3.**
 
-Laravel 12 (PHP 8.3) + Inertia v2 + React 19 + TypeScript strict + PostgreSQL 16 + Redis + Horizon. Tailwind 4 cu componente proprii, fără bibliotecă de panou generat. Playwright pentru E2E.
+Laravel 12 (PHP 8.3) + Inertia v2 + React 19 + strict TypeScript + PostgreSQL 16 + Redis + Horizon. Tailwind 4 with hand-built components, no generated panel library. Playwright for E2E.
 
-**PostgreSQL, nu MySQL**, pentru un motiv anume: Row-Level Security (vezi [[ADR-003]]). Izolarea între tenanți impusă în bază, nu doar în cod, e detaliul care liniștește recenzentul tehnic al unui client.
+**PostgreSQL, not MySQL**, for one specific reason: Row-Level Security (see [[ADR-003]]). Tenant isolation enforced in the database, not only in code, is the detail that reassures a client's technical reviewer.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Amprentă de memorie estimată la 250–400 MB la vârf, față de ~780 MB măsurați pe containerele Next existente.
-- Portofoliul capătă o a doua categorie vizibilă, nu încă o variație a primei.
-- Cozile și scheduler-ul necesare pentru rapoarte programate și operații în masă vin din cutie.
+- Memory footprint estimated at 250–400 MB at peak, against the ~780 MB measured on the existing Next containers.
+- The portfolio gains a second visible category, not yet another variation on the first.
+- The queues and the scheduler needed for scheduled reports and bulk operations come out of the box.
 
 ### Negative / trade-offs
 
-- Două limbaje de întreținut (acceptat: e și un argument de competență).
-- Fără Filament, CRUD-ul de bază durează mai mult de scris (acceptat: chiar asta se demonstrează).
-- Inertia cere convenții clare pentru props; fără ele, controllerele devin greu de citit. Se stabilesc în Sprint 0.
+- Two languages to maintain (accepted: it is also a competence argument).
+- Without Filament, the basic CRUD takes longer to write (accepted: that is precisely what is being demonstrated).
+- Inertia demands clear conventions for props; without them, controllers become hard to read. They are established in Sprint 0.

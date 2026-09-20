@@ -1,43 +1,43 @@
-# ADR-008: Versionarea API-ului public pe cale (`/api/v1/...`)
+# ADR-008: Public API versioned in the path (`/api/v1/...`)
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: Proprietar
-- **Tags**: api, versionare, openapi, sprint-5
+- **Deciders**: Owner
+- **Tags**: api, versioning, openapi, sprint-5
 
-## Context și problema
+## Context and problem statement
 
-API-ul public trebuie versionat. Două forme uzuale: pe cale (`/api/v1/orders`) sau prin negociere de conținut în antet (`Accept: application/vnd.throughput.v1+json`).
+The public API has to be versioned. Two common forms: in the path (`/api/v1/orders`) or through content negotiation in a header (`Accept: application/vnd.throughput.v1+json`).
 
-## Opțiuni considerate
+## Considered options
 
-### Opțiunea 1: Pe antet
+### Option 1: In the header
 
-- **Pro**: considerată mai „pură" — aceeași resursă păstrează același URI indiferent de versiune.
-- **Contra**: invizibilă. Nu se poate testa deschizând o adresă în browser, e mai greu de depanat, iar consumatorii o greșesc frecvent (omit antetul și primesc versiunea implicită fără să observe).
+- **Pro**: considered "purer" — the same resource keeps the same URI regardless of version.
+- **Con**: invisible. It cannot be tested by opening an address in a browser, it is harder to debug, and consumers get it wrong frequently (they omit the header and receive the default version without noticing).
 
-### Opțiunea 2: Pe cale (ALEASĂ)
+### Option 2: In the path (CHOSEN)
 
-- **Pro**: vizibilă și verificabilă cu `curl` sau direct în browser; universal înțeleasă; se documentează natural în OpenAPI.
-- **Contra**: obiecția teoretică privind identitatea resursei.
+- **Pro**: visible and verifiable with `curl` or straight in a browser; universally understood; documents itself naturally in OpenAPI.
+- **Con**: the theoretical objection about resource identity.
 
-## Decizia luată
+## Decision outcome
 
-**Pe cale.**
+**In the path.**
 
-Argumentul care decide e specific acestui proiect: e un **demo**. Un cumpărător care deschide `/api/v1/orders` și vede JSON valid formează o impresie pe loc. Aceeași persoană nu va construi o cerere cu antet de negociere de conținut ca să verifice dacă API-ul există.
+The deciding argument is specific to this project: it is a **demo**. A buyer who opens `/api/v1/orders` and sees valid JSON forms an impression on the spot. That same person will not build a content-negotiation request just to check whether the API exists.
 
-Puritatea REST e un cost pe care îl plătește cineva care nu se uită. Vizibilitatea e un câștig la fiecare vizitator.
+REST purity is a cost paid by someone who is not looking. Visibility is a gain with every visitor.
 
-Specificația lucra deja pe această premisă (§18.3), deci nu sunt necesare modificări.
+The specification was already working on this premise (§18.3), so no changes are needed.
 
-## Consecințe
+## Consequences
 
-### Pozitive
+### Positive
 
-- Zero fricțiune la demonstrare; documentația OpenAPI e direct navigabilă.
-- Rutarea Laravel o exprimă natural prin grupuri de prefix.
+- Zero friction when demonstrating; the OpenAPI documentation is directly navigable.
+- Laravel's routing expresses it naturally through prefix groups.
 
 ### Negative / trade-offs
 
-- La o eventuală `v2`, rutele se dublează pe prefix. Acceptabil; e problema oricărui API cu adevărat versionat, și nu se pune în orizontul unui demo.
+- With an eventual `v2`, routes are duplicated per prefix. Acceptable; it is the problem of any genuinely versioned API, and it is not on the horizon for a demo.
