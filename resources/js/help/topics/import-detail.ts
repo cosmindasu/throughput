@@ -19,16 +19,6 @@ import type { HelpTopic } from '@/help/types';
  * `UpdateImportMappingAction` (remaparea șterge rândurile unei probe uscate anterioare și e
  * blocată cât rulează un job), `ImportErrorReportBuilder` (antete ORIGINALE + coloana
  * `error`), resursele din `app/Support/Imports/Resources/`.
- *
- * DEFECT SEMNALAT, NEREPARAT (nu e fișierul acestui lot): `Pages/Imports/Show.tsx` cheamă
- * `usePoll(2000, {}, { autoStart: isRunning })` cu DOAR ramura `stop()` — exact tiparul
- * interzis de `.ai/rules/frontend.md` („usePoll are nevoie de start(), nu doar de
- * autoStart") și exact defectul reparat în `Pages/Reports/Show.tsx`. Pe fluxul real
- * (utilizatorul apasă „Run dry-run validation" pe o pagină DEJA deschisă, iar serverul
- * redirecționează spre ACEEAȘI rută, deci componenta nu se remontează), polling-ul nu
- * pornește niciodată, deși pagina scrie „This page updates automatically". Fraza din „What
- * can you do" descrie comportamentul PROIECTAT; devine adevărată când se adaugă ramura
- * `start()`.
  */
 const importDetail: HelpTopic = {
     id: 'import-detail',
@@ -41,6 +31,7 @@ const importDetail: HelpTopic = {
         'Step 4 — press "Import N valid rows". The button says the actual number, so you commit knowing exactly how much is going in.',
         'Take the failures away with you at either step: "Download the N failed rows as CSV" after the dry run, "Download the N skipped rows as CSV — correct them and re-import" after the commit.',
         'Read the first 500 bad rows inline under "Rows that need attention" — each with its row number from the original file and the exact field and message, like "price: The Price must be a number".',
+        'Give up on a stuck or wrong file with "Cancel import" — offered on any import that hasn\'t finished yet. Rows already imported keep their change, and you start a new import afterwards.',
         'Move on with "Start another import", or step back to the list with "Back to imports".',
     ],
     rules: [
@@ -51,7 +42,7 @@ const importDetail: HelpTopic = {
         "A contact row with no email can't be checked for duplicates at all, so it is imported as it stands — there is no key to match it on, and guessing one would be worse than importing it.",
         "The error report is re-importable exactly as downloaded: the original columns, in their original order, plus one \"error\" column. That column is deliberately ignored when you upload the file again, and the rows that already imported aren't in it — so correcting and re-uploading never duplicates the ones that already went in.",
         'Saving the mapping again after a dry run throws that dry run away: its rows were judged against a mapping that no longer applies, so they are cleared and you start the validation over. While validation or the import is actually running, the mapping is locked and a change is refused rather than applied half-way through.',
-        'The raw content of every failed row is kept, even after the import finishes — that is what the downloadable report is built from, and it is why nothing here is ever cleaned up automatically (BR-IMP-01).',
+        'The raw content of every failed row is kept, even after the import finishes — that is what the downloadable report is built from (BR-IMP-01). The uploaded file behind it is not kept forever: a daily job deletes it from disk 7 days after the import finishes, and the report\'s column order is read back from that file — so download the error report before then.',
         'Only Owner and Manager reach any of this. Agent and Viewer have no import rights at all (specs.md §7.4).',
     ],
     howItsBuilt: {

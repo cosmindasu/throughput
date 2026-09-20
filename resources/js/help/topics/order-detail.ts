@@ -25,7 +25,7 @@ const orderDetail: HelpTopic = {
         'Once confirmed, "Create shipment": pick a quantity for each line you can send now — sending less than the full order is fine, the rest stays open for a later shipment.',
         'On a shipment whose label failed, "Retry label" to queue a new attempt, or "Discard" it to free its lines for a new shipment instead.',
         'On a shipment whose label is ready, "Mark as shipped" once it has actually left the warehouse — this is what moves the stock and updates "Shipped X of Y" on each line.',
-        '"Cancel" a draft at any time, or a confirmed order as long as nothing has shipped yet.',
+        '"Cancel order" on a draft at any time, or on a confirmed order as long as no shipment exists yet.',
     ],
     rules: [
         "An order has no order number while it's a draft — it gets one, sequential for this workspace, only at confirmation, so abandoned drafts never leave a gap in the numbering (BR-ORD-02).",
@@ -37,7 +37,7 @@ const orderDetail: HelpTopic = {
         'A shipment label is never fetched while you wait: the shipment is created as "Generating label…" and the page updates itself automatically until the carrier responds — with a tracking number and a downloadable label on success, or the carrier\'s own failure reason (never a generic "something went wrong") if it fails.',
         "If there isn't enough stock on hand to cover a shipment when you mark it shipped (a backorder that never arrived), the attempt is refused outright and nothing is recorded — not a partial shipment.",
         'The order moves to "partially fulfilled" the first time any shipment ships without covering every line, and to "fulfilled" only once every line is fully shipped; a later partial shipment on an already partially-fulfilled order simply leaves it there.',
-        "A confirmed order can still be cancelled as long as nothing has shipped; that releases the reserved stock. Once at least one shipment exists, only its own unshipped lines can be cancelled — full cancellation is refused (BR-ORD-01).",
+        "A confirmed order can still be cancelled as long as no shipment exists at all; that releases the reserved stock on every line. Once a shipment has been created — even one whose label is still pending or has failed — cancelling the order is refused outright (BR-ORD-01); discarding that failed shipment removes it and makes the order cancellable again.",
         'An Agent can view every order in the workspace, but only edits, confirms, cancels, or creates, retries and discards shipments on the ones they own; Owner and Manager can do all of it on any order.',
     ],
     howItsBuilt: {

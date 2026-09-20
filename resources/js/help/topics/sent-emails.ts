@@ -32,7 +32,7 @@ const sentEmails: HelpTopic = {
     id: 'sent-emails',
     title: 'Sent emails',
     whatIsThis:
-        "Every transactional email this workspace has tried to send while the public demo guardrails are on — report deliveries today, member invitations later — with the full message and whether it actually left the building.",
+        "Every transactional email this workspace has tried to send while the public demo guardrails are on — member invitations, scheduled report deliveries, data-export and subscription notices — with the full message and whether it actually left the building.",
     whatCanYouDo: [
         'Narrow the log with "Status": "Delivered", "Intercepted", "Partially delivered", "Failed", or leave it on "Any status".',
         'Press "View" on a row to open it in place: who it came from, every to/cc/bcc address with its own "delivered" or "intercepted" badge, and the message body. "Hide" closes it again.',
@@ -44,7 +44,7 @@ const sentEmails: HelpTopic = {
         "Only Owner and Manager can open it, and that is a permission in its own right: being able to open Settings isn't enough, because Agent and Viewer can do that too and this screen holds whole message bodies rather than a summary of who changed what.",
         '"Delivered" means every recipient was on the configured allowlist and the send succeeded. "Intercepted" means none of them were, so nothing was sent at all. "Partially delivered" means the message went out to the allowed addresses only — the others are stripped from To, Cc and Bcc before sending, so a mixed message never leaks its contents to an address that was not cleared. "Failed" is different in kind: the allowed part really was attempted and the mail provider refused it.',
         'An empty allowlist intercepts everything. It never means "deliver to everyone" — the check looks for a match, and with nothing to match, nothing is allowed.',
-        'Password-reset links are stripped before the row is written: the token is replaced with "[redacted-token]" and the row is marked "Link redacted". The same goes for any token, signature or expiry parameter in any link. The token you see here cannot be used to take over an account — which matters, because the one in a real email would have been identical.',
+        'Links that could take over an account are stripped before the row is written: the token in a password-reset link and in a member invitation link is replaced with "[redacted-token]" and the row is marked "Link redacted", as is any token, signature or expiry parameter in any other link. The token you see here cannot be used — which matters, because the one in a real email would have been identical. It also means an invitation link is not clickable from this log: to walk through accepting one, invite an address that is on the allowlist and gets the real email.',
         'Rows are kept for 7 days and then purged, the same retention as export files and for the same reason. In the public demo the nightly reset empties the table anyway; the scheduled purge is the safety net for a night when that reset fails.',
         "A password reset is sent before anyone has picked a workspace, so its row belongs to no workspace — it is recorded and redacted, but it does not appear in this list, in this workspace or any other.",
     ],

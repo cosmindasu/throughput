@@ -17,7 +17,7 @@ const invoiceDetail: HelpTopic = {
         'On the source order\'s page, "Create Invoice" once it\'s confirmed or fulfilled — this is the only way to reach this page for a new invoice.',
         '"Mark as sent" once the invoice looks right — this locks in the due date from the account\'s credit terms.',
         'Record a payment (amount, method, and the date it was received) against a sent or overdue invoice — a full payment marks it "Paid" automatically.',
-        '"Void" an invoice from any status, with a required reason — anyone who opens it later sees exactly why.',
+        '"Void" an invoice from any status except one that is already void, with a required reason — anyone who opens it later sees exactly why.',
         'Download the PDF once it says "ready", or "Retry" if it says it failed to generate.',
     ],
     rules: [

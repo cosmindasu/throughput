@@ -24,6 +24,7 @@ const webhookHealth: HelpTopic = {
         '"Failed" is the only status that needs a human. It means the signature was valid, the event was ours, and applying it did not work after three attempts.',
         '"Ignored" is not a failure. This deployment shares its Stripe sandbox with another project, so events belonging to that project arrive here with a perfectly valid signature. Nothing maps them to a workspace, nothing is applied, and the row says so.',
         'Stripe delivers each event at least once, never exactly once. A repeated delivery of an event already recorded is answered immediately and never applied a second time, so a duplicate never shows up as a second row.',
+        'The list shows the 100 most recent events, while the counters above it cover every event ever received — so a counter can read far higher than the number of rows below it.',
         'The event payload is never shown on this page. The table itself belongs to the deployment rather than to any one workspace, so only the metadata and the message written by this application are displayed.',
     ],
     howItsBuilt: {

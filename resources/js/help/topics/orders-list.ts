@@ -11,8 +11,7 @@ const ordersList: HelpTopic = {
     whatIsThis:
         'Every order this workspace has drafted, confirmed, fulfilled or cancelled, in one filterable, sortable table.',
     whatCanYouDo: [
-        'Search by order number and filter by "Status" or "Account".',
-        'Narrow the date range with "From"/"To" on when the order was created.',
+        'Search by order number and filter by "Status".',
         'Switch between "My orders" and "All orders".',
         'Sort by clicking the "Order number", "Grand total", "Placed at" or "Created" header — click again to reverse.',
         'Open "Views" to apply a saved view, "Save view" to keep the current filters and columns, or "☆ Set default" to open the list on that view.',
@@ -25,7 +24,7 @@ const ordersList: HelpTopic = {
         'Agents start on "My orders"; everyone else on all orders — same convention as Accounts and Deals.',
         'A draft has no order number yet: it only gets one at confirmation, so abandoned drafts never leave gaps in the numbering (BR-ORD-02).',
         'Viewer can see every order and export the current filter to CSV or PDF, but has no "New order" button and no write action on any row.',
-        'An Agent can open and edit any order, but only edits, reassigns or cancels the ones they own — and only Owner/Manager can reassign an owner at all (same as Deals, unlike Accounts).',
+        'An Agent can open any order in the workspace, but only edits or cancels the ones they own; reassigning an owner is Owner/Manager only (same as Deals, unlike Accounts).',
         'Bulk cancel only ever touches the draft orders in your selection — a confirmed or already-shipped order is never affected, even if it was part of "Select all matching this filter". The count shown (and the confirmation threshold it\'s checked against) is always the number of drafts, not the raw filter count.',
         'A PDF export always runs as a background job, even for a handful of rows, and is capped well below the CSV limit — for a large list, use CSV.',
     ],

@@ -28,7 +28,7 @@ const dealsList: HelpTopic = {
     rules: [
         'Agents start on "My deals"; everyone else on all deals. A default saved view, if you set one, wins whenever the URL has no filter or sort.',
         'There is no "New deal" button on this list: start a deal from "New deal" on an account page, or from "Create deal" in search (Cmd+K / Ctrl+K), where you pick the account.',
-        'Deals have no CSV export yet — "Export CSV" exists on Accounts and Contacts.',
+        'Deals have no CSV export yet — "Export CSV" exists on Accounts, Contacts, Orders and Invoices.',
         "Sorting and filtering here never change a deal's stage — moving stage only happens from the board or from the deal's own page.",
         'Only Owner and Manager can save a team view or rename and delete one; every role can keep private views.',
         'Bulk-reassigning owners is Owner/Manager only — an Agent can reassign a deal to themself one at a time when they create it, but not change any deal\'s owner afterwards, alone or in bulk, so the checkboxes and the reassign bar never appear for that role. A confirmation dialog appears above 1,000 selected deals.',

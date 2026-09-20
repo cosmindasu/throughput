@@ -16,11 +16,11 @@ const carrierSettingsTopic: HelpTopic = {
         'Press "Activate" (or "Save & activate") on a carrier to make it the one used for every new shipping label from now on.',
     ],
     rules: [
-        'Exactly one carrier is active per workspace, always — activating one automatically deactivates whichever was active before, in the same instant, so a shipment is never created without a clear owner for the label.',
+        'At most one carrier is active per workspace — activating one automatically deactivates whichever was active before, in the same instant. A workspace that has never chosen one shows both as "Not active" and still gets labels, from Demo: there is never a shipment without a clear owner for the label.',
         'Shippo cannot be activated without an API key on file; the form asks for one before it lets you save.',
         'Leaving the API key field blank on an already-configured carrier keeps the existing key — the field never shows a real key back, only whether one is on file and the last few characters, so re-saving never accidentally erases it.',
         'The key itself never appears anywhere once saved: not in this screen, not in the activity log, not in any exported file. Only "configured" and its last few characters are ever shown again.',
-        'Only an Owner sees this screen at all — not Manager, Agent or Viewer (the one row in the permissions matrix where Manager has no access at all, not even read-only).',
+        'Only an Owner sees this screen at all — not Manager, Agent or Viewer. Carrier credentials and billing are the two things a Manager has no access to whatsoever, not even read-only, while having full operational access everywhere else.',
         'This deployment only ever uses Shippo sandbox/test keys, never a live key — a real shipment is never actually created or billed.',
     ],
     howItsBuilt: {

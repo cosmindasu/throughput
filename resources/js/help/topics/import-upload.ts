@@ -32,7 +32,7 @@ const importUpload: HelpTopic = {
         'A file can be at most 20 MB and at most 50,000 data rows. The two are checked separately, and neither implies the other — a 20 MB file of short rows can be far past 50,000 rows, and a 5,000-row file of long text fields can be past 20 MB. Go over either one and the upload is refused with the real number in the message, so you know which limit you hit; split the file and import the parts one at a time.',
         'The first row is the header and is never imported — the row limit counts the data rows only.',
         '.csv, .txt and .xlsx are accepted. The .txt is not a third format: Excel and Google Sheets export CSVs that some platforms label as plain text, and rejecting those would be rejecting a valid CSV over a label. Anything that is not .xlsx is read as CSV.',
-        'One import can be active per workspace. If another one is still open — even an old one left sitting at "Uploaded" — this upload is refused here, before the file is stored, rather than queued invisibly behind it. Finish or complete the other one first.',
+        'One import can be active per workspace. If another one is still open — even an old one left sitting at "Uploaded" — this upload is refused here, before the file is stored, rather than queued invisibly behind it. Finish that one, wait for it, or open it and press "Cancel import" to clear the way.',
         'Only Accounts, Contacts, Products and Products/Variants can be imported. Deals and Orders are deliberately out of scope: they hang off too many other records to import safely from a flat file (FR-IMP-03).',
         'Only Owner and Manager get here at all — the permission matrix gives Agent and Viewer no import rights (specs.md §7.4).',
     ],

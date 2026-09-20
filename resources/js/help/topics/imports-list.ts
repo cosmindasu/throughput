@@ -27,9 +27,9 @@ const importsList: HelpTopic = {
     rules: [
         'Only Owner and Manager reach this screen. Agent and Viewer have no import rights whatsoever (specs.md §7.4) — "Imports" is missing from their navigation, and the route refuses them as well, so the menu is not the only thing protecting it.',
         'There is no "my imports" narrowing here, unlike Accounts, Deals or Orders: an Owner or Manager sees every import of the workspace, whoever uploaded it. The permission matrix gives Agent no access at all, so there is no "own" subset to carve out.',
-        'One import can be active per workspace at a time. "Active" is anything that has not reached "Completed", "Completed with errors" or "Failed" — including a file uploaded and then abandoned before mapping, which keeps blocking the next upload until it is finished.',
+        'One import can be active per workspace at a time. "Active" is anything that has not reached "Completed", "Completed with errors" or "Failed" — including a file uploaded and then abandoned before mapping. You can clear it yourself with "Cancel import" on that import\'s own page; left alone, a background sweeper closes an abandoned import after 24 hours, and one whose processing died after 15 minutes.',
         'The list shows the 50 most recent imports and stops there. An import is a deliberate, occasional action, not a stream of rows, so it does not get the cursor paging the big lists use.',
-        'Nothing is deleted from here, and there is no button to try: the row, the uploaded file and the raw content of every failed row are all kept. That is exactly what makes the downloadable, re-importable error report possible afterwards (BR-IMP-01).',
+        'Nothing is deleted from here, and there is no button to try: the history row and the raw content of every failed row are kept, which is exactly what makes the downloadable, re-importable error report possible (BR-IMP-01). The uploaded file itself is not kept forever — a daily job deletes it from disk 7 days after the import finishes, so download the error report before then; the row stays either way.',
     ],
     howItsBuilt: {
         summary:

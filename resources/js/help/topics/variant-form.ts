@@ -7,7 +7,7 @@ const variantForm: HelpTopic = {
     id: 'variant-form',
     title: 'Variant',
     whatIsThis:
-        'A single SKU: the exact thing a customer orders, with its own SKU code, price, cost and (optionally) weight and free-form attributes like size or pack.',
+        'A single SKU: the exact thing a customer orders, with its own SKU code, price, cost and (optionally) a weight and a low stock threshold.',
     whatCanYouDo: [
         'Set the "SKU" — it must be unique across your whole workspace, not just this product.',
         'Set the list "Price" customers pay and the "Cost" you pay — the difference is the margin.',
@@ -19,7 +19,7 @@ const variantForm: HelpTopic = {
         'Only Owner and Manager reach this form at all — Agent and Viewer never see "Add variant" or "Edit" on a variant.',
         '"Cost" is saved like any other field here, but it never appears on this variant anywhere Agent or Viewer can look — margin is an Owner/Manager concern only (specs.md §7.4).',
         "A duplicate SKU is rejected before saving, with the error next to the field — not a generic failure.",
-        '"Low stock threshold" is optional and per variant — a variant without one never shows the alert, no matter how low its stock gets.',
+        '"Low stock threshold" is optional and per variant — a variant without one never shows the alert, no matter how low its stock gets, and neither does a variant you have marked inactive.',
     ],
     howItsBuilt: {
         summary:

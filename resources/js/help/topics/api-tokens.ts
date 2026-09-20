@@ -20,7 +20,7 @@ const apiTokensTopic: HelpTopic = {
     rules: [
         'The token value is shown exactly once, at creation. It is never stored in readable form, so nobody — including an administrator with database access — can recover it later. Lose it and you issue a new one.',
         'A token belongs to one workspace, and the API works out which workspace from the token itself: API addresses carry no workspace in them. Pointing a token at another workspace is not something the URL can express.',
-        'Scopes are read and write separately, per area. A token with only "Read orders" that tries to create an order is refused with a message naming the scope it is missing, rather than a vague failure.',
+        'Scopes are read and write separately, per area — except accounts, which the API only ever reads. A token with only "Read orders" that tries to create an order is refused with a message naming the scope it is missing, rather than a vague failure.',
         'A token can never do more than the person who issued it. A Viewer who somehow creates a write-scoped token still gets refused by the ordinary permission rules — the scope narrows, it never widens.',
         'Only an Owner or a Manager sees this screen or can create and revoke tokens.',
         'Revoking keeps the row, so the history of who issued what stays readable, but the key stops working on the very next request.',

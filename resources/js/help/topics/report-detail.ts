@@ -22,8 +22,7 @@ import type { HelpTopic } from '@/help/types';
  * UPDATE`), `DealVelocityReport`/`InventoryValuationReport`.
  *
  * Cifrele 250/5.000 vin din `config/throughput.php` — plafonul PDF a FOST 500 și a coborât
- * la 250 în Faza 4, remăsurat pe container. Subiectul `exports.ts` (Faza 2) mai spune încă
- * „500"; semnalat în raportul lotului, nefiind fișierul acestui lot.
+ * la 250 în Faza 4, remăsurat pe container.
  */
 const reportDetail: HelpTopic = {
     id: 'report-detail',

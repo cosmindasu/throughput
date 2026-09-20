@@ -17,7 +17,8 @@ const billing: HelpTopic = {
         "Where this workspace's own Throughput subscription lives — the plan, the payment method on file, and what happens when a payment fails. This is not the invoices you send to your customers; that is a completely separate ledger, on a different page.",
     whatCanYouDo: [
         'See the current subscription status and, if one is on file, the card used to pay for it.',
-        'Press "Manage billing" to open the Stripe Customer Portal in a new tab, where the payment method and billing history can be updated directly with Stripe.',
+        'Press "Manage billing" to hand off to the Stripe Customer Portal, where the payment method and billing history are updated directly with Stripe; you come straight back to this page when you are done.',
+        'Read "Invoice history" for every charge Stripe has issued for this workspace, and press "View" on a row to open that invoice at Stripe.',
         'If the subscription was canceled, press "Reactivate" from the same portal, any time within 30 days of cancellation — no need to set the workspace up again.',
     ],
     rules: [

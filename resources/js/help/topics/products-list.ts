@@ -10,7 +10,7 @@ const productsList: HelpTopic = {
     whatIsThis:
         "Everything your workspace sells, grouped by product. Each product can have several variants — the actual SKUs you stock and sell — shown once you open it.",
     whatCanYouDo: [
-        'Search by product name, filter by category or "Any status", and sort by name or newest.',
+        'Search by product name, filter by "Any status" / Active / Inactive, and sort by name or newest.',
         'Open "Views" to apply a saved view, "Save view" to keep the current filters and columns, or "☆ Set default".',
         'Open "Columns" to show, hide or reorder the optional columns (Category, Variants, Status, Low stock, Created) with checkboxes and "Move up"/"Move down" — the product name column always stays. "Low stock" (how many variants are below their reorder threshold) is shown by default, so the alert doesn\'t need to be searched for.',
         'Open a product to see its variants, their stock and their price.',
@@ -26,7 +26,7 @@ const productsList: HelpTopic = {
     ],
     howItsBuilt: {
         summary:
-            'Same list mechanics as Accounts and Deals: one `ListQuery` reads filters, sort and cursor from the URL, `ProductList` says what they mean for products, and paging is by cursor so the catalog stays fast past a few thousand SKUs. The bulk price change is idempotent by a marker column on `variants` (the id of the last bulk price operation applied), written in the same `UPDATE` as the new price — a percentage can\'t be re-derived from "does the price differ", since the new price always depends on the old one. See the "Bulk operation status" topic for the shared queue mechanism.',
+            'Same list mechanics as Accounts and Deals: one `ListQuery` reads filters, sort and cursor from the URL, `ProductList` says what they mean for products, and paging is by cursor so the catalog stays fast past a few thousand SKUs. The bulk price change is idempotent per chunk, not per row: a percentage can\'t be re-derived from "does the price differ", since the new price always depends on the old one — so the job records a marker per (operation, chunk) inside the same transaction and never applies a chunk twice. The SQL itself rounds to 2 decimals, floors at zero and caps at the column maximum, all in one expression. See the "Bulk operation status" topic for the shared queue mechanism.',
     },
 };
 

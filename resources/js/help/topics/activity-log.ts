@@ -13,17 +13,17 @@ const activityLog: HelpTopic = {
     id: 'activity-log',
     title: 'Activity log',
     whatIsThis:
-        "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants and orders, plus bulk operations, one row per record touched.",
+        "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants, orders and invoices, plus bulk operations (one row per record touched) and membership changes: invitations sent, accepted or revoked, roles changed, members deactivated.",
     whatCanYouDo: [
-        'Filter by action type ("Created", "Updated", "Deleted", "Bulk action"...), by team member, and by date range.',
-        'Click a row to jump to the record it changed, when it still exists.',
+        'Filter by action type ("created", "updated", "deleted", "bulk_action", "role_changed"...), by "Member", and by a "From"/"To" date range.',
+        'Click the action name on a row to jump to the record it changed — variants are the exception, since they have no page of their own; their history is on the product.',
         'Open a bulk operation\'s "View in Activity Log" link (from its progress page) to see every row it touched, filtered to just that operation.',
-        'Compare "Old value" and "New value" side by side for any field that changed.',
+        'See which fields a change touched in the "Changes" column — the old and new values themselves are shown side by side on the record\'s own "History" section, one click away.',
     ],
     rules: [
         'Owner and Manager see every action in the tenant. An Agent sees only their own actions here — everyone can still see the full history on a record\'s own "History" tab, regardless of who made the change.',
         'Viewer has no access to this screen at all (§7.4) — the record-level "History" tab stays visible to them, since it\'s part of viewing the record itself.',
-        'Passwords, remember-me tokens and stored credentials never appear here, even partially — a changed field with one of those names is simply absent from "Old value"/"New value", not masked.',
+        'Passwords, remember-me tokens and stored credentials never appear here, even partially — a changed field with one of those names is simply absent from the recorded change, not masked.',
         'Rows older than 36 months have their old/new values replaced with "[anonymized]" for contacts and users — the row itself, and which field changed, stays for statistics; the value doesn\'t.',
     ],
     howItsBuilt: {

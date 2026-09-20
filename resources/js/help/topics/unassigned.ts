@@ -16,7 +16,7 @@ const unassignedTopic: HelpTopic = {
         'Watch the number next to "Unassigned" in the main navigation — it only shows while this page has something in it.',
     ],
     rules: [
-        'Only accounts, deals and orders that are still open show up here — a delivered order or a won/lost deal keeps its original owner, marked "(deactivated)", because rewriting closed history isn\'t the point.',
+        'Only open deals and active orders show up here — a delivered order or a won/lost deal keeps its original owner, marked "(deactivated)", because rewriting closed history isn\'t the point.',
         'Accounts are not part of this view: a deactivated member\'s accounts stay assigned to them, visible with the "(deactivated)" mark, rather than appearing here — only their unfinished work does.',
         'Visible to Owner and Manager only — the same two roles that can deactivate a member in the first place.',
         'Reassigning here uses the same queued, chunked mechanism as any other bulk operation — you land on a status page and the "Unassigned" count drops once it finishes.',

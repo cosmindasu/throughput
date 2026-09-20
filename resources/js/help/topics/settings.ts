@@ -27,7 +27,8 @@ const settings: HelpTopic = {
         'See which workspace sections your role has — every card here leads to a real screen.',
     ],
     rules: [
-        'Every role sees "Preferences". "Pipeline" shows for Owner, Manager and Viewer; "Members" for Owner and Manager; "Billing & Subscription" only for Owner — so an Agent sees just "Preferences".',
+        'Every role sees "Preferences". "Pipeline" shows for Owner, Manager and Viewer; "Members", "API Tokens", "Sent Emails" and "Export data" for Owner and Manager; "Billing & Subscription", "Carrier settings" and "Webhook health" only for Owner — so an Agent sees just "Preferences".',
+        '"Sent Emails" only appears while the public demo guardrails are on — with them off nothing is ever recorded, so the screen is hidden rather than shown permanently empty.',
         'Manager has full operational access everywhere else, but not to billing: the "Billing & Subscription" card never appears for them.',
         "What you see on this page is computed from your role's actual permissions on the server, not hidden with CSS — a section you can't use doesn't appear at all, rather than appearing and then refusing you.",
         '"Export data" is visible to Owner and Manager, but only an Owner can start an export — a Manager sees the history without the button.',

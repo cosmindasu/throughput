@@ -24,10 +24,10 @@ const dataExport: HelpTopic = {
         'Press "Request export" to start one. It appears in the list immediately as "Queued", and you can leave the page — the work carries on without you.',
         'Watch a request move from "Queued" to "Preparing" to "Ready to download". The page refreshes itself, so there is nothing to reload.',
         'Press "Download ZIP" on a finished request to get the archive.',
-        'Read the history: every request ever made here, who made it, when it finished, and how long its file stays available.',
+        'Read the history: the 50 most recent requests, who made each one, when it finished, and how long its file stays available.',
     ],
     rules: [
-        'Only an Owner can request an export. A Manager sees this whole history and can tell you exactly what was exported and when, but cannot start a new one — handing over a copy of an entire workspace is an owner-level decision.',
+        'Only an Owner can request an export. A Manager sees this history and can tell you exactly what was exported and when, but cannot start a new one — handing over a copy of an entire workspace is an owner-level decision.',
         'The download link belongs to the person who requested it. Another Owner cannot open someone else\'s archive; they request their own, which also leaves their name in the history.',
         'One export at a time per workspace. A second request while one is still running is refused, because an export touches every large table at once and a single background worker serves the whole application.',
         'A finished archive can be downloaded for 7 days. After that the file is deleted and the link stops working — but the request stays in this list, with its status unchanged, so there is a permanent record that the export was made and honoured.',

@@ -27,7 +27,7 @@ const contactsList: HelpTopic = {
         'An Agent can edit or delete only contacts they created, or contacts at accounts they own; the other rows have no "Edit" link.',
         '"Export CSV" is available to Viewers too — it reads every row matching the current search, all pages of it, and writes nothing. The file includes a "Marketing opt-out" column.',
         "Deleting a contact isn't blocked by deals or orders that reference it: with none, the row is deleted; with any, the contact's personal data (name, email, phone, title) is anonymized instead and the row stays, so deal and order history keeps its link. Anonymized contacts no longer show up here.",
-        'Contacts have no saved views yet — "Views" exists on Accounts and Deals only.',
+        'Contacts have no saved views yet — "Views" exists on Accounts, Deals, Orders and Products.',
     ],
     howItsBuilt: {
         summary:

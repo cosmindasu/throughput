@@ -15,14 +15,14 @@ const stock: HelpTopic = {
         'Use "Receive stock" to record incoming inventory, with an optional reference note (a PO number, for example).',
         'Use "Adjust" to correct a count after a physical audit — a reason is required, so the correction stays explainable later.',
         'Use "Transfer" to move stock from one location to another.',
-        'Open "History" to see every past movement for this variant.',
+        'Open "View history" to see every past movement for this variant.',
     ],
     rules: [
         'Only Owner and Manager can receive, adjust or transfer stock — Agent and Viewer see the same numbers read-only, with none of the three buttons.',
         'An adjustment always requires a note explaining the correction — there is no way to change a quantity without saying why.',
         "A transfer is rejected if the source location doesn't have enough on hand — moving stock that isn't physically there isn't allowed, unlike an order, which can knowingly go over the available quantity as a backorder.",
         '"Available" is what matters when building an order — never "On hand" alone, which ignores what other orders already claimed.',
-        'A "Low stock" badge appears at the top of this page once the variant\'s total available quantity, across every location, drops below its configured threshold (set on the variant itself, not here).',
+        'A "Low stock" badge appears at the top of this page once an active variant\'s total available quantity, across every location, drops below its configured threshold (set on the variant itself, not here) — an inactive variant never shows it.',
     ],
     howItsBuilt: {
         summary:

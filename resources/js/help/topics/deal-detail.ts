@@ -25,7 +25,7 @@ const dealDetail: HelpTopic = {
         'Change the title, value, expected close date, account and primary contact with "Edit" — plus the owner, for Owner and Manager — then "Save changes".',
         'Move the deal to a different stage from "Move to stage…", the same menu used on the board.',
         'Review "Stage history": every stage change, who made it, when, and how long the deal spent on the stage before.',
-        'Remove the deal together with its stage history with "Delete".',
+        'Remove the deal with "Delete" — it disappears from lists, the board, search and reports, but its stage history is kept, so stage-velocity numbers stay correct.',
     ],
     rules: [
         'Starting from "New deal" on an account page fills in "Account"; otherwise the field starts empty. The primary contact has to be one of that account\'s contacts, so switching to another account clears a contact that doesn\'t belong to it.',

@@ -9,7 +9,7 @@ const invoicesList: HelpTopic = {
     id: 'invoices-list',
     title: 'Invoices — list',
     whatIsThis:
-        'Every invoice this workspace has raised against a confirmed or fulfilled order — its status, its balance, and a link to the order it came from.',
+        'Every invoice this workspace has raised against a confirmed or fulfilled order — its number, status, account, total, balance due and due date. Open one to reach the order it came from.',
     whatCanYouDo: [
         'Search by invoice number.',
         'Filter by "Status" (Draft, Sent, Paid, Overdue, Void).',

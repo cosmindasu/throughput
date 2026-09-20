@@ -8,9 +8,9 @@ const stockHistory: HelpTopic = {
     id: 'stock-history',
     title: 'Stock — History',
     whatIsThis:
-        "Every stock movement ever recorded for this variant, oldest reasoning kept forever: what changed, by how much, why, who did it and when.",
+        "Every stock movement ever recorded for this variant, newest first and nothing ever edited away: what changed, by how much, why, who did it and when.",
     whatCanYouDo: [
-        'Filter by "Reason" (receipt, sale, adjustment, return or transfer), by location, or by a date range.',
+        'Filter by "Reason" (receipt, sale, adjustment, return or transfer), or narrow the date range with "From"/"To".',
         'See the note attached to a movement — required for every adjustment, optional for the rest.',
         'Follow a transfer\'s two linked rows (one location losing stock, the other gaining the same quantity at the same moment).',
     ],
