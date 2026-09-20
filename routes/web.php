@@ -100,5 +100,11 @@ Route::middleware(['auth', 'session.context'])->group(function () {
         require __DIR__.'/web/billing.php';
         // Faza 5 (specs.md §17, plan §11, lotul E) — jurnal de activitate.
         require __DIR__.'/web/activity.php';
+        // Faza 5, valul 2 (specs.md §18, plan §11, lotul F) — ecranul de jetoane API.
+        // Doar ADMINISTRAREA jetoanelor e o rută web; API-ul public însuși n-are segment
+        // de workspace în cale (§18.2) și trăiește în routes/api.php.
+        require __DIR__.'/web/api-tokens.php';
+        // Faza 5, valul 2 (specs.md §20.5, plan §11, lotul G) — export de date GDPR.
+        require __DIR__.'/web/data-export.php';
     });
 });

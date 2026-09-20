@@ -39,6 +39,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withEvents(discover: false)
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // API public v1 (specs.md §18, ADR-008, plan §11, valul 2 al Fazei 5). Prefixul
+        // implicit `api` plus versiunea pe cale, DELIBERAT fără segment de workspace
+        // (§18.2): tenantul se rezolvă din jeton, server-side, niciodată din URL.
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
