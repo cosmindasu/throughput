@@ -10,13 +10,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'invoice_number', 'status', 'issue_date', 'due_date', 'currency', 'subtotal', 'tax_total',
-    'total', 'amount_paid', 'balance_due', 'pdf_path', 'pdf_status',
+    'order_id', 'invoice_number', 'status', 'issue_date', 'due_date', 'currency', 'subtotal', 'tax_total',
+    'total', 'amount_paid', 'balance_due', 'pdf_path', 'pdf_status', 'void_reason', 'voided_at',
 ])]
 class Invoice extends Model
 {
     use BelongsToTenant, HasUlids;
 
+    // §12.1 — „draft → sent → paid" (normal) sau „sent → overdue" (automat, BR-BILL-02)
+    // sau „→ void" (din orice stare, cu motiv, BR-BILL-01). Un singur loc, ca la
+    // `App\Enums\OrderStatus`, dar plain-string ca `Shipment` (nu enum-cast): tiparul
+    // deja ales de scaffold-ul Fazei 1 pentru acest model — nu-l schimb aici (Faza 5
+    // imită, nu redecide, convenția fișierului pe care-l moștenește).
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SENT = 'sent';
@@ -44,6 +49,7 @@ class Invoice extends Model
             'total' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -55,5 +61,10 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function isVoid(): bool
+    {
+        return $this->status === self::STATUS_VOID;
     }
 }

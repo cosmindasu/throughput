@@ -1,0 +1,164 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Actions\Invoices\CreateInvoiceAction;
+use App\Actions\Invoices\MarkInvoiceSentAction;
+use App\Actions\Invoices\VoidInvoiceAction;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Invoices\VoidInvoiceRequest;
+use App\Http\Resources\InvoiceResource;
+use App\Jobs\Invoices\GenerateInvoicePdfJob;
+use App\Models\Invoice;
+use App\Models\Order;
+use App\Models\Scopes\TenantScope;
+use App\Support\Lists\CursorPage;
+use App\Support\Lists\InvoiceList;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+/**
+ * Facturare către clienți — AR intern, decuplat de Stripe (ADR-005), specs.md §12.1,
+ * plan §11. Controller subțire: numerotarea/tranzițiile trăiesc în `App\Actions\Invoices`,
+ * la fel cum `OrderController` deleagă la `App\Actions\Orders`.
+ */
+final class InvoiceController extends Controller
+{
+    public function index(Request $request, InvoiceList $list): Response
+    {
+        Gate::authorize('viewAny', Invoice::class);
+
+        $query = $list->parse($request);
+        $paginator = $query->paginate($list->query($query, $request->user()));
+
+        return Inertia::render('Invoices/Index', [
+            'invoices' => Inertia::defer(fn () => CursorPage::make($paginator, InvoiceResource::class)),
+            'filters' => $query->toArray(),
+        ]);
+    }
+
+    public function show(Invoice $invoice): Response
+    {
+        Gate::authorize('view', $invoice);
+
+        $invoice->load([
+            'order:id,order_number,account_id,owner_user_id',
+            'order.account:id,name',
+            'order.owner:id,name',
+            'payments' => fn ($query) => $query->latest('paid_at'),
+            'payments.createdBy:id,name',
+        ]);
+
+        return Inertia::render('Invoices/Show', [
+            'invoice' => InvoiceResource::make($invoice),
+        ]);
+    }
+
+    /**
+     * US-BILL-01 — „Create Invoice" dintr-o comandă `confirmed`/`fulfilled`, apelat din
+     * secțiunea de facturare a `Orders/Show.tsx`. Redirecționează pe pagina facturii noi,
+     * ca „Mark as sent" din Gherkin să fie pasul imediat următor.
+     */
+    public function store(Order $order, CreateInvoiceAction $action): RedirectResponse
+    {
+        Gate::authorize('create', [Invoice::class, $order]);
+
+        $invoice = $action->execute($order);
+
+        return redirect()->route('invoices.show', $invoice)->with('success', 'Invoice created.');
+    }
+
+    public function markSent(Invoice $invoice, MarkInvoiceSentAction $action): RedirectResponse
+    {
+        Gate::authorize('update', $invoice);
+
+        $sent = $action->execute($invoice);
+
+        return redirect()->route('invoices.show', $sent)->with('success', 'Invoice marked as sent.');
+    }
+
+    public function void(VoidInvoiceRequest $request, Invoice $invoice, VoidInvoiceAction $action): RedirectResponse
+    {
+        Gate::authorize('void', $invoice);
+
+        $voided = $action->execute($invoice, $request->string('reason')->toString());
+
+        return redirect()->route('invoices.show', $voided)->with('success', 'Invoice voided.');
+    }
+
+    /**
+     * Butonul de descărcare e activ DOAR pe `pdf_status = ready` (§12.1) — UI-ul ascunde
+     * linkul altfel, dar verificat și aici, server-side: un link vechi/copiat pentru o
+     * factură încă `pending`/`failed` nu are ce descărca.
+     */
+    public function downloadPdf(Invoice $invoice): StreamedResponse|RedirectResponse
+    {
+        Gate::authorize('view', $invoice);
+
+        if ($invoice->pdf_status !== Invoice::PDF_STATUS_READY || $invoice->pdf_path === null) {
+            return redirect()->route('invoices.show', $invoice)->with('error', 'This invoice PDF is not ready yet.');
+        }
+
+        return Storage::disk('local')->download($invoice->pdf_path, "{$invoice->invoice_number}.pdf");
+    }
+
+    /**
+     * „pe failed se afișează motivul și un buton de reîncercare" (§12.1) — resetează
+     * `pdf_status` la `pending` și redispecerizează exact jobul care a eșuat.
+     */
+    public function retryPdf(Invoice $invoice): RedirectResponse
+    {
+        Gate::authorize('retryPdf', $invoice);
+
+        // Idempotent, ca `GenerateShippingLabelJob`: un al doilea „Retry" pe o factură
+        // deja `pending`/`ready` nu redispecerizează un al doilea job și nu arată un
+        // mesaj de succes fals.
+        if ($invoice->pdf_status !== Invoice::PDF_STATUS_FAILED) {
+            return redirect()->route('invoices.show', $invoice);
+        }
+
+        $invoice->update(['pdf_status' => Invoice::PDF_STATUS_PENDING]);
+        GenerateInvoicePdfJob::dispatch(TenantScope::requireCurrentTenantId(), $invoice->getKey());
+
+        return redirect()->route('invoices.show', $invoice)->with('success', 'Generating the PDF again.');
+    }
+
+    /**
+     * Endpoint JSON (nu props Inertia), consumat de `BillingSection` de pe
+     * `Orders/Show.tsx` — la fel ca `VariantLookupController`. Motivul de a nu fi un
+     * prop Inertia obișnuit: `App\Http\Controllers\Web\Orders\OrderController` și
+     * `App\Http\Resources\Orders\OrderResource` NU sunt fișiere ale acestui lot (owner-ul
+     * planului le-a listat separat, deliberat, ca fișiere „ale altcuiva" — vezi raportul
+     * livrat, secțiunea CONTRAZICERI/limitări), deci secțiunea de facturare de pe pagina
+     * comenzii nu poate primi datele ca prop din acel controller fără să-l editez. Un
+     * fetch propriu, mic, păstrează granița de proprietate a fișierelor intactă.
+     */
+    public function forOrder(Order $order): JsonResponse
+    {
+        Gate::authorize('view', $order);
+
+        $invoice = Invoice::query()
+            ->where('order_id', $order->getKey())
+            ->latest('created_at')
+            ->first();
+
+        return response()->json([
+            'can' => [
+                'create' => Gate::allows('create', [Invoice::class, $order]),
+            ],
+            'invoice' => $invoice === null ? null : [
+                'id' => $invoice->id,
+                'invoiceNumber' => $invoice->invoice_number,
+                'status' => $invoice->status,
+                'balanceDue' => (float) $invoice->balance_due,
+                'currency' => $invoice->currency,
+            ],
+        ]);
+    }
+}

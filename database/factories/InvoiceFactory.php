@@ -40,4 +40,13 @@ class InvoiceFactory extends Factory
     {
         return $this->state(fn () => ['status' => Invoice::STATUS_OVERDUE]);
     }
+
+    public function void(): static
+    {
+        return $this->state(fn () => [
+            'status' => Invoice::STATUS_VOID,
+            'void_reason' => 'Created in error.',
+            'voided_at' => now(),
+        ]);
+    }
 }

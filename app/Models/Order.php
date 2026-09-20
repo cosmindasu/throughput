@@ -79,8 +79,23 @@ class Order extends Model
         return $this->hasMany(Shipment::class);
     }
 
+    /**
+     * Review Faza 5 (lotul A, specs.md §12.1, BR-BILL-01) — `latestOfMany()`, NU un
+     * `hasOne()` simplu: după un „Void" urmat de o factură de înlocuire, o comandă poate
+     * avea DOUĂ rânduri `invoices` (cel vechi, `void`, păstrat pentru trasabilitate, și
+     * cel activ). Fără ordonare explicită, `hasOne()` întoarce „primul rând găsit de
+     * Postgres" — nedeterminat, reprodus: întorcea factura `void`, nu cea activă.
+     *
+     * Tiebreaker EXPLICIT pe `id`, nu doar `created_at`: coloana are precizie 0
+     * (`information_schema.columns.datetime_precision`), deci o factură anulată și
+     * înlocuirea ei — de obicei la câteva milisecunde distanță, în același test sau
+     * aceeași cerere — pot avea `created_at` IDENTIC, caz în care Postgres n-are nicio
+     * garanție de ordine între rândurile cu același maxim. `id` (ULID) e sortabil
+     * lexicografic pe momentul creării la precizie de milisecundă — corect ca tiebreaker,
+     * spre deosebire de `created_at` singur.
+     */
     public function invoice(): HasOne
     {
-        return $this->hasOne(Invoice::class);
+        return $this->hasOne(Invoice::class)->latestOfMany(['created_at', 'id']);
     }
 }
