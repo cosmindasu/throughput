@@ -47,6 +47,13 @@ return [
         'bulk_max_rows' => (int) env('BULK_MAX_ROWS_ABSOLUTE', 60000),
         'api_rate_limit_per_minute' => (int) env('API_RATE_LIMIT_PER_MINUTE', 300),
 
+        // §22.5 — „Operații în masă (per user): 3 operații concurente active", aceeași
+        // limită pentru TOATE rolurile, inclusiv exportul Viewer-ului (BR-BULK-03: exportul
+        // e o CITIRE, permisă; contenția vine de aici, nu dintr-un refuz de rol).
+        // Distinctă de `import_concurrent_per_tenant`, care e per TENANT: aici contează
+        // câte operații ține deschise o persoană, nu o organizație.
+        'bulk_concurrent_per_user' => (int) env('BULK_CONCURRENT_PER_USER', 3),
+
         // FR-IMP-02 (specs.md §14.4) — plafonul de fișier la import, pe AMBELE dimensiuni.
         // Numărul de rânduri e verificat după citirea antetului, dimensiunea la upload; un
         // fișier de 20 MB cu rânduri scurte poate depăși 50.000 de rânduri și invers, deci

@@ -71,6 +71,18 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
 
+        // FR-PUB-04 pe grupul `api`, nu doar pe `web`. `NoIndexTest` cere antetul pe
+        // FIECARE rută înregistrată, iar valul 2 a adăugat prima familie de rute care nu
+        // trece prin `web` — inclusiv `/api/documentation`, o pagină HTML publică, exact
+        // ce ar indexa un crawler. Restul răspund JSON, unde antetul nu strică nimic.
+        // Doar `NoIndexHeaders`: celelalte din lista `web` de mai sus sunt legate de
+        // sesiune, de Inertia sau de CSP, niciuna cu sens pe un client de API, iar
+        // contextul de tenant al API-ului îl rezolvă propriul middleware din `routes/api.php`
+        // (ADR-014 — jetonul e sursa, nu sesiunea).
+        $middleware->api(append: [
+            NoIndexHeaders::class,
+        ]);
+
         // ADR-014, pct. 3 — ordinea e semnificativă: `Authenticate → SetSessionContext →
         // ResolveWorkspace`. Inversarea ultimelor două NU dă nicio eroare; dă un comutator
         // de workspace gol, pentru că `memberships` devine invizibil fără `app.user_id`.

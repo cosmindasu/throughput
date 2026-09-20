@@ -2,7 +2,6 @@ import { Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { ButtonLink } from '@/Components/Button';
 import PageHeader from '@/Components/PageHeader';
-import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
 import type { SettingsIndexPageProps, SettingsSectionPermissions } from '@/types/generated';
 
@@ -11,15 +10,15 @@ interface SettingsSection {
     title: string;
     description: string;
     href: (workspaceSlug: string) => string;
-    /** Faza 5 (plan §7.4) — badge, fără acțiune: niciun link mort. */
-    comingSoon?: boolean;
 }
 
 /**
- * Ordinea reflectă plan §7.4/§8. Billing și Carrier settings au încetat să fie shell în
- * Faza 5 — paginile lor există acum (specs.md §12.2, §11.5), deci `comingSoon` a căzut de
- * pe ele. API Tokens rămâne shell până când modulul de API public îl construiește, tot în
- * Faza 5. Pipeline și Preferences sunt construite din fazele anterioare.
+ * Ordinea reflectă plan §7.4/§8. **Nicio secțiune nu mai e shell**: ultima, API Tokens, a
+ * primit ecranul ei în valul 2 al Fazei 5, odată cu Export data și Webhook health. Odată cu
+ * ea a căzut și câmpul `comingSoon` plus insigna lui — un mecanism fără niciun utilizator,
+ * într-un proiect în care faza următoare e prezentarea, nu module noi. Dacă reapare vreodată
+ * o secțiune amânată, se rescrie; ce nu se face e să rămână un `if` mort care sugerează că
+ * ecranele încă lipsesc.
  */
 const SECTIONS: SettingsSection[] = [
     {
@@ -39,7 +38,6 @@ const SECTIONS: SettingsSection[] = [
         title: 'API Tokens',
         description: 'Create and revoke tokens for the public API.',
         href: (w) => `/${w}/settings/api-tokens`,
-        comingSoon: true,
     },
     {
         key: 'carrierSettings',
@@ -65,6 +63,18 @@ const SECTIONS: SettingsSection[] = [
         description: 'Every transactional email the public demo tried to send — delivered or intercepted (§22.3).',
         href: (w) => `/${w}/settings/sent-emails`,
     },
+    {
+        key: 'dataExports',
+        title: 'Export data',
+        description: 'Request a complete, machine-readable copy of everything this workspace holds.',
+        href: (w) => `/${w}/settings/data-export`,
+    },
+    {
+        key: 'webhooks',
+        title: 'Webhook health',
+        description: 'See what Stripe has sent this deployment, and what happened to it.',
+        href: (w) => `/${w}/settings/webhooks`,
+    },
 ];
 
 /**
@@ -85,14 +95,11 @@ export default function SettingsIndex() {
                 <div className="grid gap-4 sm:grid-cols-2">
                     {SECTIONS.filter((section) => can[section.key]).map((section) => (
                         <div key={section.key} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                            <div className="flex items-start justify-between gap-2">
-                                <h2 className="text-sm font-medium text-text">{section.title}</h2>
-                                {section.comingSoon && <StatusBadge tone="neutral">Coming in a later phase</StatusBadge>}
-                            </div>
+                            <h2 className="text-sm font-medium text-text">{section.title}</h2>
 
                             <p className="text-sm text-text-2">{section.description}</p>
 
-                            {!section.comingSoon && workspace && (
+                            {workspace && (
                                 <div>
                                     {/* SC 2.4.4 / 4.1.2 — „Open" identic pe fiecare card ar da N linkuri cu
                                         același nume accesibil, fără context (.ai/rules/frontend.md, „Un nume

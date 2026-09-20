@@ -37,6 +37,11 @@ class DemoReset extends Command
 
         Storage::disk('local')->deleteDirectory('exports');
         Storage::disk('local')->deleteDirectory('imports');
+        // Arhivele de export GDPR (§20.5) — rădăcină proprie, vezi `routes/console.php`.
+        // Același motiv ca mai sus: `migrate:fresh` golește `data_export_requests`, deci
+        // după reset TOATE arhivele sunt orfane cu certitudine. N-are rost să aștepte
+        // pragul de 7 zile al măturării de orfani.
+        Storage::disk('local')->deleteDirectory('gdpr-exports');
 
         return $exitCode;
     }

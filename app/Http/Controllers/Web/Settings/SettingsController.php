@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\DataExportRequest;
 use App\Models\SentEmail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -53,6 +54,17 @@ class SettingsController extends Controller
                 // Agent/Viewer): conținutul complet al fiecărui email e un nivel de acces
                 // diferit de „poate deschide Settings" — vezi App\Policies\SentEmailPolicy.
                 'sentEmails' => $user->can('viewAny', SentEmail::class),
+
+                // FR-GDPR-02, specs.md §20.5 — Owner ȘI Manager văd secțiunea; doar
+                // Owner-ul poate DECLANȘA un export (BR-GDPR-01), diferență aplicată în
+                // `DataExportRequestPolicy`, nu aici: secțiunea e vizibilă, butonul nu.
+                'dataExports' => $user->can('viewAny', DataExportRequest::class),
+
+                // §25.2 — „Webhook health", ecran intern de operare. Aceeași gardă ca
+                // `billing` (Owner-only): arată ce a trimis Stripe către ACEST deployment,
+                // inclusiv evenimente care nu aparțin niciunui workspace de aici —
+                // `webhook_events` n-are `tenant_id` prin decizie de model (§19.1).
+                'webhooks' => $user->can('billing.view'),
 
                 // Mereu true — BR-PREF-02: comutarea temei nu e o acțiune de scriere de
                 // business, disponibilă tuturor rolurilor. Cheie explicită (nu omisă),

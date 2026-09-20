@@ -53,6 +53,12 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+// §6.4, US-TEN-01 (valul 2 al Fazei 5) — acceptarea unei invitații. PUBLICĂ, în afara
+// grupului cu `{workspace}`: invitatul n-are încă membership activ, deci `ResolveWorkspace`
+// i-ar da 404 pe propriul link. Și în afara grupului `guest`: poate fi deja autentificat în
+// altă organizație, iar `guest` l-ar redirecta spre dashboard-ul lui, nu spre invitație.
+require __DIR__.'/web/invitations.php';
+
 // Autentificate, fără workspace încă rezolvat (ADR-014: auth → session.context → workspace,
 // ordinea contează — vezi comentariul din SetSessionContext).
 Route::middleware(['auth', 'session.context'])->group(function () {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Gdpr\PruneExpiredDataExportsJob;
 use App\Jobs\System\AnonymizeActivityLogJob;
 use App\Jobs\System\DispatchScheduledReportsJob;
 use App\Jobs\System\FailStuckBulkOperationsJob;
@@ -32,6 +33,13 @@ Schedule::job(new ResetDemoDataJob, 'default')
 // spre deosebire de resetul demo, jobul e util oricând există exporturi (demo sau nu) — el
 // însuși iterează tenanții (ADR-014, pct. 4), scheduler-ul doar dispecerizează.
 Schedule::job(new PruneExpiredExportsJob, 'default')->daily();
+
+// FR-GDPR-01, specs.md §20.5 (valul 2 al Fazei 5) — retenția ARHIVELOR de export GDPR.
+// Job separat de cel de mai sus, deși împart aceeași cheie de config: arhivele stau sub
+// `gdpr-exports/`, nu sub `exports/`, fiindcă a treia trecere a lui `PruneExpiredExportsJob`
+// șterge integral orice subdirector din `exports/` care nu e ULID-ul unui tenant cunoscut —
+// un `exports/gdpr/...` i-ar fi căzut victimă. Fără `when()`, din același motiv.
+Schedule::job(new PruneExpiredDataExportsJob, 'default')->daily();
 
 // FR-STOCK-01, specs.md §10.4 — reconcilierea săptămânală a stocului: recalculează
 // `inventory_levels.on_hand` din `stock_movements` și raportează divergențele, fără să

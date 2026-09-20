@@ -1,6 +1,7 @@
 import accountDetail from '@/help/topics/account-detail';
 import accountsList from '@/help/topics/accounts-list';
 import activityLog from '@/help/topics/activity-log';
+import apiTokens from '@/help/topics/api-tokens';
 import billing from '@/help/topics/billing';
 import bulkGroupOperation from '@/help/topics/bulk-group-operation';
 import bulkOperation from '@/help/topics/bulk-operation';
@@ -8,6 +9,7 @@ import carrierSettings from '@/help/topics/carrier-settings';
 import contactDetail from '@/help/topics/contact-detail';
 import contactsList from '@/help/topics/contacts-list';
 import dashboard from '@/help/topics/dashboard';
+import dataExport from '@/help/topics/data-export';
 import dealDetail from '@/help/topics/deal-detail';
 import dealsKanban from '@/help/topics/deals-kanban';
 import dealsList from '@/help/topics/deals-list';
@@ -33,6 +35,7 @@ import stock from '@/help/topics/stock';
 import stockHistory from '@/help/topics/stock-history';
 import unassigned from '@/help/topics/unassigned';
 import variantForm from '@/help/topics/variant-form';
+import webhookHealth from '@/help/topics/webhook-health';
 import type { HelpTopic } from '@/help/types';
 
 /**
@@ -77,6 +80,12 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Settings/SentEmails/Index': sentEmails,
     'Settings/Shipping/Index': carrierSettings,
     'Settings/Billing/Index': billing,
+    // Valul 2 al Fazei 5. Niciuna dintre cele trei nu e în `NAV_ITEMS`, deci
+    // `HelpTopicCoverageTest` nu le-ar fi cerut — panoul ar fi rămas gol fără ca
+    // vreun test să semnaleze. Maparea e scrisă la integrare, nu de loturi.
+    'Settings/ApiTokens/Index': apiTokens,
+    'Settings/DataExport/Index': dataExport,
+    'Settings/WebhookHealth/Index': webhookHealth,
 
     'Unassigned/Index': unassigned,
 

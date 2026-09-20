@@ -628,6 +628,8 @@ export interface SettingsSectionPermissions {
     pipeline: boolean;
     preferences: boolean;
     sentEmails: boolean;
+    dataExports: boolean;
+    webhooks: boolean;
 }
 
 export interface SettingsIndexPageProps {
@@ -776,8 +778,9 @@ export interface ExportStatusPayload {
     id: string;
     resourceType: string;
     // §13.5 (decizie DomPDF, Orders) — 'csv' implicit pentru exporturile scrise înainte de
-    // acest câmp (Accounts/Contacts, valul 1).
-    format: 'csv' | 'pdf';
+    // acest câmp (Accounts/Contacts, valul 1). `'zip'` = FR-BILL-03, arhiva de PDF-uri de
+    // factură (valul 2), prin același mecanism §13, nu printr-un al doilea.
+    format: 'csv' | 'pdf' | 'zip';
     status: ExportStatus;
     totalRows: number;
     canDownload: boolean;
@@ -1010,6 +1013,17 @@ export interface MembershipOpenRecords {
     total: number;
 }
 
+// US-TEN-01 — blocul apare DOAR pe rândurile cu `status = 'pending'`, adică pe invitații.
+// Invitația e un rând `memberships`, nu o tabelă proprie: coloanele `invitation_token` și
+// `invitation_expires_at` există din Faza 1, iar Gherkin-ul US-TEN-01 cere literal „se
+// creează un membership cu status «pending»".
+export interface MembershipInvitation {
+    invitedAt: string | null;
+    expiresAt: string | null;
+    // Calculat server-side: ceasul browserului nu decide dacă o invitație a expirat.
+    isExpired: boolean;
+}
+
 export interface MembershipRow {
     id: string;
     user: { id: string; name: string; email: string };
@@ -1019,7 +1033,13 @@ export interface MembershipRow {
     deactivatedAt: string | null;
     deactivatedBy: { id: string; name: string } | null;
     openRecords: MembershipOpenRecords;
+    invitation: MembershipInvitation | null;
     canDeactivate: boolean;
+    // BR-TEN-02 — absent pe rândul unui Owner când actorul nu e Owner, pe rândul propriu,
+    // și pe tot ecranul în DEMO_MODE (`DemoMode::allows('members.change-role')`).
+    canUpdateRole: boolean;
+    assignableRoles: string[];
+    canManageInvitation: boolean;
     // BR-TEN-01 — „blocare server-side, NU doar ascunsă în UI": dialogul de confirmare
     // arată mesajul de blocare, fără butoane de acțiune, în loc să ascundă butonul.
     isLastActiveOwner: boolean;
@@ -1028,9 +1048,23 @@ export interface MembershipRow {
 export interface MembersIndexPageProps {
     members: MembershipRow[];
     activeMembers: Array<{ id: string; name: string }>;
+    invitableRoles: string[];
     can: {
         invite: boolean;
+        updateRole: boolean;
     };
+    [key: string]: unknown;
+}
+
+// App\Http\Controllers\Web\Invitations\AcceptInvitationController — pagină PUBLICĂ, în
+// afara grupului cu `{workspace}`: invitatul n-are încă membership activ.
+export interface AcceptInvitationPageProps {
+    workspaceName: string;
+    email: string;
+    roleName: string;
+    expired: boolean;
+    needsProfile: boolean;
+    acceptUrl: string;
     [key: string]: unknown;
 }
 
@@ -1321,6 +1355,9 @@ export interface Invoice {
 export interface InvoicesIndexPageProps {
     invoices: CursorPage<Invoice>;
     filters: ListState;
+    // FR-BILL-03 — §7.4 nota ³ / BR-BILL-03: exportul e o CITIRE, permisă inclusiv
+    // Viewer-ului. Calculat server-side, ca orice alt `can`.
+    can: { export: boolean };
     [key: string]: unknown;
 }
 
@@ -1426,3 +1463,86 @@ export interface ActivityIndexPageProps {
     [key: string]: unknown;
 }
 
+
+// ── Valul 2 al Fazei 5 — API public, export GDPR, sănătatea webhook-urilor ───────
+
+// Settings/ApiTokens/Index — App\Http\Resources\Api\ApiTokenResource, specs.md §18.1
+// (FR-API-01/02).
+export type ApiTokenStatus = 'active' | 'expired' | 'revoked';
+
+export interface ApiTokenRow {
+    id: string;
+    name: string;
+    abilities: string[];
+    createdBy: string | null;
+    createdAt: string | null;
+    lastUsedAt: string | null;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    status: ApiTokenStatus;
+}
+
+export interface ApiTokenAbilityOption {
+    value: string;
+    description: string;
+}
+
+export interface ApiTokensIndexPageProps {
+    tokens: ApiTokenRow[];
+    abilities: ApiTokenAbilityOption[];
+    // US-API-01 — valoarea în clar există EXACT o dată, imediat după creare, ca flash de
+    // sesiune. Nu e persistată nicăieri: în bază stă doar hash-ul.
+    plainTextToken: string | null;
+    can: { create: boolean; revoke: boolean };
+    [key: string]: unknown;
+}
+
+// Settings/DataExport/Index — App\Http\Resources\Gdpr\DataExportRequestResource,
+// FR-GDPR-01/02, specs.md §20.5. Export la nivel de TENANT (portabilitate), distinct de
+// exportul de LISTĂ din `ExportStatusPayload` (§13.2) — două mecanisme, două rădăcini pe disc.
+export type DataExportStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+export interface DataExportRequestRow {
+    id: string;
+    status: DataExportStatus;
+    requestedAt: string | null;
+    completedAt: string | null;
+    expiresAt: string | null;
+    isExpired: boolean;
+    errorMessage: string | null;
+    requestedBy?: { id: string; name: string } | null;
+    // Calculat server-side din Policy: autorul cererii, stare `completed`, fișier prezent,
+    // link neexpirat. NU se recalculează din `status` în React.
+    canDownload: boolean;
+}
+
+export interface DataExportIndexPageProps {
+    requests: DataExportRequestRow[];
+    can: { create: boolean };
+    retentionDays: number;
+    [key: string]: unknown;
+}
+
+// Settings/WebhookHealth/Index — specs.md §25.2. `ignored` (valul 2) NU e o eroare:
+// semnătura e validă, evenimentul aparține altui deployment care împarte sandbox-ul Stripe.
+// `payload` nu ajunge NICIODATĂ în props — doar metadate și mesajul scris de noi.
+export type WebhookEventStatus = 'received' | 'processing' | 'processed' | 'failed' | 'ignored';
+
+export interface WebhookEventRow {
+    id: string;
+    source: string;
+    eventId: string;
+    type: string;
+    status: WebhookEventStatus;
+    receivedAt: string | null;
+    processedAt: string | null;
+    message: string | null;
+}
+
+export interface WebhookHealthPageProps {
+    events: WebhookEventRow[];
+    counts: Record<WebhookEventStatus, number>;
+    statuses: WebhookEventStatus[];
+    filter: { status: WebhookEventStatus | null };
+    [key: string]: unknown;
+}

@@ -76,6 +76,29 @@ class MiddlewareOrderTest extends TestCase
         $this->actingAs($user)->get("/marlin/binding-probe/{$foreign->id}")->assertNotFound();
     }
 
+    /**
+     * Rutele PUBLICE care poartă un slug de workspace în cale fără să fie rute de workspace.
+     *
+     * Garda de mai jos pornește de la premisa „`{workspace}` în cale ⇒ grupul cu context de
+     * tenant". Premisa a ținut până în valul 2 al Fazei 5, când acceptarea unei invitații
+     * (§6.4, US-TEN-01) a devenit primul contraexemplu legitim: invitatul are membership
+     * `pending`, iar `ResolveWorkspace` filtrează pe `status = active`, deci i-ar da 404 pe
+     * propriul link. Slug-ul e acolo doar ca politica RLS a lui `memberships` să aibă un
+     * tenant pe care să întoarcă rândul; contextul îl deschide controllerul însuși, prin
+     * `TenantContext::run()`, iar autorizarea o face TOKENUL, nu slug-ul.
+     *
+     * Excepția e listată pe NUME, nu ocolită prin redenumirea parametrului în `{slug}`:
+     * redenumirea ar fi făcut garda oarbă la greșeala reală de aceeași formă — o rută
+     * autentificată pusă din neatenție în afara grupului. De aceea fiecare intrare de aici
+     * e verificată, mai jos, că e într-adevăr publică.
+     *
+     * @var list<string>
+     */
+    private const PUBLIC_SLUG_ROUTES = [
+        'invitations.show',
+        'invitations.accept',
+    ];
+
     public function test_every_workspace_route_carries_both_middlewares(): void
     {
         // Regresia realistă nu e reordonarea, ci ruta nouă adăugată în Faza 3 direct pe
@@ -87,6 +110,20 @@ class MiddlewareOrderTest extends TestCase
 
         foreach ($routes as $route) {
             $middleware = app(Router::class)->gatherRouteMiddleware($route);
+
+            if (in_array($route->getName(), self::PUBLIC_SLUG_ROUTES, true)) {
+                // O excepție care ar putea deveni o portiță: dacă cineva adaugă aici o rută
+                // AUTENTICATĂ, ea ar ocoli tăcut și contextul, și degradarea de abonament.
+                // Verificat explicit, ca lista să nu poată fi folosită pentru altceva decât
+                // ce declară.
+                $this->assertNotContains(
+                    'auth',
+                    $route->gatherMiddleware(),
+                    "Ruta `{$route->uri()}` e scutită ca PUBLICĂ, dar cere autentificare — atunci îi trebuie contextul de tenant, nu o excepție."
+                );
+
+                continue;
+            }
 
             $this->assertContains(SetSessionContext::class, $middleware, "Ruta `{$route->uri()}` nu deschide contextul de sesiune.");
             $this->assertContains(ResolveWorkspace::class, $middleware, "Ruta `{$route->uri()}` nu rezolvă workspace-ul.");
