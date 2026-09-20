@@ -85,10 +85,10 @@ function mappingRow(page: Page, header: string) {
     return page.locator('table tbody tr').filter({ has: page.locator('td:first-child').getByText(header, { exact: true }) });
 }
 
-test('import de conturi în 4 pași: auto-mapare, probă uscată cu erori cunoscute, commit, raport de erori — polling REAL, fără reload', async ({
+test('import de conturi în 4 pași: auto-mapare, probă uscată cu erori cunoscute, commit, raport de erori, REIMPORT — polling REAL, fără reload', async ({
     page,
 }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     // Pasul 1 — Upload.
     await page.goto(`${IMPORTS_URL}/create`);
@@ -124,7 +124,11 @@ test('import de conturi în 4 pași: auto-mapare, probă uscată cu erori cunosc
     await page.getByLabel('Column for Company Name').selectOption('');
     await saveMappingButton.click();
 
-    await expect(page.getByRole('alert')).toContainText('is required for Accounts and must be mapped to a column');
+    // `getByRole('alert')` NEASCOPAT e ambiguu pe ORICE pagină a aplicației de la valul 2
+    // încoace: `FlashMessages.tsx` ține o regiune `role="alert"` PERMANENTĂ (goală cât n-are
+    // mesaj) în `<main>`, ca un cititor de ecran s-o poată înregistra înaintea primului
+    // mesaj (SC 4.1.3). Filtrarea pe text alege alerta paginii, nu regiunea de flash.
+    await expect(page.getByRole('alert').filter({ hasText: 'is required for Accounts and must be mapped to a column' })).toBeVisible();
     await expect(saveMappingButton).toBeFocused();
     expect(await page.evaluate(() => document.activeElement?.tagName ?? null), 'focusul nu trebuie să cadă pe <body> după o eroare de validare').not.toBe(
         'BODY',
@@ -205,10 +209,137 @@ test('import de conturi în 4 pași: auto-mapare, probă uscată cu erori cunosc
     // contoarele afișate mai sus.
     await page.goto(`${BASE}/accounts?sort=-created_at`);
     await page.getByRole('table').waitFor();
-    await expect(page.getByRole('link', { name: `E2E Import Acme ${ts}` })).toBeVisible();
-    await expect(page.getByRole('link', { name: `E2E Import Delta ${ts}` })).toBeVisible();
-    await expect(page.getByRole('link', { name: `E2E Import Gamma ${ts}` })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: `E2E Import Acme ${ts}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: `E2E Import Delta ${ts}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: `E2E Import Gamma ${ts}`, exact: true })).toHaveCount(0);
+
+    // ---------------------------------------------------------------------------------
+    // §24.3 pct. 5, ULTIMUL pas — REIMPORT (valul 3 al Fazei 5).
+    //
+    // Cerința nu spune „mai fă un import", spune „→ reimport", imediat după „descărcare
+    // raport erori": raportul TREBUIE să fie reimportabil, ceea ce e și promisiunea literală
+    // a linkului („correct them and re-import") și a docblock-ului din
+    // `ImportController::downloadErrors()` („Raport reimportabil", §14.1 pct. 5, US-IMP-01).
+    //
+    // Deci fișierul încărcat mai jos NU e unul construit de test: e EXACT octeții descărcați
+    // mai sus, cu DOUĂ celule corectate — exact ce ar face un om care deschide raportul,
+    // repară ce i se spune în coloana `error` și îl trimite înapoi. Coloana `error` rămâne în
+    // fișier, necurățată, tocmai fiindcă asta e varianta leneșă și realistă: dacă
+    // auto-maparea ar încerca s-o mapeze pe un câmp real, testul ar cădea aici.
+    const report = parseCsv(content);
+    const errorColumn = report.headers.indexOf('error');
+    expect(errorColumn, 'raportul de erori trebuie să aibă coloana `error`').toBeGreaterThan(-1);
+
+    const nameColumn = report.headers.indexOf('Company Name');
+    const domainColumn = report.headers.indexOf('Domain');
+
+    const correctedRows = report.rows.map((row) => {
+        const fixed = [...row];
+
+        // Rândul 3 din fișierul original — „Company name" gol.
+        if (fixed[nameColumn] === '') {
+            fixed[nameColumn] = `E2E Reimport Beta ${ts}`;
+        }
+
+        // Rândul 4 — domeniu duplicat cu un rând anterior DIN FIȘIER (care a și fost
+        // importat între timp, deci simpla retrimitere ar eșua din nou).
+        if (fixed[domainColumn] === DUPLICATE_DOMAIN) {
+            fixed[domainColumn] = `e2e-reimport-gamma-${ts}.example`;
+        }
+
+        return fixed;
+    });
+
+    const correctedCsv = serializeCsv([report.headers, ...correctedRows]);
+
+    await page.goto(`${IMPORTS_URL}/create`);
+    await page.getByLabel('File (CSV or XLSX)').setInputFiles({
+        name: 'import-errors-corrected.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from(correctedCsv, 'utf-8'),
+    });
+    await page.getByRole('button', { name: 'Upload' }).click();
+    await expect(page).toHaveURL(/\/imports\/[^/]+$/);
+    await expect(page.getByRole('heading', { name: 'Step 1 of 4 — Upload done' })).toBeVisible();
+
+    // Coloana `error` nu corespunde niciunui câmp al resursei — rămâne nemapată, iar
+    // maparea obligatorie (`name`) trece fără intervenție manuală.
+    await expect(page.getByLabel('Column for error')).toHaveValue('');
+    await expect(page.getByLabel('Column for Company Name')).toHaveValue('name');
+    await page.getByRole('button', { name: 'Save mapping and continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Step 2 of 4 — Columns mapped' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Run dry-run validation' }).click();
+    await expect(page.getByRole('heading', { name: 'Step 3 of 4 — Dry run complete' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('2 rows ready to import, 0 invalid, out of 2 total.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Import 2 valid rows' }).click();
+
+    // De data asta fără erori — alt titlu de pas decât la primul import („Completed", nu
+    // „Completed with errors"), deci un reimport reușit nu poate fi confundat cu o repetare
+    // a aceluiași eșec.
+    await expect(page.getByRole('heading', { name: 'Step 4 of 4 — Completed', exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('2 rows imported, 0 skipped, out of 2 total.')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Download the .* skipped rows as CSV/ })).toHaveCount(0);
+
+    // Cele două rânduri care eșuaseră la primul import există acum ca `accounts` — bucla
+    // „import → erori → corectare → reimport" e închisă, nu doar descrisă.
+    await page.goto(`${BASE}/accounts?sort=-created_at`);
+    await page.getByRole('table').waitFor();
+    await expect(page.getByRole('link', { name: `E2E Reimport Beta ${ts}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: `E2E Import Gamma ${ts}`, exact: true })).toBeVisible();
 });
+
+/**
+ * Parser CSV minimal — suficient pentru raportul de erori (`fputcsv()` fără caractere de
+ * linie nouă în celule, ghilimele doar pe câmpurile cu spațiu). NU un parser general: dacă
+ * formatul raportului s-ar complica, testul trebuie să pice aici, vizibil, nu să interpreteze
+ * greșit în tăcere.
+ */
+function parseCsv(content: string): { headers: string[]; rows: string[][] } {
+    const lines = content.split(/\r?\n/).filter((line) => line !== '');
+    const [header, ...rest] = lines.map(parseCsvLine);
+
+    return { headers: header, rows: rest };
+}
+
+function parseCsvLine(line: string): string[] {
+    const fields: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index++) {
+        const char = line[index];
+
+        if (inQuotes) {
+            if (char === '"') {
+                if (line[index + 1] === '"') {
+                    current += '"';
+                    index++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += char;
+            }
+        } else if (char === '"') {
+            inQuotes = true;
+        } else if (char === ',') {
+            fields.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    fields.push(current);
+
+    return fields;
+}
+
+function serializeCsv(rows: string[][]): string {
+    return rows.map((row) => row.map((field) => (/[",\n]/.test(field) ? `"${field.replace(/"/g, '""')}"` : field)).join(',')).join('\n');
+}
 
 /**
  * Regresie IZOLATĂ, minimă și rapidă pentru defectul descris în docblock-ul fișierului

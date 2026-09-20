@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { confirmOrder, createDraftOrders, createOrderWithLine, firstAccountId, lookupVariants } from '../support/api';
 import { authFile } from '../support/auth';
+import { bulkStatusRegion, checkByLabel } from '../support/bulk';
 
 /**
  * Faza 3, valul 2 (specs.md §13, §24.3 pct. 6) — operații în masă și export pe Orders.
@@ -86,9 +87,14 @@ test.describe('Export CSV/PDF de pe lista filtrată (§13.5)', () => {
         await page.getByRole('link', { name: 'Export PDF' }).click();
         await page.waitForURL(/\/exports\/[^/]+$/);
 
-        // `[aria-live="polite"]` — `getByRole('status')` e ambiguu pe această pagină (bannerul
-        // `flash.success` are și el `role="status"`; la fel prima vizită a `HelpPanel`).
-        const status = page.locator('div[aria-live="polite"]');
+        // Regiunea de status a exportului. NICI `getByRole('status')` NICI
+        // `div[aria-live="polite"]` nu mai sunt neambigue de la valul 2 încoace: `AppLayout`
+        // montează acum DOUĂ regiuni live PERMANENTE pe orice pagină — `FlashMessages.tsx`
+        // (`role="status"` pentru succes/notice, `role="alert"` pentru erori) și
+        // `ListUpdateAnnouncer.tsx` (`role="status"`, `sr-only`, goală) — ambele născute
+        // goale, ca un cititor de ecran să le înregistreze ÎNAINTE de primul mesaj (SC
+        // 4.1.3). Filtrarea pe conținut alege cardul paginii, nu regiunile layout-ului.
+        const status = page.getByRole('status').filter({ hasText: /Queued|Running|Ready to download|could not be completed/ });
         await expect(status).toContainText('Ready to download', { timeout: 30_000 });
 
         // **Defect real găsit aici, reparat în `Exports/Show.tsx`** — „Download {format}"
@@ -138,7 +144,7 @@ test.describe('Prag de confirmare peste plafonul rolului (FR-BULK-01) — Agent 
             await page.goto(`${ORDERS_URL}?filter[owner]=me&filter[status]=`);
             await page.getByRole('table').waitFor();
 
-            await page.getByRole('checkbox', { name: 'Select all orders on this page' }).check();
+            await checkByLabel(page, 'Select all orders on this page');
             await page.getByRole('button', { name: /Select all \d+ orders matching this filter/ }).click();
 
             // „Select all N" numără TOT filtrul (draft-uri + comanda de control); butonul
@@ -158,7 +164,7 @@ test.describe('Prag de confirmare peste plafonul rolului (FR-BULK-01) — Agent 
 
             // Pagina de progres ajunge într-o stare terminală (§24.3 pct. 6).
             await page.waitForURL(/\/bulk\/[^/]+$/);
-            await expect(page.locator('div[aria-live="polite"]')).toContainText('Done', { timeout: 30_000 });
+            await expect(bulkStatusRegion(page)).toContainText('Done', { timeout: 30_000 });
 
             // Comanda de control rămâne `confirmed` — anularea n-a atins-o. Starea comenzii
             // e randată de DOUĂ ori pe `Orders/Show` (chip-ul din antet ȘI istoricul
@@ -187,7 +193,7 @@ test.describe('Prag de confirmare peste plafonul rolului (FR-BULK-01) — Agent 
             await page.goto(`${ORDERS_URL}?filter[owner]=me&filter[status]=draft`);
             await page.getByRole('table').waitFor();
 
-            await page.getByRole('checkbox', { name: 'Select all orders on this page' }).check();
+            await checkByLabel(page, 'Select all orders on this page');
             await page.getByRole('button', { name: /Select all \d+ orders matching this filter/ }).click();
 
             const cancelButton = page.getByRole('button', { name: /Cancel \d+ draft orders?/ });
@@ -201,7 +207,7 @@ test.describe('Prag de confirmare peste plafonul rolului (FR-BULK-01) — Agent 
             // pornește direct, fără dialogul de confirmare pe care Agentul îl vede mai sus.
             await expect(page.getByRole('dialog')).toHaveCount(0);
             await page.waitForURL(/\/bulk\/[^/]+$/);
-            await expect(page.locator('div[aria-live="polite"]')).toContainText('Done', { timeout: 30_000 });
+            await expect(bulkStatusRegion(page)).toContainText('Done', { timeout: 30_000 });
         });
     });
 });

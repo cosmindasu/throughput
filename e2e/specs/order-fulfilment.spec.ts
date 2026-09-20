@@ -1,8 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { lookupVariants } from '../support/api';
 import { authFile } from '../support/auth';
+import { inertiaPageProps } from '../support/inertia';
 
 /**
+ * §24.3 pct. 4, INTEGRAL — „Comandă completă: creare → confirmare → shipment parțial →
+ * shipment final → generare factură → înregistrare plată".
+ *
+ * Ultimii doi pași (factură + plată) sunt adăugați de valul 3 al Fazei 5, pe ACELAȘI test,
+ * nu într-un fișier separat: cerința descrie UN flux continuu, iar factura se poate crea
+ * doar de pe comanda ajunsă `confirmed`/`fulfilled` (`INVOICEABLE_ORDER_STATUSES` din
+ * `BillingSection.tsx`, litera Gherkin a §12.1). Un al doilea fișier ar avea nevoie de
+ * propriul fixture de comandă onorată — adică ar repeta exact ce face acesta.
+ *
  * Faza 3, valul 2 (specs.md §11.2 pași 4-6, US-ORD-02/03, plan §9 Livrabile — „O comandă
  * parcurge draft → confirmed → partially_fulfilled → fulfilled") — onorarea prin
  * `DemoShippingCarrier` (ADR-010), FĂRĂ apel extern: Marlin (tenantul folosit de toată
@@ -31,7 +41,13 @@ test.use({ storageState: authFile('manager') });
 const BASE = '/marlin';
 const ACCOUNTS_URL = `${BASE}/accounts`;
 
-test('o comandă parcurge draft → confirmed → partially_fulfilled → fulfilled, cu două shipment-uri parțiale', async ({ page }) => {
+interface InvoiceShowProps {
+    invoice: { id: string; status: string; total: number; balanceDue: number; invoiceNumber: string | null };
+}
+
+test('o comandă parcurge draft → confirmed → partially_fulfilled → fulfilled → factură → plată', async ({ page }) => {
+    test.setTimeout(90_000);
+
     // O variantă cu destul stoc pentru DOUĂ shipment-uri parțiale (2 + 2), citită din
     // API-ul real de căutare (`VariantLookupController`), nu presupusă dintr-un SKU fix —
     // seed-ul e la scară redusă și parțial aleatoriu (§project.md, StockAndOrdersSeeder).
@@ -131,6 +147,77 @@ test('o comandă parcurge draft → confirmed → partially_fulfilled → fulfil
     await expect(shipments).toHaveCount(2);
     await expect(shipments.nth(0).getByText('In transit')).toBeVisible();
     await expect(shipments.nth(1).getByText('In transit')).toBeVisible();
+
+    // ---------------------------------------------------------------------------------
+    // §24.3 pct. 4, pasul 5 — GENERARE FACTURĂ (Faza 5, US-BILL-01, §12.1).
+    //
+    // `BillingSection` își cere singură starea (`GET .../invoice-summary`, fetch propriu,
+    // nu props Inertia — vezi docblock-ul componentei), deci secțiunea apare abia după ce
+    // serverul confirmă `can.create`. `toBeVisible()` cu auto-retry acoperă exact asta;
+    // niciun `waitForTimeout`.
+    const billing = page.locator('section[aria-label="Billing"]');
+    const createInvoice = billing.getByRole('button', { name: 'Create Invoice' });
+    await expect(createInvoice).toBeVisible();
+    await createInvoice.click();
+
+    await expect(page).toHaveURL(/\/invoices\/[^/?]+$/);
+    const invoiceUrl = page.url();
+
+    // Același tipar de scopare ca pentru starea comenzii, mai sus — `PageHeader` randează
+    // chip-ul de status în `<p>`-ul de descriere de sub `<h1>`; pe `Invoices/Show` acel
+    // `<p>` mai conține și linkul către comandă.
+    const invoiceStatusBadge = page.locator('h1').locator('xpath=following-sibling::p[1]').locator('span.rounded-full');
+    await expect(invoiceStatusBadge).toHaveText('Draft');
+
+    const paymentsSection = page.locator('section[aria-label="Payments"]');
+    await expect(paymentsSection.getByText('No payments recorded yet.')).toBeVisible();
+
+    // O factură `draft` NU acceptă încasări (`RegisterPaymentAction`: doar `sent`/`overdue`)
+    // — formularul nici măcar nu e randat. Verificat explicit, nu presupus: e precondiția
+    // pasului următor.
+    await expect(paymentsSection.getByRole('button', { name: 'Record payment' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Mark as sent' }).click();
+    const sendDialog = page.getByRole('dialog', { name: 'Mark this invoice as sent?' });
+    await expect(sendDialog).toBeVisible();
+    await sendDialog.getByRole('button', { name: 'Mark as sent' }).click();
+    await expect(sendDialog).toBeHidden();
+    await expect(invoiceStatusBadge).toHaveText('Sent');
+
+    // ---------------------------------------------------------------------------------
+    // §24.3 pct. 4, pasul 6 — ÎNREGISTRARE PLATĂ (US-BILL-02).
+    //
+    // Suma se citește din props, nu din textul formatat de pe ecran: `formatMoney()`
+    // scrie simbol de monedă și separatori de mii, iar un test care le-ar parseze ar
+    // depinde de locale, nu de valoarea reală. `balanceDue` e un număr în props.
+    const beforePayment = await inertiaPageProps<InvoiceShowProps>(page, invoiceUrl);
+    expect(beforePayment.invoice.status).toBe('sent');
+    expect(beforePayment.invoice.balanceDue, 'factura tocmai emisă are de încasat exact totalul').toBe(beforePayment.invoice.total);
+    expect(beforePayment.invoice.balanceDue).toBeGreaterThan(0);
+
+    await paymentsSection.getByRole('spinbutton', { name: 'Amount' }).fill(beforePayment.invoice.balanceDue.toFixed(2));
+    await paymentsSection.getByRole('button', { name: 'Record payment' }).click();
+
+    // Încasare COMPLETĂ → `balance_due` ajunge 0, deci statusul trece singur pe `paid`
+    // (US-BILL-02, „a doua plată... status devine paid automat" —
+    // `RegisterPaymentAction`).
+    await expect(invoiceStatusBadge).toHaveText('Paid');
+
+    const recordedPayments = paymentsSection.getByRole('listitem');
+    await expect(recordedPayments).toHaveCount(1);
+    await expect(recordedPayments.first()).toContainText('Bank transfer');
+    await expect(recordedPayments.first()).toContainText('Marcus Reyes');
+
+    const afterPayment = await inertiaPageProps<InvoiceShowProps>(page, invoiceUrl);
+    expect(afterPayment.invoice.status).toBe('paid');
+    expect(afterPayment.invoice.balanceDue).toBe(0);
+
+    // Bucla se închide pe comandă: secțiunea de facturare nu mai oferă „Create Invoice",
+    // ci linkul către factura existentă, cu starea ei (BR-ORD-05 — o comandă, o factură).
+    await page.goto(orderUrl);
+    await expect(billing.getByRole('button', { name: 'Create Invoice' })).toHaveCount(0);
+    await expect(billing.getByRole('link', { name: afterPayment.invoice.invoiceNumber! })).toBeVisible();
+    await expect(billing.getByText('paid', { exact: true })).toBeVisible();
 });
 
 function escapeRegExp(value: string): string {

@@ -92,10 +92,13 @@ test('creează un raport built-in prin FORMULARUL real, îl rulează manual pe p
     await expect(page.getByRole('heading', { name: 'Run history' })).toBeVisible();
     await expect(page.getByText('This report hasn’t run yet.')).toBeVisible();
 
-    // `getByRole('status')` e ambiguu pe acest ecran: bannerul `flash.success` de mai jos
-    // („Report queued…") folosește TOT `role="status"` — scopăm strict pe regiunea de status
-    // a rulării (`Reports/Show.tsx`, `statusRef`), la fel ca `orders-bulk.spec.ts`.
-    const runStatusRegion = page.locator('div[aria-live="polite"]');
+    // `getByRole('status')` e ambiguu pe acest ecran — și `div[aria-live="polite"]` a devenit
+    // ambiguu la valul 2: pe lângă bannerul `flash.success` („Report queued…"), `AppLayout`
+    // montează acum și `ListUpdateAnnouncer` (`role="status"`, `sr-only`, PERMANENT, goală —
+    // SC 4.1.3). Ancora e `tabindex="-1"`, atributul care face din acest `div` ȚINTA de focus
+    // a lui `statusRef` (`Reports/Show.tsx`) — adică exact ce verifică `toBeFocused()` mai
+    // jos, nu o clasă de stil.
+    const runStatusRegion = page.locator('div[role="status"][tabindex="-1"]');
 
     await page.getByRole('button', { name: 'Run now' }).click();
 
