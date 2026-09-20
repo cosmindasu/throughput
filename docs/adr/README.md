@@ -10,18 +10,18 @@ Each ADR documents one architectural decision with long-term impact — **contex
 |---|---|---|---|---|
 | [ADR-001](ADR-001-stack-tehnic.md) | Technical stack — Laravel + Inertia + React + PostgreSQL (over Next.js / Filament / Livewire) | Accepted · versions superseded by [ADR-015](ADR-015-laravel-13-si-inertia-3.md) | 2026-09-12 | Sprint 0 |
 | [ADR-002](ADR-002-tenancy-pe-cale.md) | Path-based multi-tenancy (workspace slug), not subdomain-based | Accepted | 2026-09-12 | Sprint 1 |
-| [ADR-003](ADR-003-izolare-tenant-doua-straturi.md) | Tenant isolation in two layers — global scope + Row-Level Security | Accepted | 2026-09-12 | Sprint 1 |
+| [ADR-003](ADR-003-izolare-tenant-doua-straturi.md) | Tenant isolation in two layers — global scope + Row-Level Security | Accepted · point 1 (the `SET LOCAL` form) superseded by [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | 2026-09-12 | Sprint 1 |
 | [ADR-004](ADR-004-stoc-registru-append-only.md) | Stock as an append-only ledger, not as a mutable quantity | Accepted | 2026-09-12 | Sprint 3 |
 | [ADR-005](ADR-005-facturare-separata-de-stripe.md) | Customer invoicing is separate from the Stripe subscription | Accepted | 2026-09-12 | Sprint 4 |
-| [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Laravel Cashier 16 for the tenant subscription | Accepted · the sentence on PDF rendering partially superseded by [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | 2026-09-12 | Sprint 4 |
+| [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Laravel Cashier 16 for the tenant subscription | Accepted · both sentences on PDF rendering superseded by [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | 2026-09-12 | Sprint 4 |
 | [ADR-007](ADR-007-audit-log-cod-propriu.md) | Activity log written in-house, not `owen-it/laravel-auditing` | Accepted | 2026-09-12 | Sprint 5 |
 | [ADR-008](ADR-008-versionare-api-pe-cale.md) | Public API versioned in the path (`/api/v1/...`) | Accepted | 2026-09-12 | Sprint 5 |
 | [ADR-009](ADR-009-resend-email-tranzactional.md) | Resend as the transactional email provider | Accepted | 2026-09-12 | Sprint 4 |
-| [ADR-010](ADR-010-doi-furnizori-curierat-configurabili.md) | Two shipping carriers, selectable per tenant, plus a demo one | Accepted | 2026-09-12 | Sprint 5 |
+| [ADR-010](ADR-010-doi-furnizori-curierat-configurabili.md) | Two shipping carriers, selectable per tenant, plus a demo one | Accepted · valve pulled (EasyPost out); one Consequences bullet retracted | 2026-09-12 | Sprint 5 |
 | [ADR-011](ADR-011-dezactivare-membru-fara-blocare.md) | Deactivating a member is never blocked by the records they own | Accepted | 2026-09-12 | Phase 2 |
 | [ADR-012](ADR-012-retentie-30-zile-post-anulare.md) | A 30-day retention window after subscription cancellation | Accepted | 2026-09-12 | Phase 5 |
 | [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | External calls leave the HTTP request and move to queues | Accepted | 2026-09-12 | Phase 5 |
-| [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Tenant context — a single gate, two session variables, a dedicated policy for `memberships` | Accepted · the SQL form in point 2 partially superseded by [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | 2026-09-12 | Phase 1 |
+| [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Tenant context — a single gate, two session variables, a dedicated policy for `memberships` — partially supersedes point 1 of [ADR-003](ADR-003-izolare-tenant-doua-straturi.md) | Accepted · the SQL form in point 2 partially superseded by [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | 2026-09-12 | Phase 1 |
 | [ADR-015](ADR-015-laravel-13-si-inertia-3.md) | Laravel 13 and Inertia 3, not Laravel 12 and Inertia 2 — supersedes the versions in [ADR-001](ADR-001-stack-tehnic.md) | Accepted | 2026-09-12 | Sprint 0 |
 | [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | RLS policies cast the setting, not the column — partially supersedes the SQL form in [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Accepted | 2026-09-12 | Phase 1 |
 | [ADR-017](ADR-017-reset-demo-ca-job-pe-horizon.md) | The daily demo reset runs as a job on Horizon, not inside the `scheduler` container | Accepted | 2026-09-13 | Phase 2 |

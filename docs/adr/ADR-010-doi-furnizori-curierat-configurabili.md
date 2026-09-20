@@ -1,6 +1,6 @@
 # ADR-010: Two shipping carriers, selectable per tenant, plus a demo carrier
 
-- **Status**: Accepted — **the scope escape valve was pulled on 2026-09-12** (see the note below)
+- **Status**: Accepted — **the scope escape valve was pulled on 2026-09-12; one Consequences bullet is retracted** (see the notes below)
 - **Date**: 2026-09-12
 - **Deciders**: Owner
 - **Related**: [[ADR-001]] (hand-built components, not configuration)
@@ -13,6 +13,8 @@
 > **What is lost, explicitly:** the "two different external integrations, one interface" demonstration. What remains demonstrated is "the provider is configured **per tenant**, with its own credentials" — Cascade and Northgate both start on `shippo`, with separate rows in `tenant_carrier_settings`. The decision's central argument (per-tenant configurability over a stable interface) does not depend on the number of providers; the real cost of a third is now documented as **one enum value + one adapter + the same contract suite**, which is itself the proof that the abstraction holds.
 >
 > **A secondary gain, not a negligible one:** Phase 5 was flagged as overloaded by the audit (P2-002). It loses about a day of work, on exactly the tightest phase. The valve worked as intended.
+>
+> **One consequence below is retracted by this note, recorded 2026-09-20.** The first bullet under Consequences → Positive reads "The `ShippingCarrier` interface is validated by two real implementations, not assumed." With EasyPost out, the two implementations are `shippo` and `demo`, and `demo` makes no external call — so the interface is validated by **one** real integration plus a deliberate in-process double. That is still a genuine validation, because the contract suite runs identically against both and the demo adapter is a permanent part of the design rather than a stub; but it is not what the bullet claims, and the claim contradicts "what is lost" above. The bullet stays in place, uncorrected in the body, because an accepted decision is not rewritten — this note is the correction.
 
 ## Context and problem statement
 

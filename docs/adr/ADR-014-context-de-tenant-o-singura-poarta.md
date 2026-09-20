@@ -3,6 +3,7 @@
 - **Status**: Accepted — **the SQL form of the comparison in the RLS policies (point 2) is partially superseded by [[ADR-016]]**
 - **Date**: 2026-09-12
 - **Deciders**: Owner
+- **Partially supersedes**: [[ADR-003]] — exclusively point 1 of its decision outcome, "The context is set with `SET LOCAL`, inside a transaction, not with `SET` on the connection." The intent of that sentence (transaction-scoped context, never connection-scoped) stands and is what this ADR implements; only the SQL form changes, to `select set_config('app.tenant_id', ?, true)`. The rest of [[ADR-003]] remains in force, untouched: two layers rather than one, the options weighed, and point 2 (no `BYPASSRLS` for the application role).
 - **Related**: [[ADR-003]] (two-layer isolation), [[ADR-013]] (external calls in queues), [[ADR-002]]
 - **Tags**: multi-tenancy, rls, postgresql, memberships, queues, sprint-1
 

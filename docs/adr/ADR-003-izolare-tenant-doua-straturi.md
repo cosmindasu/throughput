@@ -1,10 +1,16 @@
 # ADR-003: Tenant isolation in two layers — Eloquent global scope + Row-Level Security
 
-- **Status**: Accepted
+- **Status**: Accepted — **point 1 of the decision outcome (the `SET LOCAL` form) is superseded by [[ADR-014]]**
 - **Date**: 2026-09-12
 - **Deciders**: Tech Lead
-- **Related**: [[ADR-001]] (choosing PostgreSQL), [[ADR-002]] (identifying the tenant)
+- **Related**: [[ADR-001]] (choosing PostgreSQL), [[ADR-002]] (identifying the tenant), [[ADR-014]] (the form that actually works, and two more holes in the literal implementation), [[ADR-016]] (where the cast goes in the policy)
 - **Tags**: multi-tenancy, security, postgresql, rls, eloquent, sprint-1
+
+> **Correction, recorded 2026-09-20 (read together with [[ADR-014]]).** Point 1 below says the context is set with `SET LOCAL app.tenant_id = ?` inside a transaction. **That form has never worked and was never in the code.** `SET` does not accept bound parameters, and `DB::statement()` prepares and executes, so PostgreSQL rejects it with `SQLSTATE[42601]`. The form actually in use is `select set_config('app.tenant_id', ?, true)` — a function call, so parameters bind normally, with the third argument scoping the setting to the current transaction. That third argument carries the entire safety property this point was written to describe: with `false`, the context survives the commit and the next request on the same pooled connection inherits it.
+>
+> [[ADR-014]] found this on a clean PostgreSQL 16 the same day, along with two further holes in the literal implementation (a uniform policy makes `memberships` undiscoverable; the application role must not hold `BYPASSRLS`), and is the decision in force. The correction was recorded here only in Phase 6 — until then a reader of this document had no way to know point 1 was wrong, which is the failure this note exists to close.
+>
+> **Everything else remains fully in force**: two layers rather than one, the options weighed, the addendum below, and point 2 (no `BYPASSRLS` for the application role). Only the SQL form of one sentence changes; the reasoning is not rewritten to correct a function call.
 
 ## Context and problem statement
 
