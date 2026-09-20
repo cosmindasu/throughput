@@ -110,7 +110,15 @@ class StripeWebhookIdempotencyTest extends TestCase
         $this->assertSame(0, DB::table('jobs')->count());
     }
 
-    public function test_an_event_for_an_unmapped_stripe_customer_is_recorded_as_failed_not_thrown(): void
+    /**
+     * SCHIMBAT 2026-09-20 (lotul I, valul 2): aserțiunea era `STATUS_FAILED`, acum e
+     * `STATUS_IGNORED`. Nu e o relaxare a testului, e o corecție de model cerută de o
+     * decizie a proprietarului: sandbox-ul Stripe rămâne ÎMPĂRȚIT cu alt proiect, deci
+     * endpoint-ul nostru primește legitim evenimentele aceluia, cu semnătură validă. Restul
+     * criteriilor (200, `error_message` populat, zero joburi) sunt neschimbate — scenariul
+     * detaliat stă în `StripeWebhookIgnoredEventTest`.
+     */
+    public function test_an_event_for_an_unmapped_stripe_customer_is_recorded_as_ignored_not_thrown(): void
     {
         $event = $this->stripeEvent('customer.subscription.updated', [
             'id' => 'sub_orphan',
@@ -120,12 +128,12 @@ class StripeWebhookIdempotencyTest extends TestCase
 
         $response = $this->postStripeWebhook($event);
 
-        // ADR-014 pct. 4 — un stripe_id nemapat e un eșec DE MAPARE, nu o excepție
-        // necontrolată; Stripe n-are motiv să reîncerce.
+        // ADR-014 pct. 4 — un stripe_id nemapat nu e o excepție necontrolată; Stripe n-are
+        // motiv să reîncerce.
         $response->assertOk();
 
         $stored = WebhookEvent::query()->sole();
-        $this->assertSame(WebhookEvent::STATUS_FAILED, $stored->status);
+        $this->assertSame(WebhookEvent::STATUS_IGNORED, $stored->status);
         $this->assertNotNull($stored->error_message);
         $this->assertSame(0, DB::table('jobs')->count());
     }

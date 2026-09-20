@@ -30,6 +30,19 @@ class WebhookEvent extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /**
+     * §12.3 — eveniment cu semnătură VALIDĂ care nu ne privește: sandbox-ul Stripe e
+     * împărțit cu alt proiect (decizia proprietarului, 2026-09-20), deci endpoint-ul nostru
+     * primește și evenimentele aceluia. `failed` ar fi fost o acuzație greșită — nimic n-a
+     * eșuat, doar că `data.object.customer` nu se mapează pe niciun tenant din ACEST
+     * deployment. Distincția contează operațional: alerta din §25.2 urmărește `failed`, iar
+     * un ecran de operare plin de roșu străin face roșul inutil.
+     *
+     * Stare TERMINALĂ, ca `processed`: niciun job nu e dispecerizat pentru un eveniment
+     * `ignored`, deci nimic nu-l mai mută de aici.
+     */
+    public const STATUS_IGNORED = 'ignored';
+
     protected function casts(): array
     {
         return [

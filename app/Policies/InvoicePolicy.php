@@ -27,6 +27,18 @@ class InvoicePolicy
     }
 
     /**
+     * FR-BILL-03 — §7.4 nota ³ și BR-BILL-03: exportul e o CITIRE a rândurilor deja vizibile
+     * pe ecran, livrată ca fișier, deci permisă inclusiv Viewer-ului. Separată de drepturile
+     * de scriere, și scrisă AICI, nu inline în controller: expresia era în două locuri
+     * (props-ul `can` și garda acțiunii), adică exact tiparul care divergează la prima
+     * modificare a uneia dintre ele.
+     */
+    public function export(User $user): bool
+    {
+        return $user->can('invoices.view') && $user->can('bulk.export');
+    }
+
+    /**
      * `?Order $order = null` — la fel ca `OrderPolicy::changeOwner()`: verificarea
      * dreptului brut (butonul „Create Invoice" de pe `Orders/Show`, unde comanda EXISTĂ
      * deja) trece un `Order` real; catalogul (`invoices.create`) există doar la

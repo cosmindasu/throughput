@@ -40,6 +40,14 @@ final class InvoiceController extends Controller
         return Inertia::render('Invoices/Index', [
             'invoices' => Inertia::defer(fn () => CursorPage::make($paginator, InvoiceResource::class)),
             'filters' => $query->toArray(),
+            'can' => [
+                // FR-BILL-03 (Faza 5, valul 2) — sursa butoanelor „Export CSV"/„Export PDF
+                // (zip)". Aceeași expresie ca `App\Http\Controllers\Web\Invoices\
+                // InvoiceExportController`, singurul loc care o aplică server-side.
+                // Separată de drepturile de scriere (§7.4 nota ³, BR-BULK-03): exportul e o
+                // citire, permisă și Viewer-ului.
+                'export' => $request->user()->can('export', Invoice::class),
+            ],
         ]);
     }
 

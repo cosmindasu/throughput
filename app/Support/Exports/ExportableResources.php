@@ -4,6 +4,7 @@ namespace App\Support\Exports;
 
 use App\Support\Lists\AccountList;
 use App\Support\Lists\ContactList;
+use App\Support\Lists\InvoiceList;
 use App\Support\Lists\OrderList;
 use App\Support\Lists\ResourceList;
 use InvalidArgumentException;
@@ -14,7 +15,10 @@ use InvalidArgumentException;
  * (`ListExport`) și pentru `ExportListJob` (exportul în coadă) — amândoi rezolvă lista prin
  * același nume, deci nu pot ajunge să interogheze lucruri diferite pentru aceeași operație.
  *
- * Facturile (§13.5, export PDF zip) își adaugă linia în faza care le construiește.
+ * Facturile (§13.5, export PDF zip) și-au adăugat linia în Faza 5, valul 2 (FR-BILL-03) —
+ * singura schimbare cerută de un al treilea format a fost o linie aici plus cele două
+ * contracte pe `InvoiceList`; mecanismul (operație, coadă, pagină de status, link cu
+ * expirare) e neatins.
  */
 final class ExportableResources
 {
@@ -25,6 +29,7 @@ final class ExportableResources
             'accounts' => AccountList::class,
             'contacts' => ContactList::class,
             'orders' => OrderList::class,
+            'invoices' => InvoiceList::class,
         ];
     }
 

@@ -17,13 +17,15 @@ final class DemoMode
      *
      * Faza 2 cablează doar subsetul distructiv obligatoriu la publicare (§22.2, primele două
      * rânduri). Restul tabelului — ultimul Owner, revocarea în masă a jetoanelor, anularea
-     * abonamentului — se adaugă aici în Faza 5, odată cu ecranele care introduc acțiunile.
-     * Plafonul de rânduri nu e o rută: se verifică în operație (`exceedsBulkRowCap()`),
-     * fiindcă numărul de rânduri se cunoaște abia după filtru.
+     * abonamentului — se adaugă aici în Faza 5 (valul 2, lotul I), odată cu ecranele care
+     * introduc acțiunile. Plafonul de rânduri nu e o rută: se verifică în operație
+     * (`exceedsBulkRowCap()`), fiindcă numărul de rânduri se cunoaște abia după filtru.
      *
      * Ecranul de ștergere a workspace-ului nu există încă. Numele rutei e fixat de acum, ca
      * guardrail-ul să fie activ din clipa în care ruta apare, nu după primul vizitator care
-     * o găsește — iar `DemoModeGuardrailsTest` pică dacă apare sub alt nume.
+     * o găsește — iar `DemoModeGuardrailsTest` pică dacă apare sub alt nume. Aceeași
+     * disciplină pentru rândurile adăugate în Faza 5: numele sunt fixate ÎNAINTE ca ruta
+     * să existe, iar testul semnalează orice rută care apare sub un nume neguardat.
      *
      * @var array<string, array{routes: list<string>, message: string}>
      */
@@ -46,6 +48,64 @@ final class DemoMode
         'members.deactivate' => [
             'routes' => ['settings.members.deactivate'],
             'message' => 'Deactivating a member is disabled in the public demo — these are the shared logins other visitors use.',
+        ],
+
+        // §22.2, rândul „Eliminarea ultimului Owner" („Ar bloca accesul — deja prevenit de
+        // BR-TEN-01, dublu strat"), cablat acum, cu ecranul de membri (Faza 5).
+        //
+        // Rândul are DOUĂ trape, nu una, fiindcă BR-TEN-04 spune explicit că „eliminarea"
+        // unui membru NU e un DELETE fizic: acțiunea e dezactivarea (deja oprită mai sus) —
+        // iar al doilea drum către „workspace fără Owner" e RETROGRADAREA ultimului Owner
+        // (BR-TEN-01 le numește împreună: „ultima eliminare/retrogradare"). Deci schimbarea
+        // de rol intră și ea aici.
+        //
+        // Garda de MEDIU e deliberat mai GROSIERĂ decât regula de business: oprește ORICE
+        // schimbare de rol / eliminare în demo, nu doar pe ultima. Motivul nu e comoditatea,
+        // e același cu al rândului `members.deactivate` de mai sus: conturile demo sunt
+        // LOGIN-URI PARTAJATE (§4.2), deci a-l retrograda pe `demo.manager@throughput.dev`
+        // la Viewer strică experiența fiecărui vizitator care apasă „Log in as Manager"
+        // până la reset-ul de la 03:00 UTC. Stratul FIN (doar ultimul Owner, activ și în
+        // afara demo-ului) rămâne al lui BR-TEN-01, server-side, în fluxul de membri —
+        // „dublu strat" exact cum îl descrie §22.2.
+        'members.change-role' => [
+            // `settings.members.role.update` e numele REAL, ales de fluxul de membri
+            // construit în paralel în acest val (`routes/web/settings.php`, PATCH
+            // `/settings/members/{membership}/role`). Celelalte două rămân în listă ca
+            // variante plauzibile dacă ruta e vreodată redenumită; `DemoModeGuardrailsPhase5Test`
+            // semnalează orice al patrulea nume care ar apărea neguardat.
+            'routes' => ['settings.members.role.update', 'settings.members.role', 'settings.members.update-role'],
+            'message' => "Changing a member's role is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)",
+        ],
+
+        // NU include `settings.members.invitations.destroy` (revocarea unei invitații încă
+        // NEACCEPTATE, adăugată de fluxul de membri în acest val): aceea nu elimină un
+        // membru — nu există încă un membru — și e complet reversibilă printr-o invitație
+        // nouă. §22.2 vorbește despre eliminarea unui OWNER existent.
+        'members.remove' => [
+            'routes' => ['settings.members.destroy'],
+            'message' => 'Removing a member is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)',
+        ],
+
+        // §22.2, rândul „Revocarea în masă a tuturor jetoanelor API" („Amploare
+        // disproporționată pentru un demo"), cablat acum, cu jetoanele API (Faza 5).
+        //
+        // ATENȚIE la ce NU e aici: `settings.api-tokens.destroy` — revocarea UNUI jeton —
+        // rămâne permisă în demo. §22.2 numește doar acțiunea în MASĂ, iar un vizitator care
+        // își revocă propriul jeton de probă demonstrează fluxul fără să strice nimic
+        // altcuiva. Dacă proprietarul vrea varianta grosieră, e o singură valoare în lista
+        // de mai jos — vezi raportul lotului.
+        'api-tokens.revoke-all' => [
+            'routes' => ['settings.api-tokens.destroy-all', 'settings.api-tokens.revoke-all'],
+            'message' => 'Revoking every API token at once is disabled in the public demo. Revoke tokens one by one instead.',
+        ],
+
+        // §22.2, rândul „Anularea reală a abonamentului Stripe" („Rulează oricum în test
+        // mode (§22.4), dar acțiunea e ascunsă pentru claritate"), cablat acum, cu
+        // billing-ul (Faza 5). Ruta nu există: pagina de billing trimite azi la Stripe
+        // Customer Portal. Numele e fixat de acum, ca la `workspace.destroy`.
+        'subscription.cancel' => [
+            'routes' => ['settings.billing.cancel', 'settings.subscription.cancel'],
+            'message' => 'Cancelling the subscription is disabled in the public demo. Billing runs in Stripe test mode here, so there is nothing real to cancel.',
         ],
     ];
 

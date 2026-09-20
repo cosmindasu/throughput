@@ -11,18 +11,27 @@
 
 use App\Http\Controllers\Web\Bulk\BulkOperationController;
 use App\Http\Controllers\Web\Bulk\BulkOperationGroupController;
+use App\Support\Bulk\EnsureBulkConcurrencyLimit;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/{resourceType}/bulk/reassign-owner', [BulkOperationController::class, 'reassignOwner'])
-    ->whereIn('resourceType', ['accounts', 'deals', 'orders'])
-    ->name('bulk.reassign-owner');
+// §22.5 (Faza 5, valul 2) — „Operații în masă (per user): 3 operații concurente active",
+// aceeași limită pentru TOATE rolurile (BR-BULK-03). Se aplică pe DECLANȘARE, nu pe
+// `show`/`cancel`: un utilizator ajuns la plafon trebuie să poată deschide și ANULA
+// operațiile care-l blochează. Exporturile (rute GET, în controllerele resurselor) verifică
+// aceeași limită în `App\Support\Exports\ListExport`, acolo unde se decide dacă operația
+// devine un rând în coadă.
+Route::middleware(EnsureBulkConcurrencyLimit::class)->group(function () {
+    Route::post('/{resourceType}/bulk/reassign-owner', [BulkOperationController::class, 'reassignOwner'])
+        ->whereIn('resourceType', ['accounts', 'deals', 'orders'])
+        ->name('bulk.reassign-owner');
 
-// Lotul E (valul „bulk", faza Comenzi/Produse) — acțiuni specifice unei singure resurse,
-// fără segmentul `{resourceType}` de mai sus (spre deosebire de reasignarea de owner,
-// comună la trei resurse).
-Route::post('/orders/bulk/cancel-drafts', [BulkOperationController::class, 'cancelDraftOrders'])->name('bulk.orders.cancel-drafts');
-Route::post('/products/bulk/update-price', [BulkOperationController::class, 'updateProductPrice'])->name('bulk.products.update-price');
-Route::post('/products/bulk/set-active', [BulkOperationController::class, 'setProductActive'])->name('bulk.products.set-active');
+    // Lotul E (valul „bulk", faza Comenzi/Produse) — acțiuni specifice unei singure resurse,
+    // fără segmentul `{resourceType}` de mai sus (spre deosebire de reasignarea de owner,
+    // comună la trei resurse).
+    Route::post('/orders/bulk/cancel-drafts', [BulkOperationController::class, 'cancelDraftOrders'])->name('bulk.orders.cancel-drafts');
+    Route::post('/products/bulk/update-price', [BulkOperationController::class, 'updateProductPrice'])->name('bulk.products.update-price');
+    Route::post('/products/bulk/set-active', [BulkOperationController::class, 'setProductActive'])->name('bulk.products.set-active');
+});
 
 Route::get('/bulk/{operation}', [BulkOperationController::class, 'show'])->name('bulk.show');
 Route::post('/bulk/{operation}/cancel', [BulkOperationController::class, 'cancel'])->name('bulk.cancel');

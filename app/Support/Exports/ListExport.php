@@ -4,11 +4,13 @@ namespace App\Support\Exports;
 
 use App\Jobs\Exports\ExportListJob;
 use App\Models\BulkOperation;
+use App\Support\Bulk\BulkConcurrencyGuard;
 use App\Support\DemoMode;
 use App\Support\ListQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Declanșarea unui export de listă (US-CRM-03, §13.2), comună tuturor resurselor exportabile.
@@ -16,10 +18,11 @@ use Illuminate\Http\Response;
  * o operație `bulk_operations` și se pune `ExportListJob` pe coada `bulk`.
  *
  * `$format` (§13.5, Orders — decizie DomPDF) — `'csv'` (implicit, comportament neschimbat
- * pentru Accounts/Contacts) sau `'pdf'`. PDF-ul NU are cale sincronă, indiferent de
- * `$total`: randarea DomPDF ține CPU-ul mai mult decât un `SELECT`, deci n-are ce căuta în
- * tranzacția cererii (ADR-013) — pornește mereu în coadă, sub propriul plafon
- * (`limits.export_pdf_max_rows`), mult mai mic decât cel al CSV-ului.
+ * pentru Accounts/Contacts), `'pdf'` sau, din Faza 5 (FR-BILL-03), `'zip'`. Nici PDF-ul,
+ * nici arhiva n-au cale sincronă, indiferent de `$total`: randarea DomPDF ține CPU-ul mai
+ * mult decât un `SELECT`, iar arhiva citește zeci de fișiere de pe disc — deci niciuna n-are
+ * ce căuta în tranzacția cererii (ADR-013). Amândouă pornesc în coadă, sub plafonul
+ * `limits.export_pdf_max_rows`, mult mai mic decât cel al CSV-ului.
  *
  * Extrasă din AccountController când contactele au devenit a doua resursă exportabilă: două
  * copii ale acestei logici (pragul, plafonul DEMO_MODE, snapshot-ul filtrului) ar fi divergent
@@ -36,11 +39,25 @@ final class ListExport
 
         $total = (clone $query)->toBase()->getCountForPagination();
 
-        if ($format === ExportFormat::Pdf) {
+        // FR-BILL-03 — arhiva ZIP: doar pentru listele care CHIAR au câte un fișier per rând.
+        // Refuz explicit, nu o arhivă goală, dacă cineva cere `?format=zip` pe altă resursă
+        // (același principiu ca refuzul unui format necunoscut în `ExportFormat::fromRequest()`).
+        if ($format === ExportFormat::Zip && ! $list instanceof ArchivableList) {
+            throw new HttpException(422, 'This list cannot be exported as a zip archive. Use csv instead.');
+        }
+
+        if ($format === ExportFormat::Pdf || $format === ExportFormat::Zip) {
             $pdfCap = (int) config('throughput.limits.export_pdf_max_rows');
 
             if ($total > $pdfCap) {
-                return back()->with('error', "This export has {$total} rows; PDF export is capped at {$pdfCap}. Use CSV for larger exports.");
+                // Același plafon pentru ambele formate, din motive DIFERITE, deci merită
+                // spus: la PDF, DomPDF materializează toate rândurile în memorie (250 =
+                // ~162 MB RSS măsurat pe container, plan §3). La ZIP, memoria nu crește cu
+                // numărul de fișiere (`ZipArchive` comprimă în flux la `close()`) — ce
+                // crește e DURATA și dimensiunea arhivei. O a doua cheie de config, doar
+                // pentru asta, ar fi un buton în plus fără o măsurătoare în spate; când
+                // apare una, se desparte.
+                return back()->with('error', "This export has {$total} rows; {$format->value} export is capped at {$pdfCap}. Use CSV for larger exports.");
             }
 
             return $this->startQueuedExport($request, $resourceType, $listQuery, $total, $format);
@@ -63,6 +80,19 @@ final class ListExport
     {
         if (DemoMode::exceedsBulkRowCap($total)) {
             return back()->with('error', 'This export exceeds the demo limit and cannot be started.');
+        }
+
+        // §22.5 — 3 operații în masă concurente per utilizator, ACEEAȘI limită pentru toate
+        // rolurile, inclusiv pe exportul Viewer-ului (BR-BULK-03: exportul e o citire
+        // permisă, iar contenția vine de AICI, nu dintr-un refuz de rol). Verificată doar pe
+        // calea care chiar creează un rând `bulk_operations` — un CSV sub pragul sincron se
+        // construiește în cerere, nu ocupă nicio operație, deci nu se numără și nu e refuzat.
+        //
+        // `back()->with('error')`, nu `ValidationException`: linkul de export e o ancoră
+        // `<a href>`, nu un formular — un 422 cu erori de câmp n-ar avea unde să apară
+        // (același raționament ca la `ExportFormat::fromRequest()`).
+        if (BulkConcurrencyGuard::hasReachedLimit($request->user())) {
+            return back()->with('error', BulkConcurrencyGuard::refusal());
         }
 
         $operation = BulkOperation::create([

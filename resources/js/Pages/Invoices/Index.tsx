@@ -1,5 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import { buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
@@ -10,6 +11,16 @@ import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatMoney } from '@/lib/money';
 import type { Invoice, InvoiceStatus, InvoicesIndexPageProps } from '@/types/generated';
+
+/**
+ * `can` e propul FIECĂREI pagini (§1.2 regula 2 din plan), declarat în `*PageProps` din
+ * `resources/js/types/generated.d.ts` — fișier de INTEGRARE, neatins de acest lot. Până
+ * când propul ajunge acolo (blocul exact e în raport), forma închisă stă aici, ca `tsc` să
+ * nu vadă `unknown`.
+ */
+interface InvoicesIndexProps extends InvoicesIndexPageProps {
+    can: { export: boolean };
+}
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
 
@@ -39,8 +50,8 @@ const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
  * livrat).
  */
 export default function Index() {
-    const { props } = usePage<InvoicesIndexPageProps>();
-    const { filters, workspace } = props;
+    const page = usePage<InvoicesIndexProps>();
+    const { filters, workspace, can } = page.props;
     const base = workspace ? `/${workspace.slug}` : '';
     const { setFilter } = useListFilters(filters);
     const [search, setSearch] = useState(filters.filter.q ?? '');
@@ -50,7 +61,21 @@ export default function Index() {
             <Head title="Invoices" />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="Invoices" />
+                <PageHeader
+                    title="Invoices"
+                    actions={
+                        can.export && (
+                            <>
+                                <a href={buildExportHref(page.url, base, 'csv')} className={buttonClass('secondary')}>
+                                    Export CSV
+                                </a>
+                                <a href={buildExportHref(page.url, base, 'zip')} className={buttonClass('secondary')}>
+                                    Export PDFs (zip)
+                                </a>
+                            </>
+                        )
+                    }
+                />
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm">
@@ -112,6 +137,17 @@ export default function Index() {
             </div>
         </>
     );
+}
+
+/**
+ * §13.2 — filtrul/sortul curent, propagat la export, la fel ca `Orders/Index`: fișierul
+ * conține EXACT rândurile de pe ecran, nu toată lista.
+ */
+function buildExportHref(currentUrl: string, base: string, format: 'csv' | 'zip'): string {
+    const query = currentUrl.split('?')[1];
+    const exportPath = `${base}/invoices/export`;
+
+    return query ? `${exportPath}?${query}&format=${format}` : `${exportPath}?format=${format}`;
 }
 
 function InvoicesTable({ base }: { base: string }) {

@@ -29,8 +29,9 @@ use Stripe\WebhookSignature;
  *   2. `(source, event_id)` deja cunoscut → 200 imediat, FĂRĂ reprocesare — indiferent de
  *      `status`-ul curent al acelui rând (`received`/`processing`/`processed`/`failed`
  *      — vezi criteriul de acceptanță literal din specs.md §12.3, pct. 2).
- *   3. Rând nou + `stripe_id` nemapat pe niciun tenant → `status = failed`, motiv
- *      explicit, 200 (nu o excepție necontrolată — ADR-014 pct. 4).
+ *   3. Rând nou + `stripe_id` nemapat pe niciun tenant → `status = ignored`, motiv
+ *      explicit, 200 (nu o excepție necontrolată — ADR-014 pct. 4). Era `failed` până la
+ *      2026-09-20 — vezi `WebhookEvent::STATUS_IGNORED` și docblock-ul lui `ignore()`.
  *   4. Rând nou + tenant găsit → dispatch `ProcessStripeWebhookJob`, 200.
  *
  * `WebhookEvent::firstOrCreate()` e RACE-SAFE în Laravel 13 (`Builder::createOrFirst()`
@@ -80,22 +81,42 @@ final class StripeWebhookController extends Controller
         $tenant = $customerId !== null ? Tenant::query()->where('stripe_id', $customerId)->first() : null;
 
         if ($tenant === null) {
-            $event->update([
-                'status' => WebhookEvent::STATUS_FAILED,
-                'error_message' => $customerId === null
-                    ? 'Event payload has no data.object.customer — nothing to map to a tenant.'
-                    : "No tenant maps to Stripe customer {$customerId}.",
-            ]);
-
-            // ADR-014 pct. 4 — un `stripe_id` nemapat e un eșec DE MAPARE, nu o excepție
-            // necontrolată; Stripe nu are niciun motiv să reîncerce, răspunsul rămâne 200.
-            return response('OK', 200);
+            return $this->ignore($event, $customerId);
         }
 
         // Coada implicită (`default`) — `config/horizon.php` are UN singur supervisor,
         // cu o listă fixă de cozi (buget de memorie §3); o coadă nouă „webhooks" ar
         // rămâne needeservită fără o a doua editare, în afara fișierelor acestui lot.
         ProcessStripeWebhookJob::dispatch($tenant->getKey(), $event->getKey());
+
+        return response('OK', 200);
+    }
+
+    /**
+     * Pct. 3 al fluxului — semnătură VALIDĂ, eveniment care nu ne privește.
+     *
+     * Decizie operațională a proprietarului (2026-09-20): sandbox-ul Stripe rămâne împărțit
+     * cu alt proiect, deci acest endpoint primește, legitim și semnat corect, evenimentele
+     * aceluia. `failed` descria greșit situația — nimic n-a eșuat la noi — și ar fi umplut
+     * ecranul de operare (§25.2) cu roșu străin, până când roșul nu mai înseamnă nimic.
+     *
+     * `error_message` EXPLICĂ, nu acuză: spune ce lipsește (maparea) și de ce e normal
+     * (sandbox partajat), ca operatorul să nu caute o defecțiune inexistentă. Rămâne
+     * populat, nu `null` — e singura coloană pe care ecranul de operare o poate arăta ca
+     * motiv, iar un rând `ignored` fără explicație ar fi doar o altă formă de mister.
+     *
+     * Răspunsul rămâne 200, din același motiv ca înainte (ADR-014 pct. 4): Stripe n-are
+     * ce reîncerca. NICIUN job nu se dispecerizează — nu există tenant în al cărui context
+     * să ruleze.
+     */
+    private function ignore(WebhookEvent $event, ?string $customerId): Response
+    {
+        $event->update([
+            'status' => WebhookEvent::STATUS_IGNORED,
+            'error_message' => $customerId === null
+                ? 'Not for this deployment: the event has no data.object.customer, so there is no workspace it could belong to.'
+                : "Not for this deployment: Stripe customer {$customerId} does not belong to any workspace here. The Stripe sandbox is shared with another project, so its events arrive at this endpoint too.",
+        ]);
 
         return response('OK', 200);
     }

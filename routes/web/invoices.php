@@ -4,10 +4,18 @@
 // grupul cu workspace (auth → session.context → workspace, ADR-014).
 
 use App\Http\Controllers\Web\InvoiceController;
+use App\Http\Controllers\Web\Invoices\InvoiceExportController;
 use App\Http\Controllers\Web\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+
+// FR-BILL-03 (§13.5, rândul „Facturi") — export CSV sumar sau arhivă ZIP cu PDF-urile
+// facturilor. DECLARATĂ ÎNAINTEA lui `/invoices/{invoice}`, altfel „export" ar fi citit ca
+// un id de factură și ar da 404 — aceeași ordine, din același motiv, ca la
+// `routes/web/orders.php`.
+Route::get('/invoices/export', InvoiceExportController::class)->name('invoices.export');
+
 Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
 Route::patch('/invoices/{invoice}/send', [InvoiceController::class, 'markSent'])->name('invoices.send');
 Route::patch('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');

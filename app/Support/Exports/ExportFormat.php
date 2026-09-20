@@ -17,6 +17,17 @@ enum ExportFormat: string
     case Pdf = 'pdf';
 
     /**
+     * FR-BILL-03 — „PDF zip sau CSV sumar" pentru facturi (§13.5, rândul „Facturi"). NU e
+     * „PDF-ul listei, arhivat": e arhiva PDF-urilor DEJA GENERATE, câte unul per factură
+     * (`App\Jobs\Invoices\GenerateInvoicePdfJob`). De-asta e un format propriu și nu o
+     * opțiune a lui `Pdf` — sursa fișierelor e alta.
+     *
+     * Disponibil doar pe listele care implementează `ArchivableList`; `ListExport` refuză
+     * explicit orice altă resursă cerută ca `zip`, în loc să producă o arhivă goală.
+     */
+    case Zip = 'zip';
+
+    /**
      * `format` ABSENT din cerere → CSV (comportamentul de azi, neschimbat pentru
      * Accounts/Contacts, care nu trimit deloc acest parametru). Orice altă valoare
      * NECUNOSCUTĂ (`xlsx`, `PDF` cu majusculă etc.) → 422 explicit — NU o cădere tăcută pe
@@ -37,6 +48,6 @@ enum ExportFormat: string
         }
 
         return self::tryFrom($raw)
-            ?? throw new HttpException(422, "Unknown export format \"{$raw}\". Use csv or pdf.");
+            ?? throw new HttpException(422, "Unknown export format \"{$raw}\". Use csv, pdf or zip.");
     }
 }

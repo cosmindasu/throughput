@@ -5,9 +5,11 @@ namespace App\Jobs\Exports;
 use App\Models\BulkOperation;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Exports\ArchivableList;
 use App\Support\Exports\CsvExporter;
 use App\Support\Exports\ExportableResources;
 use App\Support\Exports\PdfExporter;
+use App\Support\Exports\ZipExporter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -93,14 +95,15 @@ class ExportListJob implements ShouldQueue
                 // în intervalul dintre cele două). Re-numărat aici, simetric cu refuzul din
                 // `ListExport`, ÎNAINTE de randare — o operație care depășește plafonul la
                 // execuție se marchează `failed`, cu mesaj explicit, fără niciun fișier.
-                if ($format === 'pdf') {
+                // Același plafon și pentru `zip` (FR-BILL-03), din aceeași simetrie.
+                if ($format === 'pdf' || $format === 'zip') {
                     $pdfCap = (int) config('throughput.limits.export_pdf_max_rows');
                     $currentTotal = (clone $query)->toBase()->getCountForPagination();
 
                     if ($currentTotal > $pdfCap) {
                         $operation->update([
                             'status' => BulkOperation::STATUS_FAILED,
-                            'error_message' => "This export now has {$currentTotal} rows; PDF export is capped at {$pdfCap}. Use CSV for larger exports.",
+                            'error_message' => "This export now has {$currentTotal} rows; {$format} export is capped at {$pdfCap}. Use CSV for larger exports.",
                         ]);
 
                         return;
@@ -110,9 +113,22 @@ class ExportListJob implements ShouldQueue
                 $path = "exports/{$this->tenantId}/{$operation->getKey()}.{$format}";
 
                 if ($format === 'pdf') {
-                    $workspaceName = Tenant::query()->find($this->tenantId)?->name ?? 'Workspace';
+                    PdfExporter::save($list, $query, $path, $this->workspaceName(), $listQuery->toArray()['filter'] ?? []);
+                } elseif ($format === 'zip') {
+                    // FR-BILL-03 — arhiva PDF-urilor DEJA generate per factură. `ListExport`
+                    // a refuzat deja `zip` pe o listă nearhivabilă; verificarea se repetă
+                    // aici fiindcă jobul poate reveni dintr-un `filter_snapshot` vechi, iar
+                    // un `TypeError` pe coadă n-ar spune nimănui nimic.
+                    if (! $list instanceof ArchivableList) {
+                        $operation->update([
+                            'status' => BulkOperation::STATUS_FAILED,
+                            'error_message' => 'This list cannot be exported as a zip archive. Use CSV instead.',
+                        ]);
 
-                    PdfExporter::save($list, $query, $path, $workspaceName, $listQuery->toArray()['filter'] ?? []);
+                        return;
+                    }
+
+                    ZipExporter::save($list, $query, $path, $this->workspaceName());
                 } else {
                     Storage::disk('local')->put($path, CsvExporter::toString($list, $query));
                 }
@@ -134,6 +150,16 @@ class ExportListJob implements ShouldQueue
                 report($e);
             }
         });
+    }
+
+    /**
+     * Numele workspace-ului, pentru antetul PDF-ului și pentru indexul arhivei. Citit o
+     * singură dată, în al doilea `TenantContext::run()` — `tenants` n-are RLS, deci
+     * interogarea e validă cu sau fără context.
+     */
+    private function workspaceName(): string
+    {
+        return Tenant::query()->find($this->tenantId)?->name ?? 'Workspace';
     }
 
     /**
