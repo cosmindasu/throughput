@@ -3,15 +3,112 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToTenant;
+use App\Models\Scopes\TenantScope;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\Sanctum;
 
+/**
+ * Stratul APLICATIV al jetoanelor de API (specs.md §18.1, FR-API-01) — ce vede un Owner
+ * în Settings: etichetă, scopuri, cine l-a emis, când a fost folosit ultima dată, dacă e
+ * revocat. Mecanismul de sub el rămâne `personal_access_tokens` (Sanctum 4), exact cum
+ * spune migrația lui din Faza 1.
+ *
+ * ## De ce tenantul stă pe rândul SANCTUM, nu doar aici
+ *
+ * `api_tokens` are RLS (migrația Fazei 1), iar politica cere `app.tenant_id` DEJA setat.
+ * Rezolvarea tenantului dintr-un jeton se întâmplă însă exact înainte de a exista vreun
+ * context — deci un `select … from api_tokens where token_hash = ?` la intrarea în cerere
+ * ar întoarce mereu zero rânduri (politica are doar `USING`, cade închis). Problema e
+ * structurală, nu de implementare: ouă înaintea găinii.
+ *
+ * Singura tabelă fără RLS din lanț e `personal_access_tokens` (identitate globală, ca
+ * `users`), deci acolo stă și legătura cu tenantul, într-o intrare de `abilities`
+ * rezervată — `tenant:{ULID}`. E o valoare scrisă de SERVER la emitere, citită dintr-un
+ * rând care a trecut deja verificarea `hash_equals` a lui Sanctum: nu e un claim al
+ * clientului, deci nu contrazice §18.2 („tenantul se rezolvă server-side, niciodată din
+ * URL"). Cu tenantul cunoscut, `ResolveTenantFromApiToken` deschide contextul și abia
+ * apoi citește rândul de aici, sub RLS, prin `token_hash` — adică al doilea strat
+ * verifică efectiv primul: un `tenant:` falsificat n-ar găsi niciun `api_tokens`.
+ *
+ * `token_hash` e IDENTIC cu `personal_access_tokens.token` (`sha256` peste partea secretă
+ * a jetonului), ceea ce face legătura dintre cele două rânduri verificabilă fără o coloană
+ * de FK în plus — și fără să existe nicăieri jetonul în clar (§18.1).
+ */
 #[Fillable(['name', 'abilities', 'last_used_at', 'expires_at', 'revoked_at'])]
 class ApiToken extends Model
 {
     use BelongsToTenant, HasUlids;
+
+    /**
+     * Prefixul intrării de `abilities` (pe rândul Sanctum) care poartă tenantul.
+     * Nu e un scop de business și nu apare niciodată în interfață.
+     */
+    public const TENANT_ABILITY_PREFIX = 'tenant:';
+
+    public const ABILITY_ACCOUNTS_READ = 'accounts:read';
+
+    public const ABILITY_CONTACTS_READ = 'contacts:read';
+
+    public const ABILITY_CONTACTS_WRITE = 'contacts:write';
+
+    public const ABILITY_DEALS_READ = 'deals:read';
+
+    public const ABILITY_DEALS_WRITE = 'deals:write';
+
+    public const ABILITY_ORDERS_READ = 'orders:read';
+
+    public const ABILITY_ORDERS_WRITE = 'orders:write';
+
+    public const ABILITY_INVOICES_READ = 'invoices:read';
+
+    public const ABILITY_INVOICES_WRITE = 'invoices:write';
+
+    public const ABILITY_INVENTORY_READ = 'inventory:read';
+
+    public const ABILITY_INVENTORY_WRITE = 'inventory:write';
+
+    /**
+     * Catalogul de scopuri — sursă unică pentru ecranul de administrare, pentru
+     * `EnsureTokenAbility` și pentru `openapi/throughput-v1.yaml`.
+     *
+     * Cele OPT scopuri numite în FR-API-01 sunt toate aici. Cele TREI în plus
+     * (`accounts:read`, `invoices:write`, `inventory:write`) acoperă goluri ale listei
+     * din specificație, semnalate în raportul lotului, nu inventate pentru simetrie:
+     * §18.4 cere explicit `POST /invoices` și `POST /stock-movements` (deci un scop de
+     * scriere pentru amândouă, altfel endpoint-urile ar fi inaccesibile), iar
+     * `POST /orders` cere un `account_id` valid, deci un consumator are nevoie de o
+     * cale de a-l afla.
+     *
+     * @return array<string, string> scop → descriere afișată în interfață
+     */
+    public static function abilityCatalog(): array
+    {
+        return [
+            self::ABILITY_ACCOUNTS_READ => 'Read accounts',
+            self::ABILITY_CONTACTS_READ => 'Read contacts',
+            self::ABILITY_CONTACTS_WRITE => 'Create contacts',
+            self::ABILITY_DEALS_READ => 'Read deals',
+            self::ABILITY_DEALS_WRITE => 'Create deals',
+            self::ABILITY_ORDERS_READ => 'Read orders',
+            self::ABILITY_ORDERS_WRITE => 'Create orders',
+            self::ABILITY_INVOICES_READ => 'Read invoices',
+            self::ABILITY_INVOICES_WRITE => 'Create invoices',
+            self::ABILITY_INVENTORY_READ => 'Read stock levels and movements',
+            self::ABILITY_INVENTORY_WRITE => 'Record stock movements',
+        ];
+    }
+
+    /** @return list<string> */
+    public static function allowedAbilities(): array
+    {
+        return array_keys(self::abilityCatalog());
+    }
 
     protected function casts(): array
     {
@@ -26,5 +123,115 @@ class ApiToken extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Emite un jeton nou pentru tenantul din CONTEXTUL CURENT (deci apelabil doar din
+     * interiorul unui `TenantContext`) și întoarce valoarea în clar O SINGURĂ DATĂ —
+     * US-API-01: „nu mai e recuperabilă din UI ulterior".
+     *
+     * Rândul Sanctum se scrie cu `forceFill`, nu prin `HasApiTokens::createToken()`:
+     * trait-ul ar fi cerut o modificare în `App\Models\User` (fișier comun altui lot),
+     * pentru exact cele patru linii de mai jos. Formatul jetonului rămâne **identic** cu
+     * cel al lui Sanctum (`{id}|{secret}`), deci `PersonalAccessToken::findToken()` îl
+     * citește fără nicio adaptare.
+     *
+     * @param  list<string>  $abilities
+     * @return array{0: self, 1: string} [rândul aplicativ, jetonul în clar]
+     */
+    public static function issue(User $issuer, string $name, array $abilities, ?Carbon $expiresAt = null): array
+    {
+        $tenantId = TenantScope::requireCurrentTenantId();
+
+        $secret = Str::random(40);
+        $hash = hash('sha256', $secret);
+
+        $personalAccessToken = Sanctum::personalAccessTokenModel();
+
+        /** @var PersonalAccessToken $sanctumToken */
+        $sanctumToken = new $personalAccessToken;
+        $sanctumToken->forceFill([
+            'tokenable_type' => $issuer->getMorphClass(),
+            'tokenable_id' => $issuer->getKey(),
+            'name' => $name,
+            'token' => $hash,
+            'abilities' => [...array_values($abilities), self::TENANT_ABILITY_PREFIX.$tenantId],
+            'expires_at' => $expiresAt,
+        ])->save();
+
+        $token = new self([
+            'name' => $name,
+            'abilities' => array_values($abilities),
+            'expires_at' => $expiresAt,
+        ]);
+        // `user_id`/`token_hash` nu sunt în #[Fillable] — aceeași regulă ca `created_by`
+        // pe Account/Order: mass-assignment ar accepta orice valoare venită din HTTP.
+        $token->user_id = $issuer->getKey();
+        $token->token_hash = $hash;
+        $token->save();
+
+        return [$token, $sanctumToken->getKey().'|'.$secret];
+    }
+
+    /**
+     * Revocarea nu șterge rândul (FR-API-02, simetric cu BR-TEN-04 pe membri): istoricul
+     * „cine a emis, cine a revocat, când" rămâne. Rândul Sanctum, în schimb, DISPARE —
+     * un jeton revocat nu trebuie să mai poată fi nici măcar căutat.
+     */
+    public function revoke(): void
+    {
+        $personalAccessToken = Sanctum::personalAccessTokenModel();
+
+        $personalAccessToken::query()
+            ->where('token', $this->token_hash)
+            ->delete();
+
+        $this->forceFill(['revoked_at' => now()])->save();
+    }
+
+    public function isRevoked(): bool
+    {
+        return $this->revoked_at !== null;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
+    }
+
+    public function isUsable(): bool
+    {
+        return ! $this->isRevoked() && ! $this->isExpired();
+    }
+
+    /**
+     * Scopurile de business, fără intrarea `tenant:` — ea e mecanism, nu permisiune.
+     *
+     * @param  list<string>  $sanctumAbilities
+     * @return list<string>
+     */
+    public static function businessAbilities(array $sanctumAbilities): array
+    {
+        return array_values(array_filter(
+            $sanctumAbilities,
+            static fn (string $ability): bool => ! str_starts_with($ability, self::TENANT_ABILITY_PREFIX),
+        ));
+    }
+
+    /**
+     * Tenantul purtat de un rând Sanctum, sau `null` dacă jetonul n-a fost emis de
+     * această aplicație (un `personal_access_tokens` scris de altcineva).
+     *
+     * @param  list<string>  $sanctumAbilities
+     */
+    public static function tenantIdFromAbilities(array $sanctumAbilities): ?string
+    {
+        foreach ($sanctumAbilities as $ability) {
+            if (str_starts_with($ability, self::TENANT_ABILITY_PREFIX)) {
+                return substr($ability, strlen(self::TENANT_ABILITY_PREFIX));
+            }
+        }
+
+        return null;
     }
 }

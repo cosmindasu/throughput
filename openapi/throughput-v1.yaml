@@ -1,12 +1,13 @@
 # Sursa de adevăr a contractului API public (FR-API-04).
 #
-# Schelet de la Sprint 0, deliberat: jobul de lint Spectral din CI (§5.2) trebuie să
-# aibă mereu ce valida, nu condiționat de existența fișierului abia din Faza 5. Căile
-# se adaugă pe măsură ce endpoint-urile apar (Faza 5, §11) — documentul se scrie
-# înaintea implementării, nu generat din cod după.
+# Scris de mână, înaintea implementării — nu generat din cod după (§18.6). Jobul de lint
+# Spectral din CI (§5.2) îl validează la fiecare push; de la Faza 5 validează conținut
+# real, nu un schelet.
 #
 # Versionarea e pe cale, `/api/v1/...`, fără segment de workspace (ADR-008, §18.2):
-# tenantul rezultă din tokenul de acces, nu din URL.
+# tenantul rezultă din tokenul de acces, nu din URL. Rutele efective sunt în
+# `routes/api.php`; fiecare `operationId` de mai jos corespunde numelui de rută Laravel
+# fără prefixul `api.v1.`.
 openapi: 3.1.0
 
 info:
@@ -14,13 +15,56 @@ info:
   version: 1.0.0
   summary: Multi-tenant B2B sales and operations console — public API.
   description: |
-    Read and write access to accounts, contacts, deals, orders and stock for a single
-    workspace. The workspace is derived from the access token, not from the URL
-    (ADR-008). All endpoints are rate limited (`API_RATE_LIMIT_PER_MINUTE`, FR-API-05)
-    and every write is recorded in the activity log (ADR-007).
+    Read and write access to accounts, contacts, deals, orders, invoices and stock for a
+    single workspace.
 
-    Paths land in Phase 5. This document is the contract source of truth: it is edited
-    by hand before the endpoint exists, and CI lints it on every push.
+    ## Authentication
+
+    Send a personal access token as `Authorization: Bearer <token>`. Tokens are issued in
+    the application, under **Settings → API tokens**, by an Owner or a Manager
+    (FR-API-02), and the plain value is shown exactly once.
+
+    **The workspace is derived from the token, never from the URL** (ADR-008, §18.2). No
+    path in this document contains a workspace segment, and there is no header or body
+    field that can select one: a token belongs to exactly one workspace for its whole
+    life.
+
+    ## Scopes
+
+    Every token carries an explicit list of scopes (FR-API-01). An endpoint whose scope is
+    missing answers `403` with the scope named in the message — for example
+    `Missing required scope: orders:write`.
+
+    Scopes narrow; they never widen. The role of the member who issued the token
+    (§7.4) still applies on top, so a token with `orders:write` issued by a Viewer is
+    still refused.
+
+    ## Object identifiers and cross-workspace access
+
+    Identifiers are ULIDs, not sequential integers, so they cannot be enumerated (§18.5).
+    A request for an object that belongs to a different workspace answers `404`, never
+    `403` — a `403` would confirm that the object exists.
+
+    ## Idempotency
+
+    `POST /orders`, `POST /invoices` and `POST /stock-movements` require an
+    `Idempotency-Key` header (FR-API-03). The key and a fingerprint of the request body
+    are stored for 24 hours:
+
+    * the same key with the same body replays the stored response, with
+      `Idempotent-Replay: true`, and does not repeat the effect;
+    * the same key with a different body answers `422`;
+    * a key whose request is still running answers `409`.
+
+    ## Rate limiting
+
+    300 requests per minute per token (FR-API-05). Responses carry `X-RateLimit-Limit`
+    and `X-RateLimit-Remaining`; `429` responses carry `Retry-After`.
+
+    ## Deprecation policy
+
+    At most two major versions are active at a time. A version being retired is announced
+    with the `Sunset` response header well before it stops answering.
   contact:
     name: Throughput
     url: https://throughput.dbg.ro
@@ -36,15 +80,683 @@ servers:
 
 tags:
   - name: Accounts
-    description: Companies you sell to.
+    description: Companies you sell to. Read-only over the API.
   - name: Contacts
     description: People at those companies.
   - name: Deals
     description: Opportunities moving through the pipeline.
   - name: Orders
-    description: Confirmed sales and their fulfilment.
+    description: Sales orders and their totals.
+  - name: Invoices
+    description: Invoices raised from confirmed or fulfilled orders.
   - name: Stock
-    description: Append-only stock ledger (ADR-004).
+    description: Stock levels and the append-only stock ledger (ADR-004).
+
+security:
+  - sanctumToken: []
+
+paths:
+  /accounts:
+    get:
+      tags: [Accounts]
+      summary: List accounts
+      description: Companies in this workspace, newest first. Requires the `accounts:read` scope.
+      operationId: accounts.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: status
+          in: query
+          description: Restrict to one account status.
+          required: false
+          schema:
+            type: string
+            enum: [prospect, active, inactive]
+      responses:
+        "200":
+          description: A page of accounts.
+          headers:
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/RateLimitRemaining"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Account"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /accounts/{account}:
+    get:
+      tags: [Accounts]
+      summary: Get one account
+      description: Requires the `accounts:read` scope. An id from another workspace answers `404` (§18.5).
+      operationId: accounts.show
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      responses:
+        "200":
+          description: The account.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: List contacts
+      description: People in this workspace, newest first. Requires the `contacts:read` scope.
+      operationId: contacts.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: accountId
+          in: query
+          description: Restrict to the contacts of one account.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of contacts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Contact"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Contacts]
+      summary: Create a contact
+      description: |
+        Requires the `contacts:write` scope.
+
+        `account_id` is optional — a contact with no account is a raw lead (§8.1). A
+        contact can only be marked primary if it belongs to an account, and marking it
+        primary demotes whichever contact was primary before.
+
+        An email address already used by another contact of the same account is reported
+        as a validation error unless `confirm_duplicate_email` is `true` (US-CRM-01).
+      operationId: contacts.store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContactRequest"
+      responses:
+        "201":
+          description: The contact that was created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Contact"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /contacts/{contact}:
+    get:
+      tags: [Contacts]
+      summary: Get one contact
+      description: Requires the `contacts:read` scope. An id from another workspace answers `404` (§18.5).
+      operationId: contacts.show
+      parameters:
+        - $ref: "#/components/parameters/ContactId"
+      responses:
+        "200":
+          description: The contact.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Contact"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /deals:
+    get:
+      tags: [Deals]
+      summary: List deals
+      description: Opportunities in this workspace, newest first. Requires the `deals:read` scope.
+      operationId: deals.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: status
+          in: query
+          description: Restrict to one deal status.
+          required: false
+          schema:
+            type: string
+            enum: [open, won, lost]
+        - name: accountId
+          in: query
+          description: Restrict to the deals of one account.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of deals.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Deal"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Deals]
+      summary: Create a deal
+      description: |
+        Requires the `deals:write` scope. The deal starts on the first stage of the
+        workspace's default pipeline; the stage cannot be chosen at creation (§9.2).
+      operationId: deals.store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDealRequest"
+      responses:
+        "201":
+          description: The deal that was created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Deal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /deals/{deal}:
+    get:
+      tags: [Deals]
+      summary: Get one deal
+      description: Requires the `deals:read` scope. An id from another workspace answers `404` (§18.5).
+      operationId: deals.show
+      parameters:
+        - $ref: "#/components/parameters/DealId"
+      responses:
+        "200":
+          description: The deal.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Deal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List orders
+      description: Sales orders in this workspace, newest first. Requires the `orders:read` scope.
+      operationId: orders.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: status
+          in: query
+          description: Restrict to one order status.
+          required: false
+          schema:
+            type: string
+            enum: [draft, confirmed, partially_fulfilled, fulfilled, cancelled]
+        - name: accountId
+          in: query
+          description: Restrict to the orders of one account.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of orders. Lines are not included in the list; fetch one order for those.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Orders]
+      summary: Create a draft order
+      description: |
+        Requires the `orders:write` scope and an `Idempotency-Key` header (FR-API-03).
+
+        The order is created as a **draft**: no order number and no stock reservation yet
+        (BR-ORD-02). Lines are optional at creation. Confirming an order is a separate
+        step, done in the application.
+      operationId: orders.store
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: The draft order that was created.
+          headers:
+            Idempotent-Replay:
+              $ref: "#/components/headers/IdempotentReplay"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/IdempotencyKeyMissing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "409":
+          $ref: "#/components/responses/IdempotencyInProgress"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /orders/{order}:
+    get:
+      tags: [Orders]
+      summary: Get one order
+      description: |
+        Requires the `orders:read` scope. Includes the order lines. An id from another
+        workspace answers `404` (§18.5).
+      operationId: orders.show
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order, with its lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      description: Invoices in this workspace, newest first. Requires the `invoices:read` scope.
+      operationId: invoices.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: status
+          in: query
+          description: Restrict to one invoice status.
+          required: false
+          schema:
+            type: string
+            enum: [draft, sent, paid, overdue, void]
+        - name: orderId
+          in: query
+          description: Restrict to the invoices raised from one order.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of invoices.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invoice"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Invoices]
+      summary: Raise an invoice from an order
+      description: |
+        Requires the `invoices:write` scope and an `Idempotency-Key` header (FR-API-03).
+
+        The order must be `confirmed` or `fulfilled` (US-BILL-01) and must not already
+        have an invoice that is not void (§12.1). The invoice number is allocated by the
+        server; the PDF is rendered asynchronously, so `pdfStatus` starts at `pending`.
+      operationId: invoices.store
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceRequest"
+      responses:
+        "201":
+          description: The invoice that was created.
+          headers:
+            Idempotent-Replay:
+              $ref: "#/components/headers/IdempotentReplay"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+        "400":
+          $ref: "#/components/responses/IdempotencyKeyMissing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyInProgress"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /invoices/{invoice}:
+    get:
+      tags: [Invoices]
+      summary: Get one invoice
+      description: Requires the `invoices:read` scope. An id from another workspace answers `404` (§18.5).
+      operationId: invoices.show
+      parameters:
+        - $ref: "#/components/parameters/InvoiceId"
+      responses:
+        "200":
+          description: The invoice.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /inventory:
+    get:
+      tags: [Stock]
+      summary: List stock levels
+      description: |
+        On-hand, reserved and available quantities per variant and location. Requires the
+        `inventory:read` scope.
+
+        This is also the route that tells a consumer which `variantId` and `locationId`
+        values exist, which is what `POST /stock-movements` and order lines need.
+      operationId: inventory.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: variantId
+          in: query
+          description: Restrict to one product variant.
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          description: Restrict to one stock location.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of stock levels.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InventoryLevel"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /stock-movements:
+    get:
+      tags: [Stock]
+      summary: List stock movements
+      description: |
+        The append-only stock ledger, newest first (ADR-004). Requires the
+        `inventory:read` scope.
+      operationId: stock-movements.index
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: variantId
+          in: query
+          description: Restrict to one product variant.
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          description: Restrict to one stock location.
+          required: false
+          schema:
+            type: string
+        - name: reason
+          in: query
+          description: Restrict to one movement reason.
+          required: false
+          schema:
+            type: string
+            enum: [receipt, sale, adjustment, return, transfer]
+      responses:
+        "200":
+          description: A page of stock movements.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StockMovement"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Stock]
+      summary: Record a stock movement
+      description: |
+        Requires the `inventory:write` scope and an `Idempotency-Key` header (FR-API-03).
+
+        Only the two human-entered reasons are accepted here: `receipt` and `adjustment`.
+        `sale`, `transfer` and `return` are written by the application's own flows and
+        carry invariants an external caller cannot satisfy.
+
+        An `adjustment` must carry a note explaining the correction (BR-STOCK-01). A
+        movement that would take on-hand below zero is refused. Corrections are new
+        movements — the ledger is never updated or deleted.
+      operationId: stock-movements.store
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockMovementRequest"
+      responses:
+        "201":
+          description: The movement that was recorded.
+          headers:
+            Idempotent-Replay:
+              $ref: "#/components/headers/IdempotentReplay"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StockMovement"
+        "400":
+          $ref: "#/components/responses/IdempotencyKeyMissing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MissingScope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyInProgress"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
 components:
   securitySchemes:
@@ -52,10 +764,606 @@ components:
       type: http
       scheme: bearer
       description: |
-        Personal access token issued by Laravel Sanctum. The token carries the
-        workspace and the abilities derived from the member's role (§7 din specs.md).
+        Personal access token issued by Laravel Sanctum, created under Settings → API
+        tokens. The token carries the workspace it belongs to and the scopes chosen when
+        it was issued (§18.1). The plain value is shown once, at creation, and is not
+        recoverable afterwards.
 
-security:
-  - sanctumToken: []
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: 1-based page number.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: perPage
+      in: query
+      description: Rows per page, at most 100.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: |
+        A unique key chosen by the caller, at most 255 characters — a UUID is the usual
+        choice. Replaying the same key with the same body returns the first response
+        instead of repeating the effect (§18.4).
+      required: true
+      schema:
+        type: string
+        maxLength: 255
+    AccountId:
+      name: account
+      in: path
+      description: The account's ULID.
+      required: true
+      schema:
+        type: string
+    ContactId:
+      name: contact
+      in: path
+      description: The contact's ULID.
+      required: true
+      schema:
+        type: string
+    DealId:
+      name: deal
+      in: path
+      description: The deal's ULID.
+      required: true
+      schema:
+        type: string
+    OrderId:
+      name: order
+      in: path
+      description: The order's ULID.
+      required: true
+      schema:
+        type: string
+    InvoiceId:
+      name: invoice
+      in: path
+      description: The invoice's ULID.
+      required: true
+      schema:
+        type: string
 
-paths: {}
+  headers:
+    RateLimitRemaining:
+      description: Requests left in the current minute for this token.
+      schema:
+        type: integer
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema:
+        type: integer
+    IdempotentReplay:
+      description: Present and `true` when the body is a replay of an earlier request with the same key.
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: No token, or a token that is invalid, expired or revoked.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    MissingScope:
+      description: |
+        One of three things. The token lacks the scope this endpoint requires — the
+        message names it and `requiredScope` carries it. Or the member who issued the
+        token lacks the permission for this action (§7.4); scopes narrow, they never
+        widen. Or the workspace subscription is unpaid or cancelled, which makes the API
+        read-only or closed for every role, exactly as it does in the application (§12.2).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ScopeError"
+    NotFound:
+      description: |
+        No such object in this workspace. An object that exists in a different workspace
+        answers exactly this, not `403` — the API does not confirm that it exists (§18.5).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationFailed:
+      description: |
+        The body failed validation, or the `Idempotency-Key` was reused with a different
+        payload (§18.4).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    IdempotencyKeyMissing:
+      description: The `Idempotency-Key` header is required on this endpoint and was absent or too long.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    IdempotencyInProgress:
+      description: An earlier request with this `Idempotency-Key` is still running.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: The token exceeded 300 requests in a minute (FR-API-05).
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: A sentence a developer can act on, never a generic failure.
+
+    ScopeError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          examples: ["Missing required scope: orders:write"]
+        requiredScope:
+          type: string
+          description: The scope the token would need.
+          examples: ["orders:write"]
+
+    ValidationError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          description: Field name to the list of problems with it.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    PageMeta:
+      type: object
+      required: [page, perPage, total, lastPage]
+      properties:
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+        lastPage:
+          type: integer
+
+    Account:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        name:
+          type: string
+        domain:
+          type: [string, "null"]
+        industry:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [prospect, active, inactive]
+        phone:
+          type: [string, "null"]
+        creditTerms:
+          type: [string, "null"]
+          description: Payment terms, e.g. `net_30`. Drives the due date of invoices raised from this account's orders.
+        source:
+          type: [string, "null"]
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+
+    Contact:
+      type: object
+      required: [id, firstName, lastName]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        accountId:
+          type: [string, "null"]
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: [string, "null"]
+          format: email
+        phone:
+          type: [string, "null"]
+        title:
+          type: [string, "null"]
+        isPrimary:
+          type: boolean
+        optOut:
+          type: boolean
+          description: The contact asked not to be contacted. Honour it.
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+
+    CreateContactRequest:
+      type: object
+      required: [first_name, last_name]
+      properties:
+        account_id:
+          type: [string, "null"]
+          description: Must be an account of this workspace. Omit for a raw lead.
+        first_name:
+          type: string
+          maxLength: 255
+        last_name:
+          type: string
+          maxLength: 255
+        email:
+          type: [string, "null"]
+          format: email
+          maxLength: 255
+        phone:
+          type: [string, "null"]
+          maxLength: 50
+        title:
+          type: [string, "null"]
+          maxLength: 255
+        is_primary:
+          type: boolean
+          description: Requires `account_id`. Demotes the account's previous primary contact.
+        opt_out:
+          type: boolean
+        confirm_duplicate_email:
+          type: boolean
+          description: Accept an email address already used by another contact of the same account.
+
+    Deal:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        title:
+          type: string
+        accountId:
+          type: string
+        primaryContactId:
+          type: [string, "null"]
+        pipelineId:
+          type: string
+        stageId:
+          type: string
+        stageName:
+          type: [string, "null"]
+          description: The stage's name as configured by this workspace, not a fixed vocabulary.
+        status:
+          type: string
+          enum: [open, won, lost]
+        value:
+          type: number
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        expectedCloseDate:
+          type: [string, "null"]
+          format: date
+        lostReason:
+          type: [string, "null"]
+        ownerUserId:
+          type: [string, "null"]
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+
+    CreateDealRequest:
+      type: object
+      required: [account_id, title]
+      properties:
+        account_id:
+          type: string
+        primary_contact_id:
+          type: [string, "null"]
+          description: Must be a contact of the same account.
+        title:
+          type: string
+          maxLength: 255
+        value:
+          type: [number, "null"]
+          minimum: 0
+        currency:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 3
+        expected_close_date:
+          type: [string, "null"]
+          format: date
+        owner_user_id:
+          type: [string, "null"]
+          description: Must be an active member of this workspace. Defaults to the member who issued the token.
+
+    OrderLine:
+      type: object
+      required: [id, quantity]
+      properties:
+        id:
+          type: string
+        variantId:
+          type: string
+        sku:
+          type: [string, "null"]
+        description:
+          type: [string, "null"]
+        quantity:
+          type: integer
+        quantityFulfilled:
+          type: integer
+        unitPrice:
+          type: number
+        discount:
+          type: number
+        lineTotal:
+          type: number
+
+    Order:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        orderNumber:
+          type: [string, "null"]
+          description: Allocated when the order is confirmed, not when it is created (BR-ORD-02).
+        status:
+          type: string
+          enum: [draft, confirmed, partially_fulfilled, fulfilled, cancelled]
+        accountId:
+          type: string
+        contactId:
+          type: [string, "null"]
+        dealId:
+          type: [string, "null"]
+        ownerUserId:
+          type: [string, "null"]
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        subtotal:
+          type: number
+        discountTotal:
+          type: number
+        shippingTotal:
+          type: number
+        grandTotal:
+          type: number
+        notes:
+          type: [string, "null"]
+        placedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+        lines:
+          type: array
+          description: Present when one order is fetched; absent from the list endpoint.
+          items:
+            $ref: "#/components/schemas/OrderLine"
+
+    CreateOrderRequest:
+      type: object
+      required: [account_id]
+      properties:
+        account_id:
+          type: string
+        contact_id:
+          type: [string, "null"]
+          description: Must be a contact of the same account.
+        deal_id:
+          type: [string, "null"]
+          description: Must be a deal of the same account.
+        currency:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 3
+        notes:
+          type: [string, "null"]
+          maxLength: 2000
+        owner_user_id:
+          type: [string, "null"]
+          description: Must be an active member of this workspace. Defaults to the member who issued the token.
+        lines:
+          type: array
+          description: Optional — a draft order may be saved empty and receive lines later.
+          items:
+            type: object
+            required: [variant_id, quantity]
+            properties:
+              variant_id:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 100000
+              unit_price:
+                type: [number, "null"]
+                minimum: 0
+                description: Defaults to the variant's current price.
+              discount:
+                type: [number, "null"]
+                minimum: 0
+                description: Cannot exceed the line's subtotal.
+
+    Invoice:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        invoiceNumber:
+          type: [string, "null"]
+        orderId:
+          type: string
+        status:
+          type: string
+          enum: [draft, sent, paid, overdue, void]
+        issueDate:
+          type: [string, "null"]
+          format: date
+        dueDate:
+          type: [string, "null"]
+          format: date
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        subtotal:
+          type: number
+        taxTotal:
+          type: number
+        total:
+          type: number
+        amountPaid:
+          type: number
+        balanceDue:
+          type: number
+        pdfStatus:
+          type: string
+          enum: [pending, ready, failed]
+          description: The PDF is rendered in a queue (ADR-013); it is downloadable once this is `ready`.
+        voidReason:
+          type: [string, "null"]
+        voidedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+
+    CreateInvoiceRequest:
+      type: object
+      required: [order_id]
+      properties:
+        order_id:
+          type: string
+          description: An order of this workspace, in status `confirmed` or `fulfilled`.
+
+    InventoryLevel:
+      type: object
+      required: [variantId, locationId, onHand, reserved, available]
+      properties:
+        variantId:
+          type: string
+        sku:
+          type: [string, "null"]
+        locationId:
+          type: string
+        locationName:
+          type: [string, "null"]
+        onHand:
+          type: integer
+        reserved:
+          type: integer
+          description: Held for confirmed orders that are not yet shipped.
+        available:
+          type: integer
+          description: On-hand minus reserved. Never negative by design (BR-STOCK-04).
+        updatedAt:
+          type: [string, "null"]
+          format: date-time
+
+    StockMovement:
+      type: object
+      required: [id, delta, reason]
+      properties:
+        id:
+          type: string
+          description: ULID.
+        variantId:
+          type: string
+        locationId:
+          type: string
+        delta:
+          type: integer
+          description: Signed. Never zero.
+        reason:
+          type: string
+          enum: [receipt, sale, adjustment, return, transfer]
+        refType:
+          type: [string, "null"]
+          description: What caused the movement, when it came from another record.
+        refId:
+          type: [string, "null"]
+        note:
+          type: [string, "null"]
+        createdAt:
+          type: [string, "null"]
+          format: date-time
+
+    CreateStockMovementRequest:
+      type: object
+      required: [variant_id, location_id, delta, reason]
+      properties:
+        variant_id:
+          type: string
+        location_id:
+          type: string
+        delta:
+          type: integer
+          description: Signed, non-zero.
+        reason:
+          type: string
+          enum: [receipt, adjustment]
+          description: Only human-entered reasons are accepted over the API.
+        note:
+          type: [string, "null"]
+          maxLength: 500
+          description: Required when `reason` is `adjustment` (BR-STOCK-01).

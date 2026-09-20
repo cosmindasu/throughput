@@ -4,8 +4,9 @@
 // Inclus din routes/web.php, în grupul cu workspace. API-ul public însuși e în routes/api.php
 // și NU are segment de workspace în cale (§18.2) — tenantul se rezolvă din jeton, server-side.
 
+use App\Http\Controllers\Web\Settings\ApiTokenController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/settings/api-tokens', [\App\Http\Controllers\Web\Settings\ApiTokenController::class, 'index'])->name('settings.api-tokens.index');
-Route::post('/settings/api-tokens', [\App\Http\Controllers\Web\Settings\ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
-Route::delete('/settings/api-tokens/{apiToken}', [\App\Http\Controllers\Web\Settings\ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+Route::get('/settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens.index');
+Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+Route::delete('/settings/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
