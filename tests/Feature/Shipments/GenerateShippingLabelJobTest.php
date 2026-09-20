@@ -262,17 +262,25 @@ class GenerateShippingLabelJobTest extends TestCase
         });
     }
 
-    /** Vezi `QueuedJobContextTest::workTheQueue()` — același motiv, aceeași formă. */
+    /**
+     * Vezi `QueuedJobContextTest::workTheQueue()` — același motiv, aceeași formă.
+     *
+     * Faza 5, lotul E (ADR-007) — `createPendingShipment()` creează Account/Order/Variant,
+     * care declanșează acum și `App\Observers\ActivityLogObserver` (job `WriteActivityLogEntry`
+     * pe ACEEAȘI coadă `default`, ÎNAINTEA jobului de etichetă în ordinea FIFO) — un singur
+     * `--once` ar procesa jurnalul, nu `GenerateShippingLabelJob`. `--stop-when-empty` golește
+     * tot ce e în coadă în acest punct (jurnalul + jobul de etichetă), echivalent cu `$expected`
+     * apeluri `--once` reușite atunci când niciunul nu eșuează — cazul acestui fișier, unde
+     * eșecul de curier e prins ÎN job (`label_failed`), nu aruncat ca excepție de coadă.
+     */
     private function workTheQueue(int $expected): void
     {
         $this->clearDatabaseTenantContext();
 
-        for ($i = 0; $i < $expected; $i++) {
-            $this->artisan('queue:work', [
-                '--once' => true,
-                '--no-interaction' => true,
-            ]);
-        }
+        $this->artisan('queue:work', [
+            '--stop-when-empty' => true,
+            '--no-interaction' => true,
+        ]);
 
         $failed = DB::table('failed_jobs')->count();
         $this->assertSame(0, $failed, 'A queued shipping label job failed unexpectedly — see failed_jobs.');

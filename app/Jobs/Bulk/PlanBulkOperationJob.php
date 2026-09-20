@@ -128,6 +128,14 @@ class PlanBulkOperationJob implements ShouldQueue
         $resourceType = $operation->resource_type;
         $action = $operation->action;
         $payload = $snapshot['action_payload'] ?? [];
+        // Lotul E (instrumentare de jurnal, §13.2 pct. 5) — actorul și contextul cererii
+        // care a declanșat operația, capturate la dispatch (`DispatchBulkOperationAction`)
+        // fiindcă joburile de chunk rulează pe coadă, fără cerere HTTP. Fallback-uri
+        // identice cu cele din `DispatchBulkOperationAction`, pentru snapshot-uri mai
+        // vechi (operații create înainte de acest câmp, redelivrate/reluate).
+        $actorUserId = $snapshot['actor_id'] ?? null;
+        $ipAddress = $snapshot['ip_address'] ?? '0.0.0.0';
+        $userAgent = $snapshot['user_agent'] ?? 'system';
 
         /** @var list<ProcessBulkChunkJob> $jobs */
         $jobs = [];
@@ -137,7 +145,7 @@ class PlanBulkOperationJob implements ShouldQueue
         // „P2-001").
         $chunkIndex = 0;
 
-        $query->chunkById($chunkSize, function ($rows) use (&$jobs, &$chunkIndex, $keyName, $tenantId, $operationId, $resourceType, $action, $payload): void {
+        $query->chunkById($chunkSize, function ($rows) use (&$jobs, &$chunkIndex, $keyName, $tenantId, $operationId, $resourceType, $action, $payload, $actorUserId, $ipAddress, $userAgent): void {
             $jobs[] = new ProcessBulkChunkJob(
                 $tenantId,
                 $operationId,
@@ -146,6 +154,9 @@ class PlanBulkOperationJob implements ShouldQueue
                 $rows->pluck($keyName)->map(static fn ($id): string => (string) $id)->all(),
                 $payload,
                 $chunkIndex,
+                $actorUserId,
+                $ipAddress,
+                $userAgent,
             );
 
             $chunkIndex++;

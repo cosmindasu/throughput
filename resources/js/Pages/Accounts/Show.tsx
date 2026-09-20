@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import EmptyState from '@/Components/EmptyState';
+import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
@@ -145,6 +146,13 @@ export default function Show() {
                             activity && <EmptyState message="No activity recorded yet." />
                         )}
                     </Deferred>
+                </section>
+
+                {/* FR-AUD-02, §17.3 — distinct de „Activity" de mai sus (cronologie amestecată
+                    de business), „History" e strict `activity_log`: autor/dată/valoare veche/nouă. */}
+                <section aria-label="History" className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">History</h2>
+                    <HistoryTab entityType="account" entityId={account.id} />
                 </section>
             </div>
 

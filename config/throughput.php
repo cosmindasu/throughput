@@ -168,6 +168,14 @@ return [
         // mult peste orice timp normal de planificare (`PlanBulkOperationJob::timeout` =
         // 120s), deci nu atinge niciodată o operație încă în curs de planificare legitimă.
         'bulk_stuck_operation_minutes' => (int) env('BULK_STUCK_OPERATION_MINUTES', 15),
+
+        // FR-AUD-01, specs.md §17.2 — retenția jurnalului de activitate: rândurile mai
+        // vechi de atâtea luni, pentru entitățile cu date identificabile ale unei persoane
+        // (Contact, User — nu Account/Deal/Order/Product, date de business, nu personale),
+        // au `old_values`/`new_values` înlocuite cu `[anonymized]` (`App\Jobs\System\
+        // AnonymizeActivityLogJob`). Rândul NU se șterge — structura (acțiune, tip
+        // entitate, dată) rămâne pentru statistici agregate.
+        'activity_log_retention_months' => (int) env('ACTIVITY_LOG_RETENTION_MONTHS', 36),
     ],
 
 ];

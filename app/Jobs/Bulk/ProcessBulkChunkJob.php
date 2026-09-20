@@ -5,6 +5,7 @@ namespace App\Jobs\Bulk;
 use App\Jobs\Middleware\ApplyTenantContextToJob;
 use App\Models\BulkOperationChunk;
 use App\Models\Scopes\TenantScope;
+use App\Support\Activity\BulkChunkActivityRecorder;
 use App\Support\Bulk\BulkChunkActions;
 use App\Support\Bulk\BulkWritableResources;
 use Illuminate\Bus\Batchable;
@@ -52,6 +53,13 @@ class ProcessBulkChunkJob implements ShouldQueue
      * @param  int  $chunk  Indexul chunk-ului, dat de `PlanBulkOperationJob` — stabil și
      *                      determinist în cadrul UNEI planificări (§13.2). Cheia (împreună
      *                      cu `bulkOperationId`) a marcajului de idempotență de mai sus.
+     * @param  string|null  $actorUserId  Lotul E — cine a declanșat operația (`bulk_operations.
+     *                                    user_id`, propagat prin `filter_snapshot`), pentru rândurile de
+     *                                    `activity_log` scrise mai jos. `null` doar pentru snapshot-uri
+     *                                    vechi, fără actor rezolvabil.
+     * @param  string  $ipAddress  Idem, capturat la dispatch (`App\Actions\Bulk\
+     *                             DispatchBulkOperationAction`) — coloana nu e nullabilă.
+     * @param  string  $userAgent  Idem.
      */
     public function __construct(
         public string $tenantId,
@@ -61,6 +69,9 @@ class ProcessBulkChunkJob implements ShouldQueue
         public array $ids,
         public array $payload,
         public int $chunk,
+        public ?string $actorUserId = null,
+        public string $ipAddress = '0.0.0.0',
+        public string $userAgent = 'system',
     ) {}
 
     /** @return array<int, object> */
@@ -95,7 +106,29 @@ class ProcessBulkChunkJob implements ShouldQueue
 
         $resource = BulkWritableResources::resolve($this->resourceType);
         $executor = BulkChunkActions::resolve($this->action);
+        $modelClass = $resource->modelClass();
+        $keyName = $resource->newQuery()->getModel()->getKeyName();
+
+        // Lotul E (§13.2 pct. 3/5, §13.3) — instantaneul DINAINTE, citit ÎN ACEEAȘI
+        // tranzacție ca `insertOrIgnore()` de mai sus și ca `apply()` de mai jos
+        // (`ApplyTenantContextToJob` deschide UNA singură pentru tot `handle()`): un
+        // `UPDATE` în masă nu declanșează `updated` pe Eloquent, deci fără acest instant-
+        // aneu n-ar exista nicio valoare „veche" de comparat — vezi `App\Support\Activity\
+        // BulkChunkActivityRecorder`.
+        $before = $resource->newQuery()->whereIn($keyName, $this->ids)->get()->keyBy($keyName);
 
         $executor->apply($resource, $this->ids, $this->payload);
+
+        $after = $resource->newQuery()->whereIn($keyName, $this->ids)->get()->keyBy($keyName);
+
+        app(BulkChunkActivityRecorder::class)->record(
+            $modelClass,
+            $this->bulkOperationId,
+            $this->actorUserId,
+            $this->ipAddress,
+            $this->userAgent,
+            $before,
+            $after,
+        );
     }
 }

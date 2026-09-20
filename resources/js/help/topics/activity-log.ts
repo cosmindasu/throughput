@@ -1,0 +1,40 @@
+import { adrUrl } from '@/help/adr';
+import type { HelpTopic } from '@/help/types';
+
+/**
+ * `Activity/Index` — specs.md §17 (FR-AUD-01…04, US-AUD-01, BR-AUD-01), Faza 5, lotul E.
+ *
+ * Distinct de tab-ul „History" montat pe fiecare pagină de detaliu (Accounts, Contacts,
+ * Deals, Products, Orders): acesta e ecranul TENANT-WIDE, cu filtre, nu o cronologie a unei
+ * singure entități — de aici și restricția de rol de mai jos, care NU se aplică tab-urilor
+ * de entitate (oricine poate vedea o variantă îi poate vedea și istoricul de preț).
+ */
+const activityLog: HelpTopic = {
+    id: 'activity-log',
+    title: 'Activity log',
+    whatIsThis:
+        "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants and orders, plus bulk operations, one row per record touched.",
+    whatCanYouDo: [
+        'Filter by action type ("Created", "Updated", "Deleted", "Bulk action"...), by team member, and by date range.',
+        'Click a row to jump to the record it changed, when it still exists.',
+        'Open a bulk operation\'s "View in Activity Log" link (from its progress page) to see every row it touched, filtered to just that operation.',
+        'Compare "Old value" and "New value" side by side for any field that changed.',
+    ],
+    rules: [
+        'Owner and Manager see every action in the tenant. An Agent sees only their own actions here — everyone can still see the full history on a record\'s own "History" tab, regardless of who made the change.',
+        'Viewer has no access to this screen at all (§7.4) — the record-level "History" tab stays visible to them, since it\'s part of viewing the record itself.',
+        'Passwords, remember-me tokens and stored credentials never appear here, even partially — a changed field with one of those names is simply absent from "Old value"/"New value", not masked.',
+        'Rows older than 36 months have their old/new values replaced with "[anonymized]" for contacts and users — the row itself, and which field changed, stays for statistics; the value doesn\'t.',
+    ],
+    howItsBuilt: {
+        summary:
+            'Writes happen two ways. Ordinary edits go through Eloquent model observers that fire an event, picked up by a queued listener — the request never waits on the log write. Bulk operations update many rows in one SQL statement, which Eloquent observers never see, so the bulk job reads each row before and after the change and writes one log row per row actually changed, in a single batch insert. Both paths share the same field-exclusion list (ADR-007) and the same "only the fields that changed" diff.',
+        adr: {
+            id: 'ADR-007',
+            title: 'Activity log with in-house code, not owen-it/laravel-auditing',
+            url: adrUrl('ADR-007', 'audit-log-cod-propriu'),
+        },
+    },
+};
+
+export default activityLog;

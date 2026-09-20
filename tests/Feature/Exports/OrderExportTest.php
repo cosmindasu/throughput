@@ -191,7 +191,9 @@ class OrderExportTest extends TestCase
 
         $operation = TenantContext::run($this->marlin, fn () => BulkOperation::query()->where('resource_type', 'orders')->firstOrFail());
         $this->assertSame(4, $operation->total_rows);
-        $this->assertSame(1, DB::table('jobs')->count());
+        // Faza 5, lotul E — `where('queue', 'bulk')`: fiecare `Order` creată mai sus
+        // declanșează acum și `App\Observers\ActivityLogObserver` (job pe coada `default`).
+        $this->assertSame(1, DB::table('jobs')->where('queue', 'bulk')->count());
 
         $this->clearDatabaseTenantContext();
         $this->artisan('queue:work', ['--queue' => 'bulk', '--once' => true, '--no-interaction' => true]);
@@ -218,7 +220,8 @@ class OrderExportTest extends TestCase
 
         $operation = TenantContext::run($this->marlin, fn () => BulkOperation::query()->where('resource_type', 'orders')->firstOrFail());
         $this->assertSame(1, $operation->total_rows);
-        $this->assertSame(1, DB::table('jobs')->count(), 'PDF-ul trebuia să pornească mereu în coadă, chiar sub pragul sincron.');
+        // Faza 5, lotul E — vezi motivul de mai sus (`test_a_csv_export_over_the_threshold_runs_as_a_queued_job`).
+        $this->assertSame(1, DB::table('jobs')->where('queue', 'bulk')->count(), 'PDF-ul trebuia să pornească mereu în coadă, chiar sub pragul sincron.');
 
         $this->clearDatabaseTenantContext();
         $this->artisan('queue:work', ['--queue' => 'bulk', '--once' => true, '--no-interaction' => true]);

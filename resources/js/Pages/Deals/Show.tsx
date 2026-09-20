@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import MoveStageMenu from '@/Components/Deals/MoveStageMenu';
+import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
@@ -124,6 +125,13 @@ export default function Show() {
                             ))}
                         </ol>
                     )}
+                </section>
+
+                {/* FR-AUD-02, §17.3 — distinct de „Stage history" de mai sus (evenimente
+                    dedicate de pipeline), „History" e strict `activity_log`. */}
+                <section aria-label="History" className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">History</h2>
+                    <HistoryTab entityType="deal" entityId={deal.id} />
                 </section>
             </div>
 

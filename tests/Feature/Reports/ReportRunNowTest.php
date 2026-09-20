@@ -63,6 +63,15 @@ class ReportRunNowTest extends TestCase
             ]);
         });
 
+        // Faza 5, lotul E (ADR-007) — Account/Deal create mai sus declanșează acum și
+        // `App\Observers\ActivityLogObserver`, câte un job `WriteActivityLogEntry` pe
+        // coada `default` — ACEEAȘI coadă pe care rulează jobul de raport, deci un simplu
+        // `where('queue', ...)` nu le-ar distinge. Golim coada AICI, înainte ca testul să
+        // dispecerizeze propriul job, ca `assertSame(1, DB::table('jobs')->count())` să
+        // rămână corectă.
+        $this->clearDatabaseTenantContext();
+        $this->artisan('queue:work', ['--stop-when-empty' => true, '--no-interaction' => true]);
+
         $this->clearDatabaseTenantContext();
         Storage::fake('local');
     }

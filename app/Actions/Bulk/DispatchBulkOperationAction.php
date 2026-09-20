@@ -47,6 +47,13 @@ final class DispatchBulkOperationAction
         array $actionPayload,
         ?string $groupId = null,
         bool $confirmed = false,
+        // Lotul E (instrumentare de jurnal, §13.2 pct. 5 din raport) — capturate AICI,
+        // din cererea HTTP care declanșează operația, fiindcă `App\Jobs\Bulk\
+        // ProcessBulkChunkJob` rulează pe coadă, unde `request()` nu mai există.
+        // `activity_log.ip_address`/`user_agent` NU sunt nullabile (migrația din Faza 1),
+        // deci fallback-uri explicite, niciodată `null` propagat mai departe.
+        string $ipAddress = '0.0.0.0',
+        string $userAgent = 'system',
     ): BulkOperation {
         $restrictToOwnRecords = Permissions::restrictedToOwnRecords($user);
 
@@ -104,6 +111,12 @@ final class DispatchBulkOperationAction
                 'action_payload' => $actionPayload,
                 'actor_id' => $user->getKey(),
                 'restrict_to_own_records' => $restrictToOwnRecords,
+                // Lotul E — vezi docblock-ul parametrilor de mai sus. Citite de
+                // `PlanBulkOperationJob::plan()` și propagate la fiecare
+                // `ProcessBulkChunkJob`, pentru rândurile de `activity_log` scrise de
+                // acțiunea în masă (§13.2 pct. 5, §13.3).
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
             ],
             'total_rows' => $total,
             'status' => BulkOperation::STATUS_PENDING,

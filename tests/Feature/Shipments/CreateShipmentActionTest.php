@@ -66,7 +66,11 @@ class CreateShipmentActionTest extends TestCase
 
             $line = $confirmed->orderLines()->firstOrFail();
 
-            $this->assertSame(0, DB::table('jobs')->count());
+            // Faza 5, lotul E (ADR-007) — nu mai presupunem coadă GOALĂ: crearea contului/
+            // variantei/comenzii de mai sus declanșează acum și `ActivityLogObserver` (câte
+            // un job `WriteActivityLogEntry` per scriere). Verificăm DELTA introdusă de
+            // `CreateShipmentAction`, nu un total absolut.
+            $jobsBefore = DB::table('jobs')->count();
 
             $shipment = (new CreateShipmentAction(new CarrierResolver))->execute($confirmed, [$line->getKey() => 6]);
 
@@ -75,8 +79,8 @@ class CreateShipmentActionTest extends TestCase
             $this->assertSame('demo', $shipment->carrier, 'Fără `tenant_carrier_settings`, implicit `demo` (ADR-010).');
             $this->assertSame(6, $shipment->shipmentLines->first()->quantity);
 
-            // ADR-013 — job pus în coadă, nu apel sincron.
-            $this->assertSame(1, DB::table('jobs')->count());
+            // ADR-013 — UN job în plus pus în coadă (eticheta), nu un apel sincron.
+            $this->assertSame($jobsBefore + 1, DB::table('jobs')->count());
 
             // Creare shipment nu atinge STOCUL — doar `MarkShipmentShippedAction` face asta.
             $level = $variant->inventoryLevels()->where('location_id', $this->location->getKey())->first();

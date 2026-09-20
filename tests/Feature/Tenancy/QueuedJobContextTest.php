@@ -39,6 +39,16 @@ class QueuedJobContextTest extends TestCase
 
         $this->createAccount($this->marlin, 'Marlin Industrial Fasteners LLC');
         $this->createAccount($this->cascade, 'Cascade Hydraulics Group Inc.');
+
+        // Faza 5, lotul E (ADR-007) — cele două `Account::save()` de mai sus declanșează
+        // acum și `App\Observers\ActivityLogObserver`, care pune câte un job
+        // `WriteActivityLogEntry` în coadă (aceeași coadă `database` folosită mai jos de
+        // `workTheQueue()`). Fără acest drain, cele două joburi de jurnal ar fi primele din
+        // coadă — `workTheQueue(1)`/`--once` ar procesa jurnalul, nu jobul pe care testul
+        // chiar vrea să-l verifice. Golim coada AICI, înainte ca fiecare test să dispecerizeze
+        // propriile joburi, ca `--once`/numărătoarea exactă din acest fișier să rămână corecte.
+        $this->clearDatabaseTenantContext();
+        $this->artisan('queue:work', ['--stop-when-empty' => true, '--no-interaction' => true]);
     }
 
     public function test_a_tenant_job_restores_its_own_context_and_sees_only_its_tenant(): void

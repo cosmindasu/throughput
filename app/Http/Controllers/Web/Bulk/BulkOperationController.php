@@ -50,6 +50,8 @@ final class BulkOperationController extends Controller
             ids: $request->idsOrNull(),
             actionPayload: ['owner_user_id' => $request->validated('owner_user_id')],
             confirmed: $request->confirmed(),
+            ipAddress: (string) $request->ip(),
+            userAgent: (string) $request->userAgent(),
         );
 
         return redirect()
@@ -81,6 +83,8 @@ final class BulkOperationController extends Controller
             ids: $request->idsOrNull(),
             actionPayload: [],
             confirmed: $request->confirmed(),
+            ipAddress: (string) $request->ip(),
+            userAgent: (string) $request->userAgent(),
         );
 
         return redirect()
@@ -108,6 +112,8 @@ final class BulkOperationController extends Controller
             ids: $request->idsOrNull(),
             actionPayload: $request->pricePayload(),
             confirmed: $request->confirmed(),
+            ipAddress: (string) $request->ip(),
+            userAgent: (string) $request->userAgent(),
         );
 
         return redirect()
@@ -135,6 +141,8 @@ final class BulkOperationController extends Controller
             ids: $request->idsOrNull(),
             actionPayload: ['active' => $request->boolean('active')],
             confirmed: $request->confirmed(),
+            ipAddress: (string) $request->ip(),
+            userAgent: (string) $request->userAgent(),
         );
 
         return redirect()

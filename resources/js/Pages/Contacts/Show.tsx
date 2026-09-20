@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
+import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
@@ -111,6 +112,12 @@ export default function ContactsShow() {
                         )}
                     </section>
                 </div>
+
+                {/* FR-AUD-02, §17.3 */}
+                <section aria-label="History" className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">History</h2>
+                    <HistoryTab entityType="contact" entityId={contact.id} />
+                </section>
 
                 <ConfirmDialog
                     open={confirmingDelete}

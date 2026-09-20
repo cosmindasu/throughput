@@ -43,7 +43,26 @@ class BulkOperationResource extends JsonResource
             'processedRowsEstimate' => $this->processedRowsEstimate($totalJobs, $processedJobs),
             'canCancel' => (bool) $request->user()?->can('cancel', $this->resource),
             'errorMessage' => $this->error_message,
+            'activityLogUrl' => $this->activityLogUrl($request),
         ];
+    }
+
+    /**
+     * US-BULK-01, §13.3 (lotul E) — „un link către activity_log filtrat pe această
+     * operație". Gated pe permisiunea de a accesa ECRANUL de jurnal (`activity_log.view`/
+     * `view_own`), nu pe autorul operației: `BulkOperationPolicy::view()` deja garantează
+     * că doar autorul ajunge pe `Bulk/Show` — un Agent autor al PROPRIEI operații are
+     * `activity_log.view_own`, deci vede rândurile scrise de operația lui oricum (§7.4).
+     */
+    private function activityLogUrl(Request $request): ?string
+    {
+        $user = $request->user();
+
+        if ($user === null || (! $user->can('activity_log.view') && ! $user->can('activity_log.view_own'))) {
+            return null;
+        }
+
+        return route('activity.index', ['bulkOperationId' => $this->id]);
     }
 
     private function processedRowsEstimate(int $totalJobs, int $processedJobs): int

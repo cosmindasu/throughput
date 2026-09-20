@@ -107,7 +107,11 @@ class AccountExportTest extends TestCase
         $this->assertSame(8, $operation->total_rows);
         $this->assertSame($this->owner->getKey(), $operation->user_id);
 
-        $this->assertSame(1, DB::table('jobs')->count(), 'Exportul peste prag ar fi trebuit să ajungă în coadă (driverul database).');
+        // Faza 5, lotul E — `where('queue', 'bulk')`: cele 8 `AccountFactory::create()` de
+        // mai sus declanșează acum și `App\Observers\ActivityLogObserver`, câte un job
+        // `WriteActivityLogEntry` pe coada `default` fiecare — un `count()` neîngustat ar
+        // vedea 9, nu 1, fără ca exportul să fi picat.
+        $this->assertSame(1, DB::table('jobs')->where('queue', 'bulk')->count(), 'Exportul peste prag ar fi trebuit să ajungă în coadă (driverul database).');
 
         $this->clearDatabaseTenantContext();
         $this->artisan('queue:work', ['--queue' => 'bulk', '--once' => true, '--no-interaction' => true]);

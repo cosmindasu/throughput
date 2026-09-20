@@ -123,7 +123,12 @@ class BulkOperationTenancyTest extends TestCase
         ProcessBulkChunkJob::dispatch($this->marlin->getKey(), $marlinOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$marlinAccount->getKey()], ['owner_user_id' => $newOwnerMarlin->getKey()], 0)->onQueue('bulk');
         ProcessBulkChunkJob::dispatch($this->cascade->getKey(), $cascadeOperation->getKey(), 'accounts', BulkChunkActions::REASSIGN_OWNER, [$cascadeAccount->getKey()], ['owner_user_id' => $newOwnerCascade->getKey()], 0)->onQueue('bulk');
 
-        $this->assertSame(2, DB::table('jobs')->count(), 'Joburile n-au ajuns în coadă — driverul e tot `sync`?');
+        // Faza 5, lotul E — `where('queue', 'bulk')`, nu un `count()` brut pe toată tabela:
+        // cele două `AccountFactory::create()` de mai sus declanșează acum și
+        // `App\Observers\ActivityLogObserver`, care pune câte un job `WriteActivityLogEntry`
+        // pe coada `default` (aceeași tabelă `jobs`, coloană `queue` diferită) — un `count()`
+        // neîngustat ar vedea 4, nu 2, fără să fi picat nimic real.
+        $this->assertSame(2, DB::table('jobs')->where('queue', 'bulk')->count(), 'Joburile n-au ajuns în coadă — driverul e tot `sync`?');
 
         $this->clearDatabaseTenantContext();
         $this->artisan('queue:work', ['--queue' => 'bulk', '--stop-when-empty' => true, '--no-interaction' => true]);
