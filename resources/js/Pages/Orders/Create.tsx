@@ -1,7 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
 import AccountCombobox from '@/Components/AccountCombobox';
-import { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import OrderLinesEditor, { type OrderLineFormRow } from '@/Components/Orders/OrderLinesEditor';
 import PageHeader from '@/Components/PageHeader';
@@ -61,6 +61,13 @@ export default function Create() {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         post(`/${workspaceSlug}/orders`);
     };
 
@@ -163,13 +170,11 @@ export default function Create() {
                     </section>
 
                     <div className="flex items-center gap-2">
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="inline-flex items-center justify-center gap-2 rounded-md bg-accent-fill px-3 py-1.5 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover disabled:cursor-not-allowed disabled:opacity-60"
-                        >
+                        {/* Primitiva `Button`: clasele erau copiate de mână, iar `disabled`
+                            nativ pe butonul apăsat îl blurează și aruncă focusul pe `<body>`. */}
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Creating…">
                             Create order
-                        </button>
+                        </Button>
                         <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/orders`}>Cancel</ButtonLink>
                     </div>
                 </form>

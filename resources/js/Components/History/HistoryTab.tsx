@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Button from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
 import type { HistoryEntry } from '@/types/generated';
@@ -48,6 +48,32 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [failed, setFailed] = useState(false);
+    // SC 4.1.3 + focus — „Load more" adaugă rânduri sub fold, fără niciun semnal pentru cine
+    // nu vede lista crescând; iar când ultima pagină soseşte, butonul apăsat DISPARE din DOM
+    // (`cursor` devine `null`) și focusul cade pe `<body>`. Regiunea de mai jos e și anunțul,
+    // și ținta stabilă de focus — `.ai/rules/frontend.md`, „Declanșatorul dispare după succes".
+    const [announcement, setAnnouncement] = useState('');
+    const statusRef = useRef<HTMLParagraphElement>(null);
+    const announcementFrameRef = useRef<number | null>(null);
+    const focusStatusRef = useRef(false);
+
+    useEffect(
+        () => () => {
+            if (announcementFrameRef.current !== null) {
+                cancelAnimationFrame(announcementFrameRef.current);
+            }
+        },
+        [],
+    );
+
+    // Focalizat DUPĂ ce randarea a scos butonul din DOM, nu în `.then()` (unde el încă
+    // există și `cursor` e încă vechiul).
+    useEffect(() => {
+        if (focusStatusRef.current && cursor === null) {
+            focusStatusRef.current = false;
+            statusRef.current?.focus();
+        }
+    }, [cursor]);
 
     const load = (afterCursor: string | null, append: boolean) => {
         const url = new URL(`${base}/activity/entity/${entityType}/${entityId}`, window.location.origin);
@@ -70,6 +96,28 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                 setEntries((previous) => (append ? [...previous, ...page.data] : page.data));
                 setCursor(page.nextCursor);
                 setFailed(false);
+
+                if (!append) {
+                    return;
+                }
+
+                focusStatusRef.current = page.nextCursor === null;
+
+                // Golire sincronă + textul pe frame-ul următor: un al doilea „Load more"
+                // care aduce tot atâtea rânduri ar scrie ACELAȘI șir, iar React iese din
+                // `setState` la valoare identică ÎNAINTE de a programa randarea — fără
+                // mutație de DOM, o regiune `aria-live` n-are ce raporta.
+                const loaded = page.data.length;
+                if (announcementFrameRef.current !== null) {
+                    cancelAnimationFrame(announcementFrameRef.current);
+                }
+                setAnnouncement('');
+                announcementFrameRef.current = requestAnimationFrame(() => {
+                    announcementFrameRef.current = null;
+                    setAnnouncement(
+                        `${loaded} more ${loaded === 1 ? 'entry' : 'entries'} loaded.${page.nextCursor === null ? ' End of history.' : ''}`,
+                    );
+                });
             })
             .catch(() => setFailed(true))
             .finally(() => (append ? setLoadingMore : setLoading)(false));
@@ -121,10 +169,30 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                 ))}
             </ul>
 
+            {/* Montată necondiționat, nu odată cu mesajul: o regiune live născută direct cu
+                text în ea nu e anunțată fiabil — cititoarele urmăresc mutațiile dintr-o
+                regiune pe care au înregistrat-o deja. `tabIndex={-1}` ca să poată primi
+                focusul când butonul „Load more" dispare. */}
+            <p
+                ref={statusRef}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                tabIndex={-1}
+                className="sr-only"
+            >
+                {announcement}
+            </p>
+
             {cursor && (
                 <div>
-                    <Button variant="secondary" onClick={() => load(cursor, true)} disabled={loadingMore}>
-                        {loadingMore ? 'Loading…' : 'Load more'}
+                    <Button
+                        variant="secondary"
+                        onClick={() => load(cursor, true)}
+                        pending={loadingMore}
+                        pendingLabel="Loading…"
+                    >
+                        Load more
                     </Button>
                 </div>
             )}

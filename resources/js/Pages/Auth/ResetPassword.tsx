@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import Button from '@/Components/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import type { ResetPasswordPageProps } from '@/types/generated';
 
@@ -23,6 +24,11 @@ export default function ResetPassword() {
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        if (processing) {
+            return;
+        }
+
         post('/reset-password', {
             onFinish: () => reset('password', 'password_confirmation'),
         });
@@ -98,13 +104,14 @@ export default function ResetPassword() {
                         )}
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="rounded-md bg-accent-fill px-4 py-2 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {processing ? 'Saving…' : 'Reset password'}
-                    </button>
+                    {/* `pending`, nu `disabled` nativ: `disabled` pe butonul care ARE focusul
+                        (exact cel tocmai apăsat) îl blurează, iar focusul cade pe `<body>` —
+                        pe un ecran de autentificare asta înseamnă că utilizatorul de tastatură
+                        își pierde locul chiar cât serverul lucrează. `Button` face acum și
+                        `preventDefault` pe clic, deci al doilea submit rămâne blocat. */}
+                    <Button type="submit" variant="primary" className="px-4 py-2" pending={processing} pendingLabel="Saving…">
+                        Reset password
+                    </Button>
                 </form>
 
                 <Link href="/login" className="text-sm text-accent-text hover:underline">

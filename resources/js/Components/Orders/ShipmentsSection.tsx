@@ -228,6 +228,9 @@ export default function ShipmentsSection({
 
                     <div className="overflow-x-auto rounded-md border border-border-soft">
                         <table className="w-full text-left text-sm">
+                            {/* Headingul de deasupra („Shipments") e al SECȚIUNII, nu al acestui
+                                tabel — deci cazul implicit, `<caption>` (`.ai/rules/frontend.md`). */}
+                            <caption className="sr-only">Lines to include in this shipment</caption>
                             <thead>
                                 <tr className="border-b border-border-soft text-xs text-text-3">
                                     <th scope="col" className="px-3 py-2 font-medium">
@@ -302,8 +305,13 @@ export default function ShipmentsSection({
                 <p className="text-sm text-text-3">No shipments yet.</p>
             ) : (
                 <ul className="flex flex-col gap-3">
-                    {order.shipments.map((shipment) => {
+                    {order.shipments.map((shipment, index) => {
                         const isRowProcessing = rowProcessingId === shipment.id;
+                        // SC 2.4.4 / 4.1.2 — o comandă poate avea mai multe expedieri, fiecare
+                        // cu aceleași patru acțiuni: fără discriminator, „Retry label" ×3 sunt
+                        // indistinctibile în lista de butoane a unui cititor de ecran. Numărul
+                        // de urmărire când există (ce citește și omul), altfel poziția în listă.
+                        const shipmentName = shipment.trackingNumber ?? `${index + 1}`;
 
                         return (
                             <li
@@ -371,7 +379,7 @@ export default function ShipmentsSection({
                                             rel="noreferrer"
                                             className="text-xs font-medium text-accent-text hover:underline"
                                         >
-                                            Download label
+                                            Download label<span className="sr-only"> for shipment {shipmentName}</span>
                                         </a>
                                     )}
 
@@ -382,6 +390,7 @@ export default function ShipmentsSection({
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
                                             {isRowProcessing ? 'Retrying…' : 'Retry label'}
+                                            <span className="sr-only"> for shipment {shipmentName}</span>
                                         </Button>
                                     )}
 
@@ -392,7 +401,7 @@ export default function ShipmentsSection({
                                             aria-disabled={isRowProcessing || undefined}
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
-                                            Discard
+                                            Discard<span className="sr-only"> shipment {shipmentName}</span>
                                         </Button>
                                     )}
 
@@ -403,7 +412,7 @@ export default function ShipmentsSection({
                                             aria-disabled={isRowProcessing || undefined}
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
-                                            Mark as shipped
+                                            Mark as shipped<span className="sr-only"> — shipment {shipmentName}</span>
                                         </Button>
                                     )}
                                 </div>

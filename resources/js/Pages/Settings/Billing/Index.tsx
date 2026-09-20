@@ -112,18 +112,25 @@ export default function BillingIndex() {
                 </div>
 
                 <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                    <h2 className="text-sm font-medium text-text">Invoice history</h2>
+                    <h2 id="invoice-history-heading" className="text-sm font-medium text-text">
+                        Invoice history
+                    </h2>
 
                     {invoices.length === 0 ? (
                         <p className="text-sm text-text-2">No invoices yet.</p>
                     ) : (
-                        <table className="w-full text-left text-sm">
+                        /* `aria-labelledby` către headingul vizibil dedicat de deasupra, nu un
+                           `<caption>` separat — excepția din `.ai/rules/frontend.md`. Tabelul
+                           n-avea nici nume, nici `scope` pe celulele de antet: singurul din
+                           aplicație cu `<th>` fără `scope="col"` (SC 1.3.1 — relația
+                           antet/celulă e chiar ce cere criteriul). */
+                        <table className="w-full text-left text-sm" aria-labelledby="invoice-history-heading">
                             <thead>
                                 <tr className="border-b border-border-soft text-text-2">
-                                    <th className="py-2 pr-4 font-medium">Date</th>
-                                    <th className="py-2 pr-4 font-medium">Total</th>
-                                    <th className="py-2 pr-4 font-medium">Status</th>
-                                    <th className="py-2 font-medium">
+                                    <th scope="col" className="py-2 pr-4 font-medium">Date</th>
+                                    <th scope="col" className="py-2 pr-4 font-medium">Total</th>
+                                    <th scope="col" className="py-2 pr-4 font-medium">Status</th>
+                                    <th scope="col" className="py-2 font-medium">
                                         <span className="sr-only">View</span>
                                     </th>
                                 </tr>
@@ -145,7 +152,13 @@ export default function BillingIndex() {
                                                     rel="noreferrer"
                                                     className="text-accent-text underline-offset-2 hover:underline"
                                                 >
+                                                    {/* SC 2.4.4 — „View" identic pe fiecare rând. */}
                                                     View
+                                                    <span className="sr-only">
+                                                        {' '}
+                                                        the invoice from{' '}
+                                                        {invoice.date ? new Date(invoice.date).toLocaleDateString() : 'an unknown date'}
+                                                    </span>
                                                 </a>
                                             )}
                                         </td>

@@ -40,6 +40,7 @@ interface ContactFormProps {
 export default function ContactForm({ contact, initialAccount = null, submitLabel, action, method }: ContactFormProps) {
     const primaryCheckboxId = useId();
     const primaryErrorId = `${primaryCheckboxId}-error`;
+    const primaryHintId = `${primaryCheckboxId}-hint`;
     const { data, setData, post, put, processing, errors } = useForm<ContactFormValues>({
         account_id: contact?.accountId ?? initialAccount?.id ?? '',
         first_name: contact?.firstName ?? '',
@@ -58,6 +59,12 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
 
         if (method === 'put') {
             put(action);
@@ -165,18 +172,35 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
 
             <div className="flex flex-col gap-1">
                 <label htmlFor={primaryCheckboxId} className="flex items-center gap-2 text-sm text-text">
+                    {/* `disabled` rămâne corect aici: bifa se blochează pentru că utilizatorul
+                        a golit câmpul „Account" de deasupra, deci focusul e pe ACEL control, nu
+                        pe bifă — nu e cazul „butonul apăsat se dezactivează sub focus".
+                        Ce lipsea (SC 3.3.2 Labels or Instructions) era MOTIVUL: un control
+                        dezactivat iese din ordinea de Tab și dispare din lista de câmpuri a
+                        cititorului de ecran, fără nimic care să spună de ce. Explicația e
+                        `sr-only` — vizual, câmpul gol de deasupra o spune deja. */}
                     <input
                         id={primaryCheckboxId}
                         type="checkbox"
                         checked={data.is_primary}
                         disabled={data.account_id.trim() === ''}
-                        aria-describedby={errors.is_primary ? primaryErrorId : undefined}
+                        aria-describedby={
+                            [
+                                errors.is_primary ? primaryErrorId : null,
+                                data.account_id.trim() === '' ? primaryHintId : null,
+                            ]
+                                .filter(Boolean)
+                                .join(' ') || undefined
+                        }
                         aria-invalid={errors.is_primary ? true : undefined}
                         onChange={(event) => setData('is_primary', event.target.checked)}
                         className="h-4 w-4 accent-[var(--accent-fill)] disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     Primary contact for this account
                 </label>
+                <p id={primaryHintId} className="sr-only">
+                    Available once this contact is linked to an account.
+                </p>
                 {errors.is_primary && (
                     <p id={primaryErrorId} role="alert" className="text-xs text-danger">
                         {errors.is_primary}
@@ -195,8 +219,8 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
             </label>
 
             <div className="flex justify-end gap-2">
-                <Button variant="primary" type="submit" disabled={processing}>
-                    {processing ? 'Saving…' : submitLabel}
+                <Button variant="primary" type="submit" pending={processing} pendingLabel="Saving…">
+                    {submitLabel}
                 </Button>
             </div>
         </form>

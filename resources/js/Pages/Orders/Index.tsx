@@ -330,7 +330,7 @@ function OrdersTable({
                                     />
                                 </th>
                             )}
-                            <th scope="col" className="px-4 py-2 font-medium">
+                            <th scope="col" aria-sort={ariaSortFor('order_number', sort)} className="px-4 py-2 font-medium">
                                 <button
                                     type="button"
                                     onClick={() => onSort('order_number')}
@@ -343,7 +343,12 @@ function OrdersTable({
                                 </button>
                             </th>
                             {columns.map((column) => (
-                                <th key={column.key} scope="col" className={`px-4 py-2 font-medium ${column.headerClassName ?? ''}`}>
+                                <th
+                                    key={column.key}
+                                    scope="col"
+                                    aria-sort={column.sortKey ? ariaSortFor(column.sortKey, sort) : undefined}
+                                    className={`px-4 py-2 font-medium ${column.headerClassName ?? ''}`}
+                                >
                                     {column.sortKey ? (
                                         <button
                                             type="button"
@@ -416,7 +421,7 @@ function OrderRow({
             <td className="px-4 py-2 text-text-2">
                 {order.can.edit && (
                     <Link href={`/${workspaceSlug}/orders/${order.id}/edit`} className="hover:underline">
-                        Edit
+                        Edit<span className="sr-only"> {order.orderNumber ?? `draft order ${order.id.slice(-8)}`}</span>
                     </Link>
                 )}
             </td>
@@ -439,6 +444,20 @@ function buildBulkActionUrl(currentUrl: string, base: string, path: string): str
     const url = `${base}/${path}`;
 
     return query ? `${url}?${query}` : url;
+}
+
+/**
+ * SC 1.3.1 — starea de sortare a unei coloane e o RELAȚIE din tabel, nu o decorație:
+ * săgeata ↑/↓ e `aria-hidden` (corect, e un glif fără sens citit cu voce), deci fără
+ * `aria-sort` pe `<th>` un cititor de ecran nu avea nicio cale să afle după ce e sortată
+ * lista. Se pune pe CELULA de antet, niciodată pe butonul din ea.
+ */
+function ariaSortFor(column: string, sort: { column: string; direction: 'asc' | 'desc' }): 'ascending' | 'descending' | undefined {
+    if (sort.column !== column) {
+        return undefined;
+    }
+
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
 }
 
 Index.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;

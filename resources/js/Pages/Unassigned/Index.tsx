@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import Button from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
@@ -52,6 +52,11 @@ export default function UnassignedIndex() {
 
     return (
         <>
+            {/* SC 2.4.2 (Page Titled) — fără `<Head>`, titlul documentului rămâne cel al
+                paginii ANTERIOARE într-un SPA Inertia: cine navighează cu un cititor de
+                ecran aude titlul vechi la fiecare intrare aici. */}
+            <Head title="Unassigned" />
+
             <PageHeader
                 title="Unassigned"
                 description="Open deals and active orders left behind by deactivated members (ADR-011) — nothing here was lost, it just needs a new owner."

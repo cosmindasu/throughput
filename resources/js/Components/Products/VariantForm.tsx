@@ -38,6 +38,12 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         if (mode === 'create') {
             post(action);
         } else {
@@ -131,7 +137,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
             </label>
 
             <div className="flex justify-end gap-2">
-                <Button type="submit" variant="primary" disabled={processing}>
+                <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                     {mode === 'create' ? 'Create variant' : 'Save changes'}
                 </Button>
             </div>

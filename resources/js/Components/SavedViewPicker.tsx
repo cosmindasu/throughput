@@ -276,24 +276,30 @@ function SavedViewGroup({ title, emptyMessage, views, activeId, defaultId, apply
                                     {view.name}
                                 </Link>
 
+                                {/* SC 2.4.4 / 4.1.2 — „Set default"/„Rename"/„Delete" se repetă
+                                    identic pe fiecare vedere salvată din meniu. Discriminatorul e
+                                    `sr-only` DUPĂ textul vizibil, deci numele accesibil ÎNCEPE tot
+                                    cu el (SC 2.5.3 Label in Name). `title` rămâne ce era: un
+                                    tooltip de mouse, nu numele accesibil — textul îl are deja. */}
                                 <div className="flex shrink-0 items-center gap-2 text-xs text-text-3">
                                     <button
                                         type="button"
                                         aria-pressed={isDefault}
                                         onClick={() => onSetDefault(isDefault ? null : view)}
-                                        className={`hover:text-text ${isDefault ? 'text-accent-text' : ''}`}
+                                        className={`rounded hover:text-text ${isDefault ? 'text-accent-text' : ''}`}
                                         title={isDefault ? 'Remove as default' : 'Set as default'}
                                     >
                                         {isDefault ? '★ Default' : '☆ Set default'}
+                                        <span className="sr-only"> — {view.name}</span>
                                     </button>
                                     {view.canUpdate && (
-                                        <button type="button" onClick={() => onRename(view)} className="hover:text-text">
-                                            Rename
+                                        <button type="button" onClick={() => onRename(view)} className="rounded hover:text-text">
+                                            Rename<span className="sr-only"> {view.name}</span>
                                         </button>
                                     )}
                                     {view.canDelete && (
-                                        <button type="button" onClick={() => onDelete(view)} className="hover:text-danger">
-                                            Delete
+                                        <button type="button" onClick={() => onDelete(view)} className="rounded hover:text-danger">
+                                            Delete<span className="sr-only"> {view.name}</span>
                                         </button>
                                     )}
                                 </div>
@@ -348,6 +354,13 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         setProcessing(true);
         setError(null);
 
@@ -452,7 +465,7 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
                     <Button type="button" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="primary" disabled={processing}>
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                         Save
                     </Button>
                 </div>
@@ -492,7 +505,7 @@ function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogPr
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
-        if (!view) {
+        if (!view || processing) {
             return;
         }
 
@@ -546,7 +559,7 @@ function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogPr
                     <Button type="button" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="primary" disabled={processing}>
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Renaming…">
                         Rename
                     </Button>
                 </div>

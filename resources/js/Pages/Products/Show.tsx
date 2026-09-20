@@ -66,13 +66,19 @@ export default function Show() {
                 />
 
                 <section aria-label="Variants" className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">Variants</h2>
+                    <h2 id="variants-heading" className="text-sm font-medium text-text">
+                        Variants
+                    </h2>
 
                     {product.variants.length === 0 ? (
                         <EmptyState message="No variants yet." />
                     ) : (
                         <div className="overflow-hidden rounded-lg border border-border">
-                            <table className="w-full text-left text-sm">
+                            {/* Excepția de la convenția cu `<caption>`: tabelul are un heading
+                                vizibil DEDICAT chiar deasupra, deci se leagă de el — o singură
+                                sursă de adevăr pentru nume, nu un caption invizibil care poate
+                                diverge de heading. Vezi `.ai/rules/frontend.md`. */}
+                            <table className="w-full text-left text-sm" aria-labelledby="variants-heading">
                                 <thead className="bg-raised text-text-2">
                                     <tr>
                                         <th scope="col" className="px-4 py-2 font-medium">SKU</th>
@@ -112,11 +118,14 @@ export default function Show() {
                                                 </td>
                                                 <td className="px-4 py-2.5 text-right">
                                                     <div className="flex justify-end gap-3">
+                                                        {/* SC 2.4.4 / 4.1.2 — „Stock"/„History"/„Change log"/„Edit"
+                                                            se repetă identic pe fiecare variantă. Discriminator
+                                                            `sr-only` DUPĂ textul vizibil (SC 2.5.3 Label in Name). */}
                                                         <a href={`${base}/variants/${variant.id}/stock`} className="text-accent-text hover:underline">
-                                                            Stock
+                                                            Stock<span className="sr-only"> for {variant.sku}</span>
                                                         </a>
                                                         <a href={`${base}/variants/${variant.id}/stock/history`} className="text-accent-text hover:underline">
-                                                            History
+                                                            History<span className="sr-only"> for {variant.sku}</span>
                                                         </a>
                                                         {/* FR-AUD-02 — "Change log" (nu "History", deja folosit mai sus
                                                             pentru istoricul de STOC) — jurnalul de modificări ale
@@ -127,11 +136,11 @@ export default function Show() {
                                                             aria-expanded={expandedVariantId === variant.id}
                                                             className="text-accent-text hover:underline"
                                                         >
-                                                            Change log
+                                                            Change log<span className="sr-only"> for {variant.sku}</span>
                                                         </button>
                                                         {can.edit && (
                                                             <a href={`${base}/variants/${variant.id}/edit`} className="text-accent-text hover:underline">
-                                                                Edit
+                                                                Edit<span className="sr-only"> {variant.sku}</span>
                                                             </a>
                                                         )}
                                                     </div>

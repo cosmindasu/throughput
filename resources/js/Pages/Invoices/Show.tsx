@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import Field, { controlClass } from '@/Components/Form/Field';
 import HistoryTab from '@/Components/History/HistoryTab';
@@ -181,23 +182,17 @@ export default function Show() {
                 }
                 actions={
                     <>
+                        {/* Primitiva `Button`: varianta scrisă de mână n-avea niciun stil de
+                            focus (SC 2.4.7) — doar inelul implicit al browserului. */}
                         {invoice.can.markSent && (
-                            <button
-                                type="button"
-                                onClick={() => setSending(true)}
-                                className="rounded-md bg-accent-fill px-3 py-1.5 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover"
-                            >
+                            <Button variant="primary" onClick={() => setSending(true)}>
                                 Mark as sent
-                            </button>
+                            </Button>
                         )}
                         {invoice.can.void && (
-                            <button
-                                type="button"
-                                onClick={() => setVoiding(true)}
-                                className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                            >
+                            <Button variant="danger" onClick={() => setVoiding(true)}>
                                 Void
-                            </button>
+                            </Button>
                         )}
                     </>
                 }
@@ -439,13 +434,9 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
                         )}
                     </Field>
 
-                    <button
-                        type="submit"
-                        aria-disabled={processing || undefined}
-                        className={`rounded-md bg-accent-fill px-3 py-1.5 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover ${processing ? 'cursor-not-allowed opacity-60' : ''}`}
-                    >
-                        {processing ? 'Recording…' : 'Record payment'}
-                    </button>
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Recording…">
+                        Record payment
+                    </Button>
                 </form>
             )}
         </section>

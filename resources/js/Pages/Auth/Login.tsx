@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import Button from '@/Components/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import type { DemoAccountRole, LoginPageProps } from '@/types/generated';
 
@@ -17,6 +18,10 @@ export default function Login() {
     const [pendingRole, setPendingRole] = useState<DemoAccountRole | null>(null);
 
     const demoLogin = (role: DemoAccountRole) => {
+        if (pendingRole !== null) {
+            return;
+        }
+
         setPendingRole(role);
         router.post(
             `/login/demo/${role}`,
@@ -35,6 +40,11 @@ export default function Login() {
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        if (processing) {
+            return;
+        }
+
         post('/login');
     };
 
@@ -64,12 +74,18 @@ export default function Login() {
                     <div className="flex flex-col gap-3">
                         <h2 className="text-sm font-medium text-text-2">Demo accounts</h2>
                         {demoAccounts.map((account) => (
+                            /* `aria-disabled`, nu `disabled`: un clic dezactiva TOATE butoanele
+                               de rol, inclusiv chiar pe cel apăsat — browserul îl blurează și
+                               focusul cade pe `<body>`, adică exact pe ecranul de intrare în
+                               aplicație. Rămâne focusabil, iar clicul e neutralizat în handler. */
                             <button
                                 key={account.role}
                                 type="button"
                                 onClick={() => demoLogin(account.role)}
-                                disabled={pendingRole !== null}
-                                className="flex flex-col items-start gap-0.5 rounded-md border border-control px-4 py-2.5 text-left transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-disabled={pendingRole !== null || undefined}
+                                className={`flex flex-col items-start gap-0.5 rounded-md border border-control px-4 py-2.5 text-left transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                                    pendingRole !== null ? 'cursor-not-allowed opacity-60' : ''
+                                }`}
                             >
                                 <span className="text-sm font-medium text-text">
                                     Log in as {account.name}
@@ -149,13 +165,9 @@ export default function Login() {
                         Remember me
                     </label>
 
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="rounded-md bg-accent-fill px-4 py-2 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {processing ? 'Logging in…' : 'Log in'}
-                    </button>
+                    <Button type="submit" variant="primary" className="px-4 py-2" pending={processing} pendingLabel="Logging in…">
+                        Log in
+                    </Button>
                 </form>
             </div>
         </>

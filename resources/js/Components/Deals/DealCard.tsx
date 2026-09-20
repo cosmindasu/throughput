@@ -56,6 +56,7 @@ export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onE
                 <div className="mt-2">
                     <MoveStageMenu
                         workspaceSlug={workspaceSlug}
+                        dealTitle={deal.title}
                         dealId={deal.id}
                         currentStageId={deal.stage.id}
                         stages={stages}

@@ -11,6 +11,14 @@ interface MoveStageMenuProps {
     stages: DealStage[];
     onError: (message: string) => void;
     onMoved?: (stage: DealStage) => void;
+    /**
+     * SC 2.4.4 / 4.1.2 — dat DOAR acolo unde meniul apare de mai multe ori pe aceeași
+     * pagină (kanban: un declanșator per card, deci zeci de butoane „Move to stage…"
+     * identice în lista de butoane a unui cititor de ecran). Pe `Deals/Show` există un
+     * singur meniu, iar titlul e deja `h1`-ul paginii — acolo discriminatorul ar fi
+     * redundanță, nu ajutor, deci propul rămâne opțional.
+     */
+    dealTitle?: string;
 }
 
 /**
@@ -23,7 +31,7 @@ interface MoveStageMenuProps {
  * O etapă `isLost` cere întâi motivul (`LostReasonDialog`, FR-DEAL-03) înainte de a trimite
  * cererea — atât de pe kanban, cât și din `Deals/Show`.
  */
-export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, stages, onError, onMoved }: MoveStageMenuProps) {
+export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, stages, onError, onMoved, dealTitle }: MoveStageMenuProps) {
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const [pendingLostStage, setPendingLostStage] = useState<DealStage | null>(null);
@@ -154,7 +162,10 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                 onKeyDown={onTriggerKeyDown}
                 className={`${buttonClass('secondary')} text-xs`}
             >
-                Move to stage…
+                {/* Discriminatorul e `sr-only` DUPĂ textul vizibil, nu un `aria-label` care
+                    l-ar înlocui: numele accesibil tot ÎNCEPE cu „Move to stage…" (SC 2.5.3
+                    Label in Name) și rămâne găsibil după textul vizibil. */}
+                Move to stage…{dealTitle && <span className="sr-only"> for {dealTitle}</span>}
             </button>
 
             {open && (

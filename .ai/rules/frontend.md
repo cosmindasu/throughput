@@ -91,9 +91,36 @@ utilizatorul de tastatură „în gol", la începutul paginii:
   `<dialog>` nu mai are unde să readucă focusul. Focusul se mută explicit pe un element stabil,
   de obicei un mesaj `role="status"` cu `tabIndex={-1}` care spune ce s-a întâmplat.
 
-Un nume accesibil repetat pe fiecare rând („Deactivate member" × N) se disambiguizează cu
-`aria-label` („Deactivate Jane Doe"), iar o regiune `aria-live` peste o listă cu polling anunță
-doar schimbările de stare, nu fiecare poll.
+Un nume accesibil repetat pe fiecare rând („Deactivate member" × N) se disambiguizează
+**adăugând** discriminatorul, nu înlocuind numele:
+
+```tsx
+// Corect — numele accesibil devine „Edit Acme Corp", dar ÎNCEPE cu textul vizibil.
+<Link href={…}>Edit<span className="sr-only"> {account.name}</span></Link>
+
+// Greșit — `aria-label` ÎNLOCUIEȘTE textul vizibil.
+<Link href={…} aria-label={`Edit ${account.name}`}>Edit</Link>
+```
+
+Motivul e **SC 2.5.3 Label in Name**: cine dictează „click Edit" unui software de control vocal
+are nevoie ca textul vizibil să fie un prefix al numelui accesibil — `aria-label` îl rupe.
+
+**Consecința asupra testelor E2E, în ambele direcții** (măsurată în valul 3 al Fazei 5, nu
+dedusă). `getByRole` din Playwright caută **substring**, deci:
+
+- un selector pe eticheta scurtă (`name: 'Edit'`) continuă să se potrivească, și devine
+  disambiguabil per rând (`name: 'Edit Acme Corp'`);
+- dar un selector pe **numele entității** (`name: 'Acme Corp'`), scris pentru linkul de rând, se
+  potrivește de acum **și** cu `Edit Acme Corp` → încălcare de strict mode.
+
+Deci: orice test care caută un rând după numele entității are nevoie de `{ exact: true }`. Șase
+aserțiuni au fost ajustate exact pentru asta. A crede că adăugarea unui sufix e inofensivă
+pentru selectoare e adevărat doar pe jumătate.
+
+Convenția a fost amestecată până în valul 3 al Fazei 5 (`Settings/Index` și `Settings/Shipping`
+încă folosesc `aria-label`); forma de mai sus e cea care se aplică de acum.
+
+O regiune `aria-live` peste o listă cu polling anunță doar schimbările de stare, nu fiecare poll.
 
 ## `usePoll` are nevoie de `start()`, nu doar de `autoStart`
 

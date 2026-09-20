@@ -39,6 +39,10 @@ export default function Show() {
 
                 <div className="overflow-hidden rounded-lg border border-border">
                     <table className="w-full text-left text-sm">
+                        {/* Convenția implicită de nume pentru un tabel fără heading propriu
+                            deasupra: `<caption class="sr-only">` (tehnica H39), nu un
+                            `aria-labelledby` către titlul PAGINII. Vezi `.ai/rules/frontend.md`. */}
+                        <caption className="sr-only">Stock levels by location</caption>
                         <thead className="bg-raised text-text-2">
                             <tr>
                                 <th scope="col" className="px-4 py-2 font-medium">Location</th>
@@ -94,6 +98,13 @@ function ReceiveForm({ action, locations }: { action: string; locations: Locatio
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        // Butonul e `aria-disabled`, nu `disabled` nativ (rămâne focusabil) — al doilea
+        // submit se oprește aici, nu de browser.
+        if (processing) {
+            return;
+        }
+
         post(action, { preserveScroll: true, onSuccess: () => reset('quantity', 'note') });
     };
 
@@ -125,7 +136,7 @@ function ReceiveForm({ action, locations }: { action: string; locations: Locatio
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" disabled={processing}>
+            <Button type="submit" variant="primary" pending={processing} pendingLabel="Receiving…">
                 Receive
             </Button>
         </form>
@@ -141,6 +152,13 @@ function AdjustForm({ action, locations }: { action: string; locations: Location
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        // Butonul e `aria-disabled`, nu `disabled` nativ (rămâne focusabil) — al doilea
+        // submit se oprește aici, nu de browser.
+        if (processing) {
+            return;
+        }
+
         post(action, { preserveScroll: true, onSuccess: () => reset('delta', 'note') });
     };
 
@@ -172,7 +190,7 @@ function AdjustForm({ action, locations }: { action: string; locations: Location
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" disabled={processing}>
+            <Button type="submit" variant="primary" pending={processing} pendingLabel="Adjusting…">
                 Adjust
             </Button>
         </form>
@@ -189,6 +207,13 @@ function TransferForm({ action, locations }: { action: string; locations: Locati
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        // Butonul e `aria-disabled`, nu `disabled` nativ (rămâne focusabil) — al doilea
+        // submit se oprește aici, nu de browser.
+        if (processing) {
+            return;
+        }
+
         post(action, { preserveScroll: true, onSuccess: () => reset('quantity', 'note') });
     };
 
@@ -232,7 +257,7 @@ function TransferForm({ action, locations }: { action: string; locations: Locati
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" disabled={processing}>
+            <Button type="submit" variant="primary" pending={processing} pendingLabel="Transferring…">
                 Transfer
             </Button>
         </form>

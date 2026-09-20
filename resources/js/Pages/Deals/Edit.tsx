@@ -75,6 +75,13 @@ export default function Edit() {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         put(`/${workspaceSlug}/deals/${deal.id}`);
     };
 
@@ -184,7 +191,7 @@ export default function Edit() {
                     )}
 
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" disabled={processing}>
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                             Save changes
                         </Button>
                         <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}`}>Cancel</ButtonLink>

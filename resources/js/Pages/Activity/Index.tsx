@@ -115,16 +115,22 @@ export default function Index() {
                     )}
                 </div>
 
+                {/* SC 2.4.4 — textul linkului trebuie să spună unde DUCE. Varianta dinainte
+                    era „…rows written by [this bulk operation]", ceea ce promite navigarea
+                    spre operația în masă; clicul, de fapt, ȘTERGE filtrul. Starea și
+                    acțiunea sunt acum două lucruri separate: propoziția descrie ce se vede,
+                    butonul spune ce face. Și e un `<button>`, nu un `<a href>` cu
+                    `preventDefault()` — nu era o navigare, deci nu era un link. */}
                 {filters.bulkOperationId && (
-                    <p className="text-sm text-text-2" role="status">
-                        Showing only rows written by{' '}
-                        <a href={path} className="text-accent-text hover:underline" onClick={(event) => {
-                            event.preventDefault();
-                            apply({ bulkOperationId: null });
-                        }}>
-                            this bulk operation
-                        </a>
-                        .
+                    <p className="text-sm text-text-2">
+                        Showing only rows written by a single bulk operation.{' '}
+                        <button
+                            type="button"
+                            className="text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                            onClick={() => apply({ bulkOperationId: null })}
+                        >
+                            Show all rows
+                        </button>
                     </p>
                 )}
 

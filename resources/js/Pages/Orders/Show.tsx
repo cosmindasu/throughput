@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
-import { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import HistoryTab from '@/Components/History/HistoryTab';
 import BillingSection from '@/Components/Invoices/BillingSection';
@@ -106,33 +106,24 @@ export default function Show() {
                     }
                     actions={
                         <>
+                            {/* Primitiva `Button`, nu clase repetate de mână: varianta scrisă
+                                local nu avea niciun stil de focus (SC 2.4.7 — se vedea doar
+                                inelul implicit al browserului, diferit de restul aplicației). */}
                             {can.confirm && (
-                                <button
-                                    type="button"
-                                    onClick={() => setConfirming(true)}
-                                    className="rounded-md bg-accent-fill px-3 py-1.5 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover"
-                                >
+                                <Button variant="primary" onClick={() => setConfirming(true)}>
                                     Confirm order
-                                </button>
+                                </Button>
                             )}
                             {can.edit && <ButtonLink href={`/${workspaceSlug}/orders/${order.id}/edit`}>Edit</ButtonLink>}
                             {can.cancel && (
-                                <button
-                                    type="button"
-                                    onClick={() => setCancelling(true)}
-                                    className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                                >
+                                <Button variant="danger" onClick={() => setCancelling(true)}>
                                     Cancel order
-                                </button>
+                                </Button>
                             )}
                             {can.delete && (
-                                <button
-                                    type="button"
-                                    onClick={() => setConfirmingDelete(true)}
-                                    className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                                >
+                                <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
                                     Delete
-                                </button>
+                                </Button>
                             )}
                         </>
                     }
@@ -164,6 +155,10 @@ export default function Show() {
 
                 <section aria-label="Lines" className="overflow-x-auto rounded-lg border border-border bg-surface">
                     <table className="w-full text-left text-sm">
+                        {/* Fără heading vizibil propriu deasupra -> cazul implicit, `<caption>`
+                            (`.ai/rules/frontend.md`). Era al treilea tipar de nume de tabel din
+                            aplicație: niciunul. */}
+                        <caption className="sr-only">Order lines</caption>
                         <thead>
                             <tr className="border-b border-border-soft text-xs text-text-3">
                                 <th scope="col" className="px-4 py-2 font-medium">

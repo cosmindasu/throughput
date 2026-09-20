@@ -222,9 +222,15 @@ export default function Index() {
                                                 </td>
                                             ))}
                                             <td className="px-4 py-2.5 text-right">
+                                                {/* SC 2.4.4 / 4.1.2 — „Edit" identic pe fiecare rând dă N linkuri
+                                                    cu același nume accesibil, imposibil de distins în lista de
+                                                    linkuri a unui cititor de ecran. Discriminatorul e `sr-only`
+                                                    DUPĂ textul vizibil, nu un `aria-label` care l-ar înlocui:
+                                                    numele accesibil tot ÎNCEPE cu textul vizibil (SC 2.5.3 Label
+                                                    in Name). Același tipar pe Contacts/Deals/Orders/Products. */}
                                                 {account.canEdit && (
                                                     <a href={`${base}/accounts/${account.id}/edit`} className="text-sm text-accent-text hover:underline">
-                                                        Edit
+                                                        Edit<span className="sr-only"> {account.name}</span>
                                                     </a>
                                                 )}
                                             </td>

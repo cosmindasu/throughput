@@ -32,6 +32,12 @@ export default function ProductForm({ mode, product, action }: ProductFormProps)
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         if (mode === 'create') {
             post(action);
         } else {
@@ -91,7 +97,7 @@ export default function ProductForm({ mode, product, action }: ProductFormProps)
             </label>
 
             <div className="flex justify-end gap-2">
-                <Button type="submit" variant="primary" disabled={processing}>
+                <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                     {mode === 'create' ? 'Create product' : 'Save changes'}
                 </Button>
             </div>

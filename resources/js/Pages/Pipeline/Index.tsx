@@ -39,6 +39,16 @@ export default function PipelineIndex() {
     const [announcement, setAnnouncement] = useState('');
     const lastMovedIdRef = useRef<string | null>(null);
     const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+    const announcementFrameRef = useRef<number | null>(null);
+
+    useEffect(
+        () => () => {
+            if (announcementFrameRef.current !== null) {
+                cancelAnimationFrame(announcementFrameRef.current);
+            }
+        },
+        [],
+    );
 
     useEffect(() => {
         const id = lastMovedIdRef.current;
@@ -81,13 +91,33 @@ export default function PipelineIndex() {
         );
     }
 
+    /**
+     * SC 4.1.3 — golire sincronă, apoi textul pe frame-ul următor. O regiune `aria-live`
+     * raportează MUTAȚIA din DOM, nu intenția de a scrie: `setAnnouncement` cu exact
+     * aceeași valoare face bail-out în React (`objectIs`, înainte de programarea randării),
+     * deci nu se atinge niciun nod de text și anunțul e mut. Se întâmplă real aici — un
+     * „Move down" respins de server (ordinea revine) urmat de al doilea „Move down" produce
+     * de două ori la rând același șir. Vezi `.ai/rules/frontend.md` și `ListUpdateAnnouncer`.
+     */
+    function announce(text: string) {
+        if (announcementFrameRef.current !== null) {
+            cancelAnimationFrame(announcementFrameRef.current);
+        }
+
+        setAnnouncement('');
+        announcementFrameRef.current = requestAnimationFrame(() => {
+            announcementFrameRef.current = null;
+            setAnnouncement(text);
+        });
+    }
+
     function announceMove(stageId: string, nextOrder: string[]) {
         const stage = stagesById.get(stageId);
         if (!stage) {
             return;
         }
         lastMovedIdRef.current = stageId;
-        setAnnouncement(`${stage.name} moved to position ${nextOrder.indexOf(stageId) + 1} of ${nextOrder.length}`);
+        announce(`${stage.name} moved to position ${nextOrder.indexOf(stageId) + 1} of ${nextOrder.length}`);
     }
 
     function moveUp(stageId: string) {
@@ -319,6 +349,12 @@ function StageRow({
     function submitEdit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
+        // `pending`, nu `disabled` nativ (butonul rămâne focusabil) — al doilea submit se
+        // oprește aici.
+        if (editForm.processing) {
+            return;
+        }
+
         editForm.transform((data) => ({
             ...data,
             probability: data.probability === '' ? null : Number(data.probability),
@@ -396,7 +432,7 @@ function StageRow({
                         )}
 
                         <div className="flex gap-2">
-                            <Button variant="primary" type="submit" disabled={editForm.processing}>
+                            <Button variant="primary" type="submit" pending={editForm.processing} pendingLabel="Saving…">
                                 Save
                             </Button>
                             <Button type="button" onClick={onStopEditing}>
@@ -434,7 +470,7 @@ function StageRow({
                             onClick={onMoveUp}
                             disabled={isFirst}
                             aria-label={`Move ${stage.name} up`}
-                            className="rounded-md px-1.5 py-0.5 text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <span aria-hidden="true">↑</span>
                         </button>
@@ -443,7 +479,7 @@ function StageRow({
                             onClick={onMoveDown}
                             disabled={isLast}
                             aria-label={`Move ${stage.name} down`}
-                            className="rounded-md px-1.5 py-0.5 text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <span aria-hidden="true">↓</span>
                         </button>
@@ -486,6 +522,10 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
 
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+
+        if (form.processing) {
+            return;
+        }
 
         form.transform((data) => ({
             ...data,
@@ -562,7 +602,7 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
                     </p>
                 )}
 
-                <Button variant="primary" type="submit" disabled={form.processing}>
+                <Button variant="primary" type="submit" pending={form.processing} pendingLabel="Adding…">
                     Add stage
                 </Button>
             </form>

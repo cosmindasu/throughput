@@ -74,6 +74,12 @@ export default function AccountForm({ mode, account, owners, prefillName, action
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         // `tags` circulă în formular ca text („comma-separated", mai simplu de tastat
         // decât un editor de chip-uri) — transformat în array doar la trimitere, ca
         // serverul (`tags.*` => string) să nu vadă niciodată diferența.
@@ -319,7 +325,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
             )}
 
             <div className="flex justify-end gap-2">
-                <Button type="submit" variant="primary" disabled={processing}>
+                <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                     {mode === 'create' ? 'Create account' : 'Save changes'}
                 </Button>
             </div>

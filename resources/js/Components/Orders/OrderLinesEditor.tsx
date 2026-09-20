@@ -88,6 +88,7 @@ export default function OrderLinesEditor({
             ) : (
                 <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                     <table id={tableId} className="w-full text-left text-sm">
+                        <caption className="sr-only">Order lines</caption>
                         <thead>
                             <tr className="border-b border-border-soft text-xs text-text-3">
                                 <th scope="col" className="px-3 py-2 font-medium">
@@ -160,12 +161,13 @@ export default function OrderLinesEditor({
                                         </td>
                                         <td className="numeric whitespace-nowrap px-3 py-2 text-right">{formatMoney(lineTotal(line), currency)}</td>
                                         <td className="px-3 py-2 text-right">
+                                            {/* SC 2.4.4 / 4.1.2 — „Remove" identic pe fiecare linie. */}
                                             <button
                                                 type="button"
                                                 onClick={() => removeLine(line.key)}
-                                                className="text-xs text-danger underline underline-offset-2 hover:no-underline"
+                                                className="rounded text-xs text-danger underline underline-offset-2 hover:no-underline"
                                             >
-                                                Remove
+                                                Remove<span className="sr-only"> {line.label}</span>
                                             </button>
                                         </td>
                                     </tr>

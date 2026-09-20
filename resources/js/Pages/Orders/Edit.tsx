@@ -1,7 +1,7 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
 import AccountCombobox from '@/Components/AccountCombobox';
-import { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import OrderLinesEditor, { type OrderLineFormRow } from '@/Components/Orders/OrderLinesEditor';
 import PageHeader from '@/Components/PageHeader';
@@ -73,6 +73,13 @@ export default function Edit() {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         put(`/${workspaceSlug}/orders/${order.id}`);
     };
 
@@ -180,13 +187,9 @@ export default function Edit() {
                     </section>
 
                     <div className="flex items-center gap-2">
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="inline-flex items-center justify-center gap-2 rounded-md bg-accent-fill px-3 py-1.5 text-sm font-medium text-accent-on transition-colors hover:bg-accent-fill-hover disabled:cursor-not-allowed disabled:opacity-60"
-                        >
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
                             Save changes
-                        </button>
+                        </Button>
                         <ButtonLink href={`/${workspaceSlug}/orders/${order.id}`}>Cancel</ButtonLink>
                     </div>
                 </form>

@@ -276,6 +276,10 @@ function MappingStep({
 
             <div className="overflow-hidden rounded-md border border-border">
                 <table className="w-full text-left text-sm">
+                    {/* Al treilea tipar de nume de tabel („niciunul") — unificat pe cazul
+                        implicit din `.ai/rules/frontend.md`. Headingul de deasupra e al PASULUI
+                        („Step 2 — Map columns"), nu al tabelului. */}
+                    <caption className="sr-only">Column mapping</caption>
                     <thead className="bg-raised text-text-2">
                         <tr>
                             <th scope="col" className="px-3 py-2 font-medium">File column</th>

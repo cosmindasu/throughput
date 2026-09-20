@@ -76,12 +76,9 @@ export default function ContactsIndex() {
                                 className="w-64 rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                             />
                         </div>
-                        <button
-                            type="submit"
-                            className="rounded-md border border-control px-3 py-1.5 text-sm text-text-2 transition-colors hover:bg-row-hover hover:text-text"
-                        >
-                            Apply
-                        </button>
+                        {/* Primitiva `Button`: aceleași clase, copiate de mână, minus stilul
+                            de focus (SC 2.4.7). */}
+                        <Button type="submit">Apply</Button>
                         {list.filter.account && (
                             <button
                                 type="button"
@@ -204,7 +201,7 @@ function ContactsTable() {
                                         href={`/${workspace.slug}/contacts/${contact.id}/edit`}
                                         className="text-accent-text underline-offset-2 hover:underline"
                                     >
-                                        Edit
+                                        Edit<span className="sr-only"> {contact.fullName}</span>
                                     </Link>
                                 )}
                             </td>

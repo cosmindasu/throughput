@@ -61,6 +61,13 @@ export default function Create() {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        // Butonul de submit e `aria-disabled`, nu `disabled` nativ (`Button`, prop
+        // `pending`) — al doilea submit se oprește AICI, nu de browser.
+        if (processing) {
+            return;
+        }
+
         post(`/${workspaceSlug}/deals`);
     };
 
@@ -159,7 +166,7 @@ export default function Create() {
                     )}
 
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" disabled={processing}>
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Creating…">
                             Create deal
                         </Button>
                         <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/deals`}>

@@ -153,3 +153,26 @@ body {
     background-color: var(--color-bg);
     color: var(--color-text);
 }
+
+/*
+ * SC 2.4.7 (Focus Visible) + SC 1.4.11 (Non-text Contrast) — plasă de siguranță, nu
+ * înlocuitor. Majoritatea controalelor își cer explicit inelul prin utilitarele
+ * `focus-visible:outline-*` (vezi `Button.tsx`, `Form/Field.tsx`); regula de mai jos
+ * acoperă restul — butoanele scrise de mână pe ecranele Fazelor 2-4 („Confirm order" pe
+ * `Orders/Show`, „Remove" pe `OrderLinesEditor`) și orice element focusabil adăugat
+ * ulterior care uită utilitarul. Fără ea, singurul indicator rămâne inelul implicit al
+ * browserului, care diferă de la un browser la altul și nu e garantat ≥3:1 pe cele două
+ * teme; `--focus` e tokenul deja măsurat pentru amândouă.
+ *
+ * În `@layer base`, DELIBERAT: straturile Tailwind se cascadează base < components <
+ * utilities, deci orice `focus-visible:outline-offset-1` explicit dintr-o componentă
+ * continuă să câștige. O regulă nelayerată ar fi avut efectul invers — în cascada pe
+ * straturi, stilurile fără strat bat orice strat — și ar fi suprascris tăcut inelele
+ * deja reglate pe controalele de formular.
+ */
+@layer base {
+    :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+    }
+}

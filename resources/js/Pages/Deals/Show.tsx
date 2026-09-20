@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
-import { ButtonLink } from '@/Components/Button';
+import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import MoveStageMenu from '@/Components/Deals/MoveStageMenu';
 import HistoryTab from '@/Components/History/HistoryTab';
@@ -77,14 +77,11 @@ export default function Show() {
                                 />
                             )}
                             {can.edit && <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}/edit`}>Edit</ButtonLink>}
+                            {/* Primitiva `Button`, nu clasele variantei `danger` copiate de mână. */}
                             {can.delete && (
-                                <button
-                                    type="button"
-                                    onClick={() => setConfirmingDelete(true)}
-                                    className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger transition-colors hover:bg-danger-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                                >
+                                <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
                                     Delete
-                                </button>
+                                </Button>
                             )}
                         </>
                     }

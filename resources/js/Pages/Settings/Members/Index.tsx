@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Button from '@/Components/Button';
 import ChangeRoleDialog from '@/Components/Members/ChangeRoleDialog';
@@ -204,6 +204,9 @@ export default function MembersIndex() {
 
     return (
         <>
+            {/* SC 2.4.2 (Page Titled) — vezi nota din `Unassigned/Index.tsx`. */}
+            <Head title="Members" />
+
             <PageHeader
                 title="Members"
                 description="Everyone with access to this workspace, and their role."
