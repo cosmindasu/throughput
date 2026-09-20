@@ -1,0 +1,9 @@
+{
+    "title": "Preferences",
+    "language": {
+        "heading": "Language",
+        "description": "Choose the language used across Throughput.",
+        "available_one": "Available in {{count}} language.",
+        "available_other": "Available in {{count}} languages."
+    }
+}

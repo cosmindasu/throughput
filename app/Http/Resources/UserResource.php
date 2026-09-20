@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 class UserResource extends JsonResource
 {
     /**
-     * @return array{id: string, name: string, email: string, theme: string, initials: string, dismissedHints: list<string>}
+     * @return array{id: string, name: string, email: string, theme: string, locale: string, initials: string, dismissedHints: list<string>}
      */
     public function toArray(Request $request): array
     {
@@ -24,6 +24,9 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'theme' => $this->theme,
+            // ADR-022, specs.md §15.8 FR-I18N-01 — oglinda lui `theme` de mai sus, aceeași
+            // sursă (coloana `users.locale`) folosită de App\Support\LocalePreference.
+            'locale' => $this->locale,
             'initials' => $this->initials(),
             // BR-HELP-02 — indicii de primă vizită respinși, per utilizator (nu per
             // tenant, la fel ca `theme`). Cast `array` pe model; `?? []` doar pentru

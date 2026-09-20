@@ -10,6 +10,49 @@ import { APP_URL, REPO_ROOT, e2eEnv } from './support/env';
  * `workers: 1`, fără retry — retry-urile ascund instabilitatea și dublează
  * minutele facturate în CI (regula globală de portofoliu, cota e comună cu
  * celelalte 11 proiecte).
+ *
+ * --- Lot I18N, Val 1 (ADR-022) — fixarea suitei pe `en` ---------------------
+ *
+ * Cele 69 de teste existente (17 fișiere de spec) presupun text englez prin
+ * 297 de selectori pe text vizibil (`getByRole(..., { name: '...' })`). De la
+ * `App\Support\LocalePreference` încolo, limba randată NU mai e un dat fix al
+ * aplicației — e rezolvată per cerere, în ordinea: (1) `users.locale` al
+ * contului autentificat curent, (2) cookie-ul `locale`, (3) `APP_LOCALE`.
+ *
+ * Fixare pe DOUĂ straturi diferite, deliberat, nu unul singur:
+ *
+ *  1. `APP_LOCALE=en`, explicit în `env`-ul serverului Playwright (mai jos) —
+ *     fixează pasul (3) al rezoluției, independent de orice ar conține `.env`
+ *     local/CI. E același motiv pentru care `DEMO_MODE`/`CACHE_STORE` sunt deja
+ *     suprascrise explicit în `e2eEnv()`, nu lăsate pe seama mediului ambiant.
+ *     Conturile demo (owner/manager/agent/viewer) NU au `locale` setat explicit
+ *     de niciun seeder — migrația `users.locale` are implicit `'en'` — deci
+ *     pasul (1) rezolvă oricum la `en` pentru ele; `APP_LOCALE=en` e plasa care
+ *     ține pasul (3) determinist pentru orice cerere ANONIMĂ (`/login`, înainte
+ *     de autentificare), unde pașii (1)-(2) nu se aplică încă.
+ *
+ *     Deliberat NU un cookie `locale=en` injectat direct în `use.storageState`:
+ *     `ThemePreference`/`setUserTheme` (e2e/support/theme.ts) documentează deja
+ *     lecția P2-004 — un cookie pus direct e IGNORAT pentru orice cont cu o
+ *     alegere persistă (pasul 1 câștigă mereu peste cookie). Un cookie de
+ *     config ar da o falsă senzație de fixare, fără s-o garanteze pentru
+ *     conturile autentificate — exact contextul în care rulează cele 297 de
+ *     selectori.
+ *
+ *  2. `use.locale: 'en-US'` — layer DIFERIT, la nivel de browser Chromium, nu
+ *     de rezoluție a aplicației: fixează `navigator.language`/`Intl` implicit
+ *     al motorului de randare, ca formatarea nativă (`<input type="date">`,
+ *     orice `toLocaleString()` care ar scăpa neintenționat pe implicitul
+ *     mediului CI/local, în loc de propul `locale` rezolvat de server) să nu
+ *     depindă de locale-ul mașinii care rulează testele. Nu înlocuiește (1) —
+ *     `Accept-Language` e explicit IGNORAT de `LocalePreference` (FR-I18N-01,
+ *     decizie non-negociabilă) — e strict igienă de mediu de test, pe un strat
+ *     pe care ADR-022 nu-l acoperă.
+ *
+ * Subsetul FR (Val 5) NU se adaugă aici: primește proiect/config propriu, cu
+ * propriile conturi (`locale='fr'` persistă la pasul 1, câștigă peste orice
+ * `APP_LOCALE`/cookie de mai sus) — vezi task-ul de reparare din
+ * `e2e/setup/auth.setup.ts` pentru cuplarea pe text literal.
  */
 export default defineConfig({
     testDir: '.',
@@ -22,6 +65,9 @@ export default defineConfig({
 
     use: {
         baseURL: APP_URL,
+        // Vezi „Lot I18N, Val 1" mai sus — layer de browser, nu de rezoluție a
+        // aplicației.
+        locale: 'en-US',
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
         video: 'off',
@@ -70,7 +116,10 @@ export default defineConfig({
             // nu concureze pe portul 8010. CI: pornește mereu unul curat.
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
-            env: e2eEnv(),
+            // `APP_LOCALE: 'en'` — vezi „Lot I18N, Val 1" mai sus: pasul (3), de
+            // rezervă, al `LocalePreference::resolveForRequest()`, fixat aici ca să
+            // nu depindă de `.env`.
+            env: { ...e2eEnv(), APP_LOCALE: 'en' },
         },
         {
             // Faza 3, valul 2 — primul val al suitei care dispecerizează joburi reale
@@ -93,7 +142,13 @@ export default defineConfig({
             // suficient ca `queue:work` să apuce să boot-eze Laravel.
             command: 'php artisan queue:work --queue=default,bulk,imports,reports --sleep=1 --tries=1',
             cwd: REPO_ROOT,
-            env: e2eEnv(),
+            // `APP_LOCALE` fixat aici mai mult din consecvență decât din necesitate:
+            // joburile care generează text (Val 2, ADR-022 consecința 1) primesc
+            // `locale` ca scalar de constructor, serializat la dispecerizare — NU
+            // citesc `App::getLocale()`/`APP_LOCALE` al worker-ului la momentul
+            // execuției (exact capcana deja documentată în tenancy.md pentru
+            // `tenantId`, aplicată acum limbii).
+            env: { ...e2eEnv(), APP_LOCALE: 'en' },
         },
     ],
 });

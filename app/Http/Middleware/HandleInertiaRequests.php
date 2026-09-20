@@ -8,6 +8,7 @@ use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Billing\SubscriptionAccessPolicy;
+use App\Support\LocalePreference;
 use App\Support\Members\UnassignedRecordsCounter;
 use App\Support\ThemePreference;
 use Illuminate\Database\Eloquent\Collection;
@@ -66,6 +67,14 @@ class HandleInertiaRequests extends Middleware
             // <html>): App\Support\ThemePreference — FR-PREF-03, nu o duplicare
             // a regulii de rezoluție în două locuri care se pot desincroniza.
             'theme' => ThemePreference::resolveForRequest($request),
+
+            // Sursă unică cu resources/views/app.blade.php (`<html lang>`) și cu
+            // App\Http\Middleware\SetLocale (App::setLocale()): App\Support\LocalePreference
+            // — ADR-022, specs.md §15.8 FR-I18N-01. Nu e închis în closure: la fel ca
+            // `theme` mai sus, nu depinde de `workspace`/`tenant`, deci se poate calcula
+            // eager, fără riscul de „gol pe rute cu {workspace}" documentat mai jos pentru
+            // `auth`/`workspace`.
+            'locale' => LocalePreference::resolveForRequest($request),
 
             // Plan §1.2 regula 3 — sursă unică pentru `auth.user`, `workspace`,
             // `workspaces`, `navigation`. TOATE patru sunt închise în closures, NU calculate

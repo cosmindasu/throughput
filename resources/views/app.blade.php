@@ -6,6 +6,14 @@
     // ar aplica tema după hidratare ar produce exact licărirea interzisă aici.
     $theme = \App\Support\ThemePreference::resolveForRequest(request());
 
+    // ADR-022, specs.md §15.8 FR-I18N-01 — aceeași sursă unică apelată din
+    // App\Http\Middleware\SetLocale (App::setLocale()) și din
+    // HandleInertiaRequests::share() (propul `locale`), ca să nu poată diverge silențios.
+    // Randat server-side, ÎNAINTE de orice JS — la fel ca `$theme` mai sus (FR-PREF-03):
+    // un `<html lang>` corectat abia după hidratare ar anunța limba greșită unui
+    // screen reader pentru fereastra dintre primul paint și acea corecție.
+    $locale = \App\Support\LocalePreference::resolveForRequest(request());
+
     // Preload pe cele două fețe din primul paint (urls.md, „Tipografie"): Sans 400
     // pentru tot textul, Mono 400 pentru cifre. Fără el, fonturile se descoperă abia
     // după ce CSS-ul e parsat, iar `font-display: swap` face exact ce promite — un
@@ -23,7 +31,7 @@
         ->filter();
 @endphp
 <!DOCTYPE html>
-<html lang="en" class="{{ $theme === 'dark' ? 'dark' : '' }}" style="color-scheme: {{ $theme }};">
+<html lang="{{ $locale }}" class="{{ $theme === 'dark' ? 'dark' : '' }}" style="color-scheme: {{ $theme }};">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">

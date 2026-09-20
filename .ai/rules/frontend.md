@@ -227,6 +227,27 @@ clicuri pe Next produc iarăși de trei ori același șir.
 Regula generală, dincolo de `aria-live`: **când un efect secundar depinde de faptul că DOM-ul
 chiar s-a schimbat, valoarea identică nu e o actualizare.**
 
+## O mutație pe `document.documentElement` se scrie într-o funcție din afara componentei
+
+`react-hooks/immutability` (din `eslint-plugin-react-hooks`, activ în `eslint.config.js`) respinge
+scrierea unei valori globale din corpul unui component sau al unui hook — inclusiv atributele de pe
+`<html>`, care sunt exact locul unde ajung tema și limba:
+
+```tsx
+// GREȘIT — pică `npx eslint resources/js`, nu `tsc`.
+document.documentElement.lang = next;
+```
+
+Forma corectă e o funcție simplă, definită **în afara** oricărui component, apelată din handler:
+`applyResolvedTheme()` în `hooks/useThemeSync.ts` (clasa `dark` + `style.colorScheme`) și
+`applyDocumentLocale()` în `lib/i18n.ts` (`lang`) sunt cele două instanțe existente — a doua a fost
+scrisă abia după ce regula a picat din nou, pe aceeași cauză, în Lotul I18N.
+
+De reținut, fiindcă tocmai asta a costat de două ori: capcana nu se vede la `tsc`, doar la `eslint`,
+deci un agent care rulează numai typecheck-ul o ratează. Iar `<html>` atrage genul ăsta de scriere
+mai des decât orice alt element, pentru că preferințele randate server-side (temă, limbă) trebuie
+oglindite pe el și din client, ca să nu existe fereastră de licărire.
+
 ## Inertia 3, nu 2
 
 `Inertia::lazy()` / `LazyProp` **au fost eliminate** — se folosește `Inertia::optional()`.

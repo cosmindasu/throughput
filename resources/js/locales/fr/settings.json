@@ -1,0 +1,9 @@
+{
+    "title": "Préférences",
+    "language": {
+        "heading": "Langue",
+        "description": "Choisissez la langue utilisée dans Throughput.",
+        "available_one": "Disponible en {{count}} langue.",
+        "available_other": "Disponible en {{count}} langues."
+    }
+}

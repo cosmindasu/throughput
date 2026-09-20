@@ -6,6 +6,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndexHeaders;
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSessionContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,6 +49,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            // ADR-022, specs.md §15.8 FR-I18N-01 — PRIMUL din listă, deliberat: fixează
+            // `App::setLocale()` înaintea a tot ce urmează, inclusiv `HandleInertiaRequests`
+            // (propul `locale`) de mai jos. Global pe `web`, nu în spatele lui `auth`: are
+            // nevoie doar de `$request->user()` din sesiune (vezi comentariul din
+            // App\Http\Middleware\SetLocale), la fel ca ThemePreference.
+            SetLocale::class,
+
             HandleInertiaRequests::class,
 
             // FR-PUB-04 — jumătatea de antet (`X-Robots-Tag`); meta tag-ul e în
@@ -114,8 +122,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // paint (FR-PREF-03). Criptarea implicită Laravel l-ar face
         // ilizibil pentru client, iar EncryptCookies ar arunca valoarea
         // necriptată trimisă de browser înapoi — exact bug-ul care ar
-        // strica randarea fără licărire.
-        $middleware->encryptCookies(except: ['theme']);
+        // strica randarea fără licărire. `locale` e exceptat identic,
+        // același motiv (ADR-022, FR-I18N-01): comutatorul de limbă din
+        // Settings → Preferences scrie cookie-ul din JS.
+        $middleware->encryptCookies(except: ['theme', 'locale']);
 
         // specs.md §12.3 — Stripe nu trimite (și n-are cum să obțină) un token CSRF
         // Laravel; semnătura `Stripe-Signature` (verificată în

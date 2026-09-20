@@ -106,6 +106,19 @@ jobs:
 
       - run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      # Lot I18N, Val 1 (ADR-022, FR-I18N-02) — gate blocant, IMEDIAT după `composer
+      # install` și ÎNAINTE de bootstrap-ul Postgres și de suita Pest: o cheie
+      # desperecheată en/fr oprește jobul aici, fără să ardă cele ~15 minute de teste,
+      # iar `e2e` (needs: [quality, assets]) nu mai pornește deloc.
+      #
+      # Deliberat NU un job nou și NU împăturit în `assets`: un job separat s-ar factura
+      # rotunjit la un minut întreg în plus la FIECARE run (regula globală „nu sparge în
+      # micro-job-uri inutile"), iar în `assets` ar fi cerut `composer install` doar
+      # pentru el — aici vendor-ul e deja instalat, deci costul marginal e durata
+      # comenzii, câteva secunde.
+      - name: "Acoperire chei i18n (en ↔ fr) — blocant"
+        run: php artisan i18n:coverage
+
       # Exact același script ca dev și producție (§3.3), ca să nu existe derivă
       # între bootstrap-ul de CI și realitate. E un script shell, nu SQL: se
       # EXECUTĂ, nu se dă lui `psql -f` (are nevoie de variabilele de mediu cu

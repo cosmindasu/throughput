@@ -32,6 +32,11 @@ declare module '@inertiajs/core' {
                     name: string;
                     email: string;
                     theme: 'system' | 'light' | 'dark';
+                    // ADR-022, specs.md §15.8 FR-I18N-01 — ALEGEREA persistată pe
+                    // `users.locale`, oglinda lui `theme` de mai sus. Spre deosebire de
+                    // `theme`, nu există o a treia stare de tip „System": alegerea ȘI
+                    // rezoluția coincid mereu (vezi propul comun `locale`, mai jos).
+                    locale: 'en' | 'fr';
                     initials: string;
                     // BR-HELP-02 — indicii de primă vizită respinse, per utilizator
                     // (nu per tenant — supraviețuiesc comutării de workspace, la fel
@@ -66,6 +71,11 @@ declare module '@inertiajs/core' {
             };
             demoMode: boolean;
             theme: 'light' | 'dark';
+            // ADR-022, specs.md §15.8 FR-I18N-01 — REZOLUȚIA curentă (App\Support\LocalePreference),
+            // sursă unică cu `<html lang>` din resources/views/app.blade.php. Nu există stare
+            // „System" pentru limbă, deci — spre deosebire de `theme` mai sus — coincide mereu
+            // cu `auth.user.locale` cât timp utilizatorul e autentificat.
+            locale: 'en' | 'fr';
             // specs.md §12.2 — bannerul de degradare pe 3 trepte (`AppLayout.tsx`), pe orice
             // pagină. `null` înainte ca workspace-ul să fie rezolvat, la fel ca `workspace`.
             subscription: {
