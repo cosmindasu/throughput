@@ -30,13 +30,14 @@ use Symfony\Component\HttpFoundation\Response;
  *   metodă: „vizualizare" nu mai e permisă nicăieri altundeva (US-BILL-04, Gherkin:
  *   „singura pagină accesibilă e ecranul de billing/reactivare").
  *
- * CONTRAZICERE/coordonare semnalată în raport: exportul de date GDPR (§20.5) rămâne
- * explicit permis în ambele stări restrictive („declanșare export... permise"), dar
- * rutele acelui modul aparțin altui lot, construit ÎN PARALEL — nu există încă în acest
- * worktree, deci numele exact nu poate fi verificat aici. `EXPORT_EXEMPT_ROUTE_NAMES` de
- * mai jos e o presupunere documentată (convenția `data_exports.*` folosită deja de
- * `App\Support\Permissions::catalog()`); dacă lotul de GDPR alege alt nume, integratorul
- * ajustează UN rând aici, nu logica.
+ * Exportul de date GDPR (§20.5) rămâne explicit permis în AMBELE stări restrictive
+ * („declanșare export... permise"). Valul 1 n-avea cum să verifice numele rutelor — modulul
+ * se construia în paralel — și a lăsat aici o presupunere documentată, `data_exports.*`,
+ * după convenția din `App\Support\Permissions::catalog()`. Rutele reale, scrise la
+ * integrarea valului 2, se numesc `settings.data-export.*`: prefixul de mai jos e cel
+ * corectat. Fără corecție, un tenant `unpaid` primea 403 la declanșarea exportului, adică
+ * exact inversul a ce cere §12.2 — și niciun test nu l-ar fi prins, fiindcă prefixul
+ * greșit nu se potrivea cu nicio rută existentă.
  */
 class EnsureSubscriptionAccess
 {
@@ -45,8 +46,8 @@ class EnsureSubscriptionAccess
      */
     private const EXPORT_EXEMPT_ROUTE_PREFIXES = [
         // §20.5, FR-GDPR-01 — „declanșare export" rămâne permisă chiar în `unpaid`/
-        // `canceled`; nu există încă în acest worktree (lot paralel) — vezi docblock.
-        'data_exports.',
+        // `canceled`. Numele REAL al rutelor, verificat: `routes/web/data-export.php`.
+        'settings.data-export.',
     ];
 
     public function handle(Request $request, Closure $next): Response
