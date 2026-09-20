@@ -80,7 +80,7 @@ test.afterAll(() => {
     resetWorkspaceBilling('northgate');
 });
 
-test('același event_id livrat de două ori: un singur rând de operare, un singur efect asupra abonamentului', async ({ page }) => {
+test('același event_id livrat de două ori: un singur rând de operare, un singur efect asupra abonamentului', { tag: ['@smoke'] }, async ({ page }) => {
     test.setTimeout(90_000);
 
     const before = await inertiaPageProps<WebhookHealthProps>(page, WEBHOOKS_URL);
@@ -141,7 +141,7 @@ test('același event_id livrat de două ori: un singur rând de operare, un sing
  * nicio pagină), dar e singura dovadă din interfață că ecranul de operare nu poate fi
  * populat de oricine cunoaște URL-ul public.
  */
-test('un webhook cu semnătură invalidă e respins cu 400 și nu apare deloc pe ecranul de operare', async ({ page }) => {
+test('un webhook cu semnătură invalidă e respins cu 400 și nu apare deloc pe ecranul de operare', { tag: ['@smoke'] }, async ({ page }) => {
     const forgedId = `evt_e2e_forged_${ts}`;
 
     const response = await page.request.post('/webhooks/stripe', {

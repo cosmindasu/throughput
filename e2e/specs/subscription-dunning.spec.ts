@@ -118,7 +118,7 @@ test.afterAll(() => {
     resetWorkspaceBilling('northgate');
 });
 
-test('dunning complet: active → past_due → unpaid (scriere blocată) → payment_failed retrimis → un singur email', async ({ page }) => {
+test('dunning complet: active → past_due → unpaid (scriere blocată) → payment_failed retrimis → un singur email', { tag: ['@smoke'] }, async ({ page }) => {
     test.setTimeout(180_000);
 
     // ------------------------------------------------------------------ 1. `active`

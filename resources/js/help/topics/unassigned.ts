@@ -26,7 +26,7 @@ const unassignedTopic: HelpTopic = {
             'This page is one more filter on the same `DealList`/`OrderList` queries every other list in the app already uses (`owner=unassigned`, plus the open/active status) — there is no separate "orphaned records" table to keep in sync. The navigation count runs the same two queries, without the pagination, once per request for Owner and Manager only.',
         adr: {
             id: 'ADR-011',
-            title: 'Deactivating a member is never blocked by the records they own',
+            title: 'Deactivating a member is not blocked by the records they own',
             url: adrUrl('ADR-011', 'dezactivare-membru-fara-blocare'),
         },
     },

@@ -32,7 +32,7 @@ const webhookHealth: HelpTopic = {
             'The webhook endpoint is public — Stripe has no session and no workspace — so it verifies the signature locally, records the event keyed on its own id, and hands the actual work to a queued job. That split is deliberate: the handler shipped with the framework makes synchronous calls back to Stripe, which would hold a database transaction open for the whole round trip on a container with a small connection pool. Whether an event belongs here is decided by looking up the customer id it carries against the workspaces of this deployment; when nothing matches, the row is marked ignored rather than failed, and no job is queued at all. The distinction is what keeps the failure counter meaningful — an operations screen full of red that is not yours makes red mean nothing.',
         adr: {
             id: 'ADR-013',
-            title: 'External calls belong in queues, never in the HTTP request',
+            title: 'External calls leave the HTTP request and move to queues',
             url: adrUrl('ADR-013', 'apeluri-externe-in-cozi'),
         },
     },

@@ -37,7 +37,7 @@ const dashboard: HelpTopic = {
             "The four KPIs are plain SQL aggregates (SUM/COUNT), computed on every request — there's no cached snapshot to go stale. Notably, the controller never writes `where tenant_id`: the tenant global scope and PostgreSQL row-level security apply automatically to every query on every model, so isolation isn't something each screen has to remember to do.",
         adr: {
             id: 'ADR-003',
-            title: 'Tenant isolation in two layers — global scope + Row-Level Security',
+            title: 'Tenant isolation in two layers — Eloquent global scope + Row-Level Security',
             url: adrUrl('ADR-003', 'izolare-tenant-doua-straturi'),
         },
     },

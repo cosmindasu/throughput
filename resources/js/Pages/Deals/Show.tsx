@@ -141,7 +141,8 @@ export default function Show() {
                 confirmVariant="danger"
                 processing={deleting}
             >
-                This removes “{deal.title}” and its stage history. This cannot be undone.
+                This hides “{deal.title}” from lists, the board, search and reports. Its stage history is kept, so stage
+                reports stay correct.
             </ConfirmDialog>
         </>
     );

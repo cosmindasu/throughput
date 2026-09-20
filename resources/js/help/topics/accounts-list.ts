@@ -38,7 +38,7 @@ const accountsList: HelpTopic = {
             'The URL for this screen is `/{workspace-slug}/accounts` — every module route carries the workspace in the path, not in a cookie or a hidden session value, so a filtered link (`?filter[status]=active`) is fully shareable between teammates and still resolves to the right tenant on the other end. One `ListQuery` reads filters, sort and cursor from the URL and `AccountList` says what they mean for accounts; the screen, "Export CSV" and saved views all go through that same pair, so an export or a saved view can\'t drift from what the list shows. Paging is by cursor, not by page number, so the list stays fast well past a few thousand rows — there is no "jump to page 40".',
         adr: {
             id: 'ADR-002',
-            title: 'Multi-tenancy by path (workspace slug), not by subdomain',
+            title: 'Path-based multi-tenancy (workspace slug), not subdomain-based',
             url: adrUrl('ADR-002', 'tenancy-pe-cale'),
         },
     },

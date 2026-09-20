@@ -53,7 +53,7 @@ const sentEmails: HelpTopic = {
             "The interception is a wrapper around whatever mail transport is configured, registered once at the mail manager, so every message is covered without a single Mailable or Notification knowing it exists — including the ones that have not been written yet. The decision is made per recipient, on the exact address and on the domain, ignoring case; the allowed subset is sent as a copy of the message whose recipient lists contain only those addresses. Writing the log entry is isolated in its own savepoint and its failure is swallowed: a broken log write must never turn a password reset into a 500, because the response to a reset request is supposed to look identical whether or not the account exists. Attributing a row to a workspace is harder than it looks, since a queued email is actually delivered from an internal framework job carrying no tenant context, so the sender stamps an internal header at construction time, while the context still exists, and the transport removes it before the real send. The table itself carries a hand-written row-level-security policy rather than the standard one, with a second branch for the rows that have no workspace at all — without it, those rows could not even be inserted, let alone deleted at retention time.",
         adr: {
             id: 'ADR-020',
-            title: 'A dedicated row-level-security policy for the email log, with an optional tenant',
+            title: 'A dedicated RLS policy for the email log, with an optional tenant',
             url: adrUrl('ADR-020', 'politica-rls-proprie-pentru-jurnalul-de-email'),
         },
     },

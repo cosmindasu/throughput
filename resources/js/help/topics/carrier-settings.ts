@@ -28,7 +28,7 @@ const carrierSettingsTopic: HelpTopic = {
             'Both carriers implement the same `ShippingCarrier` interface (`createLabel`, `void`, `trackingUrl`), run through the identical contract test suite, and are selected per tenant from a `tenant_carrier_settings` row rather than a global setting — so two workspaces can use the same carrier with entirely separate credentials. The "exactly one active" rule is enforced in the database transaction that activates a carrier, not just in the form: it locks the tenant\'s own row with `FOR NO KEY UPDATE` (serializing two concurrent activations without blocking unrelated writes elsewhere in the workspace) before flipping the old active row off and the new one on. Credentials are stored with Laravel\'s `encrypted:array` cast — unreadable at rest even with direct database access — and this screen only ever receives a boolean and a truncated preview back from the server, never the decrypted value.',
         adr: {
             id: 'ADR-010',
-            title: 'Shipping carriers are pluggable and configured per tenant',
+            title: 'Two shipping carriers, selectable per tenant, plus a demo carrier',
             url: adrUrl('ADR-010', 'doi-furnizori-curierat-configurabili'),
         },
     },

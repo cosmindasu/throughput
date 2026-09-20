@@ -33,7 +33,7 @@ const apiTokensTopic: HelpTopic = {
             "Tokens sit on top of Laravel Sanctum rather than a full OAuth2 server: this application is a first-party SPA plus simple machine access, and nothing in it needs third-party consent flows. Each token carries its workspace on the authentication record itself, so the workspace is resolved server-side from the verified token before a single business query runs — the API path deliberately has no workspace segment, which is what makes \"read another tenant's order by guessing its id\" structurally impossible rather than merely forbidden. Identifiers are ULIDs, not counters, so they cannot be walked; and a request for a record belonging to another workspace answers 404, not 403, because 403 would confirm that the record exists. Idempotency is enforced by storing the key together with a fingerprint of the request body for 24 hours, inside the same database transaction as the effect itself: if the request fails the claim rolls back with it, and if it succeeds the stored response and the record it describes are committed together.",
         adr: {
             id: 'ADR-008',
-            title: 'Public API versioning lives in the path',
+            title: 'Public API versioned in the path (/api/v1/...)',
             url: adrUrl('ADR-008', 'versionare-api-pe-cale'),
         },
     },

@@ -10,7 +10,14 @@
 export interface HelpTopicAdr {
     /** Ex: „ADR-003". */
     id: string;
-    /** Titlu tradus în engleză pentru UI (documentul original e în română — §0). */
+    /**
+     * Titlul ADR-ului, EXACT cum e scris în `docs/adr/`, fără prefixul „ADR-00X: "
+     * și fără backticks. NU o parafrază: ADR-urile sunt în engleză de la `766e2ee`,
+     * deci un titlu rescris aici nu mai traduce nimic — doar divergea de documentul
+     * pe care îl deschide cititorul (ADR-013 ajunsese sub patru formulări diferite,
+     * iar ADR-010 promitea curierate „pluggable" acolo unde decizia spune „două, plus
+     * unul demo"). `HelpTopicAdrLinkTest` ține egalitatea.
+     */
     title: string;
     /** Construit din `ADR_REPOSITORY_URL`, o singură constantă — vezi `help/adr.ts`. */
     url: string;

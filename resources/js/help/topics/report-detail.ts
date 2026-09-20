@@ -51,7 +51,7 @@ const reportDetail: HelpTopic = {
             'A run moves through "Queued" → "Running" → "Success"/"Failed" in two deliberately separate short transactions: if the whole job ran inside one transaction, "Running" would never be committed on its own and this page would jump straight from queued to finished, with nothing to poll. Delivery is a second job, dispatched only on success, which is how "no email on failure" is guaranteed structurally rather than by remembering to check. Scheduling runs hourly and is protected against double-firing twice over: a queue-level uniqueness lock rejects a second dispatch inside the same hour, and the check for "has this report already run in this window?" holds a row lock on the report definition itself — a plain read-then-insert under two concurrent runs would let both read "no" and both insert. The hour compared against the schedule is the one captured when the scheduler ticked, not the one read when the job finally executes: with a single queue worker, a job that waits behind others would otherwise look at the wrong hour and silently skip a due report. The built-in results on this page are aggregates bounded by your configuration — stages per pipeline, locations per category — never by transaction volume, which is what makes them cheap enough to compute inside the page request at all.',
         adr: {
             id: 'ADR-009',
-            title: 'Resend as the transactional email provider for scheduled report delivery',
+            title: 'Resend as the transactional email provider',
             url: adrUrl('ADR-009', 'resend-email-tranzactional'),
         },
     },

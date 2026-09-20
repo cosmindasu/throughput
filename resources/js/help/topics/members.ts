@@ -33,7 +33,7 @@ const membersTopic: HelpTopic = {
             'An invitation is not a separate table — it is a membership row with status "pending" and a hashed acceptance token, on columns that have been in the schema since week one. Only the hash is stored: the link in the email is the single place the real token ever exists, and the demo\'s "Sent Emails" journal redacts it, exactly like a password-reset link. That email is also the one flow in the whole product that sends to an address a visitor typed, which is why the demo email interceptor was built a phase earlier than this screen. Access is revoked (and granted) on the very next request, not on next login: the one query that resolves "which workspaces am I in" only ever returns rows with status "active", so a pending or deactivated membership simply stops resolving for the workspace switcher, for the request that sets the tenant, and for API tokens alike — no session to invalidate, no token to revoke. Choosing "Reassign and deactivate" runs the same bulk-operation mechanism as any other bulk reassignment, three times in one request — accounts, open deals, active orders — tied together by one group id so it reads as a single operation.',
         adr: {
             id: 'ADR-011',
-            title: 'Deactivating a member is never blocked by the records they own',
+            title: 'Deactivating a member is not blocked by the records they own',
             url: adrUrl('ADR-011', 'dezactivare-membru-fara-blocare'),
         },
     },

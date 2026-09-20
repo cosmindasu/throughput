@@ -23,7 +23,7 @@ const stockHistory: HelpTopic = {
             "This list reads directly off `stock_movements`, the append-only ledger — never a summary table that could drift from it. Paging is by cursor, not by page number, so the history stays fast for a variant with years of receipts and sales behind it. `stock:reconcile` (run weekly, and on demand) recalculates on-hand straight from this ledger and reports any mismatch with the live stock numbers — the ledger is treated as the one source of truth, not the number displayed on the stock screen.",
         adr: {
             id: 'ADR-004',
-            title: 'Inventory as an append-only ledger, not a mutable quantity',
+            title: 'Stock as an append-only ledger, not as a mutable quantity',
             url: adrUrl('ADR-004', 'stoc-registru-append-only'),
         },
     },

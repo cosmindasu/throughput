@@ -29,7 +29,7 @@ const stock: HelpTopic = {
             "Every button on this page writes to the append-only stock ledger (`stock_movements`) and updates the on-hand projection (`inventory_levels`) in the very same database transaction — never as two separate steps. A transfer is really two linked ledger entries (one out, one in) sharing a reference id, written together. Nothing here ever runs an UPDATE or a DELETE on a past movement: a correction is always a new entry, so the full history stays intact and explainable — the same reasoning behind never touching a customer invoice line after it's issued, applied here to inventory.",
         adr: {
             id: 'ADR-004',
-            title: 'Inventory as an append-only ledger, not a mutable quantity',
+            title: 'Stock as an append-only ledger, not as a mutable quantity',
             url: adrUrl('ADR-004', 'stoc-registru-append-only'),
         },
     },

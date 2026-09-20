@@ -31,7 +31,7 @@ const activityLog: HelpTopic = {
             'Writes happen two ways. Ordinary edits go through Eloquent model observers that fire an event, picked up by a queued listener — the request never waits on the log write. Bulk operations update many rows in one SQL statement, which Eloquent observers never see, so the bulk job reads each row before and after the change and writes one log row per row actually changed, in a single batch insert. Both paths share the same field-exclusion list (ADR-007) and the same "only the fields that changed" diff.',
         adr: {
             id: 'ADR-007',
-            title: 'Activity log with in-house code, not owen-it/laravel-auditing',
+            title: 'Activity log written in-house, not owen-it/laravel-auditing',
             url: adrUrl('ADR-007', 'audit-log-cod-propriu'),
         },
     },

@@ -1,4 +1,3 @@
-import { adrUrl } from '@/help/adr';
 import type { HelpTopic } from '@/help/types';
 
 /**
@@ -36,12 +35,7 @@ const dealDetail: HelpTopic = {
     ],
     howItsBuilt: {
         summary:
-            "Each row in \"Stage history\" is a `deal_stage_events` entry, inserted once and never updated — including the time spent in the previous stage, which is calculated at the moment of the move and stored, not recomputed later. That's what makes stage-velocity reporting possible at all; see the Kanban topic for the full argument.",
-        adr: {
-            id: 'ADR-004',
-            title: 'Inventory as an append-only ledger, not a mutable quantity — applied here to deal-stage history',
-            url: adrUrl('ADR-004', 'stoc-registru-append-only'),
-        },
+            "Each row in \"Stage history\" is a `deal_stage_events` entry, inserted once and never updated — including the time spent in the previous stage, which is calculated at the moment of the move and stored, not recomputed later. That's what makes stage-velocity reporting possible at all. No dedicated ADR — see the Kanban topic for the full argument.",
     },
 };
 
