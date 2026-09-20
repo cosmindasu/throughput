@@ -29,14 +29,20 @@ class WorkspaceResource extends JsonResource
     }
 
     /**
-     * @return array{slug: string, name: string, industry?: string|null}
+     * `currency` intră în forma completă, nu în cea de comutator: specs.md §2.3 — „o
+     * singură monedă per tenant (implicit USD), configurabilă". Orice ecran care afișează
+     * bani are nevoie de ea ca prop comun, nu ca o constantă scrisă în componentă —
+     * dashboard-ul o fixase la `'USD'`, iar pe un tenant pe altă monedă afișa simbolul
+     * greșit (găsit la un audit încrucișat, Faza 5).
+     *
+     * @return array{slug: string, name: string, industry?: string|null, currency?: string}
      */
     public function toArray(Request $request): array
     {
         return [
             'slug' => $this->slug,
             'name' => $this->name,
-            ...($this->withIndustry ? ['industry' => $this->industry] : []),
+            ...($this->withIndustry ? ['industry' => $this->industry, 'currency' => $this->currency] : []),
         ];
     }
 }

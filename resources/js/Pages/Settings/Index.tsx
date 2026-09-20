@@ -16,9 +16,10 @@ interface SettingsSection {
 }
 
 /**
- * Ordinea reflectă plan §7.4/§8: Members, Billing, API Tokens sunt shell — pagina
- * propriu-zisă e Faza 5. Pipeline duce la pachetul care construiește `/{w}/pipeline`
- * în aceeași fază. Preferences e construită acum (specs.md §15.6).
+ * Ordinea reflectă plan §7.4/§8. Billing și Carrier settings au încetat să fie shell în
+ * Faza 5 — paginile lor există acum (specs.md §12.2, §11.5), deci `comingSoon` a căzut de
+ * pe ele. API Tokens rămâne shell până când modulul de API public îl construiește, tot în
+ * Faza 5. Pipeline și Preferences sunt construite din fazele anterioare.
  */
 const SECTIONS: SettingsSection[] = [
     {
@@ -32,7 +33,6 @@ const SECTIONS: SettingsSection[] = [
         title: 'Billing & Subscription',
         description: 'Manage the Throughput subscription and payment method.',
         href: (w) => `/${w}/settings/billing`,
-        comingSoon: true,
     },
     {
         key: 'apiTokens',
@@ -40,6 +40,12 @@ const SECTIONS: SettingsSection[] = [
         description: 'Create and revoke tokens for the public API.',
         href: (w) => `/${w}/settings/api-tokens`,
         comingSoon: true,
+    },
+    {
+        key: 'carrierSettings',
+        title: 'Carrier settings',
+        description: 'Choose the shipping carrier this workspace uses, and store its sandbox credentials.',
+        href: (w) => `/${w}/settings/shipping`,
     },
     {
         key: 'pipeline',
@@ -88,7 +94,15 @@ export default function SettingsIndex() {
 
                             {!section.comingSoon && workspace && (
                                 <div>
-                                    <ButtonLink href={section.href(workspace.slug)} variant="secondary" prefetch>
+                                    {/* SC 2.4.4 / 4.1.2 — „Open" identic pe fiecare card ar da N linkuri cu
+                                        același nume accesibil, fără context (.ai/rules/frontend.md, „Un nume
+                                        accesibil repetat pe fiecare rând..."); `aria-label` spune UNDE duce. */}
+                                    <ButtonLink
+                                        href={section.href(workspace.slug)}
+                                        variant="secondary"
+                                        prefetch
+                                        aria-label={`Open ${section.title}`}
+                                    >
                                         Open
                                     </ButtonLink>
                                 </div>

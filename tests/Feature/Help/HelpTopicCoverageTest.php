@@ -23,11 +23,12 @@ use Tests\TestCase;
  *     din label-ul de navigație. O rută poate exista cu alt nume de componentă
  *     decât am presupus; testul verifică ce se întâmplă, nu ce credem noi.
  *
- * Module întregi încă neconstruite ÎN TOT PROIECTUL (Invoices — Faza 5 §12,
- * Reports — Faza 4 §16) sunt sărite EXPLICIT: fără ele, testul ar cere conținut
- * pentru rute care nici n-au controller. Faza fiecărui modul îl scoate din
- * `DEFERRED_NAV_LABELS` când îl construiește, cum au făcut Products și Orders
- * în Faza 3.
+ * Module întregi încă neconstruite ÎN TOT PROIECTUL sunt sărite EXPLICIT, prin
+ * `DEFERRED_NAV_LABELS`: fără ele, testul ar cere conținut pentru rute care nici
+ * n-au controller. Faza fiecărui modul îl scoate din listă când îl construiește,
+ * cum au făcut Products și Orders în Faza 3, și Invoices în Faza 5 (lotul A,
+ * specs.md §12.1) — `DEFERRED_NAV_LABELS` e gol azi, dar rămâne locul unde intră
+ * următorul modul amânat, dacă apare.
  *
  * Rutele modulelor construite ÎN PARALEL, de alți agenți, ÎN ACEASTĂ FAZĂ
  * (Accounts, Contacts, Deals, Settings) nu există încă în acest worktree —
@@ -45,9 +46,12 @@ class HelpTopicCoverageTest extends TestCase
     /**
      * Module amânate la alte faze — vezi docblock-ul clasei pentru motiv și sursă.
      *
+     * `Invoices` scos în Faza 5 (lotul A, specs.md §12.1): ecranul există acum
+     * (`InvoiceController::index()`, subiect `Invoices/Index` în resources/js/help/index.ts).
+     *
      * @var list<string>
      */
-    private const DEFERRED_NAV_LABELS = ['Invoices'];
+    private const DEFERRED_NAV_LABELS = [];
 
     public function test_every_built_navigation_route_and_the_dashboard_have_a_help_topic(): void
     {

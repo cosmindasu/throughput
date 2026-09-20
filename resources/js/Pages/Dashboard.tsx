@@ -3,15 +3,19 @@ import type { ReactNode } from 'react';
 import ActivityFeed from '@/Components/ActivityFeed';
 import KpiTile from '@/Components/KpiTile';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatMoney } from '@/lib/money';
 import type { DashboardPageProps } from '@/types/generated';
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
-
 const numberFormatter = new Intl.NumberFormat('en-US');
+
+/**
+ * KPI-urile de bani se rotunjesc la unitate — o sumă de pipeline nu se citește cu cenți
+ * dintr-o privire. Moneda vine din workspace (specs.md §2.3), nu dintr-o constantă:
+ * varianta anterioară avea un formator propriu cu `currency: 'USD'` fixat în cod, care
+ * ocolea `formatMoney` și afișa simbolul greșit pe orice tenant care nu e pe USD.
+ */
+const formatKpiMoney = (value: number, currency: string): string =>
+    formatMoney(value, currency, { maximumFractionDigits: 0 });
 
 /**
  * Dashboard-ul de start al unui workspace (FR-DEMO-01, specs.md §21.3) —
@@ -22,6 +26,10 @@ const numberFormatter = new Intl.NumberFormat('en-US');
  */
 export default function Dashboard() {
     const { workspace, kpis, activity } = usePage<DashboardPageProps>().props;
+    // Dashboard-ul rulează mereu într-un workspace rezolvat (ruta are `{workspace}`), dar
+    // contractul de props îl declară nullabil pentru paginile fără workspace — fallback
+    // explicit, nu un cast care să reducă tipul la tăcere.
+    const currency = workspace?.currency ?? 'USD';
 
     return (
         <>
@@ -34,12 +42,12 @@ export default function Dashboard() {
                 </h1>
 
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <KpiTile label="Open pipeline value" value={currencyFormatter.format(kpis.openPipelineValue)} />
+                    <KpiTile label="Open pipeline value" value={formatKpiMoney(kpis.openPipelineValue, currency)} />
                     <KpiTile label="Orders this month" value={numberFormatter.format(kpis.ordersThisMonth)} />
                     <KpiTile
                         label="Overdue invoices"
                         value={numberFormatter.format(kpis.overdueInvoices.count)}
-                        hint={currencyFormatter.format(kpis.overdueInvoices.amount)}
+                        hint={formatKpiMoney(kpis.overdueInvoices.amount, currency)}
                     />
                     <KpiTile label="Low stock alerts" value={numberFormatter.format(kpis.lowStockAlerts)} />
                 </div>

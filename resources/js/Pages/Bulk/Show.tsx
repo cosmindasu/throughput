@@ -24,6 +24,18 @@ const LABELS: Record<BulkOperationStatus, string> = {
     cancelled: 'Cancelled',
 };
 
+/**
+ * Aceeași hartă ca pe pagina soră `Bulk/Groups/Show.tsx` — fără ea, descrierea afișa
+ * identificatorul brut din backend („1,842 accounts", cu literă mică, direct din
+ * `resourceType`), în timp ce pagina de grup afișa „Accounts". Găsit la un audit
+ * încrucișat, în Faza 5.
+ */
+const RESOURCE_LABELS: Record<string, string> = {
+    accounts: 'Accounts',
+    deals: 'Deals',
+    orders: 'Orders',
+};
+
 const ACTION_LABELS: Record<string, string> = {
     reassign_owner: 'Reassign owner',
     export: 'Export',
@@ -66,7 +78,7 @@ export default function Show() {
             <div className="flex max-w-xl flex-col gap-6">
                 <PageHeader
                     title={ACTION_LABELS[operation.action] ?? 'Bulk operation'}
-                    description={`${operation.totalRows.toLocaleString('en-US')} ${operation.resourceType}`}
+                    description={`${operation.totalRows.toLocaleString('en-US')} ${RESOURCE_LABELS[operation.resourceType] ?? operation.resourceType}`}
                 />
 
                 <div role="status" aria-live="polite" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
@@ -94,6 +106,13 @@ export default function Show() {
 
                     {operation.status === 'cancelled' && (
                         <span className="text-sm text-text-2">Cancelled — rows already processed keep their change, the rest were left unchanged.</span>
+                    )}
+
+                    {/* US-BULK-01, §13.3 (lotul E) — visible only once rows may actually exist to show. */}
+                    {isTerminal && operation.activityLogUrl && (
+                        <a href={operation.activityLogUrl} className="text-sm text-accent-text hover:underline">
+                            View in Activity Log
+                        </a>
                     )}
                 </div>
 

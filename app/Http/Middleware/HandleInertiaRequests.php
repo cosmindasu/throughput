@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\WorkspaceResource;
 use App\Models\Membership;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Billing\SubscriptionAccessPolicy;
 use App\Support\Members\UnassignedRecordsCounter;
 use App\Support\ThemePreference;
 use Illuminate\Database\Eloquent\Collection;
@@ -106,6 +108,25 @@ class HandleInertiaRequests extends Middleware
             'unassignedRecordsCount' => fn () => app()->bound('tenant') && $request->user()?->can('unassigned.view')
                 ? UnassignedRecordsCounter::count()
                 : 0,
+
+            // specs.md §12.2, plan §11 — bannerul de degradare pe 3 trepte în
+            // `resources/js/Layouts/AppLayout.tsx`, pe ORICE pagină (nu doar Billing):
+            // `null` până se rezolvă workspace-ul, la fel ca `workspace` mai sus. `status`
+            // brut ȘI `accessLevel` calculat — bannerul are nevoie de AMBELE, fiindcă
+            // `active` și `past_due` produc același `accessLevel` (Full, BR-BILL-03), dar
+            // bannerul se arată DOAR pe `past_due`.
+            'subscription' => fn () => app()->bound('tenant') ? $this->subscriptionState(app('tenant')) : null,
+        ];
+    }
+
+    /**
+     * @return array{status: ?string, accessLevel: string}
+     */
+    private function subscriptionState(Tenant $tenant): array
+    {
+        return [
+            'status' => $tenant->subscription()?->stripe_status,
+            'accessLevel' => SubscriptionAccessPolicy::levelFor($tenant)->value,
         ];
     }
 
@@ -149,8 +170,15 @@ class HandleInertiaRequests extends Middleware
             'members.view', 'api_tokens.view', 'unassigned.view',
         ];
 
-        return collect($permissions)
-            ->mapWithKeys(fn (string $permission) => [$permission => $user->can($permission)])
-            ->all();
+        $computed = collect($permissions)
+            ->mapWithKeys(fn (string $permission) => [$permission => $user->can($permission)]);
+
+        // §7.4, rândul „Jurnal de activitate" (FR-AUD-03, lotul E) — Owner/Manager au
+        // `activity_log.view`, Agent are `activity_log.view_own`; un `NavItem` verifică o
+        // SINGURĂ permisiune (`resources/js/Layouts/AppLayout.tsx`), de aici cheia
+        // combinată, calculată o dată aici, nu recompusă în React din rolul brut.
+        $computed->put('activity_log.any_view', $user->can('activity_log.view') || $user->can('activity_log.view_own'));
+
+        return $computed->all();
     }
 }

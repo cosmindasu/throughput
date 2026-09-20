@@ -2,6 +2,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
+import HistoryTab from '@/Components/History/HistoryTab';
+import BillingSection from '@/Components/Invoices/BillingSection';
 import OrderTimeline from '@/Components/Orders/OrderTimeline';
 import ShipmentsSection from '@/Components/Orders/ShipmentsSection';
 import PageHeader from '@/Components/PageHeader';
@@ -210,6 +212,16 @@ export default function Show() {
 
                 {/* US-ORD-02/03 — Shipments: creare, status, „Retry label"/„Discard"/„Mark as shipped". */}
                 <ShipmentsSection order={order} canCreateShipment={can.createShipment} workspaceSlug={workspaceSlug} />
+
+                {/* US-BILL-01 (specs.md §12.1) — „Create Invoice" sau link către factura existentă. */}
+                <BillingSection orderId={order.id} orderStatus={order.status} workspaceSlug={workspaceSlug} />
+
+                {/* FR-AUD-02, §17.3 — distinct de `OrderTimeline` (evenimente de business
+                    dedicate: creat/confirmat/expediat), „History" e strict `activity_log`. */}
+                <section aria-label="History" className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">History</h2>
+                    <HistoryTab entityType="order" entityId={order.id} />
+                </section>
             </div>
 
             <ConfirmDialog

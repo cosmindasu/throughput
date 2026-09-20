@@ -38,21 +38,26 @@ class SettingsShellTest extends TestCase
             'members' => true,
             'billing' => true,
             'apiTokens' => true,
+            'carrierSettings' => true,
             'pipeline' => true,
             'preferences' => true,
         ]);
     }
 
-    public function test_the_manager_sees_everything_except_billing(): void
+    public function test_the_manager_sees_everything_except_billing_and_carrier_settings(): void
     {
         // Criteriul de acceptanță §7.3: Managerul NU vede „Billing & Subscription",
-        // deși are acces operațional complet pe rest.
+        // deși are acces operațional complet pe rest. Din Faza 5, nici „Carrier
+        // settings" (FR-ORD-06): `carrier_settings.*` lipsește deliberat din rolul lui
+        // în Permissions::forRoles() — credențialele de curierat sunt secrete ale
+        // organizației, nu configurare operațională.
         $manager = $this->makeMember($this->tenant, 'demo.manager@throughput.dev', Permissions::MANAGER);
 
         $this->assertSections($manager, [
             'members' => true,
             'billing' => false,
             'apiTokens' => true,
+            'carrierSettings' => false,
             'pipeline' => true,
             'preferences' => true,
         ]);
@@ -68,6 +73,7 @@ class SettingsShellTest extends TestCase
             'members' => false,
             'billing' => false,
             'apiTokens' => false,
+            'carrierSettings' => false,
             'pipeline' => false,
             'preferences' => true,
         ]);
@@ -81,6 +87,7 @@ class SettingsShellTest extends TestCase
             'members' => false,
             'billing' => false,
             'apiTokens' => false,
+            'carrierSettings' => false,
             'pipeline' => true,
             'preferences' => true,
         ]);

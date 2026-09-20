@@ -148,3 +148,24 @@ care primește un model tenant-scoped ar trece verde și ar cădea în producți
 `AuthenticateSession` e activ global (FR-PUB-05 cere invalidarea sesiunilor la reset de parolă).
 Al doilea `actingAs()` din același test moștenea `password_hash_web` al primului utilizator și
 era delogat instant — `302 → /login`, nu `200`. Golirea e în `Tests\TestCase::actingAs()`.
+
+## `created_at` are precizie 0 — nu ordonează singur nimic
+
+Toate coloanele `created_at`/`updated_at` din acest proiect sunt `timestamp(0)` — secunde
+întregi, fără fracțiuni (verificat în `information_schema.columns`, toate tabelele). Două
+rânduri scrise în aceeași cerere au, aproape întotdeauna, **exact aceeași** valoare.
+
+Consecința: `ORDER BY created_at DESC`, `latest()` și `latestOfMany()` **nu sunt
+deterministe** la egalitate — baza întoarce ce vrea, iar „ce vrea" se schimbă cu planul de
+execuție. Eșecul e tăcut și intermitent: trece pe date semănate la câteva secunde distanță,
+pică în testul care creează două rânduri la rând, și în producție întoarce rândul greșit
+exact în cazul care contează (cel mai recent).
+
+Forma corectă e un tiebreaker stabil, iar `id`-ul îl oferă gratuit: ULID-urile sunt
+sortabile cronologic la milisecundă, deci `ORDER BY created_at DESC, id DESC`, respectiv
+`->latestOfMany(['created_at', 'id'])`.
+
+Găsit de două ori, cu aceeași cauză și simptome diferite: feed-ul de activitate al
+dashboard-ului avea ordine arbitrară la egalitate de secundă (Faza 4), iar `Order::invoice()`
+întorcea factura ANULATĂ în locul celei de înlocuire, fiindcă amândouă se creaseră în aceeași
+secundă (Faza 5). De aici regula.

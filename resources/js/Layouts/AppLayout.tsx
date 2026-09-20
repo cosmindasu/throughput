@@ -4,6 +4,8 @@ import DemoBanner from '@/Components/DemoBanner';
 import FlashMessages from '@/Components/FlashMessages';
 import GlobalSearch from '@/Components/GlobalSearch';
 import HelpPanel from '@/Components/HelpPanel';
+import ListUpdateAnnouncer from '@/Components/ListUpdateAnnouncer';
+import SubscriptionBanner from '@/Components/SubscriptionBanner';
 import ThemeToggle from '@/Components/ThemeToggle';
 import WorkspaceSwitcher from '@/Components/WorkspaceSwitcher';
 
@@ -35,6 +37,12 @@ const NAV_ITEMS: NavItem[] = [
     // randează separat, mai jos, lângă acest link — `unassignedRecordsCount` e un prop
     // comun distinct, nu parte din `navigation`.
     { label: 'Unassigned', permission: 'unassigned.view', href: (w) => `/${w}/unassigned` },
+    // FR-AUD-03, §17.3 — jurnalul la nivel de tenant. Permisiunea e una COMBINATĂ, calculată
+    // server-side în `HandleInertiaRequests::navigationPermissions()`: Owner/Manager au
+    // `activity_log.view` (tot tenantul), Agentul are `activity_log.view_own` (doar acțiunile
+    // proprii), iar `NavItem` verifică o singură cheie per intrare. Viewer-ul n-are niciuna,
+    // deci nu vede linkul (§7.4).
+    { label: 'Activity Log', permission: 'activity_log.any_view', href: (w) => `/${w}/activity` },
     { label: 'Settings', permission: 'settings.view', href: (w) => `/${w}/settings` },
 ];
 
@@ -81,6 +89,10 @@ export default function AppLayout({ children }: PropsWithChildren) {
     return (
         <div className="min-h-screen bg-bg text-text">
             <DemoBanner />
+            {/* specs.md §12.2 — sub DemoBanner, deasupra header-ului: pe orice pagină, nu
+                doar Billing. `canceled` nu ajunge niciodată aici — `EnsureSubscriptionAccess`
+                redirectează server-side către Settings/Billing/Index înainte de randare. */}
+            <SubscriptionBanner />
 
             <a
                 href="#main-content"
@@ -179,6 +191,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 <FlashMessages />
                 {children}
             </main>
+
+            {/* SC 4.1.3 — anunțul de „lista s-a schimbat" (paginare, filtre, sortare) stă
+                AICI, în layout-ul persistent, nu în componenta de pagină: aceea se remontează
+                la fiecare navigare GET (`key: Date.now()`), deci o regiune live montată acolo
+                nu apucă niciodată să raporteze o schimbare. Vezi `.ai/rules/frontend.md`. */}
+            <ListUpdateAnnouncer />
         </div>
     );
 }

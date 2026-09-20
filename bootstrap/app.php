@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureDemoModeGuardrails;
+use App\Http\Middleware\EnsureSubscriptionAccess;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndexHeaders;
 use App\Http\Middleware\ResolveWorkspace;
@@ -14,6 +15,28 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
+    // BUG DE FUNDAȚIE găsit la testarea lotului de abonament (Faza 5, specs.md §12.2),
+    // reparat aici — corectare, nu presupunere.
+    //
+    // `Illuminate\Foundation\Application::configure()` cheamă intern `->withEvents()` CU
+    // discovery activat implicit, ÎNAINTE ca acest fișier să apuce să configureze ceva —
+    // fără nicio linie explicită aici care s-o ceară. Efectul: ORICE listener din
+    // `app/Listeners/**` cu `handle()` tipizat pe o clasă de eveniment se înregistrează
+    // SINGUR, prin descoperire automată — și, dacă ACEEAȘI pereche eveniment→listener e
+    // ÎNREGISTRATĂ ȘI EXPLICIT (`Event::listen(...)`, cum face acest lot în
+    // `AppServiceProvider::register()` și lotul de jurnal de activitate în
+    // `ActivityLogServiceProvider::boot()`), evenimentul se execută DE DOUĂ ORI la fiecare
+    // `event()` — reprodus direct: un singur `event(new SubscriptionBecameUnpaid(...))`
+    // punea DOUĂ joburi `SendSubscriptionUnpaidEmail` în coadă, deci DOUĂ emailuri pentru
+    // O SINGURĂ tranziție (specs.md §12.2 cere explicit „o singură dată"). Explică și
+    // numărătorile duble văzute în suita altui lot, în lucru concurent (`ActivityLogObserverTest`,
+    // „size 6 vs 3"; `QueuedJobContextTest`, „6 identic cu 2") — ACELAȘI mecanism,
+    // `WriteActivityLogEntry` fiind și el înregistrat explicit ȘI descoperit automat.
+    //
+    // `discover: false` dezactivează descoperirea automată global — fiecare pereche
+    // eveniment→listener din proiect e ORICUM înregistrată explicit (`Event::listen()`),
+    // deci nimic nu se pierde; se elimină doar dubla înregistrare tăcută.
+    ->withEvents(discover: false)
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -55,6 +78,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'session.context' => SetSessionContext::class,
             'workspace' => ResolveWorkspace::class,
+            // specs.md §12.2, plan §11 — modelul de degradare pe 3 trepte al abonamentului
+            // Throughput. Aplicat explicit pe grupul cu workspace, în routes/web.php.
+            'subscription.access' => EnsureSubscriptionAccess::class,
         ]);
 
         // Aceeași ordine, față de `SubstituteBindings`: un parametru de rută tipizat
@@ -74,6 +100,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // necriptată trimisă de browser înapoi — exact bug-ul care ar
         // strica randarea fără licărire.
         $middleware->encryptCookies(except: ['theme']);
+
+        // specs.md §12.3 — Stripe nu trimite (și n-are cum să obțină) un token CSRF
+        // Laravel; semnătura `Stripe-Signature` (verificată în
+        // `App\Http\Controllers\Webhooks\StripeWebhookController`) e mecanismul de
+        // încredere al acestei rute, nu sesiunea.
+        $middleware->validateCsrfTokens(except: ['webhooks/stripe']);
 
         // În producție, aplicația stă în spatele Traefik-ului Coolify, care termină
         // TLS-ul și vorbește HTTP cu containerul nginx. Fără proxy-uri de încredere,

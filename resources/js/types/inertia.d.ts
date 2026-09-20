@@ -44,6 +44,9 @@ declare module '@inertiajs/core' {
                 slug: string;
                 name: string;
                 industry: string | null;
+                // specs.md §2.3 — o singură monedă per tenant, configurabilă. Orice sumă
+                // afișată se formatează cu ea (`lib/money.ts`), niciodată cu o constantă.
+                currency: string;
             } | null;
             workspaces: Array<{
                 slug: string;
@@ -63,6 +66,12 @@ declare module '@inertiajs/core' {
             };
             demoMode: boolean;
             theme: 'light' | 'dark';
+            // specs.md §12.2 — bannerul de degradare pe 3 trepte (`AppLayout.tsx`), pe orice
+            // pagină. `null` înainte ca workspace-ul să fie rezolvat, la fel ca `workspace`.
+            subscription: {
+                status: string | null;
+                accessLevel: 'full' | 'read_only' | 'blocked';
+            } | null;
         };
     }
 }

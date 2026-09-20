@@ -39,6 +39,11 @@ class SettingsController extends Controller
 
                 'apiTokens' => $user->can('api_tokens.view'),
 
+                // Doar Owner (matricea §7.4, FR-ORD-06): `carrier_settings.*` lipsește
+                // deliberat din rolul Manager în Permissions::forRoles() — credențialele
+                // de curierat sunt secrete ale organizației, nu configurare operațională.
+                'carrierSettings' => $user->can('carrier_settings.view'),
+
                 // Owner, Manager, Viewer — nu Agent (matricea §7.4: Agent are „—" pe
                 // configurarea de pipeline/etape, Viewer are „R").
                 'pipeline' => $user->can('pipelines.view'),

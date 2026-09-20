@@ -624,6 +624,7 @@ export interface SettingsSectionPermissions {
     members: boolean;
     billing: boolean;
     apiTokens: boolean;
+    carrierSettings: boolean;
     pipeline: boolean;
     preferences: boolean;
     sentEmails: boolean;
@@ -670,6 +671,29 @@ export interface SentEmailsIndexPageProps {
     sentEmails: CursorPage<SentEmailRow>;
     list: ListState;
     statuses: SentEmailStatus[];
+    [key: string]: unknown;
+}
+
+// Settings/Shipping/Index — App\Http\Resources\Settings\CarrierSettingResource,
+// FR-ORD-06/BR-ORD-03, ADR-010. Owner-only (§7.4 „Setări curierat"). `credentials` nu
+// ajunge NICIODATĂ aici (BR-AUD-01) — doar `configured`/`credentialPreview` (ultimele 4
+// caractere ale cheii), vezi docblock-ul Resource-ului PHP.
+export interface CarrierSettingRow {
+    provider: 'demo' | 'shippo';
+    label: string;
+    description: string;
+    requiresApiKey: boolean;
+    isActive: boolean;
+    configured: boolean;
+    credentialPreview: string | null;
+    // Audit P2 — distinct de „not configured yet": populat doar când rândul EXISTĂ dar
+    // `credentials` nu mai poate fi decriptat (rotație de `APP_KEY`).
+    credentialError: string | null;
+}
+
+export interface SettingsShippingIndexPageProps {
+    providers: CarrierSettingRow[];
+    can: { manage: boolean };
     [key: string]: unknown;
 }
 
@@ -786,6 +810,9 @@ export interface BulkOperationPayload {
     processedRowsEstimate: number;
     canCancel: boolean;
     errorMessage: string | null;
+    // US-BULK-01, §13.3 (lotul E) — „un link către activity_log filtrat pe această
+    // operație". `null` cât timp utilizatorul n-are `activity_log.view`/`view_own`.
+    activityLogUrl: string | null;
 }
 
 export interface BulkShowPageProps {
@@ -1231,6 +1258,171 @@ export interface ImportsShowPageProps {
         manage: boolean;
         cancel: boolean;
     };
+    [key: string]: unknown;
+}
+
+// ── Facturare către clienți — specs.md §12.1, US-BILL-01…02, plan §11 (Faza 5, lotul A) ──
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'void';
+export type InvoicePdfStatus = 'pending' | 'ready' | 'failed';
+export type PaymentMethod = 'bank_transfer' | 'check' | 'manual';
+
+export interface InvoicePartyRef {
+    id: string;
+    name: string;
+}
+
+// App\Http\Resources\PaymentResource.
+export interface Payment {
+    id: string;
+    amount: number;
+    method: PaymentMethod;
+    methodLabel: string;
+    paidAt: string | null;
+    createdBy: InvoicePartyRef | null;
+}
+
+// App\Http\Resources\InvoiceResource — forma unei facturi, IDENTICĂ pe `Invoices/Index`
+// (un rând) și `Invoices/Show` (detaliul complet) — vezi docblock-ul clasei PHP pentru
+// motivul pentru care nu există un al doilea Resource „summary", spre deosebire de Order.
+export interface Invoice {
+    id: string;
+    invoiceNumber: string | null;
+    status: InvoiceStatus;
+    statusLabel: string;
+    currency: string;
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    amountPaid: number;
+    balanceDue: number;
+    issueDate: string | null;
+    dueDate: string | null;
+    pdfStatus: InvoicePdfStatus;
+    voidReason: string | null;
+    voidedAt: string | null;
+    createdAt: string | null;
+    order: {
+        id: string;
+        orderNumber: string | null;
+        account: InvoicePartyRef | null;
+        owner: InvoicePartyRef | null;
+    } | null;
+    payments: Payment[];
+    can: {
+        view: boolean;
+        markSent: boolean;
+        void: boolean;
+        retryPdf: boolean;
+        registerPayment: boolean;
+    };
+}
+
+export interface InvoicesIndexPageProps {
+    invoices: CursorPage<Invoice>;
+    filters: ListState;
+    [key: string]: unknown;
+}
+
+export interface InvoicesShowPageProps {
+    invoice: Invoice;
+    [key: string]: unknown;
+}
+
+// `GET /{workspace}/orders/{order}/invoice-summary` — App\Http\Controllers\Web\InvoiceController::forOrder().
+// JSON simplu (nu props Inertia), la fel ca `OrderVariantOption` — consumat de
+// `Components/Invoices/BillingSection.tsx` pe `Orders/Show`, ca să nu editeze
+// `OrderController`/`OrderResource` (fișiere ale altui lot, vezi docblock-ul PHP).
+export interface OrderInvoiceSummary {
+    can: {
+        create: boolean;
+    };
+    invoice: {
+        id: string;
+        invoiceNumber: string | null;
+        status: InvoiceStatus;
+        balanceDue: number;
+        currency: string;
+    } | null;
+}
+
+// ── Billing & Subscription — specs.md §12.2, FR-BILL-01 ──────────────────────────
+
+// App\Http\Controllers\Web\Settings\BillingController::index(). `status`/`plan` sunt
+// `null` cât timp nu există încă niciun abonament Stripe local (tenant nefacturat
+// vreodată — nu un eșec). `accessLevel` e ACELAȘI calcul (`SubscriptionAccessPolicy`) ca
+// propul comun `subscription` citit de `AppLayout` pentru banner — o singură sursă.
+export interface BillingSubscription {
+    status: string | null;
+    plan: string | null;
+    paymentMethod: { type: string; lastFour: string | null } | null;
+    canceledAt: string | null;
+    accessLevel: 'full' | 'read_only' | 'blocked';
+}
+
+// Review-ul lotului, pct. 2 — FR-BILL-01 cere explicit „istoric de facturi", nu doar
+// planul curent. Un rând per factură Stripe (`Laravel\Cashier\Invoice`); `hostedUrl` duce
+// direct la pagina găzduită de Stripe (view + download), fără al doilea apel Stripe pentru
+// un download local — vezi raportul lotului pentru motivare (ADR-021: nu se comută
+// renderer-ul PDF al Cashier).
+export interface BillingInvoiceRow {
+    id: string;
+    date: string | null;
+    total: string;
+    status: string | null;
+    hostedUrl: string | null;
+}
+
+export interface BillingIndexPageProps {
+    subscription: BillingSubscription;
+    invoices: BillingInvoiceRow[];
+    can: {
+        manage: boolean;
+    };
+    [key: string]: unknown;
+}
+
+// ── Jurnal de activitate — specs.md §17, FR-AUD-01…04, Faza 5 lotul E ────────────
+
+// App\Http\Resources\Activity\ActivityLogResource — formă COMUNĂ pentru `Activity/Index`
+// (tenant-wide) ȘI `Components/History/HistoryTab.tsx` (endpoint JSON, tab de entitate).
+export interface HistoryEntry {
+    id: string;
+    action: string;
+    actionLabel: string;
+    actor: { id: string; name: string } | null;
+    oldValues: Record<string, unknown> | null;
+    newValues: Record<string, unknown> | null;
+    createdAt: string | null;
+    bulkOperationId: string | null;
+    // `null` pentru rândurile fără entitate legată, pentru `App\Models\Variant` (fără
+    // pagină de detaliu proprie) și mereu pe `HistoryTab` (pagina curentă E entitatea).
+    entityUrl: string | null;
+}
+
+export interface ActivityLogFilters {
+    action: string | null;
+    userId: string | null;
+    from: string | null;
+    to: string | null;
+    bulkOperationId: string | null;
+}
+
+export interface ActivityMemberOption {
+    id: string;
+    name: string;
+}
+
+// App\Http\Controllers\Web\ActivityLogController::index() — FR-AUD-03.
+export interface ActivityIndexPageProps {
+    entries: CursorPage<HistoryEntry>;
+    filters: ActivityLogFilters;
+    // App\Models\ActivityLog::ACTIONS — valorile enum-ului `action`, pentru dropdown.
+    actions: string[];
+    // Gol pentru un Agent (§7.4): `canFilterByUser` distinge „nimeni de filtrat" de
+    // „lista chiar e goală" — un tenant nou, fără alți membri, ar arăta identic altfel.
+    members: ActivityMemberOption[];
+    canFilterByUser: boolean;
     [key: string]: unknown;
 }
 

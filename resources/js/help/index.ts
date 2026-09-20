@@ -1,7 +1,10 @@
 import accountDetail from '@/help/topics/account-detail';
 import accountsList from '@/help/topics/accounts-list';
+import activityLog from '@/help/topics/activity-log';
+import billing from '@/help/topics/billing';
 import bulkGroupOperation from '@/help/topics/bulk-group-operation';
 import bulkOperation from '@/help/topics/bulk-operation';
+import carrierSettings from '@/help/topics/carrier-settings';
 import contactDetail from '@/help/topics/contact-detail';
 import contactsList from '@/help/topics/contacts-list';
 import dashboard from '@/help/topics/dashboard';
@@ -12,6 +15,8 @@ import exportsTopic from '@/help/topics/exports';
 import importDetail from '@/help/topics/import-detail';
 import importUpload from '@/help/topics/import-upload';
 import importsList from '@/help/topics/imports-list';
+import invoiceDetail from '@/help/topics/invoice-detail';
+import invoicesList from '@/help/topics/invoices-list';
 import members from '@/help/topics/members';
 import orderDetail from '@/help/topics/order-detail';
 import ordersList from '@/help/topics/orders-list';
@@ -70,6 +75,8 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Settings/Preferences': preferences,
     'Settings/Members/Index': members,
     'Settings/SentEmails/Index': sentEmails,
+    'Settings/Shipping/Index': carrierSettings,
+    'Settings/Billing/Index': billing,
 
     'Unassigned/Index': unassigned,
 
@@ -100,6 +107,11 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
     'Reports/Show': reportDetail,
     'Reports/Create': reportForm,
     'Reports/Edit': reportForm,
+
+    'Invoices/Index': invoicesList,
+    'Invoices/Show': invoiceDetail,
+
+    'Activity/Index': activityLog,
 };
 
 /**

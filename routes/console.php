@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\System\AnonymizeActivityLogJob;
 use App\Jobs\System\DispatchScheduledReportsJob;
 use App\Jobs\System\FailStuckBulkOperationsJob;
 use App\Jobs\System\FailStuckImportsJob;
+use App\Jobs\System\MarkOverdueInvoicesJob;
 use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\PruneExpiredImportFilesJob;
 use App\Jobs\System\PruneSentEmailsJob;
@@ -90,3 +92,16 @@ Schedule::job(new FailStuckImportsJob, 'default')->everyFiveMinutes();
 // `PruneExpiredExportsJob`, fără `when()`. `import_rows.raw_data` rămâne neatins — BR-IMP-01
 // îl cere pentru raportul reimportabil.
 Schedule::job(new PruneExpiredImportFilesJob, 'default')->daily();
+
+// BR-BILL-02 (specs.md §12.1, lotul A din Faza 5) — `sent -> overdue` zilnic, pentru orice
+// factură cu `due_date` trecut și `balance_due > 0`. Fără `when()`, ca `PruneExpiredExportsJob`:
+// jobul iterează el însuși tenanții (ADR-014 pct. 4), scheduler-ul doar dispecerizează.
+Schedule::job(new MarkOverdueInvoicesJob, 'default')->daily();
+
+// FR-AUD-01, specs.md §17.2 (lotul E din Faza 5) — anonimizarea LUNARĂ a jurnalului de
+// activitate pentru rândurile mai vechi de `activity_log_retention_months` (36 implicit),
+// pe entitățile cu date personale (Contact, User). Fără `when()`, ca restul joburilor de
+// retenție din această listă: jobul iterează el însuși tenanții (ADR-014 pct. 4) și e
+// idempotent prin convergență (vezi docblock-ul clasei), deci o rulare lunară fixă e
+// suficientă — nu are nevoie de recuperare specială dacă o lună a fost ratată.
+Schedule::job(new AnonymizeActivityLogJob, 'default')->monthly();

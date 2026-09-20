@@ -2,10 +2,17 @@
 
 namespace App\Providers;
 
+use App\Listeners\Billing\SendPaymentFailedDunningEmail;
+use App\Listeners\Billing\SendSubscriptionCanceledEmail;
+use App\Listeners\Billing\SendSubscriptionUnpaidEmail;
 use App\Mail\InterceptingMailManager;
 use App\Models\Tenant;
+use App\Support\Billing\Events\StripeInvoicePaymentFailed;
+use App\Support\Billing\Events\SubscriptionBecameUnpaid;
+use App\Support\Billing\Events\SubscriptionCanceled;
 use App\Support\Members\DeactivatedMemberIds;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
 
@@ -53,8 +60,35 @@ class AppServiceProvider extends ServiceProvider
         // e setat, iar în Faza 1 nu e. Oricum avem nevoie de handler propriu: §12.3 cere
         // deduplicare pe `webhook_events` cu idempotență, nu comportamentul implicit.
         //
-        // Se re-înregistrează explicit, în grupul `web`, în Faza 5.
+        // Re-înregistrată explicit — Faza 5, lotul de abonament: `POST /webhooks/stripe`
+        // (routes/web.php), handler propriu (`App\Http\Controllers\Webhooks\StripeWebhookController`)
+        // cu deduplicare pe `webhook_events` (§12.3), NU comportamentul implicit al
+        // pachetului.
         Cashier::ignoreRoutes();
+
+        // BR-BILL-03, specs.md §12.2 — decizie EXPLICITĂ, documentată, nu un default
+        // netratat (research citat de plan §11: „un comutator de APLICAȚIE, nu de
+        // framework"). Stripe reîncearcă automat o factură `past_due` de mai multe ori
+        // înainte s-o declare `unpaid`; fără acest comutator, Cashier ar considera
+        // abonamentul „inactiv" (`Subscription::active() === false`) chiar din prima
+        // reîncercare eșuată — exact opusul modelului de degradare pe 3 trepte de mai
+        // jos, care ține accesul COMPLET pe toată durata lui `past_due` și-l restrânge
+        // abia la `unpaid` (calculat separat, în `App\Support\Billing\SubscriptionAccessPolicy`,
+        // niciodată din `Subscription::active()`/`subscribed()`).
+        Cashier::keepPastDueSubscriptionsActive();
+
+        // FR-BILL-04 — „listener PROPRIU, ÎNREGISTRAT EXPLICIT" pe `invoice.payment_failed`
+        // (Cashier nu-l gestionează implicit, spre deosebire de
+        // `customer.subscription.updated/.deleted`). `SendPaymentFailedDunningEmail`
+        // implementează `ShouldQueue` — `event()` doar inserează jobul de ascultător în
+        // coadă, trimiterea efectivă (I/O extern) rulează acolo, nu aici.
+        Event::listen(StripeInvoicePaymentFailed::class, SendPaymentFailedDunningEmail::class);
+
+        // specs.md §12.2, tabelul de degradare — cele două emailuri „de tranziție"
+        // (review-ul lotului, pct. 1), reutilizând EXACT aceeași infrastructură: eveniment
+        // de domeniu + listener `ShouldQueue` + mailable cu `AttributesSentEmailToTenant`.
+        Event::listen(SubscriptionBecameUnpaid::class, SendSubscriptionUnpaidEmail::class);
+        Event::listen(SubscriptionCanceled::class, SendSubscriptionCanceledEmail::class);
 
         // Notă, verificată în vendor (nu presupusă): Cashier 16 și Sanctum 4 doar
         // PUBLICĂ migrațiile, nu le încarcă din pachet — deci nu există `ignoreMigrations()`
