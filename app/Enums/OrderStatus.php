@@ -49,14 +49,14 @@ enum OrderStatus: string
         return $this->allowedTransitions() === [];
     }
 
+    /**
+     * ADR-022, specs.md §15.8 FR-I18N-04 — eticheta AFIȘATĂ, prin catalogul de traduceri
+     * (`lang/{en,fr}/enums.php`), NICIODATĂ literal aici. `$this->value` (`draft`,
+     * `confirmed`, ...) rămâne cheia TEHNICĂ, stocată în DB — neschimbată de locale, la
+     * fel ca înainte de acest lot; doar ce se AFIȘEAZĂ trece prin `trans()`.
+     */
     public function label(): string
     {
-        return match ($this) {
-            self::Draft => 'Draft',
-            self::Confirmed => 'Confirmed',
-            self::PartiallyFulfilled => 'Partially fulfilled',
-            self::Fulfilled => 'Fulfilled',
-            self::Cancelled => 'Cancelled',
-        };
+        return trans('enums.order_status.'.$this->value);
     }
 }

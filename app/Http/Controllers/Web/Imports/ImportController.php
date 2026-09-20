@@ -87,7 +87,7 @@ final class ImportController extends Controller
             $request->file('file'),
         );
 
-        return redirect()->route('imports.show', $import)->with('success', 'File uploaded — map the columns to continue.');
+        return redirect()->route('imports.show', $import)->with('success', __('flash.imports.uploaded'));
     }
 
     /**
@@ -165,7 +165,7 @@ final class ImportController extends Controller
     {
         $action->execute($import, (array) $request->validated('mapping'));
 
-        return redirect()->route('imports.show', $import)->with('success', 'Mapping saved.');
+        return redirect()->route('imports.show', $import)->with('success', __('flash.imports.mapping_saved'));
     }
 
     public function runDryRun(Request $request, Import $import, RunDryRunValidationAction $action): RedirectResponse
@@ -174,7 +174,7 @@ final class ImportController extends Controller
 
         $action->execute($import);
 
-        return redirect()->route('imports.show', $import)->with('success', 'Validating in the background — this page updates automatically.');
+        return redirect()->route('imports.show', $import)->with('success', __('flash.imports.validating'));
     }
 
     public function commit(Request $request, Import $import, CommitImportAction $action): RedirectResponse
@@ -183,7 +183,7 @@ final class ImportController extends Controller
 
         $action->execute($import);
 
-        return redirect()->route('imports.show', $import)->with('success', 'Importing valid rows in the background — this page updates automatically.');
+        return redirect()->route('imports.show', $import)->with('success', __('flash.imports.importing'));
     }
 
     /**
@@ -197,7 +197,7 @@ final class ImportController extends Controller
 
         $action->execute($import);
 
-        return redirect()->route('imports.show', $import)->with('success', 'Import cancelled.');
+        return redirect()->route('imports.show', $import)->with('success', __('flash.imports.cancelled'));
     }
 
     /**

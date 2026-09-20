@@ -37,15 +37,23 @@ final class DataExportReadyMail extends Mailable
         public readonly string $downloadUrl,
         public readonly string $expiresOn,
         public readonly int $retentionDays,
+        // ADR-022, specs.md §15.8 FR-I18N-05 — limba destinatarului REAL (Owner-ul
+        // autentificat care a cerut exportul, `users.locale`), transmisă explicit de
+        // `App\Jobs\Gdpr\FinalizeDataExportJob`. `null` = comportamentul dinainte de acest
+        // lot (fallback pe locale-ul ambiental).
+        ?string $locale = null,
     ) {
         // Ultima linie, obligatoriu (docblock-ul trait-ului) — după ce toate proprietățile
         // scalare sunt atribuite.
         $this->attributeSentEmailToCurrentTenant();
+        $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "Your data export for {$this->workspaceName} is ready");
+        return new Envelope(
+            subject: trans('mail.data_export_ready.subject', ['workspace' => $this->workspaceName], $this->locale),
+        );
     }
 
     public function content(): Content

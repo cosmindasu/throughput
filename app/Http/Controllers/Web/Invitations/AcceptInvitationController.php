@@ -102,7 +102,7 @@ final class AcceptInvitationController extends Controller
         Auth::guard('web')->login($user);
 
         return redirect("/{$invitation->tenant->slug}/dashboard")
-            ->with('success', "You're in — welcome to {$invitation->tenant->name}.");
+            ->with('success', __('flash.invitations.accepted', ['tenant' => $invitation->tenant->name]));
     }
 
     /**

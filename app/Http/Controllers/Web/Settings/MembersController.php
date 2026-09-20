@@ -186,7 +186,7 @@ final class MembersController extends Controller
     public function updateRole(UpdateMemberRoleRequest $request, Membership $membership): RedirectResponse
     {
         $newRole = $request->newRole();
-        $memberName = $membership->user?->name ?? 'This member';
+        $memberName = $membership->user?->name ?? __('flash.members.fallback_name');
 
         $response = app(UpdateMemberRoleAction::class)->execute(
             actor: $request->user(),
@@ -199,9 +199,12 @@ final class MembersController extends Controller
             return back()->withErrors(['role' => $response->message()]);
         }
 
+        // `:role` NU e tradus — numele rolului (Owner/Manager/Agent/Viewer) e etichetă de
+        // domeniu, la fel ca `OrderStatus::label()`, dintr-un alt lot (vezi
+        // `lang/en/flash.php`, comentariul de la `members.role_updated`).
         return redirect()
             ->route('settings.members.index')
-            ->with('success', "{$memberName} is now {$newRole} in this workspace.");
+            ->with('success', __('flash.members.role_updated', ['name' => $memberName, 'role' => $newRole]));
     }
 
     public function deactivate(DeactivateMembershipRequest $request, Membership $membership): RedirectResponse
@@ -224,7 +227,7 @@ final class MembersController extends Controller
         }
 
         $targetUserId = $membership->user_id;
-        $targetName = $membership->user?->name ?? 'This member';
+        $targetName = $membership->user?->name ?? __('flash.members.fallback_name');
         $counts = OpenRecordCounts::forUser($targetUserId);
 
         if ($request->shouldReassign()) {
@@ -278,7 +281,7 @@ final class MembersController extends Controller
 
             return redirect()
                 ->route('bulk.groups.show', $groupId)
-                ->with('success', "Deactivating {$targetName} and reassigning their open records — this page updates automatically.");
+                ->with('success', __('flash.members.deactivating_with_reassignment', ['name' => $targetName]));
         }
 
         $stillActive = DB::transaction(fn () => $this->lockAndApplyDeactivation($membership, $request));
@@ -300,9 +303,15 @@ final class MembersController extends Controller
             );
         }
 
+        // Capcana centrală a lotului (vezi docblock-ul `lang/en/flash.php`): „0 records"
+        // e plural în engleză, dar SINGULAR în franceză — `trans_choice()`, nu un ternar
+        // pe `> 0`/`Str::plural()` manual.
         $message = $counts['total'] > 0
-            ? "{$targetName} was deactivated. {$counts['total']} record(s) need a new owner — see Unassigned."
-            : "{$targetName} was deactivated.";
+            ? trans_choice('flash.members.deactivated_with_open_records', $counts['total'], [
+                'name' => $targetName,
+                'count' => $counts['total'],
+            ])
+            : __('flash.members.deactivated', ['name' => $targetName]);
 
         return redirect()->route('settings.members.index')->with('success', $message);
     }

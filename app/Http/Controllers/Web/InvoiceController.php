@@ -79,7 +79,7 @@ final class InvoiceController extends Controller
 
         $invoice = $action->execute($order);
 
-        return redirect()->route('invoices.show', $invoice)->with('success', 'Invoice created.');
+        return redirect()->route('invoices.show', $invoice)->with('success', __('flash.invoices.created'));
     }
 
     public function markSent(Invoice $invoice, MarkInvoiceSentAction $action): RedirectResponse
@@ -88,7 +88,7 @@ final class InvoiceController extends Controller
 
         $sent = $action->execute($invoice);
 
-        return redirect()->route('invoices.show', $sent)->with('success', 'Invoice marked as sent.');
+        return redirect()->route('invoices.show', $sent)->with('success', __('flash.invoices.marked_sent'));
     }
 
     public function void(VoidInvoiceRequest $request, Invoice $invoice, VoidInvoiceAction $action): RedirectResponse
@@ -97,7 +97,7 @@ final class InvoiceController extends Controller
 
         $voided = $action->execute($invoice, $request->string('reason')->toString());
 
-        return redirect()->route('invoices.show', $voided)->with('success', 'Invoice voided.');
+        return redirect()->route('invoices.show', $voided)->with('success', __('flash.invoices.voided'));
     }
 
     /**
@@ -110,7 +110,7 @@ final class InvoiceController extends Controller
         Gate::authorize('view', $invoice);
 
         if ($invoice->pdf_status !== Invoice::PDF_STATUS_READY || $invoice->pdf_path === null) {
-            return redirect()->route('invoices.show', $invoice)->with('error', 'This invoice PDF is not ready yet.');
+            return redirect()->route('invoices.show', $invoice)->with('error', __('flash.invoices.pdf_not_ready'));
         }
 
         return Storage::disk('local')->download($invoice->pdf_path, "{$invoice->invoice_number}.pdf");
@@ -134,7 +134,7 @@ final class InvoiceController extends Controller
         $invoice->update(['pdf_status' => Invoice::PDF_STATUS_PENDING]);
         GenerateInvoicePdfJob::dispatch(TenantScope::requireCurrentTenantId(), $invoice->getKey());
 
-        return redirect()->route('invoices.show', $invoice)->with('success', 'Generating the PDF again.');
+        return redirect()->route('invoices.show', $invoice)->with('success', __('flash.invoices.regenerating_pdf'));
     }
 
     /**

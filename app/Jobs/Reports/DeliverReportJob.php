@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Throwable;
@@ -37,6 +38,16 @@ use Throwable;
  * asta, antetul `X-Throughput-Tenant-Id` ar lipsi, iar `DemoInterceptingTransport` ar
  * scrie rândul din jurnalul „Sent Emails" cu `tenant_id = null` — invizibil în Settings-ul
  * tenantului care a programat raportul.
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `locale` e SCALAR de constructor, exact ca
+ * `tenantId`/`reportRunId` (ADR-013/014), rezolvat de `App\Jobs\Reports\GenerateReportJob`
+ * ÎNAINTE de dispecerizare, din `report_definitions.created_by`'s `users.locale`
+ * (destinatarii sunt adrese arbitrare, fără cont — aproximarea din specificație). Worker-ul
+ * de coadă e un proces de viață lungă (`.ai/rules/tenancy.md:123-138`): `App::setLocale()`
+ * scrie pe singleton-ul `Translator` din container, iar Laravel resetează între joburi doar
+ * instanțele `scoped()` — fără apelul explicit de mai jos, un job FR urmat de un job EN pe
+ * ACELAȘI worker ar reda al doilea email tot în franceză. Vezi
+ * `tests/Feature/I18n/JobLocaleLeakTest.php`, care demonstrează exact acest scenariu.
  */
 class DeliverReportJob implements ShouldQueue
 {
@@ -49,10 +60,16 @@ class DeliverReportJob implements ShouldQueue
     public function __construct(
         public string $tenantId,
         public string $reportRunId,
+        public string $locale = 'en',
     ) {}
 
     public function handle(): void
     {
+        // Vezi docblock-ul clasei — obligatoriu la ÎNCEPUTUL lui handle(), necondiționat
+        // (nu doar „dacă diferă de ce e setat deja"): un worker de viață lungă nu are
+        // niciun alt semnal de încredere despre ce a lăsat jobul anterior în urmă.
+        App::setLocale($this->locale);
+
         [$mailable, $recipients] = TenantContext::run($this->tenantId, function (): array {
             $run = ReportRun::query()->with('reportDefinition')->find($this->reportRunId);
 
@@ -76,6 +93,7 @@ class DeliverReportJob implements ShouldQueue
                 attachmentPath: $run->file_path,
                 attachmentName: Str::slug($definition->name).'.'.$format->extension(),
                 attachmentMime: $format->mimeType(),
+                locale: $this->locale,
             );
 
             return [$mailable, $definition->recipients];

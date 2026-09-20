@@ -27,7 +27,7 @@ final class VoidInvoiceAction
 
             if ($locked->isVoid()) {
                 throw ValidationException::withMessages([
-                    'status' => 'This invoice is already void.',
+                    'status' => trans('rules.invoices.already_void'),
                 ]);
             }
 

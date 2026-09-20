@@ -58,8 +58,8 @@ final class InvitationController extends Controller
         return redirect()
             ->route('settings.members.index')
             ->with('success', $result['isNewUser']
-                ? "Invitation sent to {$email}. They have 7 days to accept it."
-                : "Invitation sent to {$email}. They already have a Throughput account, so accepting only takes a click.");
+                ? __('flash.invitations.sent_new_user', ['email' => $email])
+                : __('flash.invitations.sent_existing_user', ['email' => $email]));
     }
 
     public function resend(Request $request, Membership $membership): RedirectResponse
@@ -72,11 +72,11 @@ final class InvitationController extends Controller
 
         $this->invite->resend($request->user(), $membership);
 
-        $email = $membership->user?->email ?? 'the invited address';
+        $email = $membership->user?->email ?? __('flash.invitations.email_fallback_invited');
 
         return redirect()
             ->route('settings.members.index')
-            ->with('success', "A new invitation link was sent to {$email}. The previous link no longer works.");
+            ->with('success', __('flash.invitations.resent', ['email' => $email]));
     }
 
     public function destroy(Request $request, Membership $membership): RedirectResponse
@@ -87,12 +87,12 @@ final class InvitationController extends Controller
             return back()->withErrors(['invitation' => $decision->message()]);
         }
 
-        $email = $membership->user?->email ?? 'that address';
+        $email = $membership->user?->email ?? __('flash.invitations.email_fallback_generic');
 
         $this->revoke->execute($request->user(), $membership, $request);
 
         return redirect()
             ->route('settings.members.index')
-            ->with('success', "The invitation to {$email} was revoked. Its link no longer works.");
+            ->with('success', __('flash.invitations.revoked', ['email' => $email]));
     }
 }

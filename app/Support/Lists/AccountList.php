@@ -109,7 +109,17 @@ final class AccountList extends ResourceList implements ExportableList
     /** @return list<string> */
     public function exportHeaders(): array
     {
-        return ['Name', 'Domain', 'Industry', 'Status', 'Credit terms', 'Owner', 'Created at'];
+        // FR-I18N-04 — anteturile trec prin catalog. Ordinea și numărul NU se schimbă:
+        // `toExportRow()` de mai jos produce valorile pe aceleași poziții.
+        return [
+            __('exports.accounts.name'),
+            __('exports.accounts.domain'),
+            __('exports.accounts.industry'),
+            __('exports.accounts.status'),
+            __('exports.accounts.credit_terms'),
+            __('exports.accounts.owner'),
+            __('exports.accounts.created_at'),
+        ];
     }
 
     /**

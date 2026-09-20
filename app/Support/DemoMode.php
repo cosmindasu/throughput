@@ -27,12 +27,19 @@ final class DemoMode
      * disciplină pentru rândurile adăugate în Faza 5: numele sunt fixate ÎNAINTE ca ruta
      * să existe, iar testul semnalează orice rută care apare sub un nume neguardat.
      *
+     * ADR-022, Lot I18N Val 2 — `message` ține o CHEIE de traducere
+     * (`lang/{en,fr}/flash.php`, namespace `demo.*`), NU textul rezolvat: array-ul rămâne
+     * o constantă de clasă, iar PHP nu acceptă apeluri de funcție (`__()`) în
+     * inițializarea unui `const`. `refusal()` mai jos face `__($key)` la APELARE, nu la
+     * definirea array-ului — motivul pentru care valorile de mai jos arată ca niște chei
+     * de traducere, nu ca fraze în engleză.
+     *
      * @var array<string, array{routes: list<string>, message: string}>
      */
     public const GUARDED_ACTIONS = [
         'workspace.delete' => [
             'routes' => ['workspace.destroy'],
-            'message' => 'Deleting a workspace is disabled in the public demo. The demo data resets every night at 03:00 UTC.',
+            'message' => 'flash.demo.workspace_delete_disabled',
         ],
 
         // US-TEN-03, adăugat de pachetul „Membri și roluri" (nu era în tabelul §22.2
@@ -47,7 +54,7 @@ final class DemoMode
         // necondiționat de BR-TEN-01, cu sau fără DEMO_MODE).
         'members.deactivate' => [
             'routes' => ['settings.members.deactivate'],
-            'message' => 'Deactivating a member is disabled in the public demo — these are the shared logins other visitors use.',
+            'message' => 'flash.demo.members_deactivate_disabled',
         ],
 
         // §22.2, rândul „Eliminarea ultimului Owner" („Ar bloca accesul — deja prevenit de
@@ -74,7 +81,7 @@ final class DemoMode
             // variante plauzibile dacă ruta e vreodată redenumită; `DemoModeGuardrailsPhase5Test`
             // semnalează orice al patrulea nume care ar apărea neguardat.
             'routes' => ['settings.members.role.update', 'settings.members.role', 'settings.members.update-role'],
-            'message' => "Changing a member's role is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)",
+            'message' => 'flash.demo.members_change_role_disabled',
         ],
 
         // NU include `settings.members.invitations.destroy` (revocarea unei invitații încă
@@ -83,7 +90,7 @@ final class DemoMode
         // nouă. §22.2 vorbește despre eliminarea unui OWNER existent.
         'members.remove' => [
             'routes' => ['settings.members.destroy'],
-            'message' => 'Removing a member is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)',
+            'message' => 'flash.demo.members_remove_disabled',
         ],
 
         // §22.2, rândul „Revocarea în masă a tuturor jetoanelor API" („Amploare
@@ -96,7 +103,7 @@ final class DemoMode
         // de mai jos — vezi raportul lotului.
         'api-tokens.revoke-all' => [
             'routes' => ['settings.api-tokens.destroy-all', 'settings.api-tokens.revoke-all'],
-            'message' => 'Revoking every API token at once is disabled in the public demo. Revoke tokens one by one instead.',
+            'message' => 'flash.demo.api_tokens_revoke_all_disabled',
         ],
 
         // §22.2, rândul „Anularea reală a abonamentului Stripe" („Rulează oricum în test
@@ -105,7 +112,7 @@ final class DemoMode
         // Customer Portal. Numele e fixat de acum, ca la `workspace.destroy`.
         'subscription.cancel' => [
             'routes' => ['settings.billing.cancel', 'settings.subscription.cancel'],
-            'message' => 'Cancelling the subscription is disabled in the public demo. Billing runs in Stripe test mode here, so there is nothing real to cancel.',
+            'message' => 'flash.demo.subscription_cancel_disabled',
         ],
     ];
 
@@ -140,7 +147,7 @@ final class DemoMode
 
     public static function refusal(string $action): string
     {
-        return self::GUARDED_ACTIONS[$action]['message'];
+        return __(self::GUARDED_ACTIONS[$action]['message']);
     }
 
     /**
@@ -159,12 +166,25 @@ final class DemoMode
         return $cap !== null && $rows > $cap;
     }
 
+    /**
+     * ADR-022, Lot I18N Val 2 — singurul apelant e `ValidationException::withMessages()`
+     * din `App\Actions\Bulk\DispatchBulkOperationAction` (verificat: nicio altă utilizare
+     * în cod), deci mesajul trece prin `rules.bulk.demo_row_cap`, nu prin `sprintf()` brut.
+     * `GUARDED_ACTIONS[...]['message']`/`refusal()` de mai sus au fost traduse separat,
+     * pe `lang/{en,fr}/flash.php` (namespace `demo.*`): sunt mesaje FLASH
+     * (`back()->with('error', ...)`/`abort(403, ...)`), un alt domeniu al lotului I18N
+     * (nu regulă de business prin `ValidationException`) — de-asta au un catalog propriu.
+     */
     public static function bulkRowCapRefusal(int $rows): string
     {
-        return sprintf(
-            'This operation would touch %s rows. The public demo caps bulk operations at %s rows.',
-            number_format($rows),
-            number_format((int) self::bulkRowCap()),
-        );
+        // `count` suprascris explicit (formatat cu separator de mii) — `trans_choice()`
+        // folosește `$rows` BRUT (parametrul de mai jos) doar ca să aleagă forma
+        // singular/plural, apoi înlocuiește `:count` cu ce găsește în `$replace['count']`,
+        // dacă e prezent (`Translator::choice()`) — EXACT `number_format($rows)` de dinainte
+        // de mutare, păstrat identic.
+        return trans_choice('rules.bulk.demo_row_cap', $rows, [
+            'count' => number_format($rows),
+            'cap' => number_format((int) self::bulkRowCap()),
+        ]);
     }
 }

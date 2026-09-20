@@ -54,27 +54,33 @@ class PlanDataExportJob implements ShouldQueue
 
     public function handle(): void
     {
-        $claimed = TenantContext::run($this->tenantId, function (): bool {
-            $export = DataExportRequest::query()->find($this->dataExportRequestId);
+        // ADR-022, specs.md §15.8 FR-I18N-05 — rezolvat AICI, la planificare, nu recitit
+        // în `FinalizeDataExportJob::handle()`: `requestedBy` e cel mai devreme punct la
+        // care avem sigur, sub context, cine a cerut exportul — exact simetric cu
+        // `tenantId`/`dataExportRequestId`, rezolvate tot aici și transmise mai departe ca
+        // scalari (ADR-013/014), nu recitite dintr-un model User serializat.
+        $claimed = TenantContext::run($this->tenantId, function (): array {
+            $export = DataExportRequest::query()->with('requestedBy')->find($this->dataExportRequestId);
 
             // Rândul poate lipsi (reset de demo, tenant șters) sau poate fi deja preluat de
             // o livrare duplicată a aceluiași job — în ambele cazuri jobul se oprește
             // liniștit, nu eșuează zgomotos.
             if ($export === null || $export->status !== DataExportRequest::STATUS_QUEUED) {
-                return false;
+                return ['ok' => false, 'locale' => 'en'];
             }
 
             $export->update(['status' => DataExportRequest::STATUS_PROCESSING]);
 
-            return true;
+            return ['ok' => true, 'locale' => $export->requestedBy?->locale ?? 'en'];
         });
 
-        if (! $claimed) {
+        if (! $claimed['ok']) {
             return;
         }
 
         $tenantId = $this->tenantId;
         $requestId = $this->dataExportRequestId;
+        $locale = $claimed['locale'];
 
         $jobs = array_map(
             static fn (string $name): ExportTenantEntityJob => new ExportTenantEntityJob($tenantId, $requestId, $name),
@@ -85,8 +91,8 @@ class PlanDataExportJob implements ShouldQueue
             Bus::batch($jobs)
                 ->name('gdpr-export:'.$requestId)
                 ->onQueue('bulk')
-                ->finally(function (Batch $batch) use ($tenantId, $requestId): void {
-                    FinalizeDataExportJob::dispatch($tenantId, $requestId, $batch->id)->onQueue('bulk');
+                ->finally(function (Batch $batch) use ($tenantId, $requestId, $locale): void {
+                    FinalizeDataExportJob::dispatch($tenantId, $requestId, $batch->id, $locale)->onQueue('bulk');
                 })
                 ->dispatch();
         } catch (Throwable $e) {

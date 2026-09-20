@@ -74,7 +74,18 @@ final class ContactList extends ResourceList implements ExportableList
     /** @return list<string> */
     public function exportHeaders(): array
     {
-        return ['First name', 'Last name', 'Email', 'Phone', 'Title', 'Account', 'Primary contact', 'Marketing opt-out', 'Created at'];
+        // FR-I18N-04 — vezi nota din `AccountList::exportHeaders()`.
+        return [
+            __('exports.contacts.first_name'),
+            __('exports.contacts.last_name'),
+            __('exports.contacts.email'),
+            __('exports.contacts.phone'),
+            __('exports.contacts.title'),
+            __('exports.contacts.account'),
+            __('exports.contacts.primary_contact'),
+            __('exports.contacts.marketing_opt_out'),
+            __('exports.contacts.created_at'),
+        ];
     }
 
     /**

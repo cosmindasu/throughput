@@ -56,7 +56,7 @@ final class TransferStockAction
             // acest moment. Eroare de STARE (422), nu de drept — mesajul ajunge pe câmp.
             if ($sourceLevel->on_hand < $quantity) {
                 throw ValidationException::withMessages([
-                    'quantity' => "Only {$sourceLevel->on_hand} on hand at the source location.",
+                    'quantity' => trans_choice('rules.stock.insufficient_at_source', $sourceLevel->on_hand),
                 ]);
             }
 

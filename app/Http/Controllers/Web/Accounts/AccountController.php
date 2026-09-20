@@ -123,7 +123,7 @@ final class AccountController extends Controller
             return $account;
         });
 
-        return redirect()->route('accounts.show', $account)->with('success', 'Account created.');
+        return redirect()->route('accounts.show', $account)->with('success', __('flash.accounts.created'));
     }
 
     public function show(Request $request, Account $account): Response
@@ -168,7 +168,7 @@ final class AccountController extends Controller
     {
         $account->update($request->validated());
 
-        return redirect()->route('accounts.show', $account)->with('success', 'Account updated.');
+        return redirect()->route('accounts.show', $account)->with('success', __('flash.accounts.updated'));
     }
 
     public function destroy(Account $account): RedirectResponse
@@ -181,7 +181,7 @@ final class AccountController extends Controller
 
         $account->delete();
 
-        return redirect()->route('accounts.index')->with('success', 'Account deleted.');
+        return redirect()->route('accounts.index')->with('success', __('flash.accounts.deleted'));
     }
 
     /**

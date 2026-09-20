@@ -48,7 +48,7 @@ final class CreateShipmentAction
 
             if (! in_array($locked->status, [OrderStatus::Confirmed, OrderStatus::PartiallyFulfilled], true)) {
                 throw ValidationException::withMessages([
-                    'status' => "Shipments can only be created from a confirmed or partially fulfilled order (currently {$locked->status->label()}).",
+                    'status' => trans('rules.shipments.invalid_status_for_creation', ['status' => $locked->status->label()]),
                 ]);
             }
 
@@ -59,7 +59,7 @@ final class CreateShipmentAction
 
             if ($requested === []) {
                 throw ValidationException::withMessages([
-                    'lines' => 'Choose a quantity greater than zero on at least one line.',
+                    'lines' => trans('rules.shipments.choose_quantity'),
                 ]);
             }
 
@@ -85,7 +85,7 @@ final class CreateShipmentAction
 
                 if ($line === null) {
                     throw ValidationException::withMessages([
-                        'lines' => 'One of the selected lines no longer belongs to this order.',
+                        'lines' => trans('rules.shipments.line_not_in_order'),
                     ]);
                 }
 
@@ -93,7 +93,7 @@ final class CreateShipmentAction
 
                 if ($quantity > $remaining) {
                     throw ValidationException::withMessages([
-                        "lines.{$orderLineId}" => "Only {$remaining} left to ship on this line.",
+                        "lines.{$orderLineId}" => trans_choice('rules.shipments.remaining_to_ship', $remaining),
                     ]);
                 }
 

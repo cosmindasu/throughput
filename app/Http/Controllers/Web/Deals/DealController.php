@@ -140,7 +140,7 @@ class DealController extends Controller
 
         $deal = $action->execute($data, $request->user());
 
-        return redirect()->route('deals.show', $deal)->with('success', 'Deal created.');
+        return redirect()->route('deals.show', $deal)->with('success', __('flash.deals.created'));
     }
 
     public function show(Request $request, Deal $deal): Response
@@ -280,7 +280,7 @@ class DealController extends Controller
 
         $deal->save();
 
-        return redirect()->route('deals.show', $deal)->with('success', 'Deal updated.');
+        return redirect()->route('deals.show', $deal)->with('success', __('flash.deals.updated'));
     }
 
     public function destroy(Deal $deal): RedirectResponse
@@ -289,7 +289,7 @@ class DealController extends Controller
 
         $deal->delete();
 
-        return redirect()->route('deals.index')->with('success', 'Deal deleted.');
+        return redirect()->route('deals.index')->with('success', __('flash.deals.deleted'));
     }
 
     /**

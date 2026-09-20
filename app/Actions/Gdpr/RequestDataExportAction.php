@@ -41,7 +41,7 @@ final class RequestDataExportAction
 
         if ($inProgress) {
             throw ValidationException::withMessages([
-                'export' => 'This workspace already has a data export running. Wait for it to finish before requesting another one.',
+                'export' => trans('rules.gdpr.export_already_running'),
             ]);
         }
 

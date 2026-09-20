@@ -70,13 +70,13 @@ final class ActivateCarrierAction
 
                 if ($apiKey === null) {
                     throw ValidationException::withMessages([
-                        'credentials.api_key' => 'Add a Shippo API key before activating this provider.',
+                        'credentials.api_key' => trans('rules.shipping.api_key_required'),
                     ]);
                 }
 
                 if (! preg_match(self::SHIPPO_SANDBOX_KEY_PATTERN, $apiKey)) {
                     throw ValidationException::withMessages([
-                        'credentials.api_key' => 'Only Shippo sandbox keys (shippo_test_...) are accepted in this deployment — never a live key.',
+                        'credentials.api_key' => trans('rules.shipping.sandbox_key_only'),
                     ]);
                 }
 

@@ -26,6 +26,6 @@ final class RetryShippingLabelController extends Controller
 
         $action->execute($shipment);
 
-        return redirect()->route('orders.show', $order)->with('success', 'Retrying the shipping label.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.shipments.retrying_label'));
     }
 }

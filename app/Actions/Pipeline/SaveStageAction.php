@@ -28,7 +28,7 @@ final class SaveStageAction
     {
         if ($data['is_won'] && $data['is_lost']) {
             throw ValidationException::withMessages([
-                'is_lost' => 'A stage cannot be marked as both Won and Lost.',
+                'is_lost' => trans('rules.pipeline.both_won_and_lost'),
             ]);
         }
 
@@ -56,11 +56,11 @@ final class SaveStageAction
             $this->ensureNameIsUnique($pipeline, $data['name'], $stage);
 
             if ($data['is_won']) {
-                $this->ensureNoOtherStageHasFlag($pipeline, 'is_won', $stage, 'Won');
+                $this->ensureNoOtherStageHasFlag($pipeline, 'is_won', $stage, 'won');
             }
 
             if ($data['is_lost']) {
-                $this->ensureNoOtherStageHasFlag($pipeline, 'is_lost', $stage, 'Lost');
+                $this->ensureNoOtherStageHasFlag($pipeline, 'is_lost', $stage, 'lost');
             }
 
             if ($stage === null) {
@@ -87,12 +87,17 @@ final class SaveStageAction
 
         if ($exists) {
             throw ValidationException::withMessages([
-                'name' => "A stage named \"{$name}\" already exists in this pipeline.",
+                'name' => trans('rules.pipeline.name_taken', ['name' => $name]),
             ]);
         }
     }
 
-    private function ensureNoOtherStageHasFlag(Pipeline $pipeline, string $flag, ?Stage $ignoring, string $label): void
+    /**
+     * @param  string  $flagKey  'won'|'lost' — cheia din `rules.pipeline.flags`, NU eticheta
+     *                           afișată direct: traducerea se face AICI, o singură dată,
+     *                           ca apelanții să nu poarte text englezesc brut.
+     */
+    private function ensureNoOtherStageHasFlag(Pipeline $pipeline, string $flag, ?Stage $ignoring, string $flagKey): void
     {
         $exists = $pipeline->stages()
             ->where($flag, true)
@@ -101,7 +106,7 @@ final class SaveStageAction
 
         if ($exists) {
             throw ValidationException::withMessages([
-                $flag => "This pipeline already has a stage marked as {$label}.",
+                $flag => trans('rules.pipeline.flag_taken', ['label' => trans("rules.pipeline.flags.{$flagKey}")]),
             ]);
         }
     }

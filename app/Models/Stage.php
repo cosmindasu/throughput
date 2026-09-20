@@ -61,14 +61,17 @@ class Stage extends Model
     {
         $dealsCount ??= $this->deals()->count();
 
+        // ADR-022, Lot I18N Val 2 — era un ternar pe `=== 1`, exact capcana centrală
+        // semnalată la deschiderea lotului: corect din întâmplare în engleză (unde doar
+        // 1 e singular), dar greșit din start pe franceză, unde 0 ȘI 1 sunt singular
+        // (`Illuminate\Translation\MessageSelector::getPluralIndex()`, cazul `fr`).
+        // `trans_choice()` respectă regula fiecărei limbi, nu doar pe cea engleză.
         if ($dealsCount > 0) {
-            return $dealsCount === 1
-                ? 'This stage has 1 deal on it. Move that deal to another stage before deleting it.'
-                : "This stage has {$dealsCount} deals on it. Move them to another stage before deleting it.";
+            return trans_choice('flash.stages.deletion_blocked_deals_present', $dealsCount, ['count' => $dealsCount]);
         }
 
         if ($hasDealHistory ?? $this->hasDealHistory()) {
-            return "Deals have passed through this stage before, and their stage history still points at it, so it can't be deleted. You can rename it instead.";
+            return __('flash.stages.deletion_blocked_deal_history');
         }
 
         return null;

@@ -95,7 +95,7 @@ class ContactController extends Controller
 
         return redirect()
             ->route('contacts.show', $contact)
-            ->with('success', 'Contact created.');
+            ->with('success', __('flash.contacts.created'));
     }
 
     public function show(Request $request, Contact $contact): Response
@@ -153,7 +153,7 @@ class ContactController extends Controller
 
         return redirect()
             ->route('contacts.show', $contact)
-            ->with('success', 'Contact updated.');
+            ->with('success', __('flash.contacts.updated'));
     }
 
     /**
@@ -169,8 +169,8 @@ class ContactController extends Controller
         return redirect()->route('contacts.index')->with(
             'success',
             $anonymized
-                ? 'Contact anonymized — it is referenced by deals or orders, so its personal data was removed and the record kept.'
-                : 'Contact deleted.',
+                ? __('flash.contacts.anonymized')
+                : __('flash.contacts.deleted'),
         );
     }
 

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 #[Fillable(['name', 'category', 'unit_of_measure', 'is_active'])]
 class Product extends Model
@@ -36,6 +35,10 @@ class Product extends Model
      * `DELETE` necondiționat pe un produs cu variante ce au istoric ar cădea pe
      * constrângerea de FK în mijlocul cascadei, cu un 500 brut de la Postgres în loc
      * de un mesaj citibil.
+     *
+     * ADR-022, Lot I18N Val 2 — `trans_choice()` în loc de `Str::plural()`, aceeași
+     * motivație ca `Account::deletionBlockedReason()`: `Str::plural()` nu urmărește
+     * `App::getLocale()`, deci ar produce gramatică englezească pe o interfață franceză.
      */
     public function deletionBlockedReason(): ?string
     {
@@ -49,13 +52,17 @@ class Product extends Model
         $parts = [];
 
         if ($withMovements > 0) {
-            $parts[] = $withMovements.' '.Str::plural('variant', $withMovements).' with stock history';
+            $parts[] = trans_choice('flash.products.deletion_blocked_stock_history_clause', $withMovements, ['count' => $withMovements]);
         }
 
         if ($withOrders > 0) {
-            $parts[] = $withOrders.' '.Str::plural('variant', $withOrders).' used on orders';
+            $parts[] = trans_choice('flash.products.deletion_blocked_used_on_orders_clause', $withOrders, ['count' => $withOrders]);
         }
 
-        return 'This product cannot be deleted: it has '.implode(' and ', $parts).'.';
+        $joinedParts = count($parts) === 2
+            ? $parts[0].' '.__('flash.common.list_and').' '.$parts[1]
+            : $parts[0];
+
+        return __('flash.products.deletion_blocked', ['parts' => $joinedParts]);
     }
 }

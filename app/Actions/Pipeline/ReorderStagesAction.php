@@ -30,7 +30,7 @@ final class ReorderStagesAction
 
         if (count(array_unique($orderedStageIds)) !== count($orderedStageIds)) {
             throw ValidationException::withMessages([
-                'stage_ids' => 'The stage order cannot repeat the same stage twice.',
+                'stage_ids' => trans('rules.pipeline.duplicate_stage_order'),
             ]);
         }
 
@@ -40,7 +40,7 @@ final class ReorderStagesAction
 
         if ($sortedRequested !== $existingIds) {
             throw ValidationException::withMessages([
-                'stage_ids' => 'The stage order must list every stage of this pipeline, exactly once, and no others.',
+                'stage_ids' => trans('rules.pipeline.stage_order_mismatch'),
             ]);
         }
 

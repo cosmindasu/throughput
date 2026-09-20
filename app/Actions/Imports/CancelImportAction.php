@@ -35,7 +35,7 @@ final class CancelImportAction
 
         if ($updated === 0) {
             throw ValidationException::withMessages([
-                'status' => 'This import has already finished and cannot be cancelled.',
+                'status' => trans('rules.imports.already_finished'),
             ]);
         }
 

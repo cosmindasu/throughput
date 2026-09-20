@@ -86,7 +86,7 @@ final class ProductController extends Controller
         $product = new Product($request->validated());
         $product->save();
 
-        return redirect()->route('products.show', $product)->with('success', 'Product created.');
+        return redirect()->route('products.show', $product)->with('success', __('flash.products.created'));
     }
 
     public function show(Request $request, Product $product): Response
@@ -120,7 +120,7 @@ final class ProductController extends Controller
     {
         $product->update($request->validated());
 
-        return redirect()->route('products.show', $product)->with('success', 'Product updated.');
+        return redirect()->route('products.show', $product)->with('success', __('flash.products.updated'));
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -133,6 +133,6 @@ final class ProductController extends Controller
 
         $product->delete();
 
-        return redirect()->route('products.index')->with('success', 'Product deleted.');
+        return redirect()->route('products.index')->with('success', __('flash.products.deleted'));
     }
 }

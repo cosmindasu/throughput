@@ -62,7 +62,7 @@ final class MarkShipmentShippedAction
 
             if ($locked->status !== Shipment::STATUS_LABEL_PURCHASED) {
                 throw ValidationException::withMessages([
-                    'status' => "Only a shipment with a purchased label can be marked as shipped (currently {$locked->status}).",
+                    'status' => trans('rules.shipments.mark_shipped_requires_label_purchased', ['status' => $locked->status]),
                 ]);
             }
 
@@ -70,7 +70,7 @@ final class MarkShipmentShippedAction
 
             if ($lines->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'lines' => 'This shipment has no lines.',
+                    'lines' => trans('rules.shipments.no_lines'),
                 ]);
             }
 
@@ -95,7 +95,7 @@ final class MarkShipmentShippedAction
 
                 if ($qty > $available) {
                     throw ValidationException::withMessages([
-                        'quantity' => "Not enough stock on hand to ship this: {$available} on hand, {$qty} requested.",
+                        'quantity' => trans('rules.shipments.insufficient_stock', ['available' => $available, 'requested' => $qty]),
                     ]);
                 }
             }
@@ -155,7 +155,10 @@ final class MarkShipmentShippedAction
 
         if (! $order->status->canTransitionTo($target)) {
             throw ValidationException::withMessages([
-                'status' => "This order can't move to {$target->label()} from its current status ({$order->status->label()}).",
+                'status' => trans('rules.orders.cannot_transition', [
+                    'target' => $target->label(),
+                    'status' => $order->status->label(),
+                ]),
             ]);
         }
 

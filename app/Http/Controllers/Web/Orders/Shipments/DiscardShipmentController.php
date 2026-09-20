@@ -26,6 +26,6 @@ final class DiscardShipmentController extends Controller
 
         $action->execute($shipment);
 
-        return redirect()->route('orders.show', $order)->with('success', 'Shipment discarded.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.shipments.discarded'));
     }
 }

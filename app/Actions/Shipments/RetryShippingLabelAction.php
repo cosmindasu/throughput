@@ -30,7 +30,7 @@ final class RetryShippingLabelAction
 
             if ($locked->status !== Shipment::STATUS_LABEL_FAILED) {
                 throw ValidationException::withMessages([
-                    'status' => "Only a shipment whose label failed can be retried (currently {$locked->status}).",
+                    'status' => trans('rules.shipments.retry_requires_label_failed', ['status' => $locked->status]),
                 ]);
             }
 
@@ -44,7 +44,7 @@ final class RetryShippingLabelAction
 
                 if ($committed > $orderLine->quantity) {
                     throw ValidationException::withMessages([
-                        'lines' => 'This line no longer has room for this shipment — discard it and create a new one for what is actually left.',
+                        'lines' => trans('rules.shipments.line_no_room'),
                     ]);
                 }
             }

@@ -89,7 +89,7 @@ final class ApiTokenController extends Controller
 
         return redirect()
             ->route('settings.api-tokens.index')
-            ->with('success', 'API token created. Copy it now — it is not shown again.')
+            ->with('success', __('flash.api_tokens.created'))
             ->with('plainTextToken', $plainTextToken);
     }
 
@@ -106,13 +106,13 @@ final class ApiTokenController extends Controller
         if ($token->isRevoked()) {
             return redirect()
                 ->route('settings.api-tokens.index')
-                ->with('success', 'That token was already revoked.');
+                ->with('success', __('flash.api_tokens.already_revoked'));
         }
 
         $token->revoke();
 
         return redirect()
             ->route('settings.api-tokens.index')
-            ->with('success', 'API token revoked. Any integration using it stops working immediately.');
+            ->with('success', __('flash.api_tokens.revoked'));
     }
 }

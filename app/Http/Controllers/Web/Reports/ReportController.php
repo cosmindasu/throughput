@@ -82,7 +82,7 @@ final class ReportController extends Controller
         $report->created_by = $request->user()->getKey();
         $report->save();
 
-        return redirect()->route('reports.show', $report)->with('success', 'Report created.');
+        return redirect()->route('reports.show', $report)->with('success', __('flash.reports.created'));
     }
 
     public function show(Request $request, ReportDefinition $report): Response
@@ -126,7 +126,7 @@ final class ReportController extends Controller
     {
         $report->update($this->fillableFromValidated($request->validated()));
 
-        return redirect()->route('reports.show', $report)->with('success', 'Report updated.');
+        return redirect()->route('reports.show', $report)->with('success', __('flash.reports.updated'));
     }
 
     public function destroy(ReportDefinition $report): RedirectResponse
@@ -135,7 +135,7 @@ final class ReportController extends Controller
 
         $report->delete();
 
-        return redirect()->route('reports.index')->with('success', 'Report deleted.');
+        return redirect()->route('reports.index')->with('success', __('flash.reports.deleted'));
     }
 
     /**
@@ -155,7 +155,7 @@ final class ReportController extends Controller
 
         GenerateReportJob::dispatch(app('tenant')->getKey(), $run->getKey())->onQueue('default');
 
-        return redirect()->route('reports.show', $report)->with('success', 'Report queued — this page will update automatically.');
+        return redirect()->route('reports.show', $report)->with('success', __('flash.reports.queued'));
     }
 
     /**

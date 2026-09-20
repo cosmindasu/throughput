@@ -34,7 +34,7 @@ final class RegisterPaymentAction
 
             if (! in_array($locked->status, [Invoice::STATUS_SENT, Invoice::STATUS_OVERDUE], true)) {
                 throw ValidationException::withMessages([
-                    'status' => 'A payment can only be recorded against a sent or overdue invoice.',
+                    'status' => trans('rules.invoices.only_sent_or_overdue_can_receive_payment'),
                 ]);
             }
 
@@ -47,8 +47,15 @@ final class RegisterPaymentAction
             // TOCTOU generic pe care restul proiectului îl tratează cu blocare, nu doar
             // cu validare la intrare).
             if ($amount > $currentBalance) {
+                // `:amount`/`:balance` deja formatate cu '$' — EXACT stringificarea folosită
+                // înainte de mutare (interpolare directă a unui float rotunjit, nu
+                // `number_format()`); formatarea locale-aware a monedei (FR-I18N-03) e a
+                // Valului 3 (frontend), nu a acestui lot de backend.
                 throw ValidationException::withMessages([
-                    'amount' => "This payment (\${$amount}) exceeds the remaining balance (\${$currentBalance}).",
+                    'amount' => trans('rules.invoices.payment_exceeds_balance', [
+                        'amount' => '$'.$amount,
+                        'balance' => '$'.$currentBalance,
+                    ]),
                 ]);
             }
 

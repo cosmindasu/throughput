@@ -21,14 +21,21 @@ final class SubscriptionUnpaidMail extends Mailable
     public function __construct(
         public readonly string $tenantName,
         public readonly string $workspaceSlug,
+        // ADR-022, specs.md §15.8 FR-I18N-05 — aceeași notă ca `DunningPaymentFailedMail`:
+        // destinatarii sunt un ARRAY de Owner-i, nerezolvat automat de `Mail::to()`.
+        // NEcablat încă la apelantul real
+        // (`App\Listeners\Billing\SendSubscriptionUnpaidEmail`, în afara perimetrului
+        // acestui lot). `null` păstrează comportamentul actual.
+        ?string $locale = null,
     ) {
         $this->attributeSentEmailToCurrentTenant();
+        $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Action needed: {$this->tenantName} subscription is unpaid",
+            subject: trans('mail.subscription_unpaid.subject', ['tenant' => $this->tenantName], $this->locale),
         );
     }
 

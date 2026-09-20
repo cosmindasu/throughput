@@ -23,6 +23,6 @@ final class ConfirmOrderController extends Controller
 
         $confirmed = $action->execute($order, $request->acknowledgesBackorder());
 
-        return redirect()->route('orders.show', $confirmed)->with('success', 'Order confirmed.');
+        return redirect()->route('orders.show', $confirmed)->with('success', __('flash.orders.confirmed'));
     }
 }

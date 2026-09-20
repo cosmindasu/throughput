@@ -128,6 +128,16 @@ test('Esc înainte ca input-ul să apuce focusul tot închide paleta și readuce
     const trigger = page.getByRole('button', { name: 'Search' });
     const dialog = page.getByRole('dialog', { name: 'Global search' });
 
+    // Ancoră înainte de tastă, adăugată după ce testul a picat în suita completă (dar NU
+    // izolat, unde ia ~270 ms): `goto()` întoarce când documentul e gata, nu când React a
+    // montat și a atașat listener-ul global de `keydown`. Fără ea, testul afirma implicit
+    // că scurtătura merge ÎNAINTE de hidratare — ceva ce nicio aplicație Inertia nu
+    // promite și niciun utilizator real nu păție: el vede butonul, apoi apasă. Testul
+    // vecin (linia 30) ajunge hidratat din întâmplare, fiindcă face muncă prin UI înainte
+    // de `Cmd+K`; ăsta nu făcea nimic, deci pierdea cursa sub încărcarea suitei paralele.
+    // Ancora verifică precondiția reală, nu introduce o pauză fixă.
+    await expect(trigger).toBeVisible();
+
     await page.keyboard.press('ControlOrMeta+K');
     await expect(dialog).toBeVisible();
 

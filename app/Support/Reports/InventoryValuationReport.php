@@ -40,7 +40,8 @@ final class InventoryValuationReport implements BuiltInReport
 
     public function title(): string
     {
-        return 'Inventory Valuation';
+        // FR-I18N-04 (ADR-022) — vezi comentariul identic din `DealVelocityReport::title()`.
+        return __('reports.inventory_valuation.title');
     }
 
     public function exposesCost(): bool
@@ -50,7 +51,12 @@ final class InventoryValuationReport implements BuiltInReport
 
     public function columns(): array
     {
-        return ['Location', 'Category', 'On hand (units)', 'Total value'];
+        return [
+            __('reports.inventory_valuation.columns.location'),
+            __('reports.inventory_valuation.columns.category'),
+            __('reports.inventory_valuation.columns.on_hand_units'),
+            __('reports.inventory_valuation.columns.total_value'),
+        ];
     }
 
     public function rows(): array
@@ -67,8 +73,8 @@ final class InventoryValuationReport implements BuiltInReport
         $grouped = [];
 
         foreach ($levels as $level) {
-            $locationName = $level->location?->name ?? 'Unknown location';
-            $category = $level->variant?->product?->category ?? 'Uncategorized';
+            $locationName = $level->location?->name ?? __('reports.inventory_valuation.unknown_location');
+            $category = $level->variant?->product?->category ?? __('reports.inventory_valuation.uncategorized');
             $key = $locationName."\0".$category;
 
             $grouped[$key] ??= ['location' => $locationName, 'category' => $category, 'onHand' => 0, 'value' => 0.0];

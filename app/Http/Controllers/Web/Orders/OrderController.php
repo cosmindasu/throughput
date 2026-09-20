@@ -156,7 +156,7 @@ final class OrderController extends Controller
 
         $order = $action->execute($data, $request->user());
 
-        return redirect()->route('orders.show', $order)->with('success', 'Order created.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.created'));
     }
 
     public function show(Request $request, Order $order): Response
@@ -256,7 +256,7 @@ final class OrderController extends Controller
 
         $action->execute($order, $data);
 
-        return redirect()->route('orders.show', $order)->with('success', 'Order updated.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.updated'));
     }
 
     public function destroy(Order $order): RedirectResponse
@@ -265,7 +265,7 @@ final class OrderController extends Controller
 
         $order->delete();
 
-        return redirect()->route('orders.index')->with('success', 'Order deleted.');
+        return redirect()->route('orders.index')->with('success', __('flash.orders.deleted'));
     }
 
     private function ownerOptions(): AnonymousResourceCollection

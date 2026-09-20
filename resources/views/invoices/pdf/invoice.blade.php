@@ -11,12 +11,23 @@
     `$invoice` vine cu `order.account`, `order.contact`, `order.orderLines.variant.product`
     și `tenant` deja eager-load-uite de job — niciun acces la altă relație aici, ca să nu
     declanșeze o interogare lazy în afara contextului de tenant (vezi docblock-ul jobului).
+
+    I18N (FR-I18N-04, ADR-022, lot dedicat) — textul fix trece prin catalog
+    (`lang/{en,fr}/pdf.php`, namespace `pdf.invoice.*`); traducerea de facturare e
+    terminologie specializată, semnalată explicit „⚠ NATIV" în `lang/fr/pdf.php` pentru
+    revizia proprietarului. Starea facturii (`pdf.invoice.status.*`) oglindește EXACT cele
+    5 valori `Invoice::STATUS_*` (coloană enum în schemă) — nicio a șasea valoare posibilă.
+
+    `<html lang>` citește `app()->getLocale()` direct — motivul identic celor două șabloane
+    mirror (`exports/pdf/list.blade.php`, `reports/pdf/built-in.blade.php`): locale-ul e deja
+    fixat de `GenerateInvoicePdfJob` (FR-I18N-05, cod din afara perimetrului acestui lot)
+    înainte de randare.
 --}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="utf-8">
-<title>Invoice {{ $invoice->invoice_number }}</title>
+<title>{{ __('pdf.invoice.title', ['number' => $invoice->invoice_number]) }}</title>
 <style>
     @page {
         margin: 18mm 16mm;
@@ -129,34 +140,36 @@
     <table class="header">
         <tr>
             <td>
-                <h1>{{ $invoice->tenant?->name ?? 'Invoice' }}</h1>
-                <div class="muted">Invoice {{ $invoice->invoice_number }}</div>
+                <h1>{{ $invoice->tenant?->name ?? __('pdf.invoice.fallback_tenant_name') }}</h1>
+                <div class="muted">{{ __('pdf.invoice.title', ['number' => $invoice->invoice_number]) }}</div>
             </td>
             <td class="right">
-                <span class="status">{{ strtoupper($invoice->status) }}</span>
+                {{-- Cheile oglindesc exact `Invoice::STATUS_*` (coloană enum în schemă) —
+                     nicio a șasea valoare posibilă, deci fără fallback defensiv aici. --}}
+                <span class="status">{{ Str::upper(__('pdf.invoice.status.'.$invoice->status)) }}</span>
             </td>
         </tr>
     </table>
 
     <table class="meta-table">
         <tr>
-            <td class="label">Bill to</td>
+            <td class="label">{{ __('pdf.invoice.bill_to') }}</td>
             <td>
                 {{ $invoice->order?->account?->name ?? '—' }}
                 @if ($invoice->order?->contact)
                     <br>
                     <span class="muted">
-                        {{ trim(($invoice->order->contact->first_name ?? '').' '.($invoice->order->contact->last_name ?? '')) ?: 'Anonymized contact' }}
+                        {{ trim(($invoice->order->contact->first_name ?? '').' '.($invoice->order->contact->last_name ?? '')) ?: __('pdf.invoice.anonymized_contact') }}
                     </span>
                 @endif
             </td>
-            <td class="label">Issue date</td>
+            <td class="label">{{ __('pdf.invoice.issue_date') }}</td>
             <td>{{ $invoice->issue_date?->toFormattedDateString() ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="label">Order</td>
+            <td class="label">{{ __('pdf.invoice.order') }}</td>
             <td>{{ $invoice->order?->order_number ?? '—' }}</td>
-            <td class="label">Due date</td>
+            <td class="label">{{ __('pdf.invoice.due_date') }}</td>
             <td>{{ $invoice->due_date?->toFormattedDateString() ?? '—' }}</td>
         </tr>
     </table>
@@ -164,11 +177,11 @@
     <table class="lines">
         <thead>
             <tr>
-                <th>Line</th>
-                <th class="numeric">Quantity</th>
-                <th class="numeric">Unit price</th>
-                <th class="numeric">Discount</th>
-                <th class="numeric">Line total</th>
+                <th>{{ __('pdf.invoice.line') }}</th>
+                <th class="numeric">{{ __('pdf.invoice.quantity') }}</th>
+                <th class="numeric">{{ __('pdf.invoice.unit_price') }}</th>
+                <th class="numeric">{{ __('pdf.invoice.discount') }}</th>
+                <th class="numeric">{{ __('pdf.invoice.line_total') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -182,7 +195,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" style="text-align: center; color: #777777;">No lines on the source order.</td>
+                    <td colspan="5" style="text-align: center; color: #777777;">{{ __('pdf.invoice.no_lines') }}</td>
                 </tr>
             @endforelse
         </tbody>
@@ -190,23 +203,23 @@
 
     <table class="totals">
         <tr>
-            <td class="label">Subtotal</td>
+            <td class="label">{{ __('pdf.invoice.subtotal') }}</td>
             <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->subtotal, 2) }}</td>
         </tr>
         <tr>
-            <td class="label">Tax</td>
+            <td class="label">{{ __('pdf.invoice.tax') }}</td>
             <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->tax_total, 2) }}</td>
         </tr>
         <tr class="grand">
-            <td class="label">Total</td>
+            <td class="label">{{ __('pdf.invoice.total') }}</td>
             <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}</td>
         </tr>
         <tr>
-            <td class="label">Paid</td>
+            <td class="label">{{ __('pdf.invoice.paid') }}</td>
             <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->amount_paid, 2) }}</td>
         </tr>
         <tr>
-            <td class="label">Balance due</td>
+            <td class="label">{{ __('pdf.invoice.balance_due') }}</td>
             <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->balance_due, 2) }}</td>
         </tr>
     </table>

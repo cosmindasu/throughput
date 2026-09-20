@@ -37,14 +37,27 @@ final class MemberInvitationMail extends Mailable
         public readonly string $roleName,
         public readonly string $acceptUrl,
         public readonly int $expiresInDays,
+        // ADR-022, specs.md §15.8 FR-I18N-05 — destinatarul NU are încă un cont
+        // (invitație), deci nu are `users.locale`: specificația cere limba-cookie a
+        // sesiunii care a trimis invitația, ca aproximare rezonabilă, fallback `en`.
+        // NEcablat încă la apelantul real (`App\Actions\Members\InviteMemberAction`,
+        // în afara perimetrului acestui lot — vezi raportul de livrare); `null` păstrează
+        // comportamentul actual (fallback pe locale-ul ambiental) până atunci.
+        ?string $locale = null,
     ) {
         // Ultima linie a constructorului, obligatoriu — vezi docblock-ul trait-ului.
         $this->attributeSentEmailToCurrentTenant();
+        $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "{$this->invitedByName} invited you to {$this->workspaceName} on Throughput");
+        return new Envelope(
+            subject: trans('mail.member_invitation.subject', [
+                'inviter' => $this->invitedByName,
+                'workspace' => $this->workspaceName,
+            ], $this->locale),
+        );
     }
 
     public function content(): Content

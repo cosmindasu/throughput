@@ -59,7 +59,7 @@ final class RecordStockMovementAction
             // `available` negativ, pe care BR-STOCK-04 îl exclude prin design.
             if ($level->on_hand + $delta < 0) {
                 throw ValidationException::withMessages([
-                    'delta' => "Only {$level->on_hand} on hand at this location; this change would take it below zero.",
+                    'delta' => trans_choice('rules.stock.negative_on_hand', $level->on_hand),
                 ]);
             }
 

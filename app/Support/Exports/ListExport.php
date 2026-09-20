@@ -57,7 +57,15 @@ final class ListExport
                 // crește e DURATA și dimensiunea arhivei. O a doua cheie de config, doar
                 // pentru asta, ar fi un buton în plus fără o măsurătoare în spate; când
                 // apare una, se desparte.
-                return back()->with('error', "This export has {$total} rows; {$format->value} export is capped at {$pdfCap}. Use CSV for larger exports.");
+                //
+                // FR-I18N-04 — `:format` NU e tradus (valoare tehnică, `ExportFormat::value`,
+                // identică cu parametrul de URL `?format=`). Pluralizat pe `:total`
+                // (`trans_choice()`, nu ternar/`Str::plural()`): capcana „0/1" pe franceză.
+                return back()->with('error', trans_choice('flash.exports.pdf_row_cap_exceeded', $total, [
+                    'total' => $total,
+                    'format' => $format->value,
+                    'cap' => $pdfCap,
+                ]));
             }
 
             return $this->startQueuedExport($request, $resourceType, $listQuery, $total, $format);
@@ -79,7 +87,7 @@ final class ListExport
     private function startQueuedExport(Request $request, string $resourceType, ListQuery $listQuery, int $total, ExportFormat $format): RedirectResponse
     {
         if (DemoMode::exceedsBulkRowCap($total)) {
-            return back()->with('error', 'This export exceeds the demo limit and cannot be started.');
+            return back()->with('error', __('flash.exports.demo_limit_exceeded'));
         }
 
         // §22.5 — 3 operații în masă concurente per utilizator, ACEEAȘI limită pentru toate
@@ -95,6 +103,14 @@ final class ListExport
             return back()->with('error', BulkConcurrencyGuard::refusal());
         }
 
+        // Notă (raportul lotului) — `BulkConcurrencyGuard::refusal()` întoarce acum un
+        // string TRADUS (`trans_choice('rules.bulk.concurrency_limit', ...)`), nu
+        // literalul englez de dinainte: schimbarea a fost făcută de un alt agent, în
+        // paralel, pe catalogul lui (`rules.*`, domeniul `ValidationException`), fiindcă
+        // `BulkConcurrencyGuard::refusal()` are doi apelanți — flash-ul de aici ȘI o
+        // `ValidationException::withMessages()` din `EnsureBulkConcurrencyLimit`. Flash-ul
+        // beneficiază tranzitiv, fără nicio schimbare necesară în ACEST fișier.
+
         $operation = BulkOperation::create([
             'user_id' => $request->user()->getKey(),
             'resource_type' => $resourceType,
@@ -109,6 +125,6 @@ final class ListExport
 
         ExportListJob::dispatch(app('tenant')->getKey(), $operation->getKey())->onQueue('bulk');
 
-        return redirect()->route('exports.show', $operation)->with('success', 'Export started — this page will update automatically.');
+        return redirect()->route('exports.show', $operation)->with('success', __('flash.exports.started'));
     }
 }

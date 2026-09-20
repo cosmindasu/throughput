@@ -47,29 +47,39 @@ final class VariantImportResource implements ImportableResource
         return 'Products/Variants';
     }
 
+    /** BR-I18N-01 — vezi docblock-ul identic din `AccountImportResource::fields()`. */
     public function fields(): array
     {
         return [
             new ImportField('sku', 'SKU', true, ['required', 'string', 'max:255'], [
                 'sku', 'product sku', 'item sku', 'variant sku',
+                // „SKU" rămâne des netradus în franceza de comerț/logistică; „référence"/
+                // „code article" sunt echivalentele uzuale — ambele adăugate.
+                'référence', 'code article', 'référence sku',
             ]),
             new ImportField('product_name', 'Product name', true, ['required', 'string', 'max:255'], [
                 'product name', 'product', 'item name',
+                'nom du produit', 'produit',
             ]),
             new ImportField('category', 'Category', false, ['nullable', 'string', 'max:255'], [
                 'category', 'product category',
+                'catégorie',
             ]),
             new ImportField('unit_of_measure', 'Unit of measure', false, ['nullable', Rule::in(self::UNITS)], [
                 'unit of measure', 'unit', 'uom',
+                'unité de mesure', 'unité',
             ]),
             new ImportField('price', 'Price', true, ['required', 'numeric', 'min:0'], [
                 'price', 'unit price', 'sale price',
+                'prix', 'prix unitaire', 'prix de vente',
             ]),
             new ImportField('cost', 'Cost', true, ['required', 'numeric', 'min:0'], [
                 'cost', 'unit cost',
+                'coût', 'coût unitaire',
             ]),
             new ImportField('weight', 'Weight', false, ['nullable', 'numeric', 'min:0'], [
                 'weight', 'item weight',
+                'poids',
             ]),
         ];
     }

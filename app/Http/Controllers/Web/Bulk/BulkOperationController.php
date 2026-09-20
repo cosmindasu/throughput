@@ -56,7 +56,7 @@ final class BulkOperationController extends Controller
 
         return redirect()
             ->route('bulk.show', $operation)
-            ->with('success', 'Bulk operation started — this page updates automatically.');
+            ->with('success', __('flash.bulk.reassign_owner_started'));
     }
 
     /**
@@ -89,7 +89,7 @@ final class BulkOperationController extends Controller
 
         return redirect()
             ->route('bulk.show', $operation)
-            ->with('success', 'Cancelling draft orders — this page updates automatically.');
+            ->with('success', __('flash.bulk.cancel_draft_orders_started'));
     }
 
     /** §13.5 — preț în masă pe variantele produselor selectate (procent/sumă, +/-). */
@@ -118,7 +118,7 @@ final class BulkOperationController extends Controller
 
         return redirect()
             ->route('bulk.show', $operation)
-            ->with('success', 'Updating prices — this page updates automatically.');
+            ->with('success', __('flash.bulk.update_price_started'));
     }
 
     /** §13.5 — activare/dezactivare în masă a produselor selectate. */
@@ -147,7 +147,7 @@ final class BulkOperationController extends Controller
 
         return redirect()
             ->route('bulk.show', $operation)
-            ->with('success', 'Updating product status — this page updates automatically.');
+            ->with('success', __('flash.bulk.set_active_started'));
     }
 
     public function show(BulkOperation $operation): Response
@@ -186,13 +186,13 @@ final class BulkOperationController extends Controller
         $fresh = $operation->fresh();
 
         if ($fresh === null) {
-            return back()->with('success', 'This operation no longer exists.');
+            return back()->with('success', __('flash.bulk.operation_missing'));
         }
 
         if ($fresh->batch_id !== null) {
             Bus::findBatch($fresh->batch_id)?->cancel();
 
-            return back()->with('success', 'Cancelling — rows already in progress will finish, the rest stop.');
+            return back()->with('success', __('flash.bulk.cancelling_in_progress'));
         }
 
         $cancelled = BulkOperation::query()
@@ -202,7 +202,7 @@ final class BulkOperationController extends Controller
             ->update(['status' => BulkOperation::STATUS_CANCELLED]);
 
         if ($cancelled > 0) {
-            return back()->with('success', 'Cancelled.');
+            return back()->with('success', __('flash.bulk.cancelled'));
         }
 
         // Am pierdut cursa: planificatorul a scris `batch_id` chiar între citirea de mai
@@ -214,9 +214,9 @@ final class BulkOperationController extends Controller
         if ($fresh?->batch_id !== null) {
             Bus::findBatch($fresh->batch_id)?->cancel();
 
-            return back()->with('success', 'Cancelling — rows already in progress will finish, the rest stop.');
+            return back()->with('success', __('flash.bulk.cancelling_in_progress'));
         }
 
-        return back()->with('success', 'This operation has already finished.');
+        return back()->with('success', __('flash.bulk.already_finished'));
     }
 }

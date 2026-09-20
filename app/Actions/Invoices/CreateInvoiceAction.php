@@ -43,7 +43,7 @@ final class CreateInvoiceAction
 
             if (! in_array($locked->status, [OrderStatus::Confirmed, OrderStatus::Fulfilled], true)) {
                 throw ValidationException::withMessages([
-                    'status' => "An invoice can only be created from a confirmed or fulfilled order (current status: {$locked->status->label()}).",
+                    'status' => trans('rules.invoices.invalid_status_for_creation', ['status' => $locked->status->label()]),
                 ]);
             }
 
@@ -58,7 +58,7 @@ final class CreateInvoiceAction
 
             if ($hasActiveInvoice) {
                 throw ValidationException::withMessages([
-                    'order_id' => 'This order already has an active invoice. Void it before creating a new one.',
+                    'order_id' => trans('rules.invoices.already_has_active'),
                 ]);
             }
 

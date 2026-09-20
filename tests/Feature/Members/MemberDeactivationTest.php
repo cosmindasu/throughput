@@ -133,7 +133,11 @@ class MemberDeactivationTest extends TestCase
         $this->actingAs($this->owner)
             ->post("/marlin/settings/members/{$this->membershipOf($jane)->getKey()}/deactivate", ['reassign' => false])
             ->assertRedirect('/marlin/settings/members')
-            ->assertSessionHas('success', fn (string $message) => str_contains($message, '3 record(s) need a new owner'));
+            // ADR-022, Lot I18N Val 2 — textul a trecut de la „3 record(s)" (ternar/
+            // concatenare) la `trans_choice()` pe cheia `flash.members.
+            // deactivated_with_open_records`: „3 records" (plural corect), nu mai
+            // „record(s)" cu paranteză.
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, '3 records need a new owner'));
 
         // Conturile lui Jane rămân atribuite ei (decizie deja luată — NU intră în calcul).
         $janeAccounts = TenantContext::run($this->marlin, fn () => Account::query()->where('owner_user_id', $jane->getKey())->count());

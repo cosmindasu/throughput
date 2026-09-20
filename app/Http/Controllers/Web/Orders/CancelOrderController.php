@@ -20,6 +20,6 @@ final class CancelOrderController extends Controller
 
         $cancelled = $action->execute($order);
 
-        return redirect()->route('orders.show', $cancelled)->with('success', 'Order cancelled.');
+        return redirect()->route('orders.show', $cancelled)->with('success', __('flash.orders.cancelled'));
     }
 }

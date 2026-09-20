@@ -26,7 +26,7 @@ final class DiscardShipmentAction
 
             if ($locked->status !== Shipment::STATUS_LABEL_FAILED) {
                 throw ValidationException::withMessages([
-                    'status' => "Only a shipment whose label failed can be discarded (currently {$locked->status}).",
+                    'status' => trans('rules.shipments.discard_requires_label_failed', ['status' => $locked->status]),
                 ]);
             }
 

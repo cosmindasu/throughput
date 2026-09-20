@@ -46,27 +46,29 @@ final class MoveDealStageAction
             // structurală stă aici, explicit.
             if ($to->pipeline_id !== $locked->pipeline_id) {
                 throw ValidationException::withMessages([
-                    'to_stage_id' => "This stage does not belong to the deal's pipeline.",
+                    'to_stage_id' => trans('rules.deals.stage_wrong_pipeline'),
                 ]);
             }
 
             if ($to->getKey() === $locked->stage_id) {
                 throw ValidationException::withMessages([
-                    'to_stage_id' => 'This deal is already on this stage.',
+                    'to_stage_id' => trans('rules.deals.already_on_stage'),
                 ]);
             }
 
             // Mesaj EXACT cerut de criteriul de acceptanță §9.3 — testul de contract
-            // și UI-ul depind de text, nu doar de statusul HTTP.
+            // și UI-ul depind de text, nu doar de statusul HTTP. Cheia catalogului
+            // păstrează exact același șir, fără punct final (vezi comentariul din
+            // `lang/en/rules.php`).
             if ($to->is_won && $locked->value === null) {
                 throw ValidationException::withMessages([
-                    'to_stage_id' => 'Set a deal value before marking as Won',
+                    'to_stage_id' => trans('rules.deals.value_required_for_won'),
                 ]);
             }
 
             if ($to->is_lost && ! in_array($lostReason, self::LOST_REASONS, true)) {
                 throw ValidationException::withMessages([
-                    'lost_reason' => 'Select a reason before marking this deal as Lost.',
+                    'lost_reason' => trans('rules.deals.lost_reason_required'),
                 ]);
             }
 

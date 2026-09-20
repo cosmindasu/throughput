@@ -46,7 +46,7 @@ final class SavedViewDefaultRedirect
             // `nullOnDelete`) — mesajul o singură dată, apoi rândul orfan dispare: următoarea
             // vizită găsește direct „niciun implicit", nu mai repetă notificarea.
             $default->delete();
-            session()->flash('notice', 'The team view you used as default was deleted.');
+            session()->flash('notice', __('flash.saved_views.default_team_view_deleted'));
 
             return null;
         }

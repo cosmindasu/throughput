@@ -39,7 +39,7 @@ final class CreateImportAction
 
         if (ImportConcurrencyGuard::hasReachedLimit()) {
             throw ValidationException::withMessages([
-                'file' => 'This workspace already has an import in progress. Finish or wait for it to complete before starting another (only one active import per workspace).',
+                'file' => trans('rules.imports.concurrency_limit'),
             ]);
         }
 

@@ -125,7 +125,7 @@ class EnsureSubscriptionAccess
 
     private function respondReadOnly(Request $request): Response
     {
-        $message = 'Your subscription is unpaid — update your payment method to restore full access.';
+        $message = __('flash.subscription.read_only');
 
         // Simetric cu `EnsureDemoModeGuardrails` — un 403 brut într-un modal, pe o cerere
         // Inertia, se citește ca „aplicație stricată", nu ca „aplicație securizată".

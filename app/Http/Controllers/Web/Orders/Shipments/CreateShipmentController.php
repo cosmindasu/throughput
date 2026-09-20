@@ -24,6 +24,6 @@ final class CreateShipmentController extends Controller
 
         $action->execute($order, $request->quantities());
 
-        return redirect()->route('orders.show', $order)->with('success', 'Shipment created — its label is being generated.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.shipments.created'));
     }
 }

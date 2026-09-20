@@ -23,7 +23,7 @@ final class CommitImportAction
 
         if ($updated === 0) {
             throw ValidationException::withMessages([
-                'status' => 'This import cannot be committed from its current status.',
+                'status' => trans('rules.imports.cannot_commit'),
             ]);
         }
 

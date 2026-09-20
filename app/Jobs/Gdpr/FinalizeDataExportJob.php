@@ -15,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +41,16 @@ use Throwable;
  * Trimiterea efectivă e după faza 3, în afara oricărei tranzacții — un apel extern
  * (Resend) nu are voie să stea într-una (ADR-013). Interceptarea de demo (BR-DEMO-02) e
  * transparentă aici: se întâmplă la nivelul transportului.
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `locale` e SCALAR de constructor, exact ca
+ * `tenantId`/`dataExportRequestId` (ADR-013/014), rezolvat de
+ * `App\Jobs\Gdpr\PlanDataExportJob` ÎNAINTE de dispecerizare, din `users.locale` al
+ * OWNER-ULUI care a cerut exportul (`data_export_requests.requested_by` — un cont real,
+ * spre deosebire de rapoarte, unde destinatarii n-au cont). Worker-ul de coadă e un
+ * proces de viață lungă (`.ai/rules/tenancy.md:123-138`): fără `App::setLocale()`
+ * necondiționat la începutul lui `handle()`, un job FR urmat de un job EN pe ACELAȘI
+ * worker ar reda al doilea email tot în franceză — vezi
+ * `tests/Feature/I18n/JobLocaleLeakTest.php`.
  */
 class FinalizeDataExportJob implements ShouldQueue
 {
@@ -53,10 +64,14 @@ class FinalizeDataExportJob implements ShouldQueue
         public string $tenantId,
         public string $dataExportRequestId,
         public ?string $batchId = null,
+        public string $locale = 'en',
     ) {}
 
     public function handle(): void
     {
+        // Vezi docblock-ul clasei — necondiționat, la începutul lui handle().
+        App::setLocale($this->locale);
+
         if ($this->batchFailed()) {
             $this->markFailed('The export could not be completed. Nothing was delivered; request a new export to try again.');
             Storage::disk(DataExportPaths::DISK)->deleteDirectory(
@@ -255,6 +270,7 @@ class FinalizeDataExportJob implements ShouldQueue
                 ]),
                 expiresOn: $expiresAt->toFormattedDateString(),
                 retentionDays: (int) config('throughput.limits.export_retention_days'),
+                locale: $this->locale,
             );
 
             return [$mailable, $recipient];

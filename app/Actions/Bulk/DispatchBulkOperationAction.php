@@ -77,7 +77,7 @@ final class DispatchBulkOperationAction
 
         if ($roleCap !== null && $total > $roleCap) {
             throw ValidationException::withMessages([
-                'selection' => "This operation would affect {$total} rows, above your role's limit of {$roleCap} rows per operation.",
+                'selection' => trans_choice('rules.bulk.role_cap_exceeded', $total, ['limit' => $roleCap]),
             ]);
         }
 
@@ -91,7 +91,7 @@ final class DispatchBulkOperationAction
         // subsetul propriu pentru Agent — nu pe numărul brut al filtrului.
         if (! $confirmed && BulkConfirmationThreshold::exceeds($user, $total)) {
             throw ValidationException::withMessages([
-                'selection' => "This operation would affect {$total} rows and needs confirmation before it can start.",
+                'selection' => trans_choice('rules.bulk.confirmation_required', $total),
             ]);
         }
 

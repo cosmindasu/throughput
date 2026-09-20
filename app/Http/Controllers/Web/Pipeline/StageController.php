@@ -34,14 +34,14 @@ class StageController extends Controller
     {
         $this->saveStage->execute(Pipeline::resolveDefault(), $request->stageData());
 
-        return back()->with('success', 'Stage added.');
+        return back()->with('success', __('flash.stages.created'));
     }
 
     public function update(UpdateStageRequest $request, Stage $stage): RedirectResponse
     {
         $this->saveStage->execute($stage->pipeline, $request->stageData(), $stage);
 
-        return back()->with('success', 'Stage updated.');
+        return back()->with('success', __('flash.stages.updated'));
     }
 
     public function destroy(Stage $stage): RedirectResponse
@@ -67,16 +67,16 @@ class StageController extends Controller
                 throw $e;
             }
 
-            return back()->with('error', 'This stage is still used by deals or their stage history and cannot be deleted.');
+            return back()->with('error', __('flash.stages.deletion_blocked_fk'));
         }
 
-        return back()->with('success', 'Stage deleted.');
+        return back()->with('success', __('flash.stages.deleted'));
     }
 
     public function reorder(ReorderStagesRequest $request): RedirectResponse
     {
         $this->reorderStages->execute(Pipeline::resolveDefault(), $request->orderedStageIds());
 
-        return back()->with('success', 'Stage order updated.');
+        return back()->with('success', __('flash.stages.reordered'));
     }
 }

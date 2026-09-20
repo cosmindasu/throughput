@@ -53,7 +53,7 @@ final class BulkOperationGroupController extends Controller
             $this->cancelOne($operation);
         }
 
-        return back()->with('success', 'Cancelling every operation in this group — rows already in progress will finish, the rest stop.');
+        return back()->with('success', __('flash.bulk.groups.cancelling'));
     }
 
     /**

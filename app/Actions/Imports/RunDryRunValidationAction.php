@@ -46,7 +46,7 @@ final class RunDryRunValidationAction
 
         if ($updated === 0) {
             throw ValidationException::withMessages([
-                'status' => 'This import cannot start validation from its current status.',
+                'status' => trans('rules.imports.cannot_validate'),
             ]);
         }
 

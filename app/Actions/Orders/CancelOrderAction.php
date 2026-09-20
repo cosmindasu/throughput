@@ -30,7 +30,7 @@ final class CancelOrderAction
 
             if (! $locked->status->canTransitionTo(OrderStatus::Cancelled)) {
                 throw ValidationException::withMessages([
-                    'status' => "This order can't be cancelled from its current status ({$locked->status->label()}).",
+                    'status' => trans('rules.orders.cannot_cancel', ['status' => $locked->status->label()]),
                 ]);
             }
 
@@ -43,7 +43,7 @@ final class CancelOrderAction
             // iar `GenerateShippingLabelJob` ar cumpăra o etichetă pentru o comandă anulată.
             if ($locked->shipments()->exists()) {
                 throw ValidationException::withMessages([
-                    'status' => 'This order has a shipment and can no longer be cancelled.',
+                    'status' => trans('rules.orders.has_shipment'),
                 ]);
             }
 

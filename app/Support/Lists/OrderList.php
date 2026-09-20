@@ -125,7 +125,18 @@ final class OrderList extends ResourceList implements ExportableList
     /** @return list<string> */
     public function exportHeaders(): array
     {
-        return ['Order number', 'Status', 'Account', 'Owner', 'Grand total', 'Currency', 'Placed at', 'Created at'];
+        // FR-I18N-04 — vezi nota din `AccountList::exportHeaders()`. Comenzile nu se
+        // importă, deci aici nu există constrângerea de potrivire cu aliasurile.
+        return [
+            __('exports.orders.order_number'),
+            __('exports.orders.status'),
+            __('exports.orders.account'),
+            __('exports.orders.owner'),
+            __('exports.orders.grand_total'),
+            __('exports.orders.currency'),
+            __('exports.orders.placed_at'),
+            __('exports.orders.created_at'),
+        ];
     }
 
     /**

@@ -99,7 +99,20 @@ final class InvoiceList extends ResourceList implements ArchivableList, Exportab
      */
     public function exportHeaders(): array
     {
-        return ['Invoice number', 'Status', 'Account', 'Order', 'Issue date', 'Due date', 'Currency', 'Total', 'Amount paid', 'Balance due'];
+        // FR-I18N-04 — vezi nota din `AccountList::exportHeaders()`. Facturile nu se
+        // importă, deci aici nu există constrângerea de potrivire cu aliasurile.
+        return [
+            __('exports.invoices.invoice_number'),
+            __('exports.invoices.status'),
+            __('exports.invoices.account'),
+            __('exports.invoices.order'),
+            __('exports.invoices.issue_date'),
+            __('exports.invoices.due_date'),
+            __('exports.invoices.currency'),
+            __('exports.invoices.total'),
+            __('exports.invoices.amount_paid'),
+            __('exports.invoices.balance_due'),
+        ];
     }
 
     /**

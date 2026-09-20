@@ -26,7 +26,7 @@ final class UpdateImportMappingAction
     {
         if (in_array($import->status, self::BLOCKED_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'mapping' => 'This import is currently being processed in the background — wait for it to finish before changing the mapping.',
+                'mapping' => trans('rules.imports.processing_in_background'),
             ]);
         }
 

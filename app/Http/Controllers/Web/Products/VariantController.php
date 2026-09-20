@@ -37,7 +37,7 @@ final class VariantController extends Controller
         $variant->product_id = $product->getKey();
         $variant->save();
 
-        return redirect()->route('products.show', $product)->with('success', 'Variant created.');
+        return redirect()->route('products.show', $product)->with('success', __('flash.products.variants.created'));
     }
 
     public function edit(Variant $variant): Response
@@ -56,7 +56,7 @@ final class VariantController extends Controller
     {
         $variant->update($request->validated());
 
-        return redirect()->route('products.show', $variant->product_id)->with('success', 'Variant updated.');
+        return redirect()->route('products.show', $variant->product_id)->with('success', __('flash.products.variants.updated'));
     }
 
     public function destroy(Variant $variant): RedirectResponse
@@ -71,6 +71,6 @@ final class VariantController extends Controller
 
         $variant->delete();
 
-        return redirect()->route('products.show', $productId)->with('success', 'Variant deleted.');
+        return redirect()->route('products.show', $productId)->with('success', __('flash.products.variants.deleted'));
     }
 }

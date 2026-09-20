@@ -89,6 +89,6 @@ final class CarrierSettingController extends Controller
     {
         $action->execute($request->providerInput(), $request->credentialsInput());
 
-        return redirect()->route('settings.shipping.index')->with('success', 'Carrier settings updated.');
+        return redirect()->route('settings.shipping.index')->with('success', __('flash.carrier_settings.updated'));
     }
 }

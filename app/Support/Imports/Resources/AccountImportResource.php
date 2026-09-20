@@ -31,23 +31,38 @@ final class AccountImportResource implements ImportableResource
         return 'Accounts';
     }
 
+    /**
+     * BR-I18N-01 (specs.md §15.8, ADR-022) — aliasurile FR de mai jos sunt ADĂUGATE la
+     * lista engleză deja existentă, niciodată în locul ei: cheia (`name`, `domain`, ...)
+     * rămâne stabilă indiferent de `locale`, `ImportRowMapper` mapează tot pe ea. Fără
+     * aliasurile astea, un CSV exportat dintr-un mediu francofon (antete de forma „Nom de
+     * l'entreprise") ar ateriza pe „confidence: none" la reimport — mecanismul de mapare
+     * automată (`ColumnMappingSuggester`) nu are cum să știe că „Nom de l'entreprise" și
+     * „Company name" sunt același câmp fără un alias explicit.
+     */
     public function fields(): array
     {
         return [
             new ImportField('name', 'Company name', true, ['required', 'string', 'max:255'], [
                 'name', 'company name', 'account name', 'company', 'business name', 'organization',
+                // FR — exemplul chiar citat de BR-I18N-01 în specs.md §15.8.
+                'nom', "nom de l'entreprise", 'nom de la société', 'société', 'raison sociale', 'entreprise',
             ]),
             new ImportField('domain', 'Domain', false, ['nullable', 'string', 'max:255'], [
                 'domain', 'website', 'company domain', 'url', 'web site',
+                'domaine', 'site web', "domaine de l'entreprise", 'site internet',
             ]),
             new ImportField('industry', 'Industry', false, ['nullable', 'string', 'max:255'], [
                 'industry', 'sector', 'vertical',
+                'secteur', "secteur d'activité", 'industrie',
             ]),
             new ImportField('phone', 'Phone', false, ['nullable', 'string', 'max:30'], [
                 'phone', 'phone number', 'telephone', 'tel',
+                'téléphone', 'numéro de téléphone', 'tél',
             ]),
             new ImportField('source', 'Source', false, ['nullable', 'string', 'max:255'], [
                 'source', 'lead source',
+                'source du prospect', 'origine',
             ]),
         ];
     }

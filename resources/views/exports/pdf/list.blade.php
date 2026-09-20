@@ -6,12 +6,26 @@
     unul din fonturile compilate cu DomPDF). Aceleași coloane fixe ca CSV-ul
     (`$headers`/`$rows`, din `ExportableList::exportHeaders()`/`exportRow()`), cifrele
     aliniate la dreapta.
+
+    I18N (FR-I18N-04, ADR-022, lot dedicat) — `$headers` vine NETRADUS din
+    `ExportableList::exportHeaders()` (`app/Support/Lists/*.php`, în afara perimetrului
+    acestui lot: fișierele astea nu sunt pe lista „FIȘIERELE TALE"); doar textul FIX al
+    șablonului (titlu, „Generated", „Filters:", numărul de rânduri, mesajul de listă goală)
+    trece prin catalog aici. Semnalat separat în raportul lotului — antetele de coloană
+    rămân engleze indiferent de `locale`, până când alt val traduce `app/Support/Lists/`.
+
+    `<html lang>` citește `app()->getLocale()` direct, NU o variabilă pasată de apelant:
+    `PdfExporter::save()` (afara perimetrului, dincolo de headerele de coloană) rulează
+    mereu în coada `ExportListJob`, care trebuie să fi fixat deja `App::setLocale()` la
+    limba destinatarului (FR-I18N-05) înainte de randare — exact locale-ul pe care
+    `trans()`/`trans_choice()` de mai jos îl folosesc oricum. O variabilă separată ar fi o a
+    doua sursă de adevăr pentru aceeași valoare.
 --}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="utf-8">
-<title>Export</title>
+<title>{{ __('pdf.export.title') }}</title>
 <style>
     @page {
         margin: 16mm 12mm;
@@ -63,16 +77,22 @@
 </style>
 </head>
 <body>
-    <h1>{{ $workspaceName }} — export</h1>
+    <h1>{{ $workspaceName }} — {{ __('pdf.export.heading_suffix') }}</h1>
     <div class="meta">
-        Generated {{ $generatedAt->toDayDateTimeString() }}
+        {{ __('pdf.meta.generated', ['date' => $generatedAt->toDayDateTimeString()]) }}
         @if ($filters !== [])
-            &middot; Filters:
+            {{-- Cheile filtrului ($key) vin din `PdfExporter::humanizeFilters()`, în afara
+                 perimetrului acestui lot (nu e header de coloană) — rămân engleze. --}}
+            &middot; {{ __('pdf.export.filters_label') }}:
             @foreach ($filters as $key => $value)
                 {{ $key }}: {{ $value }}@if (! $loop->last), @endif
             @endforeach
         @endif
-        &middot; {{ count($rows) }} {{ Str::plural('row', count($rows)) }}
+        {{-- CAPCANA CENTRALĂ (raportul lotului): `Str::plural()` aplică regula engleză —
+             0 tratat ca plural. Franceza tratează 0 CA SINGULAR. `trans_choice()` alege
+             segmentul corect per `App::getLocale()` (vezi comentariul din lang/en/pdf.php),
+             deci un singur catalog cu două segmente ajunge pentru ambele limbi. --}}
+        &middot; {{ trans_choice('pdf.meta.row_count', count($rows), ['count' => count($rows)]) }}
     </div>
 
     <table>
@@ -92,7 +112,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td class="empty" colspan="{{ count($headers) }}">No rows match this filter.</td>
+                    <td class="empty" colspan="{{ count($headers) }}">{{ __('pdf.export.no_rows') }}</td>
                 </tr>
             @endforelse
         </tbody>

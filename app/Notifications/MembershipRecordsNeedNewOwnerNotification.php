@@ -15,6 +15,19 @@ use Illuminate\Notifications\Notification;
  * Doar scalare în constructor, nimic tenant-scoped de reinterogat: mesajul se compune
  * integral din ce se știa deja la momentul dezactivării (ADR-013 — un job fără nevoie de
  * context de tenant nu-l cere).
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — NICIUN `->locale()` explicit aici, spre deosebire
+ * de `App\Mail\*` trimise prin `Mail::to()`: `Illuminate\Notifications\ChannelManager`
+ * trece prin `Illuminate\Notifications\NotificationSender::sendNow()`, care rezolvă limba
+ * INDIVIDUAL, per `$notifiable`, din `User::preferredLocale()` (contractul
+ * `HasLocalePreference`, deja implementat de `App\Models\User`) — inclusiv când
+ * `Notification::send($colecțieDeOwneri, ...)` trimite către MAI MULȚI destinatari
+ * simultan (`App\Http\Controllers\Web\Settings\MembersController`), fiecare primind
+ * randarea în PROPRIA limbă. Randarea rulează prin
+ * `Illuminate\Support\Traits\Localizable::withLocale()`, care restaurează locale-ul
+ * anterior după fiecare destinatar — mecanismul nativ e deja leak-safe pe un worker de
+ * coadă cu viață lungă, spre deosebire de joburile proprii din `app/Jobs/`, care trebuie
+ * să facă asta manual (`.ai/rules/tenancy.md:123-138`).
  */
 final class MembershipRecordsNeedNewOwnerNotification extends Notification implements ShouldQueue
 {
@@ -38,12 +51,21 @@ final class MembershipRecordsNeedNewOwnerNotification extends Notification imple
     {
         $total = $this->openDeals + $this->activeOrders;
 
+        // Compuse din DOUĂ `trans_choice()` separate (una per numărător), nu una singură
+        // cu doi `:count` — `trans_choice()` alege forma de plural pe baza unui SINGUR
+        // număr; combinarea se face aici, în textul simplu `mail.*.unassigned`.
+        $deals = trans_choice('mail.membership_records_need_new_owner.deals', $this->openDeals, ['count' => $this->openDeals]);
+        $orders = trans_choice('mail.membership_records_need_new_owner.orders', $this->activeOrders, ['count' => $this->activeOrders]);
+
         return (new MailMessage)
-            ->subject("{$total} records need a new owner")
-            ->greeting("Hi {$notifiable->name},")
-            ->line("{$this->deactivatedMemberName} was deactivated in {$this->tenantName}, and chose not to reassign their open records right away.")
-            ->line("{$this->openDeals} open deal(s) and {$this->activeOrders} active order(s) are now unassigned.")
-            ->action('Review in Unassigned', url("/{$this->workspaceSlug}/unassigned"))
-            ->line('Nothing was lost — these records are visible to every Owner and Manager until someone reassigns them.');
+            ->subject(trans_choice('mail.membership_records_need_new_owner.subject', $total, ['count' => $total]))
+            ->greeting(__('mail.membership_records_need_new_owner.greeting', ['name' => $notifiable->name]))
+            ->line(__('mail.membership_records_need_new_owner.deactivated', [
+                'member' => $this->deactivatedMemberName,
+                'tenant' => $this->tenantName,
+            ]))
+            ->line(__('mail.membership_records_need_new_owner.unassigned', ['deals' => $deals, 'orders' => $orders]))
+            ->action(__('mail.membership_records_need_new_owner.action'), url("/{$this->workspaceSlug}/unassigned"))
+            ->line(__('mail.membership_records_need_new_owner.footer'));
     }
 }

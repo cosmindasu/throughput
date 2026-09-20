@@ -87,7 +87,7 @@ final class UnassignedController extends Controller
         $this->dispatchReassignment($dispatch, $request, 'deals', ['owner' => 'unassigned', 'status' => Deal::STATUS_OPEN], $newOwnerId, $groupId);
         $this->dispatchReassignment($dispatch, $request, 'orders', ['owner' => 'unassigned', 'status' => OrderList::STATUS_ACTIVE], $newOwnerId, $groupId);
 
-        return redirect()->route('bulk.groups.show', $groupId)->with('success', 'Reassigning every unassigned record — this page updates automatically.');
+        return redirect()->route('bulk.groups.show', $groupId)->with('success', __('flash.unassigned.reassigning'));
     }
 
     /**

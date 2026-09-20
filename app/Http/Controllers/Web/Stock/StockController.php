@@ -55,7 +55,7 @@ final class StockController extends Controller
             note: $request->validated('note'),
         );
 
-        return back()->with('success', 'Stock received.');
+        return back()->with('success', __('flash.stock.received'));
     }
 
     public function adjust(AdjustStockRequest $request, Variant $variant, RecordStockMovementAction $action): RedirectResponse
@@ -71,7 +71,7 @@ final class StockController extends Controller
             note: $request->validated('note'),
         );
 
-        return back()->with('success', 'Stock adjusted.');
+        return back()->with('success', __('flash.stock.adjusted'));
     }
 
     public function transfer(TransferStockRequest $request, Variant $variant, TransferStockAction $action): RedirectResponse
@@ -88,7 +88,7 @@ final class StockController extends Controller
             note: $request->validated('note'),
         );
 
-        return back()->with('success', 'Stock transferred.');
+        return back()->with('success', __('flash.stock.transferred'));
     }
 
     /**

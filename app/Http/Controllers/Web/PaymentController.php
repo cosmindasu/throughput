@@ -24,6 +24,6 @@ final class PaymentController extends Controller
 
         $action->execute($invoice, $request->validated(), $request->user());
 
-        return redirect()->route('invoices.show', $invoice)->with('success', 'Payment recorded.');
+        return redirect()->route('invoices.show', $invoice)->with('success', __('flash.payments.recorded'));
     }
 }

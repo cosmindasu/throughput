@@ -101,7 +101,17 @@ class GenerateReportJob implements ShouldQueue
                 ]);
 
                 // §16.2 pct. 4 — livrarea e un SECOND job, doar la succes (never pe eșec, pct. 5).
-                DeliverReportJob::dispatch($this->tenantId, $run->getKey())->onQueue('default');
+                // ADR-022, FR-I18N-05 — locale-ul se rezolvă AICI, la dispecerizare (nu în
+                // `DeliverReportJob::handle()`), din creatorul definiției: destinatarii
+                // (`recipients`) sunt adrese arbitrare, fără cont, deci fără `users.locale`
+                // propriu — creatorul e aceeași persoană „efectivă" deja folosită mai sus în
+                // `generateFromSavedView()` pentru „cine e «me» într-un filtru salvat", extinsă
+                // aici la limbă, prin aceeași logică de aproximare rezonabilă.
+                DeliverReportJob::dispatch(
+                    $this->tenantId,
+                    $run->getKey(),
+                    $definition->createdBy?->locale ?? 'en',
+                )->onQueue('default');
             } catch (Throwable $e) {
                 $run->update([
                     'status' => ReportRun::STATUS_FAILED,

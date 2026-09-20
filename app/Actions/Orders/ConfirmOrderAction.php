@@ -37,13 +37,13 @@ final class ConfirmOrderAction
 
             if (! $locked->status->canTransitionTo(OrderStatus::Confirmed)) {
                 throw ValidationException::withMessages([
-                    'status' => "This order can't be confirmed from its current status ({$locked->status->label()}).",
+                    'status' => trans('rules.orders.cannot_confirm', ['status' => $locked->status->label()]),
                 ]);
             }
 
             if ($locked->account_id === null) {
                 throw ValidationException::withMessages([
-                    'account_id' => 'This order needs a valid account before it can be confirmed.',
+                    'account_id' => trans('rules.orders.account_required'),
                 ]);
             }
 
@@ -51,7 +51,7 @@ final class ConfirmOrderAction
 
             if ($lines->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'lines' => 'Add at least one line before confirming this order.',
+                    'lines' => trans('rules.orders.lines_required'),
                 ]);
             }
 
@@ -101,7 +101,7 @@ final class ConfirmOrderAction
             // nu doar afișat de interfață.
             if ($needsBackorder && ! $acknowledgeBackorder) {
                 throw ValidationException::withMessages([
-                    'acknowledge_backorder' => 'One or more lines exceed the available stock. Confirm explicitly to place this order as a backorder.',
+                    'acknowledge_backorder' => trans('rules.orders.backorder_confirmation_required'),
                 ]);
             }
 

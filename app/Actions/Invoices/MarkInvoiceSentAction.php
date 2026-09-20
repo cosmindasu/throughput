@@ -32,7 +32,7 @@ final class MarkInvoiceSentAction
 
             if ($locked->status !== Invoice::STATUS_DRAFT) {
                 throw ValidationException::withMessages([
-                    'status' => 'Only a draft invoice can be marked as sent.',
+                    'status' => trans('rules.invoices.only_draft_can_be_sent'),
                 ]);
             }
 

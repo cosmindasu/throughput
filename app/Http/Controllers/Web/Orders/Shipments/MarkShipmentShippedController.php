@@ -28,6 +28,6 @@ final class MarkShipmentShippedController extends Controller
 
         $action->execute($shipment, $request->user());
 
-        return redirect()->route('orders.show', $order)->with('success', 'Shipment marked as shipped.');
+        return redirect()->route('orders.show', $order)->with('success', __('flash.orders.shipments.marked_shipped'));
     }
 }

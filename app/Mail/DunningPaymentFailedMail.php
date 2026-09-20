@@ -29,16 +29,28 @@ final class DunningPaymentFailedMail extends Mailable
         public readonly string $tenantName,
         public readonly string $workspaceSlug,
         public readonly int $attemptCount,
+        // ADR-022, specs.md §15.8 FR-I18N-05 — destinatarii sunt Owner-ii ACTIVI ai
+        // tenantului (conturi reale, `users.locale`), dar `Mail::to($recipients)` cu un
+        // ARRAY de adrese nu rezolvă automat limba (spre deosebire de un singur model
+        // `HasLocalePreference` — `Illuminate\Mail\PendingMail::to()`); trebuie unul per
+        // destinatar. NEcablat încă la apelantul real
+        // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`, în afara perimetrului
+        // acestui lot — vezi raportul de livrare). `null` păstrează comportamentul actual.
+        ?string $locale = null,
     ) {
         // Ultima linie, obligatoriu (docblock-ul trait-ului) — după ce toate
         // proprietățile scalare sunt atribuite.
         $this->attributeSentEmailToCurrentTenant();
+        $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Payment failed for your {$this->tenantName} subscription (attempt {$this->attemptCount})",
+            subject: trans('mail.dunning_payment_failed.subject', [
+                'tenant' => $this->tenantName,
+                'attempt' => $this->attemptCount,
+            ], $this->locale),
         );
     }
 

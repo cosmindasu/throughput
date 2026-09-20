@@ -34,7 +34,11 @@ final class DealVelocityReport implements BuiltInReport
 
     public function title(): string
     {
-        return 'Deal Velocity by Stage';
+        // FR-I18N-04 (ADR-022) — catalog `lang/{en,fr}/reports.php`, NU literal PHP: acest
+        // titlu ajunge atât în ecranul „Run now" (sincron), cât și în PDF-ul/email-ul
+        // rapoartelor programate, deci trebuie să urmeze `App::getLocale()` curent oriunde
+        // e chemat, nu doar în șablonul PDF.
+        return __('reports.deal_velocity.title');
     }
 
     public function exposesCost(): bool
@@ -44,7 +48,13 @@ final class DealVelocityReport implements BuiltInReport
 
     public function columns(): array
     {
-        return ['Pipeline', 'Stage', 'Avg. days in stage', 'Deals reached', 'Conversion to next stage'];
+        return [
+            __('reports.deal_velocity.columns.pipeline'),
+            __('reports.deal_velocity.columns.stage'),
+            __('reports.deal_velocity.columns.avg_days_in_stage'),
+            __('reports.deal_velocity.columns.deals_reached'),
+            __('reports.deal_velocity.columns.conversion_to_next_stage'),
+        ];
     }
 
     public function rows(): array
@@ -84,7 +94,7 @@ final class DealVelocityReport implements BuiltInReport
         $rows = [];
 
         foreach ($stagesByPipeline as $pipelineId => $stages) {
-            $pipelineName = $pipelines->get($pipelineId)?->name ?? 'Unknown pipeline';
+            $pipelineName = $pipelines->get($pipelineId)?->name ?? __('reports.deal_velocity.unknown_pipeline');
             $orderedStages = $stages->sortBy('position')->values();
 
             foreach ($orderedStages as $index => $stage) {

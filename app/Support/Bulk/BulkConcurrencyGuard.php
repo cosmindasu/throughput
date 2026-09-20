@@ -72,11 +72,16 @@ final class BulkConcurrencyGuard
     /**
      * Mesajul spune CE să facă persoana, nu doar că a fost refuzată — un export refuzat fără
      * explicație se citește ca „aplicație stricată" (aceeași regulă ca la butoanele din `can`).
+     *
+     * ADR-022, Lot I18N Val 2 — text mutat în `rules.bulk.concurrency_limit`. Are DOI
+     * apelanți, nu unul: `App\Support\Bulk\EnsureBulkConcurrencyLimit` (o
+     * `ValidationException`, domeniul acestui lot) ȘI `App\Support\Exports\ListExport`
+     * (un mesaj flash `back()->with('error', ...)`, alt domeniu al lotului I18N). Ambii
+     * citesc ACELAȘI text — o singură sursă tradusă aici, corectă pentru amândoi, în loc de
+     * două traduceri care ar putea diverge.
      */
     public static function refusal(): string
     {
-        $limit = self::limit();
-
-        return "You already have {$limit} bulk operations running. Wait for one to finish (or cancel it) before starting another.";
+        return trans_choice('rules.bulk.concurrency_limit', self::limit());
     }
 }

@@ -55,11 +55,11 @@ class Variant extends Model
     public function deletionBlockedReason(): ?string
     {
         if ($this->stockMovements()->exists()) {
-            return 'This variant cannot be deleted: it has recorded stock movements.';
+            return __('flash.products.variants.deletion_blocked_stock_movements');
         }
 
         if ($this->orderLines()->exists()) {
-            return 'This variant cannot be deleted: it is used on at least one order.';
+            return __('flash.products.variants.deletion_blocked_order_lines');
         }
 
         return null;

@@ -45,15 +45,25 @@ final class ReportDeliveryMail extends Mailable
         public readonly string $attachmentPath,
         public readonly string $attachmentName,
         public readonly string $attachmentMime,
+        // ADR-022, specs.md §15.8 FR-I18N-05 — limba DESTINATARULUI (aici: creatorul
+        // raportului, singura aproximare posibilă când destinatarii sunt adrese arbitrare
+        // fără cont), NU implicitul cererii care a declanșat livrarea. `null` păstrează
+        // comportamentul de dinaintea acestui lot (fallback pe `App::getLocale()` ambiental,
+        // via `Illuminate\Support\Traits\Localizable`), pentru apelanți care încă nu-l
+        // furnizează. `App\Jobs\Reports\DeliverReportJob` îl transmite mereu explicit.
+        ?string $locale = null,
     ) {
         // Ultima linie, obligatoriu (docblock-ul trait-ului) — după ce toate proprietățile
         // scalare sunt atribuite.
         $this->attributeSentEmailToCurrentTenant();
+        $this->locale($locale);
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "Your report is ready: {$this->reportName}");
+        return new Envelope(
+            subject: trans('mail.report_delivery.subject', ['report' => $this->reportName], $this->locale),
+        );
     }
 
     public function content(): Content

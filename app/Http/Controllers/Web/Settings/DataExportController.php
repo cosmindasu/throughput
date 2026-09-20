@@ -67,7 +67,7 @@ final class DataExportController extends Controller
 
         app(RequestDataExportAction::class)->execute($request->user());
 
-        return back()->with('success', 'Your data export is queued. You will get an email when the archive is ready.');
+        return back()->with('success', __('flash.data_export.queued'));
     }
 
     public function download(DataExportRequest $dataExportRequest): StreamedResponse|RedirectResponse
@@ -81,7 +81,7 @@ final class DataExportController extends Controller
         // Fereastra dintre expirare și rularea jobului de curățare are și reversul ei: un
         // fișier șters manual, sau pierdut la un reset de demo, cu rândul încă valabil.
         if ($dataExportRequest->file_path === null || ! $disk->exists($dataExportRequest->file_path)) {
-            return back()->with('error', 'That export file is no longer available. Request a new export.');
+            return back()->with('error', __('flash.data_export.file_unavailable'));
         }
 
         return $disk->download(
