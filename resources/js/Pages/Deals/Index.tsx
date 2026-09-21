@@ -1,5 +1,7 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
-import { useState, type ReactNode } from 'react';
+import type { TFunction } from 'i18next';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
@@ -13,19 +15,20 @@ import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListColumns } from '@/hooks/useListColumns';
+import { useLocale } from '@/hooks/useLocale';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDate } from '@/lib/format';
+import { type AppLocale } from '@/lib/i18n';
 import { formatMoney } from '@/lib/money';
 import type { DealsIndexPageProps, DealSummary } from '@/types/generated';
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-
-const STATUSES = [
-    { value: '', label: 'All statuses' },
-    { value: 'open', label: 'Open' },
-    { value: 'won', label: 'Won' },
-    { value: 'lost', label: 'Lost' },
-] as const;
+const buildDealStatusOptions = (t: TFunction): Array<{ value: string; label: string }> => [
+    { value: '', label: t('index.statuses.all') },
+    { value: 'open', label: t('index.statuses.open') },
+    { value: 'won', label: t('index.statuses.won') },
+    { value: 'lost', label: t('index.statuses.lost') },
+];
 
 interface DealColumnDef extends ColumnDefinition {
     /** Cheia de sortare `ListQuery` (`DealList::sortableColumns()`) — absentă pe coloanele nesortabile (Account/Owner/Stage). */
@@ -40,57 +43,65 @@ interface DealColumnDef extends ColumnDefinition {
  * `App\Support\SavedViews\SavedViewResourceType::permittedColumns('deals')`. `title`
  * (identitatea) rămâne fix, randat separat mai jos, cu propriul buton de sortare.
  */
-const DEAL_COLUMNS: DealColumnDef[] = [
+const buildDealColumns = (t: TFunction, locale: AppLocale): DealColumnDef[] => [
     {
         key: 'value',
-        label: 'Value',
+        label: t('index.columns.value'),
         sortKey: 'value',
         headerClassName: 'text-right',
         cellClassName: 'numeric whitespace-nowrap px-4 py-2 text-right',
-        render: (deal) => formatMoney(deal.value, deal.currency),
+        render: (deal) => formatMoney(deal.value, deal.currency, locale),
     },
     {
         key: 'expectedCloseDate',
-        label: 'Expected close',
+        label: t('index.columns.expectedClose'),
         sortKey: 'expected_close_date',
         cellClassName: 'whitespace-nowrap px-4 py-2',
-        render: (deal) => (deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'),
+        render: (deal) => (deal.expectedCloseDate ? formatDate(deal.expectedCloseDate, locale) : '—'),
     },
     {
         key: 'createdAt',
-        label: 'Created',
+        label: t('index.columns.created'),
         sortKey: 'created_at',
         cellClassName: 'whitespace-nowrap px-4 py-2',
-        render: (deal) => (deal.createdAt ? dateFormatter.format(new Date(deal.createdAt)) : '—'),
+        render: (deal) => (deal.createdAt ? formatDate(deal.createdAt, locale) : '—'),
     },
     {
         key: 'account',
-        label: 'Account',
+        label: t('index.columns.account'),
         cellClassName: 'px-4 py-2',
         render: (deal) => deal.account.name,
     },
     {
         key: 'owner',
-        label: 'Owner',
+        label: t('index.columns.owner'),
         cellClassName: 'px-4 py-2',
         render: (deal) => deal.owner.name,
     },
     {
         key: 'stage',
-        label: 'Stage',
+        // Coloana e chrome (eticheta „Stage"); `deal.stage.name` rămas NETRADUS mai jos —
+        // e o etapă de pipeline, dată de tenant, nu text de UI (brief Val 3, §4).
+        label: t('index.columns.stage'),
         cellClassName: 'px-4 py-2',
         render: (deal) => <StatusBadge>{deal.stage.name}</StatusBadge>,
     },
 ];
 
-const DEAL_COLUMNS_BY_KEY: Record<string, DealColumnDef> = Object.fromEntries(DEAL_COLUMNS.map((column) => [column.key, column] as const));
+const buildDealColumnsByKey = (columns: DealColumnDef[]): Record<string, DealColumnDef> =>
+    Object.fromEntries(columns.map((column) => [column.key, column] as const));
 
 /**
  * `Deals/Index` — task-ul Pachetului C punctul 4. Prop `deals` DEFERRED (FR-PERF-01):
  * titlul, filtrele și acțiunile sunt pe ecran înainte ca rândurile să vină.
  */
 export default function Index() {
+    const { t } = useTranslation('deals');
     const { props, url } = usePage<DealsIndexPageProps>();
+    const locale = useLocale();
+    const dealColumns = useMemo(() => buildDealColumns(t, locale), [t, locale]);
+    const dealColumnsByKey = useMemo(() => buildDealColumnsByKey(dealColumns), [dealColumns]);
+    const dealStatuses = useMemo(() => buildDealStatusOptions(t), [t]);
     const { filters, columns, can, workspace } = props;
     const workspaceSlug = workspace?.slug ?? '';
     const { apply, setFilter, setSort } = useListFilters(filters, columns);
@@ -105,7 +116,7 @@ export default function Index() {
     // necunoscută (n-ar trebui să apară, `columns` e validat server-side, dar defensiv) nu
     // mai dezaliniază tabelul.
     const visibleColumns = columns
-        .map((key) => DEAL_COLUMNS_BY_KEY[key])
+        .map((key) => dealColumnsByKey[key])
         .filter((column): column is DealColumnDef => column !== undefined);
 
     // Identitate (title) + coloanele vizibile + acțiuni, +1 pentru checkbox-ul de bulk când
@@ -124,15 +135,15 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Deals" />
+            <Head title={t('index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Deals"
+                    title={t('index.title')}
                     actions={
                         <>
                             <SavedViewPicker resourceType="deals" current={filters} columns={columns} />
-                            <ColumnSelector columns={DEAL_COLUMNS} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
+                            <ColumnSelector columns={dealColumns} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
                             <ViewSwitcher workspaceSlug={workspaceSlug} active="list" />
                         </>
                     }
@@ -140,7 +151,7 @@ export default function Index() {
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Search</span>
+                        <span className="font-medium text-text">{t('index.search.label')}</span>
                         <input
                             type="search"
                             className={controlClass}
@@ -152,18 +163,18 @@ export default function Index() {
                                 }
                             }}
                             onBlur={() => setFilter('q', search || null)}
-                            placeholder="Search by title…"
+                            placeholder={t('index.search.placeholder')}
                         />
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Status</span>
+                        <span className="font-medium text-text">{t('index.status.label')}</span>
                         <select
                             className={controlClass}
                             value={filters.filter.status ?? ''}
                             onChange={(event) => setFilter('status', event.target.value || null)}
                         >
-                            {STATUSES.map((status) => (
+                            {dealStatuses.map((status) => (
                                 <option key={status.value} value={status.value}>
                                     {status.label}
                                 </option>
@@ -173,10 +184,10 @@ export default function Index() {
 
                     <div className="flex overflow-hidden rounded-md border border-control text-sm">
                         <OwnerFilterButton active={(filters.filter.owner ?? 'all') === 'me'} onClick={() => setFilter('owner', 'me')}>
-                            My deals
+                            {t('index.owner.mine')}
                         </OwnerFilterButton>
                         <OwnerFilterButton active={(filters.filter.owner ?? 'all') === 'all'} onClick={() => setFilter('owner', 'all')}>
-                            All deals
+                            {t('index.owner.all')}
                         </OwnerFilterButton>
                     </div>
                 </div>
@@ -225,6 +236,7 @@ function DealsTable({
     onSort: (column: string) => void;
     bulkDispatchUrl: string;
 }) {
+    const { t } = useTranslation('deals');
     const { deals, total, can, owners, bulkConfirmationThreshold, bulkRowCap } = usePage<DealsIndexPageProps>().props;
     const pageIds = deals.data.map((deal) => deal.id);
     const selection = useBulkSelection(pageIds);
@@ -232,10 +244,10 @@ function DealsTable({
     if (deals.data.length === 0) {
         return (
             <EmptyState
-                message="No deals match this filter."
+                message={t('index.empty.message')}
                 action={
                     canCreate ? (
-                        <p className="text-xs text-text-3">You can create a deal directly, or from an account page.</p>
+                        <p className="text-xs text-text-3">{t('index.empty.hint')}</p>
                     ) : undefined
                 }
             />
@@ -264,13 +276,13 @@ function DealsTable({
 
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
-                    <caption className="sr-only">Deals</caption>
+                    <caption className="sr-only">{t('index.table.caption')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             {can.bulkWrite && (
                                 <th scope="col" className="w-10 px-4 py-2">
                                     <RowCheckbox
-                                        aria-label="Select all deals on this page"
+                                        aria-label={t('index.table.selectAllOnPage')}
                                         checked={selection.allOnPageSelected}
                                         onChange={selection.toggleAllOnPage}
                                     />
@@ -278,7 +290,7 @@ function DealsTable({
                             )}
                             <th scope="col" aria-sort={ariaSortFor('title', sort)} className="px-4 py-2 font-medium">
                                 <button type="button" onClick={() => onSort('title')} className="flex items-center gap-1 hover:text-text">
-                                    Title
+                                    {t('index.table.titleColumn')}
                                     {sort.column === 'title' && <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>}
                                 </button>
                             </th>
@@ -306,7 +318,7 @@ function DealsTable({
                                 </th>
                             ))}
                             <th scope="col" className="px-4 py-2 font-medium">
-                                <span className="sr-only">Actions</span>
+                                <span className="sr-only">{t('index.table.actions')}</span>
                             </th>
                         </tr>
                     </thead>
@@ -347,11 +359,13 @@ function DealRow({
     selected: boolean;
     onToggle: () => void;
 }) {
+    const { t } = useTranslation('deals');
+
     return (
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
             {showCheckbox && (
                 <td className="px-4 py-2">
-                    <RowCheckbox aria-label={`Select ${deal.title}`} checked={selected} onChange={onToggle} />
+                    <RowCheckbox aria-label={t('index.table.selectRow', { title: deal.title })} checked={selected} onChange={onToggle} />
                 </td>
             )}
             <td className="px-4 py-2">
@@ -360,7 +374,9 @@ function DealRow({
                 </Link>
                 {deal.status !== 'open' && (
                     <span className="ml-2">
-                        <StatusBadge tone={deal.status === 'won' ? 'success' : 'danger'}>{deal.status === 'won' ? 'Won' : 'Lost'}</StatusBadge>
+                        <StatusBadge tone={deal.status === 'won' ? 'success' : 'danger'}>
+                            {deal.status === 'won' ? t('status.won') : t('status.lost')}
+                        </StatusBadge>
                     </span>
                 )}
             </td>
@@ -372,7 +388,7 @@ function DealRow({
             <td className="px-4 py-2 text-text-2">
                 {deal.can.edit && (
                     <Link href={`/${workspaceSlug}/deals/${deal.id}/edit`} className="hover:underline">
-                        Edit<span className="sr-only"> {deal.title}</span>
+                        {t('index.table.edit')}<span className="sr-only"> {deal.title}</span>
                     </Link>
                 )}
             </td>

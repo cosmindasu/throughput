@@ -1,0 +1,229 @@
+{
+    "status": {
+        "won": "Won",
+        "lost": "Lost"
+    },
+    "lostReasons": {
+        "price": "Price",
+        "competition": "Competition",
+        "timing": "Timing",
+        "other": "Other",
+        "unknown": "unknown"
+    },
+    "index": {
+        "title": "Deals",
+        "table": {
+            "caption": "Deals",
+            "titleColumn": "Title",
+            "selectAllOnPage": "Select all deals on this page",
+            "selectRow": "Select {{title}}",
+            "actions": "Actions",
+            "edit": "Edit"
+        },
+        "columns": {
+            "value": "Value",
+            "expectedClose": "Expected close",
+            "created": "Created",
+            "account": "Account",
+            "owner": "Owner",
+            "stage": "Stage"
+        },
+        "search": {
+            "label": "Search",
+            "placeholder": "Search by title…"
+        },
+        "status": {
+            "label": "Status"
+        },
+        "statuses": {
+            "all": "All statuses",
+            "open": "Open",
+            "won": "Won",
+            "lost": "Lost"
+        },
+        "owner": {
+            "mine": "My deals",
+            "all": "All deals"
+        },
+        "empty": {
+            "message": "No deals match this filter.",
+            "hint": "You can create a deal directly, or from an account page."
+        }
+    },
+    "create": {
+        "title": "New deal",
+        "descriptionForAccount": "For {{account}}",
+        "fields": {
+            "account": {
+                "label": "Account"
+            },
+            "title": {
+                "label": "Title"
+            },
+            "value": {
+                "label": "Value",
+                "hint": "Leave blank until qualified."
+            },
+            "expectedCloseDate": {
+                "label": "Expected close date"
+            },
+            "primaryContact": {
+                "label": "Primary contact",
+                "none": "None"
+            },
+            "owner": {
+                "label": "Owner",
+                "hint": "Leave as “Me” to keep yourself as owner.",
+                "meOption": "Me"
+            }
+        },
+        "actions": {
+            "submit": "Create deal",
+            "submitPending": "Creating…",
+            "cancel": "Cancel"
+        }
+    },
+    "edit": {
+        "title": "Edit {{title}}",
+        "fields": {
+            "account": {
+                "label": "Account"
+            },
+            "title": {
+                "label": "Title"
+            },
+            "value": {
+                "label": "Value"
+            },
+            "expectedCloseDate": {
+                "label": "Expected close date"
+            },
+            "primaryContact": {
+                "label": "Primary contact",
+                "none": "None",
+                "anonymized": "Anonymized contact"
+            },
+            "owner": {
+                "label": "Owner"
+            }
+        },
+        "actions": {
+            "submit": "Save changes",
+            "submitPending": "Saving…",
+            "cancel": "Cancel"
+        }
+    },
+    "show": {
+        "fields": {
+            "value": "Value",
+            "expectedCloseDate": "Expected close date",
+            "owner": "Owner",
+            "primaryContact": "Primary contact",
+            "pipeline": "Pipeline",
+            "lostReason": "Lost reason"
+        },
+        "actions": {
+            "edit": "Edit",
+            "delete": "Delete"
+        },
+        "stageHistory": {
+            "heading": "Stage history",
+            "empty": "No stage changes yet.",
+            "createdOn": "Created on {{stage}}",
+            "transition": "{{from}} → {{to}}",
+            "changedBySystem": "System",
+            "spent": "spent {{duration}} on {{stage}}"
+        },
+        "history": {
+            "heading": "History"
+        },
+        "delete": {
+            "title": "Delete this deal?",
+            "confirmLabel": "Delete",
+            "body": "This hides “{{title}}” from lists, the board, search and reports. Its stage history is kept, so stage reports stay correct."
+        },
+        "duration": {
+            "days_one": "{{count}} day",
+            "days_other": "{{count}} days",
+            "hours_one": "{{count}} hour",
+            "hours_other": "{{count}} hours",
+            "minutes": "{{count}} min"
+        }
+    },
+    "kanban": {
+        "title": "Pipeline board",
+        "hint": "Drag a card to another stage, or use “Move to stage…”.",
+        "owner": {
+            "mine": "My deals",
+            "all": "All deals"
+        },
+        "managePipeline": "Manage pipeline",
+        "emptyStage": "No deals on this stage.",
+        "viewAll": "View all {{count}}",
+        "moved": "Moved {{title}} to {{stage}}",
+        "error": "Could not move this deal."
+    },
+    "card": {
+        "lost": "Lost — {{reason}}"
+    },
+    "lostReasonDialog": {
+        "title": "Mark deal as Lost",
+        "reasonLabel": "Reason",
+        "confirmLabel": "Mark as Lost"
+    },
+    "moveStageMenu": {
+        "trigger": "Move to stage…",
+        "triggerFor": "for {{title}}",
+        "ariaLabel": "Move to stage",
+        "error": "Could not move this deal."
+    },
+    "viewSwitcher": {
+        "list": "List",
+        "board": "Board"
+    },
+    "pipeline": {
+        "headTitle": "Pipeline",
+        "pageTitle": "Pipeline stages",
+        "description": "Stages of the <strong>{{pipeline}}</strong> pipeline. Won and Lost are terminal — at most one of each.",
+        "orderError": "Could not save the new stage order. Please try again.",
+        "empty": {
+            "message": "This pipeline has no stages yet.",
+            "hint": "Add the first one below."
+        },
+        "table": {
+            "caption": "Pipeline stages",
+            "order": "Order",
+            "stage": "Stage",
+            "outcome": "Outcome",
+            "probability": "Probability",
+            "deals": "Deals",
+            "actions": "Actions"
+        },
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "moveAnnouncement": "{{name}} moved to position {{position}} of {{total}}",
+        "rowEdit": "Edit",
+        "rowDelete": "Delete",
+        "deleteDialog": {
+            "title": "Delete \"{{name}}\"?",
+            "confirmLabel": "Delete",
+            "body": "This cannot be undone."
+        },
+        "form": {
+            "nameLabel": "Name",
+            "probabilityLabel": "Probability %",
+            "probabilityHint": "0–100, optional",
+            "wonLabel": "Won",
+            "lostLabel": "Lost",
+            "save": "Save",
+            "savePending": "Saving…",
+            "cancel": "Cancel"
+        },
+        "addForm": {
+            "ariaLabel": "Add stage",
+            "heading": "Add stage",
+            "submit": "Add stage",
+            "submitPending": "Adding…"
+        }
+    }
+}

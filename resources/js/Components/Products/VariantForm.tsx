@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import type { VariantRow } from '@/types/generated';
@@ -26,6 +27,7 @@ interface VariantFormData {
  * ceară explicit.
  */
 export default function VariantForm({ mode, variant, action }: VariantFormProps) {
+    const { t } = useTranslation('products');
     const { data, setData, post, put, processing, errors } = useForm<VariantFormData>({
         sku: variant?.sku ?? '',
         price: variant ? String(variant.price) : '',
@@ -54,7 +56,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
     return (
         <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="SKU" error={errors.sku} required>
+                <Field label={t('products:variant.form.sku.label')} error={errors.sku} required>
                     {(control) => (
                         <input
                             {...control}
@@ -65,7 +67,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                     )}
                 </Field>
 
-                <Field label="Price" error={errors.price} required>
+                <Field label={t('products:variant.form.price.label')} error={errors.price} required>
                     {(control) => (
                         <input
                             {...control}
@@ -79,7 +81,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                     )}
                 </Field>
 
-                <Field label="Cost" error={errors.cost} required hint="Never shown to Agent or Viewer accounts.">
+                <Field label={t('products:variant.form.cost.label')} error={errors.cost} required hint={t('products:variant.form.cost.hint')}>
                     {(control) => (
                         <input
                             {...control}
@@ -93,7 +95,7 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                     )}
                 </Field>
 
-                <Field label="Weight" error={errors.weight} hint="Optional — used for shipping calculations later.">
+                <Field label={t('products:variant.form.weight.label')} error={errors.weight} hint={t('products:variant.form.weight.hint')}>
                     {(control) => (
                         <input
                             {...control}
@@ -108,9 +110,9 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                 </Field>
 
                 <Field
-                    label="Low stock threshold"
+                    label={t('products:variant.form.lowStockThreshold.label')}
                     error={errors.low_stock_threshold}
-                    hint="Optional. Shows a Low stock indicator when available drops below this number — leave empty for no alert."
+                    hint={t('products:variant.form.lowStockThreshold.hint')}
                 >
                     {(control) => (
                         <input
@@ -133,12 +135,12 @@ export default function VariantForm({ mode, variant, action }: VariantFormProps)
                     onChange={(event) => setData('is_active', event.target.checked)}
                     className="h-4 w-4 accent-[var(--accent-fill)]"
                 />
-                Active
+                {t('products:variant.form.active')}
             </label>
 
             <div className="flex justify-end gap-2">
-                <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
-                    {mode === 'create' ? 'Create variant' : 'Save changes'}
+                <Button type="submit" variant="primary" pending={processing} pendingLabel={t('products:variant.form.saving')}>
+                    {mode === 'create' ? t('products:variant.form.createVariant') : t('products:variant.form.saveChanges')}
                 </Button>
             </div>
         </form>

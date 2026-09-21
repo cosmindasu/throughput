@@ -1,0 +1,231 @@
+{
+    "status": {
+        "won": "Gagné",
+        "lost": "Perdu"
+    },
+    "lostReasons": {
+        "price": "Prix",
+        "competition": "Concurrence",
+        "timing": "Calendrier",
+        "other": "Autre",
+        "unknown": "inconnu"
+    },
+    "index": {
+        "title": "Affaires",
+        "table": {
+            "caption": "Affaires",
+            "titleColumn": "Titre",
+            "selectAllOnPage": "Sélectionner toutes les affaires de cette page",
+            "selectRow": "Sélectionner {{title}}",
+            "actions": "Actions",
+            "edit": "Modifier"
+        },
+        "columns": {
+            "value": "Valeur",
+            "expectedClose": "Clôture prévue",
+            "created": "Créé le",
+            "account": "Compte",
+            "owner": "Propriétaire",
+            "stage": "Étape"
+        },
+        "search": {
+            "label": "Recherche",
+            "placeholder": "Rechercher par titre…"
+        },
+        "status": {
+            "label": "Statut"
+        },
+        "statuses": {
+            "all": "Tous les statuts",
+            "open": "Ouverte",
+            "won": "Gagnée",
+            "lost": "Perdue"
+        },
+        "owner": {
+            "mine": "Mes affaires",
+            "all": "Toutes les affaires"
+        },
+        "empty": {
+            "message": "Aucune affaire ne correspond à ce filtre.",
+            "hint": "Vous pouvez créer une affaire directement, ou depuis la page d’un compte."
+        }
+    },
+    "create": {
+        "title": "Nouvelle affaire",
+        "descriptionForAccount": "Pour {{account}}",
+        "fields": {
+            "account": {
+                "label": "Compte"
+            },
+            "title": {
+                "label": "Titre"
+            },
+            "value": {
+                "label": "Valeur",
+                "hint": "Laisser vide jusqu’à la qualification."
+            },
+            "expectedCloseDate": {
+                "label": "Date de clôture prévue"
+            },
+            "primaryContact": {
+                "label": "Contact principal",
+                "none": "Aucun"
+            },
+            "owner": {
+                "label": "Propriétaire",
+                "hint": "Laisser « Moi » pour rester propriétaire.",
+                "meOption": "Moi"
+            }
+        },
+        "actions": {
+            "submit": "Créer l’affaire",
+            "submitPending": "Création…",
+            "cancel": "Annuler"
+        }
+    },
+    "edit": {
+        "title": "Modifier {{title}}",
+        "fields": {
+            "account": {
+                "label": "Compte"
+            },
+            "title": {
+                "label": "Titre"
+            },
+            "value": {
+                "label": "Valeur"
+            },
+            "expectedCloseDate": {
+                "label": "Date de clôture prévue"
+            },
+            "primaryContact": {
+                "label": "Contact principal",
+                "none": "Aucun",
+                "anonymized": "Contact anonymisé"
+            },
+            "owner": {
+                "label": "Propriétaire"
+            }
+        },
+        "actions": {
+            "submit": "Enregistrer les modifications",
+            "submitPending": "Enregistrement…",
+            "cancel": "Annuler"
+        }
+    },
+    "show": {
+        "fields": {
+            "value": "Valeur",
+            "expectedCloseDate": "Date de clôture prévue",
+            "owner": "Propriétaire",
+            "primaryContact": "Contact principal",
+            "pipeline": "Pipeline",
+            "lostReason": "Motif de perte"
+        },
+        "actions": {
+            "edit": "Modifier",
+            "delete": "Supprimer"
+        },
+        "stageHistory": {
+            "heading": "Historique des étapes",
+            "empty": "Aucun changement d’étape pour l’instant.",
+            "createdOn": "Créée à l’étape {{stage}}",
+            "transition": "{{from}} → {{to}}",
+            "changedBySystem": "Système",
+            "spent": "a passé {{duration}} sur {{stage}}"
+        },
+        "history": {
+            "heading": "Historique"
+        },
+        "delete": {
+            "title": "Supprimer cette affaire ?",
+            "confirmLabel": "Supprimer",
+            "body": "Cela masque « {{title}} » des listes, du tableau, de la recherche et des rapports. L’historique des étapes est conservé, les rapports d’étape restent donc corrects."
+        },
+        "duration": {
+            "days_one": "{{count}} jour",
+            "days_many": "{{count}} de jours",
+            "days_other": "{{count}} jours",
+            "hours_one": "{{count}} heure",
+            "hours_many": "{{count}} d’heures",
+            "hours_other": "{{count}} heures",
+            "minutes": "{{count}} min"
+        }
+    },
+    "kanban": {
+        "title": "Tableau du pipeline",
+        "hint": "Faites glisser une carte vers une autre étape, ou utilisez « Déplacer vers l’étape… ».",
+        "owner": {
+            "mine": "Mes affaires",
+            "all": "Toutes les affaires"
+        },
+        "managePipeline": "Gérer le pipeline",
+        "emptyStage": "Aucune affaire sur cette étape.",
+        "viewAll": "Voir les {{count}}",
+        "moved": "{{title}} déplacée vers {{stage}}",
+        "error": "Impossible de déplacer cette affaire."
+    },
+    "card": {
+        "lost": "Perdue — {{reason}}"
+    },
+    "lostReasonDialog": {
+        "title": "Marquer l’affaire comme perdue",
+        "reasonLabel": "Motif",
+        "confirmLabel": "Marquer comme perdue"
+    },
+    "moveStageMenu": {
+        "trigger": "Déplacer vers l’étape…",
+        "triggerFor": "pour {{title}}",
+        "ariaLabel": "Déplacer vers l’étape",
+        "error": "Impossible de déplacer cette affaire."
+    },
+    "viewSwitcher": {
+        "list": "Liste",
+        "board": "Tableau"
+    },
+    "pipeline": {
+        "headTitle": "Pipeline",
+        "pageTitle": "Étapes du pipeline",
+        "description": "Étapes du pipeline <strong>{{pipeline}}</strong>. Gagné et Perdu sont terminales — au plus une de chaque.",
+        "orderError": "Impossible d’enregistrer le nouvel ordre des étapes. Veuillez réessayer.",
+        "empty": {
+            "message": "Ce pipeline n’a pas encore d’étapes.",
+            "hint": "Ajoutez la première ci-dessous."
+        },
+        "table": {
+            "caption": "Étapes du pipeline",
+            "order": "Ordre",
+            "stage": "Étape",
+            "outcome": "Résultat",
+            "probability": "Probabilité",
+            "deals": "Affaires",
+            "actions": "Actions"
+        },
+        "moveUp": "Déplacer {{name}} vers le haut",
+        "moveDown": "Déplacer {{name}} vers le bas",
+        "moveAnnouncement": "{{name}} déplacée en position {{position}} sur {{total}}",
+        "rowEdit": "Modifier",
+        "rowDelete": "Supprimer",
+        "deleteDialog": {
+            "title": "Supprimer « {{name}} » ?",
+            "confirmLabel": "Supprimer",
+            "body": "Cette action ne peut pas être annulée."
+        },
+        "form": {
+            "nameLabel": "Nom",
+            "probabilityLabel": "Probabilité %",
+            "probabilityHint": "0–100, facultatif",
+            "wonLabel": "Gagné",
+            "lostLabel": "Perdu",
+            "save": "Enregistrer",
+            "savePending": "Enregistrement…",
+            "cancel": "Annuler"
+        },
+        "addForm": {
+            "ariaLabel": "Ajouter une étape",
+            "heading": "Ajouter une étape",
+            "submit": "Ajouter l’étape",
+            "submitPending": "Ajout…"
+        }
+    }
+}

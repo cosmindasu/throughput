@@ -1,5 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SearchGroup, SearchResponse, SearchResult } from '@/types/generated';
 
 const DEBOUNCE_MS = 200;
@@ -31,6 +32,7 @@ function isApplePlatform(): boolean {
  * altfel tastarea ar pierde focusul din câmp la fiecare săgeată.
  */
 export default function GlobalSearch() {
+    const { t } = useTranslation('search');
     const { workspace } = usePage().props;
 
     const [open, setOpen] = useState(false);
@@ -257,14 +259,16 @@ export default function GlobalSearch() {
         }
     };
 
+    // FR-I18N-06 — termenul căutat de utilizator (`settledResponse.query`) se
+    // INTERPOLEAZĂ, nu se traduce: e conținut, nu etichetă de interfață.
     const statusText =
         settledResponse === null
-            ? 'Searching…'
+            ? t('search:status.searching')
             : settledResponse.groups.length === 0
               ? settledResponse.query
-                  ? `No results for "${settledResponse.query}"`
-                  : 'Nothing here yet — start typing to search.'
-              : `${flatResults.length} result${flatResults.length === 1 ? '' : 's'}`;
+                  ? t('search:status.noResultsFor', { query: settledResponse.query })
+                  : t('search:status.empty')
+              : t('search:status.resultCount', { count: flatResults.length });
 
     return (
         <>
@@ -276,18 +280,18 @@ export default function GlobalSearch() {
                 className="flex items-center gap-2 rounded-md border border-control px-3 py-1.5 text-sm text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
             >
                 <span aria-hidden="true">⌕</span>
-                <span className="hidden sm:inline">Search</span>
+                <span className="hidden sm:inline">{t('search:trigger.label')}</span>
                 <kbd
                     aria-hidden="true"
                     className="hidden rounded border border-border-soft bg-raised px-1.5 py-0.5 text-xs text-text-3 sm:inline"
                 >
-                    {isMac ? '⌘K' : 'Ctrl K'}
+                    {isMac ? t('search:trigger.shortcutMac') : t('search:trigger.shortcutOther')}
                 </kbd>
             </button>
 
             <dialog
                 ref={dialogRef}
-                aria-label="Global search"
+                aria-label={t('search:dialog.ariaLabel')}
                 // P2-003 (code review) — catch-all pentru Esc, indiferent ce are focus în
                 // interiorul dialogului (spre deosebire de `keydown`, care depinde ca INPUTUL
                 // să aibă deja focus — vezi docblock-ul efectului de `open` de mai sus).
@@ -329,7 +333,7 @@ export default function GlobalSearch() {
                         value={query}
                         onChange={(event) => onQueryChange(event.target.value)}
                         onKeyDown={onInputKeyDown}
-                        placeholder="Search accounts, contacts, deals…"
+                        placeholder={t('search:dialog.placeholder')}
                         className="w-full bg-transparent text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     />
                 </div>
@@ -338,7 +342,7 @@ export default function GlobalSearch() {
                     {statusText}
                 </span>
 
-                <div id={listboxId} role="listbox" aria-label="Search results" className="max-h-96 overflow-y-auto py-2">
+                <div id={listboxId} role="listbox" aria-label={t('search:dialog.resultsAriaLabel')} className="max-h-96 overflow-y-auto py-2">
                     {settledResponse !== null && settledResponse.groups.length === 0 && (
                         <p className="px-4 py-6 text-center text-sm text-text-3">{statusText}</p>
                     )}

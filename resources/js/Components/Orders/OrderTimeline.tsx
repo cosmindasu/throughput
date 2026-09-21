@@ -1,16 +1,18 @@
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDateTime } from '@/lib/format';
 import type { Order, ShipmentStatus } from '@/types/generated';
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-const SHIPMENT_STEP_LABELS: Record<ShipmentStatus, string> = {
-    label_pending: 'Shipment label generating',
-    label_failed: 'Shipment label failed',
-    label_purchased: 'Shipment label ready',
-    in_transit: 'Shipment shipped',
-    delivered: 'Shipment delivered',
-    exception: 'Shipment exception',
-};
+const shipmentStepLabels = (t: TFunction): Record<ShipmentStatus, string> => ({
+    label_pending: t('timeline.shipmentStatus.label_pending'),
+    label_failed: t('timeline.shipmentStatus.label_failed'),
+    label_purchased: t('timeline.shipmentStatus.label_purchased'),
+    in_transit: t('timeline.shipmentStatus.in_transit'),
+    delivered: t('timeline.shipmentStatus.delivered'),
+    exception: t('timeline.shipmentStatus.exception'),
+});
 
 const SHIPMENT_STEP_TONES: Record<ShipmentStatus, BadgeTone> = {
     label_pending: 'neutral',
@@ -35,9 +37,13 @@ interface TimelineStep {
  * (specs.md §11.2 pas 7) — intenționat absentă de aici, e Faza 5.
  */
 export default function OrderTimeline({ order }: { order: Order }) {
+    const { t } = useTranslation('orders');
+    const locale = useLocale();
+    const stepLabels = shipmentStepLabels(t);
+
     const steps: TimelineStep[] = [
-        { key: 'created', label: 'Created', at: order.createdAt, tone: 'neutral', reached: true },
-        { key: 'confirmed', label: 'Confirmed', at: order.placedAt, tone: 'accent', reached: order.placedAt !== null },
+        { key: 'created', label: t('timeline.orderSteps.created'), at: order.createdAt, tone: 'neutral', reached: true },
+        { key: 'confirmed', label: t('timeline.orderSteps.confirmed'), at: order.placedAt, tone: 'accent', reached: order.placedAt !== null },
     ];
 
     // Cele mai vechi shipment-uri primele pe timeline — `order.shipments` vine de la
@@ -45,7 +51,7 @@ export default function OrderTimeline({ order }: { order: Order }) {
     for (const shipment of [...order.shipments].reverse()) {
         steps.push({
             key: shipment.id,
-            label: SHIPMENT_STEP_LABELS[shipment.status],
+            label: stepLabels[shipment.status],
             at: shipment.shippedAt ?? shipment.createdAt,
             tone: SHIPMENT_STEP_TONES[shipment.status],
             reached: true,
@@ -53,7 +59,7 @@ export default function OrderTimeline({ order }: { order: Order }) {
     }
 
     return (
-        <ol aria-label="Order timeline" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <ol aria-label={t('timeline.ariaLabel')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             {steps.map((step) => (
                 <li key={step.key} className="flex items-center gap-3">
                     <span
@@ -61,7 +67,7 @@ export default function OrderTimeline({ order }: { order: Order }) {
                         className={`h-2 w-2 shrink-0 rounded-full ${step.reached ? 'bg-accent-fill' : 'bg-border-soft'}`}
                     />
                     <span className={`text-sm ${step.reached ? 'text-text' : 'text-text-3'}`}>{step.label}</span>
-                    {step.at && <StatusBadge tone={step.tone}>{dateTimeFormatter.format(new Date(step.at))}</StatusBadge>}
+                    {step.at && <StatusBadge tone={step.tone}>{formatDateTime(step.at, locale)}</StatusBadge>}
                 </li>
             ))}
         </ol>

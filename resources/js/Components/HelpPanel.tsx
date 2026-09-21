@@ -1,5 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { helpTopicForComponent } from '@/help';
 import type { HelpTopic } from '@/help/types';
 
@@ -30,6 +31,7 @@ const INTRO_HINT_KEY = 'help-panel-intro';
  * `tests/Feature/Help/HelpTopicCoverageTest.php` (FR-HELP-04).
  */
 export default function HelpPanel() {
+    const { t } = useTranslation('common');
     const page = usePage();
     const topic = helpTopicForComponent(page.component);
     const dismissedHints = page.props.auth.user?.dismissedHints ?? [];
@@ -159,7 +161,7 @@ export default function HelpPanel() {
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-control text-sm font-medium text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
                 <span aria-hidden="true">?</span>
-                <span className="sr-only">Help for this page</span>
+                <span className="sr-only">{t('common:helpPanel.trigger')}</span>
             </button>
 
             {introHintVisible && (
@@ -168,16 +170,17 @@ export default function HelpPanel() {
                     className="absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-border bg-overlay p-3 text-sm text-text shadow-lg"
                 >
                     <p>
-                        New here? Press{' '}
-                        <kbd className="rounded border border-control px-1 font-mono text-xs">?</kbd> or click this
-                        button for help about the page you&apos;re on.
+                        <Trans
+                            i18nKey="common:helpPanel.introHint"
+                            components={{ kbd: <kbd className="rounded border border-control px-1 font-mono text-xs" /> }}
+                        />
                     </p>
                     <button
                         type="button"
                         onClick={dismissIntroHint}
                         className="mt-2 text-xs font-medium text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     >
-                        Got it
+                        {t('common:helpPanel.gotIt')}
                     </button>
                 </div>
             )}
@@ -215,6 +218,8 @@ interface HelpPanelContentProps {
  * implicit — audiența secundară din specs.md §1.5).
  */
 function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps) {
+    const { t } = useTranslation('common');
+
     return (
         <div className="flex h-full flex-col gap-5 p-6">
             <div className="flex items-start justify-between gap-4">
@@ -224,7 +229,7 @@ function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps)
                 <button
                     type="button"
                     onClick={onClose}
-                    aria-label="Close help panel"
+                    aria-label={t('common:helpPanel.close')}
                     className="shrink-0 rounded-md p-1 text-text-2 hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                     <span aria-hidden="true">✕</span>
@@ -235,7 +240,7 @@ function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps)
 
             <section aria-labelledby={`${topic.id}-what-you-can-do`}>
                 <h3 id={`${topic.id}-what-you-can-do`} className="text-sm font-semibold text-text">
-                    What you can do here
+                    {t('common:helpPanel.whatYouCanDo')}
                 </h3>
                 <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-text-2">
                     {topic.whatCanYouDo.map((action) => (
@@ -246,7 +251,7 @@ function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps)
 
             <section aria-labelledby={`${topic.id}-rules`}>
                 <h3 id={`${topic.id}-rules`} className="text-sm font-semibold text-text">
-                    Rules that apply here
+                    {t('common:helpPanel.rules')}
                 </h3>
                 <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-text-2">
                     {topic.rules.map((rule) => (
@@ -257,7 +262,7 @@ function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps)
 
             {/* Pliat, ÎNCHIS implicit — nu se deschide singur (BR-HELP-02, prin analogie). */}
             <details className="rounded-md border border-border-soft bg-raised p-3 text-sm">
-                <summary className="cursor-pointer font-semibold text-text">How it&apos;s built</summary>
+                <summary className="cursor-pointer font-semibold text-text">{t('common:helpPanel.howItsBuilt')}</summary>
                 <p className="mt-2 text-text-2">{topic.howItsBuilt.summary}</p>
                 {topic.howItsBuilt.adr && (
                     <p className="mt-2">

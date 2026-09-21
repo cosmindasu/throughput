@@ -12,11 +12,11 @@ import AppLayout from '@/Layouts/AppLayout';
  * în bara de sus (AppLayout) — un singur loc care știe cum se comută tema. Rândul de
  * limbă e simetric, cu `LocaleToggle`.
  *
- * Traducerea de mai jos e SCHELETUL Valului 1 („Lot I18N", ADR-022): titlul paginii și
- * rândul nou de limbă trec prin `t()`, ca dovadă a lanțului complet cap-coadă
- * (`<html lang>` → `lib/i18n.ts` → catalog → randare). Rândul de temă rămâne
- * hardcodat deliberat — extragerea celor ~385 de etichete ale suprafeței e Val 3, nu
- * se face string cu string pe măsură ce se trece pe lângă el.
+ * Traducerea titlului paginii și a rândului de limbă e SCHELETUL Valului 1 („Lot I18N",
+ * ADR-022): dovada lanțului complet cap-coadă (`<html lang>` → `lib/i18n.ts` → catalog →
+ * randare). Rândul de temă a fost extras la Valul 3, odată cu restul suprafeței — vezi
+ * `theme.heading`/`theme.description` în `locales/{en,fr}/settings.json`, adăugate ca
+ * SIBLING la `language.*`, nu ca rescriere a lui.
  */
 export default function SettingsPreferences() {
     const { t } = useTranslation('settings');
@@ -30,10 +30,8 @@ export default function SettingsPreferences() {
 
                 <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface p-4">
                     <div>
-                        <h2 className="text-sm font-medium text-text">Theme</h2>
-                        <p className="text-sm text-text-2">
-                            Choose how Throughput looks. System follows your device setting.
-                        </p>
+                        <h2 className="text-sm font-medium text-text">{t('settings:theme.heading')}</h2>
+                        <p className="text-sm text-text-2">{t('settings:theme.description')}</p>
                     </div>
 
                     <ThemeToggle />

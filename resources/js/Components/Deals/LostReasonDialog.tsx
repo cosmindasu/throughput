@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import { controlClass } from '@/Components/Form/Field';
 import type { LostReason } from '@/types/generated';
 
-const REASONS: Array<{ value: LostReason; label: string }> = [
-    { value: 'price', label: 'Price' },
-    { value: 'competition', label: 'Competition' },
-    { value: 'timing', label: 'Timing' },
-    { value: 'other', label: 'Other' },
+const buildReasonOptions = (t: TFunction): Array<{ value: LostReason; label: string }> => [
+    { value: 'price', label: t('lostReasons.price') },
+    { value: 'competition', label: t('lostReasons.competition') },
+    { value: 'timing', label: t('lostReasons.timing') },
+    { value: 'other', label: t('lostReasons.other') },
 ];
 
 interface LostReasonDialogProps {
@@ -23,20 +25,22 @@ interface LostReasonDialogProps {
  * `ConfirmDialog`: focus trap și `Esc` gratuite de la browser.
  */
 export default function LostReasonDialog({ open, processing = false, onCancel, onConfirm }: LostReasonDialogProps) {
+    const { t } = useTranslation('deals');
     const [reason, setReason] = useState<LostReason>('price');
+    const reasons = buildReasonOptions(t);
 
     return (
         <ConfirmDialog
             open={open}
-            title="Mark deal as Lost"
+            title={t('lostReasonDialog.title')}
             onClose={onCancel}
             onConfirm={() => onConfirm(reason)}
-            confirmLabel="Mark as Lost"
+            confirmLabel={t('lostReasonDialog.confirmLabel')}
             confirmVariant="danger"
             processing={processing}
         >
             <label htmlFor="lost-reason" className="text-sm font-medium text-text">
-                Reason
+                {t('lostReasonDialog.reasonLabel')}
             </label>
             <select
                 id="lost-reason"
@@ -44,7 +48,7 @@ export default function LostReasonDialog({ open, processing = false, onCancel, o
                 value={reason}
                 onChange={(event) => setReason(event.target.value as LostReason)}
             >
-                {REASONS.map((option) => (
+                {reasons.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
                     </option>

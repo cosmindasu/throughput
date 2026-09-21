@@ -5,5 +5,317 @@
         "description": "Choose the language used across Throughput.",
         "available_one": "Available in {{count}} language.",
         "available_other": "Available in {{count}} languages."
+    },
+    "theme": {
+        "heading": "Theme",
+        "description": "Choose how Throughput looks. System follows your device setting."
+    },
+    "index": {
+        "title": "Settings",
+        "open": "Open",
+        "openAriaLabel": "Open {{title}}",
+        "sections": {
+            "members": {
+                "title": "Members",
+                "description": "See who has access, and deactivate someone who left."
+            },
+            "billing": {
+                "title": "Billing & Subscription",
+                "description": "Manage the Throughput subscription and payment method."
+            },
+            "apiTokens": {
+                "title": "API Tokens",
+                "description": "Create and revoke tokens for the public API."
+            },
+            "carrierSettings": {
+                "title": "Carrier settings",
+                "description": "Choose the shipping carrier this workspace uses, and store its sandbox credentials."
+            },
+            "pipeline": {
+                "title": "Pipeline",
+                "description": "Configure the pipeline stages used by the deals board."
+            },
+            "preferences": {
+                "title": "Preferences",
+                "description": "Theme and other personal preferences."
+            },
+            "sentEmails": {
+                "title": "Sent Emails",
+                "description": "Every transactional email the public demo tried to send — delivered or intercepted (§22.3)."
+            },
+            "dataExports": {
+                "title": "Export data",
+                "description": "Request a complete, machine-readable copy of everything this workspace holds."
+            },
+            "webhooks": {
+                "title": "Webhook health",
+                "description": "See what Stripe has sent this deployment, and what happened to it."
+            }
+        }
+    },
+    "members": {
+        "title": "Members",
+        "description": "Everyone with access to this workspace, and their role.",
+        "inviteButton": "Invite member",
+        "tableCaption": "Workspace members and their roles",
+        "columns": {
+            "name": "Name",
+            "role": "Role",
+            "status": "Status",
+            "joined": "Joined",
+            "deactivated": "Deactivated",
+            "actions": "Actions"
+        },
+        "status": {
+            "active": "active",
+            "deactivated": "deactivated",
+            "invited": "invited",
+            "expired": "expired"
+        },
+        "invitationExpired": "Invitation expired {{date}}",
+        "invitationPending": "Invited {{invitedDate}} · expires {{expiresDate}}",
+        "deactivatedBy": "by {{name}}",
+        "resendButton": "Resend",
+        "resendAriaLabel": "Resend the invitation to {{email}}",
+        "revokeButton": "Revoke",
+        "revokeAriaLabel": "Revoke the invitation to {{email}}",
+        "changeRoleButton": "Change role",
+        "changeRoleAriaLabel": "Change {{name}}'s role",
+        "deactivateButton": "Deactivate member",
+        "deactivateAriaLabel": "Deactivate {{name}}",
+        "outcomes": {
+            "deactivated": "{{name}} was deactivated.",
+            "deactivatedReassigning_one": "{{name}} was deactivated; reassigning {{count}} record…",
+            "deactivatedReassigning_other": "{{name}} was deactivated; reassigning {{count}} records…",
+            "deactivatedNeedsOwner_one": "{{name}} was deactivated; {{count}} record needs a new owner — see Unassigned.",
+            "deactivatedNeedsOwner_other": "{{name}} was deactivated; {{count}} records need a new owner — see Unassigned.",
+            "roleChanged": "{{name}} is now {{role}}.",
+            "invitationResent": "A new invitation link was sent to {{email}}.",
+            "invitationRevoked": "The invitation to {{email}} was revoked.",
+            "invited": "Invitation sent to {{email}}."
+        }
+    },
+    "changeRoleDialog": {
+        "title": "Change {{name}}’s role",
+        "description": "They are {{role}} today. A new role takes effect on their very next request — they do not need to sign out and back in.",
+        "unassignedRole": "unassigned",
+        "newRoleLabel": "New role",
+        "cancel": "Cancel",
+        "save": "Change role",
+        "saving": "Saving…"
+    },
+    "deactivateMemberDialog": {
+        "title": "Deactivate {{name}}",
+        "lastOwnerWarning": "Transfer ownership before deactivating the last Owner.",
+        "close": "Close",
+        "withOpenRecords": "{{name}} owns {{summary}}. Reassign them now, or deactivate anyway and review them later in Unassigned.",
+        "withoutOpenRecords": "{{name}} will lose access immediately. They own no open deals or active orders.",
+        "summary": {
+            "deals_one": "{{count}} open deal",
+            "deals_other": "{{count}} open deals",
+            "orders_one": "{{count}} active order",
+            "orders_other": "{{count}} active orders",
+            "joiner": "{{deals}} and {{orders}}"
+        },
+        "newOwnerLabel": "New owner",
+        "chooseMember": "Choose a member…",
+        "cancel": "Cancel",
+        "reassignAndDeactivate": "Reassign and deactivate",
+        "reassigning": "Reassigning…",
+        "deactivateAnyway": "Deactivate anyway",
+        "deactivate": "Deactivate",
+        "deactivating": "Deactivating…"
+    },
+    "inviteMemberDialog": {
+        "title": "Invite a member",
+        "description": "They get an email with a link that is valid for 7 days. Nothing changes in this workspace until they accept it.",
+        "emailLabel": "Email address",
+        "emailPlaceholder": "colleague@example.com",
+        "roleLabel": "Role",
+        "roleHint": "Roles can be changed later from this list.",
+        "cancel": "Cancel",
+        "send": "Send invitation",
+        "sending": "Sending…"
+    },
+    "apiTokens": {
+        "title": "API tokens",
+        "description": "Tokens let an outside system read and write this workspace through the public API. The workspace comes from the token itself — never from the URL.",
+        "newTokenNotice": "Copy this token now — it is never shown again.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "createTitle": "Create a token",
+        "nameLabel": "Name",
+        "nameHint": "What the token is for, e.g. \"ERP sync\".",
+        "scopesLegend": "Scopes",
+        "scopesHint": "A token can only do what its scopes allow — and never more than the person who issued it.",
+        "expiresLabel": "Expires at",
+        "expiresHint": "Optional. Leave empty for a token that never expires on its own.",
+        "create": "Create token",
+        "creating": "Creating…",
+        "tableCaption": "API tokens",
+        "columns": {
+            "name": "Name",
+            "scopes": "Scopes",
+            "created": "Created",
+            "lastUsed": "Last used",
+            "expires": "Expires",
+            "status": "Status",
+            "actions": "Actions"
+        },
+        "createdBy": "by {{name}}",
+        "status": {
+            "active": "active",
+            "expired": "expired",
+            "revoked": "revoked"
+        },
+        "revokeButton": "Revoke",
+        "revokeAriaLabel": "Revoke token {{name}}",
+        "empty": "No API tokens yet. Create one to let an outside system talk to this workspace.",
+        "revokeDialog": {
+            "title": "Revoke this token?",
+            "confirm": "Revoke",
+            "body": "Any integration still using <strong>{{name}}</strong> stops working immediately. This cannot be undone — issue a new token instead."
+        }
+    },
+    "billing": {
+        "title": "Billing & Subscription",
+        "canceledTitle": "Subscription canceled",
+        "canceledBody": "This workspace's Throughput subscription was canceled. Your data is kept for 30 days from cancellation and this workspace can be reactivated at any time during that window, with no re-onboarding.",
+        "canceledOn": "Canceled on {{date}}.",
+        "reactivate": "Reactivate",
+        "currentPlan": "Current plan",
+        "noActiveSubscription": "No active Stripe subscription for this workspace.",
+        "noStatus": "No subscription yet",
+        "status": {
+            "active": "active",
+            "pastDue": "past due",
+            "unpaid": "unpaid",
+            "canceled": "canceled"
+        },
+        "paymentMethod": "Payment method",
+        "paymentMethodValue": "{{type}} ending in {{lastFour}}",
+        "noPaymentMethod": "No payment method on file yet.",
+        "manageButton": "Manage billing",
+        "invoiceHistory": "Invoice history",
+        "noInvoices": "No invoices yet.",
+        "columns": {
+            "date": "Date",
+            "total": "Total",
+            "status": "Status",
+            "view": "View"
+        },
+        "viewInvoice": "View",
+        "viewInvoiceSrLabel": "the invoice from {{date}}",
+        "unknownDate": "an unknown date"
+    },
+    "accessBlocked": {
+        "title": "Workspace unavailable",
+        "heading": "This workspace is unavailable",
+        "body": "This workspace's Throughput subscription was canceled. Only an Owner can reactivate it — everything else, including your access, stays paused until then.",
+        "askOwner": "Ask an Owner to reactivate it:",
+        "logout": "Log out"
+    },
+    "dataExport": {
+        "title": "Export data",
+        "description": "A complete, machine-readable copy of everything this workspace holds — accounts, contacts, deals, orders, invoices, payments and the activity log.",
+        "status": {
+            "queued": "Queued",
+            "processing": "Preparing",
+            "completed": "Ready to download",
+            "failed": "Failed",
+            "expired": "Expired"
+        },
+        "request": "Request export",
+        "requesting": "Requesting…",
+        "errorFallback": "The export could not be started.",
+        "progressMessage": "Preparing your archive. This page updates on its own — you will also get an email when it is ready.",
+        "retentionMessage_one": "Download links stay valid for {{count}} day. After that the file is deleted and the request stays in this list.",
+        "retentionMessage_other": "Download links stay valid for {{count}} days. After that the file is deleted and the request stays in this list.",
+        "tableCaption": "Data export requests",
+        "columns": {
+            "requested": "Requested",
+            "requestedBy": "Requested by",
+            "status": "Status",
+            "availableUntil": "Available until",
+            "actions": "Actions"
+        },
+        "empty": "No data export has been requested for this workspace yet.",
+        "downloadAriaLabel": "Download the export requested on {{date}}",
+        "downloadButton": "Download ZIP"
+    },
+    "sentEmails": {
+        "title": "Sent emails",
+        "description": "Every transactional email the public demo has tried to send — delivered to the allowlist, or intercepted (specs.md §22.3).",
+        "statusFilterLabel": "Status",
+        "anyStatus": "Any status",
+        "status": {
+            "delivered": "Delivered",
+            "intercepted": "Intercepted",
+            "partial": "Partially delivered",
+            "failed": "Failed"
+        },
+        "recipientStatus": {
+            "delivered": "delivered",
+            "intercepted": "intercepted"
+        },
+        "noRecipient": "(no To recipient)",
+        "moreRecipients": "{{address}} +{{count}} more",
+        "recipientsTotal_one": "{{count}} recipient total (to/cc/bcc)",
+        "recipientsTotal_other": "{{count}} recipients total (to/cc/bcc)",
+        "view": "View",
+        "hide": "Hide",
+        "detailAriaLabel": "{{action}} email \"{{subject}}\" to {{recipient}}",
+        "from": "From",
+        "recipients": "Recipients",
+        "linkRedacted": "Link redacted",
+        "emailBodyEmpty": "No body was captured for this email.",
+        "emailBodyPreviewTitle": "Email body preview",
+        "tableCaption": "Sent emails log",
+        "columns": {
+            "when": "When",
+            "to": "To",
+            "subject": "Subject",
+            "mailer": "Mailer",
+            "status": "Status",
+            "details": "Details"
+        },
+        "empty": "No emails have been sent or intercepted yet."
+    },
+    "shipping": {
+        "title": "Carrier settings",
+        "description": "Choose the carrier this workspace uses to generate shipping labels, and its credentials.",
+        "active": "Active",
+        "notActive": "Not active",
+        "apiKeyLabel": "Shippo API key",
+        "apiKeyConfiguredHint": "API key configured (ends in {{last}}). Leave blank to keep the current key.",
+        "apiKeyMissingHint": "No API key configured yet. Sandbox key only (shippo_test_...) — never a live key, in any environment of this deployment.",
+        "save": "Save",
+        "saveAndActivate": "Save & activate",
+        "activate": "Activate",
+        "saving": "Saving…",
+        "actionAriaLabel": "{{action}} {{label}}"
+    },
+    "webhooks": {
+        "title": "Webhook health",
+        "description": "Every Stripe event this deployment has received, with what happened to it (specs.md §12.3, §25.2).",
+        "status": {
+            "received": "Received",
+            "processing": "Processing",
+            "processed": "Processed",
+            "failed": "Failed",
+            "ignored": "Ignored (not ours)"
+        },
+        "ignoredExplanation": "<strong>Ignored is not an error.</strong> The Stripe sandbox is shared with another project, so events belonging to that project reach this endpoint with a perfectly valid signature. They are recorded and left alone — no workspace here maps to their customer. Only <danger>{{failedLabel}}</danger> needs attention.",
+        "statusFilterLabel": "Status",
+        "anyStatus": "Any status",
+        "tableCaption": "Webhook events",
+        "columns": {
+            "received": "Received",
+            "source": "Source",
+            "event": "Event",
+            "status": "Status",
+            "detail": "Detail"
+        },
+        "empty": "No webhook events have been received yet."
     }
 }

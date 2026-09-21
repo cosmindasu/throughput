@@ -1,5 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import type { TFunction } from 'i18next';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
@@ -14,26 +16,29 @@ import type { StockShowPageProps } from '@/types/generated';
  * dezactivate), nu doar dezactivate.
  */
 export default function Show() {
+    const { t } = useTranslation('products');
     const { variant, levels, locations, can, workspace } = usePage<StockShowPageProps>().props;
     const base = workspace ? `/${workspace.slug}` : '';
+    // `variant.sku` e conținut scris de utilizator (FR-I18N-06) — interpolat, nu tradus.
+    const title = t('products:stock.show.title', { sku: variant.sku });
 
     return (
         <>
-            <Head title={`Stock — ${variant.sku}`} />
+            <Head title={title} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={`Stock — ${variant.sku}`}
+                    title={title}
                     description={
                         variant.isLowStock ? (
                             <span className="flex items-center gap-2">
-                                <StatusBadge tone="warning">Low stock</StatusBadge>
-                                <span>Available is below the threshold of {variant.lowStockThreshold}.</span>
+                                <StatusBadge tone="warning">{t('products:badges.lowStock')}</StatusBadge>
+                                <span>{t('products:stock.show.belowThreshold', { threshold: variant.lowStockThreshold })}</span>
                             </span>
                         ) : undefined
                     }
                     actions={
-                        <ButtonLink href={`${base}/variants/${variant.id}/stock/history`}>View history</ButtonLink>
+                        <ButtonLink href={`${base}/variants/${variant.id}/stock/history`}>{t('products:stock.show.viewHistory')}</ButtonLink>
                     }
                 />
 
@@ -42,20 +47,28 @@ export default function Show() {
                         {/* Convenția implicită de nume pentru un tabel fără heading propriu
                             deasupra: `<caption class="sr-only">` (tehnica H39), nu un
                             `aria-labelledby` către titlul PAGINII. Vezi `.ai/rules/frontend.md`. */}
-                        <caption className="sr-only">Stock levels by location</caption>
+                        <caption className="sr-only">{t('products:stock.show.tableCaption')}</caption>
                         <thead className="bg-raised text-text-2">
                             <tr>
-                                <th scope="col" className="px-4 py-2 font-medium">Location</th>
-                                <th scope="col" className="px-4 py-2 font-medium">On hand</th>
-                                <th scope="col" className="px-4 py-2 font-medium">Reserved</th>
-                                <th scope="col" className="px-4 py-2 font-medium">Available</th>
+                                <th scope="col" className="px-4 py-2 font-medium">
+                                    {t('products:stock.show.columns.location')}
+                                </th>
+                                <th scope="col" className="px-4 py-2 font-medium">
+                                    {t('products:stock.show.columns.onHand')}
+                                </th>
+                                <th scope="col" className="px-4 py-2 font-medium">
+                                    {t('products:stock.show.columns.reserved')}
+                                </th>
+                                <th scope="col" className="px-4 py-2 font-medium">
+                                    {t('products:stock.show.columns.available')}
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-soft bg-surface">
                             {levels.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-4 py-6 text-center text-text-2">
-                                        No stock recorded at any location yet.
+                                        {t('products:stock.show.empty')}
                                     </td>
                                 </tr>
                             ) : (
@@ -74,9 +87,9 @@ export default function Show() {
 
                 {can.adjust && (
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <ReceiveForm action={`${base}/variants/${variant.id}/stock/receive`} locations={locations} />
-                        <AdjustForm action={`${base}/variants/${variant.id}/stock/adjust`} locations={locations} />
-                        <TransferForm action={`${base}/variants/${variant.id}/stock/transfer`} locations={locations} />
+                        <ReceiveForm t={t} action={`${base}/variants/${variant.id}/stock/receive`} locations={locations} />
+                        <AdjustForm t={t} action={`${base}/variants/${variant.id}/stock/adjust`} locations={locations} />
+                        <TransferForm t={t} action={`${base}/variants/${variant.id}/stock/transfer`} locations={locations} />
                     </div>
                 )}
             </div>
@@ -89,7 +102,7 @@ interface LocationOption {
     name: string;
 }
 
-function ReceiveForm({ action, locations }: { action: string; locations: LocationOption[] }) {
+function ReceiveForm({ t, action, locations }: { t: TFunction; action: string; locations: LocationOption[] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         location_id: locations[0]?.id ?? '',
         quantity: '',
@@ -110,9 +123,9 @@ function ReceiveForm({ action, locations }: { action: string; locations: Locatio
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4" noValidate>
-            <h2 className="text-sm font-medium text-text">Receive stock</h2>
+            <h2 className="text-sm font-medium text-text">{t('products:stock.show.receive.heading')}</h2>
 
-            <Field label="Location" error={errors.location_id}>
+            <Field label={t('products:stock.show.receive.location')} error={errors.location_id}>
                 {(control) => (
                     <select {...control} className={controlClass} value={data.location_id} onChange={(event) => setData('location_id', event.target.value)}>
                         {locations.map((location) => (
@@ -124,26 +137,26 @@ function ReceiveForm({ action, locations }: { action: string; locations: Locatio
                 )}
             </Field>
 
-            <Field label="Quantity" error={errors.quantity} required>
+            <Field label={t('products:stock.show.receive.quantity')} error={errors.quantity} required>
                 {(control) => (
                     <input {...control} type="number" min="1" className={controlClass} value={data.quantity} onChange={(event) => setData('quantity', event.target.value)} />
                 )}
             </Field>
 
-            <Field label="Note" error={errors.note} hint="Optional — e.g. a PO number.">
+            <Field label={t('products:stock.show.receive.note')} error={errors.note} hint={t('products:stock.show.receive.noteHint')}>
                 {(control) => (
                     <input {...control} className={controlClass} value={data.note} onChange={(event) => setData('note', event.target.value)} />
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" pending={processing} pendingLabel="Receiving…">
-                Receive
+            <Button type="submit" variant="primary" pending={processing} pendingLabel={t('products:stock.show.receive.submitting')}>
+                {t('products:stock.show.receive.submit')}
             </Button>
         </form>
     );
 }
 
-function AdjustForm({ action, locations }: { action: string; locations: LocationOption[] }) {
+function AdjustForm({ t, action, locations }: { t: TFunction; action: string; locations: LocationOption[] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         location_id: locations[0]?.id ?? '',
         delta: '',
@@ -164,9 +177,9 @@ function AdjustForm({ action, locations }: { action: string; locations: Location
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4" noValidate>
-            <h2 className="text-sm font-medium text-text">Adjust stock</h2>
+            <h2 className="text-sm font-medium text-text">{t('products:stock.show.adjust.heading')}</h2>
 
-            <Field label="Location" error={errors.location_id}>
+            <Field label={t('products:stock.show.adjust.location')} error={errors.location_id}>
                 {(control) => (
                     <select {...control} className={controlClass} value={data.location_id} onChange={(event) => setData('location_id', event.target.value)}>
                         {locations.map((location) => (
@@ -178,26 +191,26 @@ function AdjustForm({ action, locations }: { action: string; locations: Location
                 )}
             </Field>
 
-            <Field label="Change" error={errors.delta} required hint="Positive to add, negative to remove — e.g. -3.">
+            <Field label={t('products:stock.show.adjust.change')} error={errors.delta} required hint={t('products:stock.show.adjust.changeHint')}>
                 {(control) => (
                     <input {...control} type="number" className={controlClass} value={data.delta} onChange={(event) => setData('delta', event.target.value)} />
                 )}
             </Field>
 
-            <Field label="Reason" error={errors.note} required hint="Required — why is this quantity being corrected?">
+            <Field label={t('products:stock.show.adjust.reason')} error={errors.note} required hint={t('products:stock.show.adjust.reasonHint')}>
                 {(control) => (
                     <input {...control} className={controlClass} value={data.note} onChange={(event) => setData('note', event.target.value)} />
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" pending={processing} pendingLabel="Adjusting…">
-                Adjust
+            <Button type="submit" variant="primary" pending={processing} pendingLabel={t('products:stock.show.adjust.submitting')}>
+                {t('products:stock.show.adjust.submit')}
             </Button>
         </form>
     );
 }
 
-function TransferForm({ action, locations }: { action: string; locations: LocationOption[] }) {
+function TransferForm({ t, action, locations }: { t: TFunction; action: string; locations: LocationOption[] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         from_location_id: locations[0]?.id ?? '',
         to_location_id: locations[1]?.id ?? locations[0]?.id ?? '',
@@ -219,9 +232,9 @@ function TransferForm({ action, locations }: { action: string; locations: Locati
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4" noValidate>
-            <h2 className="text-sm font-medium text-text">Transfer stock</h2>
+            <h2 className="text-sm font-medium text-text">{t('products:stock.show.transfer.heading')}</h2>
 
-            <Field label="From" error={errors.from_location_id}>
+            <Field label={t('products:stock.show.transfer.from')} error={errors.from_location_id}>
                 {(control) => (
                     <select {...control} className={controlClass} value={data.from_location_id} onChange={(event) => setData('from_location_id', event.target.value)}>
                         {locations.map((location) => (
@@ -233,7 +246,7 @@ function TransferForm({ action, locations }: { action: string; locations: Locati
                 )}
             </Field>
 
-            <Field label="To" error={errors.to_location_id}>
+            <Field label={t('products:stock.show.transfer.to')} error={errors.to_location_id}>
                 {(control) => (
                     <select {...control} className={controlClass} value={data.to_location_id} onChange={(event) => setData('to_location_id', event.target.value)}>
                         {locations.map((location) => (
@@ -245,20 +258,20 @@ function TransferForm({ action, locations }: { action: string; locations: Locati
                 )}
             </Field>
 
-            <Field label="Quantity" error={errors.quantity} required>
+            <Field label={t('products:stock.show.transfer.quantity')} error={errors.quantity} required>
                 {(control) => (
                     <input {...control} type="number" min="1" className={controlClass} value={data.quantity} onChange={(event) => setData('quantity', event.target.value)} />
                 )}
             </Field>
 
-            <Field label="Note" error={errors.note} hint="Optional.">
+            <Field label={t('products:stock.show.transfer.note')} error={errors.note} hint={t('products:stock.show.transfer.noteHint')}>
                 {(control) => (
                     <input {...control} className={controlClass} value={data.note} onChange={(event) => setData('note', event.target.value)} />
                 )}
             </Field>
 
-            <Button type="submit" variant="primary" pending={processing} pendingLabel="Transferring…">
-                Transfer
+            <Button type="submit" variant="primary" pending={processing} pendingLabel={t('products:stock.show.transfer.submitting')}>
+                {t('products:stock.show.transfer.submit')}
             </Button>
         </form>
     );

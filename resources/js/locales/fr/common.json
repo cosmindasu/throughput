@@ -1,5 +1,123 @@
 {
+    "actions": {
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "confirm": "Confirmer",
+        "delete": "Supprimer",
+        "rename": "Renommer",
+        "renaming": "Renommage…"
+    },
+    "states": {
+        "loading": "Chargement…",
+        "loadingLabel": "Chargement"
+    },
+    "pagination": {
+        "label": "Pagination",
+        "previous": "Précédent",
+        "next": "Suivant"
+    },
+    "nav": {
+        "primary": "Principale",
+        "skipToContent": "Aller au contenu principal",
+        "logOut": "Se déconnecter",
+        "accounts": "Comptes",
+        "contacts": "Contacts",
+        "deals": "Affaires",
+        "products": "Produits",
+        "orders": "Commandes",
+        "invoices": "Factures",
+        "reports": "Rapports",
+        "imports": "Importations",
+        "unassigned": "Non attribués",
+        "activityLog": "Journal d’activité",
+        "settings": "Paramètres",
+        "unassignedBadge_one": "{{label}}, {{count}} enregistrement nécessite un nouveau propriétaire",
+        "unassignedBadge_many": "{{label}}, {{count}} d’enregistrements nécessitent un nouveau propriétaire",
+        "unassignedBadge_other": "{{label}}, {{count}} enregistrements nécessitent un nouveau propriétaire"
+    },
     "localeToggle": {
         "legend": "Langue"
+    },
+    "themeToggle": {
+        "legend": "Thème",
+        "system": "Système",
+        "light": "Clair",
+        "dark": "Sombre"
+    },
+    "columnSelector": {
+        "trigger": "Colonnes",
+        "groupLabel": "Colonnes visibles",
+        "shown": "{{label}} affichée.",
+        "hidden": "{{label}} masquée.",
+        "moved": "{{label}} déplacée en position {{position}} sur {{total}}.",
+        "moveUp": "Déplacer {{label}} vers le haut",
+        "moveDown": "Déplacer {{label}} vers le bas",
+        "hint": "Au moins une colonne reste visible."
+    },
+    "savedViews": {
+        "trigger": "Vues",
+        "myViews": "Mes vues",
+        "teamViews": "Vues d’équipe",
+        "noPrivateViews": "Aucune vue privée pour l’instant.",
+        "noTeamViews": "Aucune vue d’équipe pour l’instant.",
+        "saveView": "Enregistrer la vue",
+        "deleteTitle": "Supprimer « {{name}} » ?",
+        "deleteBodyTeam": "Cela supprime la vue pour tous les membres de l’équipe qui peuvent la voir. Cette action est irréversible.",
+        "deleteBodyPrivate": "Cette action est irréversible.",
+        "setDefaultTooltip": "Définir par défaut",
+        "removeDefaultTooltip": "Retirer par défaut",
+        "defaultLabel": "★ Par défaut",
+        "setDefaultLabel": "☆ Définir par défaut",
+        "nameLabel": "Nom",
+        "namePlaceholder": "ex. Mes affaires ouvertes qui se concluent ce mois-ci",
+        "visibilityLegend": "Visibilité",
+        "visibilityPrivate": "Privée — vous uniquement",
+        "visibilityTeam": "Équipe — tout le monde dans cet espace de travail",
+        "currentFilters": "Filtres actuels",
+        "noFilters": "Aucun filtre — tri : {{sort}}",
+        "sortLabel": "Tri : {{sort}}",
+        "saveError": "Impossible d’enregistrer cette vue.",
+        "renameTitle": "Renommer la vue",
+        "renameError": "Impossible de renommer cette vue."
+    },
+    "demoBanner": {
+        "collapsed": "Application de démonstration — les données sont réinitialisées chaque jour.",
+        "full": "Application de démonstration — données fictives à des fins de portfolio uniquement. Il ne s’agit pas d’une entreprise réelle. Les données sont réinitialisées chaque jour.",
+        "show": "Afficher la notice",
+        "minimize": "Réduire"
+    },
+    "duplicateEmail": {
+        "notice": "Cette adresse e-mail est déjà associée à <link>{{accountName}}</link>. Une personne peut légitimement travailler avec deux entreprises.",
+        "saveAnyway": "Enregistrer quand même"
+    },
+    "helpPanel": {
+        "trigger": "Aide pour cette page",
+        "close": "Fermer le panneau d’aide",
+        "introHint": "Nouveau ici ? Appuyez sur <kbd>?</kbd> ou cliquez sur ce bouton pour obtenir de l’aide sur la page où vous vous trouvez.",
+        "gotIt": "Compris",
+        "whatYouCanDo": "Ce que vous pouvez faire ici",
+        "rules": "Règles applicables ici",
+        "howItsBuilt": "Comment c’est construit"
+    },
+    "listUpdate": {
+        "updated": "Résultats mis à jour."
+    },
+    "workspaceSwitcher": {
+        "placeholder": "Sélectionner un espace de travail",
+        "label": "Espaces de travail"
+    },
+    "subscriptionBanner": {
+        "pastDue": "Votre dernier paiement a échoué — nous réessayons automatiquement.",
+        "unpaid": "Abonnement impayé — mettez à jour votre moyen de paiement pour retrouver un accès complet.",
+        "updatePayment": "Mettre à jour le moyen de paiement"
+    },
+    "welcome": {
+        "title": "Accueil",
+        "description": "Ébauche du Sprint 0. Le système de design — tokens pour les deux thèmes, polices auto-hébergées, chiffres tabulaires — est déjà en place, avant même l’existence d’un module métier.",
+        "primaryAction": "Action principale",
+        "statusConfirmed": "confirmée",
+        "ordersToday": "Commandes aujourd’hui :"
     }
 }

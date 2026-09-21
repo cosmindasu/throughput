@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
 
@@ -25,6 +26,7 @@ interface AccessBlockedPageProps {
  */
 export default function AccessBlocked() {
     const { owners } = usePage<AccessBlockedPageProps>().props;
+    const { t } = useTranslation('settings');
 
     const logout = () => {
         router.post('/logout');
@@ -32,19 +34,16 @@ export default function AccessBlocked() {
 
     return (
         <>
-            <Head title="Workspace unavailable" />
+            <Head title={t('settings:accessBlocked.title')} />
 
             <div className="flex flex-col gap-4 text-center">
-                <h1 className="text-lg font-semibold text-text">This workspace is unavailable</h1>
+                <h1 className="text-lg font-semibold text-text">{t('settings:accessBlocked.heading')}</h1>
 
-                <p className="text-sm text-text-2">
-                    This workspace&apos;s Throughput subscription was canceled. Only an Owner can reactivate it —
-                    everything else, including your access, stays paused until then.
-                </p>
+                <p className="text-sm text-text-2">{t('settings:accessBlocked.body')}</p>
 
                 {owners.length > 0 && (
                     <div className="rounded-md border border-border bg-raised p-3 text-left text-sm">
-                        <p className="font-medium text-text">Ask an Owner to reactivate it:</p>
+                        <p className="font-medium text-text">{t('settings:accessBlocked.askOwner')}</p>
                         <ul className="mt-2 flex flex-col gap-1">
                             {owners.map((owner) => (
                                 <li key={owner.email} className="text-text-2">
@@ -57,7 +56,7 @@ export default function AccessBlocked() {
 
                 <div>
                     <Button variant="secondary" onClick={logout}>
-                        Log out
+                        {t('settings:accessBlocked.logout')}
                     </Button>
                 </div>
             </div>

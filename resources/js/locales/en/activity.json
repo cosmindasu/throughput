@@ -1,0 +1,44 @@
+{
+    "index": {
+        "title": "Activity log",
+        "description": "Every change made to accounts, contacts, deals, products and orders.",
+        "filters": {
+            "action": { "label": "Action", "any": "Any action" },
+            "member": { "label": "Member", "anyone": "Anyone" },
+            "from": "From",
+            "to": "To",
+            "clear": "Clear filters"
+        },
+        "bulkOperationNotice": "Showing only rows written by a single bulk operation.",
+        "showAllRows": "Show all rows",
+        "columns": {
+            "action": "Action",
+            "member": "Member",
+            "changes": "Changes",
+            "date": "Date"
+        },
+        "empty": {
+            "filtered": "No activity matches this filter.",
+            "none": "No activity recorded yet."
+        }
+    },
+    "entry": {
+        "systemActor": "System"
+    },
+    "historyTab": {
+        "loading": "Loading history…",
+        "failed": "Could not load history.",
+        "empty": "No changes recorded yet.",
+        "loadMore": "Load more",
+        "loadMorePending": "Loading…",
+        "announcement": {
+            "loaded_one": "{{count}} more entry loaded.",
+            "loaded_other": "{{count}} more entries loaded.",
+            "loadedEndOfHistory_one": "{{count}} more entry loaded. End of history.",
+            "loadedEndOfHistory_other": "{{count}} more entries loaded. End of history."
+        }
+    },
+    "feed": {
+        "empty": "No recent activity yet."
+    }
+}

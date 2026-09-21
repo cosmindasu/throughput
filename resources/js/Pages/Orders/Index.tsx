@@ -1,5 +1,7 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
-import { useState, type ReactNode } from 'react';
+import type { TFunction } from 'i18next';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import { ButtonLink, buttonClass } from '@/Components/Button';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
@@ -13,20 +15,21 @@ import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListColumns } from '@/hooks/useListColumns';
+import { useLocale } from '@/hooks/useLocale';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDate } from '@/lib/format';
+import { type AppLocale } from '@/lib/i18n';
 import { formatMoney } from '@/lib/money';
 import type { OrdersIndexPageProps, OrderStatus, OrderSummary } from '@/types/generated';
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-
-const STATUSES: Array<{ value: OrderStatus | ''; label: string }> = [
-    { value: '', label: 'All statuses' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'confirmed', label: 'Confirmed' },
-    { value: 'partially_fulfilled', label: 'Partially fulfilled' },
-    { value: 'fulfilled', label: 'Fulfilled' },
-    { value: 'cancelled', label: 'Cancelled' },
+const buildOrderStatusOptions = (t: TFunction): Array<{ value: OrderStatus | ''; label: string }> => [
+    { value: '', label: t('index.statuses.all') },
+    { value: 'draft', label: t('index.statuses.draft') },
+    { value: 'confirmed', label: t('index.statuses.confirmed') },
+    { value: 'partially_fulfilled', label: t('index.statuses.partiallyFulfilled') },
+    { value: 'fulfilled', label: t('index.statuses.fulfilled') },
+    { value: 'cancelled', label: t('index.statuses.cancelled') },
 ];
 
 const STATUS_TONE: Record<OrderStatus, 'neutral' | 'accent' | 'success' | 'danger'> = {
@@ -51,50 +54,53 @@ interface OrderColumnDef extends ColumnDefinition {
  * number" (identitatea) rămâne fix, randat separat mai jos, cu propriul buton de sortare.
  * Ordinea de aici e ordinea implicită/vizuală (`defaultColumns`, ce se vedea deja).
  */
-const ORDER_COLUMNS: OrderColumnDef[] = [
+const buildOrderColumns = (t: TFunction, locale: AppLocale): OrderColumnDef[] => [
     {
         key: 'grandTotal',
-        label: 'Grand total',
+        label: t('index.columns.grandTotal'),
         sortKey: 'grand_total',
         headerClassName: 'text-right',
         cellClassName: 'numeric whitespace-nowrap px-4 py-2 text-right',
-        render: (order) => formatMoney(order.grandTotal, order.currency),
+        render: (order) => formatMoney(order.grandTotal, order.currency, locale),
     },
     {
         key: 'placedAt',
-        label: 'Placed at',
+        label: t('index.columns.placedAt'),
         sortKey: 'placed_at',
         cellClassName: 'whitespace-nowrap px-4 py-2',
-        render: (order) => (order.placedAt ? dateFormatter.format(new Date(order.placedAt)) : '—'),
+        render: (order) => (order.placedAt ? formatDate(order.placedAt, locale) : '—'),
     },
     {
         key: 'createdAt',
-        label: 'Created',
+        label: t('index.columns.created'),
         sortKey: 'created_at',
         cellClassName: 'whitespace-nowrap px-4 py-2',
-        render: (order) => (order.createdAt ? dateFormatter.format(new Date(order.createdAt)) : '—'),
+        render: (order) => (order.createdAt ? formatDate(order.createdAt, locale) : '—'),
     },
     {
         key: 'status',
-        label: 'Status',
+        // `order.statusLabel` rămâne cum vine din props — deja localizat server-side
+        // (Val 2 backend, ADR-022), nu se traduce în front-end.
+        label: t('index.columns.status'),
         cellClassName: 'px-4 py-2',
         render: (order) => <StatusBadge tone={STATUS_TONE[order.status]}>{order.statusLabel}</StatusBadge>,
     },
     {
         key: 'account',
-        label: 'Account',
+        label: t('index.columns.account'),
         cellClassName: 'px-4 py-2',
         render: (order) => order.account.name,
     },
     {
         key: 'owner',
-        label: 'Owner',
+        label: t('index.columns.owner'),
         cellClassName: 'px-4 py-2',
         render: (order) => order.owner.name,
     },
 ];
 
-const ORDER_COLUMNS_BY_KEY: Record<string, OrderColumnDef> = Object.fromEntries(ORDER_COLUMNS.map((column) => [column.key, column] as const));
+const buildOrderColumnsByKey = (columns: OrderColumnDef[]): Record<string, OrderColumnDef> =>
+    Object.fromEntries(columns.map((column) => [column.key, column] as const));
 
 type Selection = ReturnType<typeof useBulkSelection>;
 
@@ -109,7 +115,12 @@ type Selection = ReturnType<typeof useBulkSelection>;
  * `Accounts/Index`.
  */
 export default function Index() {
+    const { t } = useTranslation('orders');
     const { props, url } = usePage<OrdersIndexPageProps>();
+    const locale = useLocale();
+    const orderColumns = useMemo(() => buildOrderColumns(t, locale), [t, locale]);
+    const orderColumnsByKey = useMemo(() => buildOrderColumnsByKey(orderColumns), [orderColumns]);
+    const orderStatuses = useMemo(() => buildOrderStatusOptions(t), [t]);
     const { orders, total, draftTotal, filters, columns, can, owners, bulkConfirmationThreshold, bulkRowCap, workspace } = props;
     const workspaceSlug = workspace?.slug ?? '';
     const base = workspace ? `/${workspace.slug}` : '';
@@ -145,7 +156,7 @@ export default function Index() {
     // Accounts/Deals) — o cheie necunoscută (n-ar trebui să apară, `columns` e validat
     // server-side, dar defensiv) nu mai dezaliniază tabelul.
     const visibleColumns = columns
-        .map((key) => ORDER_COLUMNS_BY_KEY[key])
+        .map((key) => orderColumnsByKey[key])
         .filter((column): column is OrderColumnDef => column !== undefined);
 
     // Identitate (order number) + coloanele vizibile + acțiuni, +1 pentru checkbox-ul de
@@ -155,16 +166,16 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Orders" />
+            <Head title={t('index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Orders"
+                    title={t('index.title')}
                     actions={
                         <>
                             <SavedViewPicker resourceType="orders" current={filters} columns={columns} />
                             <ColumnSelector
-                                columns={ORDER_COLUMNS}
+                                columns={orderColumns}
                                 selected={columns}
                                 onToggle={toggleColumn}
                                 onMoveUp={moveColumnUp}
@@ -173,16 +184,16 @@ export default function Index() {
                             {can.export && (
                                 <>
                                     <a href={buildExportHref(url, base, 'csv')} className={buttonClass('secondary')}>
-                                        Export CSV
+                                        {t('index.export.csv')}
                                     </a>
                                     <a href={buildExportHref(url, base, 'pdf')} className={buttonClass('secondary')}>
-                                        Export PDF
+                                        {t('index.export.pdf')}
                                     </a>
                                 </>
                             )}
                             {can.create && (
                                 <ButtonLink variant="primary" href={`${base}/orders/create`}>
-                                    New order
+                                    {t('index.actions.create')}
                                 </ButtonLink>
                             )}
                         </>
@@ -191,7 +202,7 @@ export default function Index() {
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Search</span>
+                        <span className="font-medium text-text">{t('index.search.label')}</span>
                         <input
                             type="search"
                             className={controlClass}
@@ -203,18 +214,18 @@ export default function Index() {
                                 }
                             }}
                             onBlur={() => setFilter('q', search || null)}
-                            placeholder="Search by order number…"
+                            placeholder={t('index.search.placeholder')}
                         />
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Status</span>
+                        <span className="font-medium text-text">{t('index.status.label')}</span>
                         <select
                             className={controlClass}
                             value={filters.filter.status ?? ''}
                             onChange={(event) => setFilter('status', event.target.value || null)}
                         >
-                            {STATUSES.map((status) => (
+                            {orderStatuses.map((status) => (
                                 <option key={status.value} value={status.value}>
                                     {status.label}
                                 </option>
@@ -224,10 +235,10 @@ export default function Index() {
 
                     <div className="flex overflow-hidden rounded-md border border-control text-sm">
                         <OwnerFilterButton active={(filters.filter.owner ?? 'all') === 'me'} onClick={() => setFilter('owner', 'me')}>
-                            My orders
+                            {t('index.owner.mine')}
                         </OwnerFilterButton>
                         <OwnerFilterButton active={(filters.filter.owner ?? 'all') === 'all'} onClick={() => setFilter('owner', 'all')}>
-                            All orders
+                            {t('index.owner.all')}
                         </OwnerFilterButton>
                     </div>
                 </div>
@@ -300,6 +311,7 @@ function OrdersTable({
     sort: { column: string; direction: 'asc' | 'desc' };
     onSort: (column: string) => void;
 }) {
+    const { t } = useTranslation('orders');
     const { orders } = usePage<OrdersIndexPageProps>().props;
 
     if (orders.data.length === 0) {
@@ -308,8 +320,8 @@ function OrdersTable({
         // cale reală azi e butonul „New order" de mai sus.
         return (
             <EmptyState
-                message="No orders match this filter."
-                action={canCreate ? <p className="text-xs text-text-3">Start one from "New order" above.</p> : undefined}
+                message={t('index.empty.message')}
+                action={canCreate ? <p className="text-xs text-text-3">{t('index.empty.hint')}</p> : undefined}
             />
         );
     }
@@ -318,13 +330,13 @@ function OrdersTable({
         <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
-                    <caption className="sr-only">Orders</caption>
+                    <caption className="sr-only">{t('index.table.caption')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             {canBulk && (
                                 <th scope="col" className="w-10 px-4 py-2">
                                     <RowCheckbox
-                                        aria-label="Select all orders on this page"
+                                        aria-label={t('index.table.selectAllOnPage')}
                                         checked={selection.allOnPageSelected}
                                         onChange={selection.toggleAllOnPage}
                                     />
@@ -336,7 +348,7 @@ function OrdersTable({
                                     onClick={() => onSort('order_number')}
                                     className="flex items-center gap-1 hover:text-text"
                                 >
-                                    Order number
+                                    {t('index.table.orderNumberColumn')}
                                     {sort.column === 'order_number' && (
                                         <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
                                     )}
@@ -366,7 +378,7 @@ function OrdersTable({
                                 </th>
                             ))}
                             <th scope="col" className="px-4 py-2 font-medium">
-                                <span className="sr-only">Actions</span>
+                                <span className="sr-only">{t('index.table.actions')}</span>
                             </th>
                         </tr>
                     </thead>
@@ -397,12 +409,14 @@ function OrderRow({
     columns: OrderColumnDef[];
     selection: Selection;
 }) {
+    const { t } = useTranslation('orders');
+
     return (
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
             {canBulk && (
                 <td className="px-4 py-2">
                     <RowCheckbox
-                        aria-label={`Select ${order.orderNumber ?? 'draft order'}`}
+                        aria-label={t('index.table.selectRow', { name: order.orderNumber ?? t('index.table.draftOrderFallback') })}
                         checked={selection.isSelected(order.id)}
                         onChange={() => selection.toggleRow(order.id)}
                     />
@@ -410,7 +424,7 @@ function OrderRow({
             )}
             <td className="px-4 py-2">
                 <Link href={`/${workspaceSlug}/orders/${order.id}`} className="font-medium text-text hover:underline">
-                    {order.orderNumber ?? `Draft #${order.id.slice(-8)}`}
+                    {order.orderNumber ?? t('index.table.draftNumber', { id: order.id.slice(-8) })}
                 </Link>
             </td>
             {columns.map((column) => (
@@ -421,7 +435,8 @@ function OrderRow({
             <td className="px-4 py-2 text-text-2">
                 {order.can.edit && (
                     <Link href={`/${workspaceSlug}/orders/${order.id}/edit`} className="hover:underline">
-                        Edit<span className="sr-only"> {order.orderNumber ?? `draft order ${order.id.slice(-8)}`}</span>
+                        {t('index.table.edit')}
+                        <span className="sr-only"> {order.orderNumber ?? t('index.table.draftOrderLower', { id: order.id.slice(-8) })}</span>
                     </Link>
                 )}
             </td>

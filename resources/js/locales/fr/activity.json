@@ -1,0 +1,46 @@
+{
+    "index": {
+        "title": "Journal d’activité",
+        "description": "Chaque modification apportée aux comptes, contacts, affaires, produits et commandes.",
+        "filters": {
+            "action": { "label": "Action", "any": "Toutes les actions" },
+            "member": { "label": "Membre", "anyone": "N’importe qui" },
+            "from": "Du",
+            "to": "Au",
+            "clear": "Effacer les filtres"
+        },
+        "bulkOperationNotice": "Affiche uniquement les lignes écrites par une seule opération groupée.",
+        "showAllRows": "Afficher toutes les lignes",
+        "columns": {
+            "action": "Action",
+            "member": "Membre",
+            "changes": "Modifications",
+            "date": "Date"
+        },
+        "empty": {
+            "filtered": "Aucune activité ne correspond à ce filtre.",
+            "none": "Aucune activité enregistrée pour le moment."
+        }
+    },
+    "entry": {
+        "systemActor": "Système"
+    },
+    "historyTab": {
+        "loading": "Chargement de l’historique…",
+        "failed": "Impossible de charger l’historique.",
+        "empty": "Aucune modification enregistrée pour le moment.",
+        "loadMore": "Charger plus",
+        "loadMorePending": "Chargement…",
+        "announcement": {
+            "loaded_one": "{{count}} entrée supplémentaire chargée.",
+            "loaded_many": "{{count}} d’entrées supplémentaires chargées.",
+            "loaded_other": "{{count}} entrées supplémentaires chargées.",
+            "loadedEndOfHistory_one": "{{count}} entrée supplémentaire chargée. Fin de l’historique.",
+            "loadedEndOfHistory_many": "{{count}} d’entrées supplémentaires chargées. Fin de l’historique.",
+            "loadedEndOfHistory_other": "{{count}} entrées supplémentaires chargées. Fin de l’historique."
+        }
+    },
+    "feed": {
+        "empty": "Aucune activité récente pour le moment."
+    }
+}

@@ -1,5 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -48,6 +49,7 @@ function linesFromOrder(order: Order): OrderLineFormRow[] {
  * punctul 1), la fel ca `Deals/Edit.tsx`.
  */
 export default function Edit() {
+    const { t } = useTranslation('orders');
     const { order, account, contacts, owners, can, workspace } = usePage<OrdersEditPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/orders/${order.id}/edit`;
@@ -85,14 +87,14 @@ export default function Edit() {
 
     return (
         <>
-            <Head title={`Edit ${order.orderNumber ?? 'order'}`} />
+            <Head title={t('edit.headTitle', { number: order.orderNumber ?? t('edit.orderFallback') })} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="Edit order" description={account ? `For ${account.name}` : undefined} />
+                <PageHeader title={t('edit.pageTitle')} description={account ? t('edit.descriptionForAccount', { account: account.name }) : undefined} />
 
                 <form onSubmit={submit} className="flex flex-col gap-4">
                     <div className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-                        <Field label="Account" error={errors.account_id} required>
+                        <Field label={t('edit.fields.account.label')} error={errors.account_id} required>
                             {(control) => (
                                 <AccountCombobox
                                     {...control}
@@ -103,7 +105,7 @@ export default function Edit() {
                             )}
                         </Field>
 
-                        <Field label="Contact" error={errors.contact_id}>
+                        <Field label={t('edit.fields.contact.label')} error={errors.contact_id}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -111,10 +113,10 @@ export default function Edit() {
                                     value={data.contact_id}
                                     onChange={(event) => setData('contact_id', event.target.value)}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">{t('edit.fields.contact.none')}</option>
                                     {order.contact && !contacts.some((contact) => contact.id === order.contact?.id) && (
                                         <option value={order.contact.id}>
-                                            {order.contact.isAnonymized ? 'Anonymized contact' : order.contact.name}
+                                            {order.contact.isAnonymized ? t('edit.fields.contact.anonymized') : order.contact.name}
                                         </option>
                                     )}
                                     {contacts.map((contact) => (
@@ -126,7 +128,7 @@ export default function Edit() {
                             )}
                         </Field>
 
-                        <Field label="Currency" error={errors.currency}>
+                        <Field label={t('edit.fields.currency.label')} error={errors.currency}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -143,7 +145,7 @@ export default function Edit() {
                             )}
                         </Field>
 
-                        <Field label="Notes" error={errors.notes}>
+                        <Field label={t('edit.fields.notes.label')} error={errors.notes}>
                             {(control) => (
                                 <textarea
                                     {...control}
@@ -156,7 +158,7 @@ export default function Edit() {
                         </Field>
 
                         {can.changeOwner && (
-                            <Field label="Owner" error={errors.owner_user_id} hint="Leave as “Me” to keep the current owner.">
+                            <Field label={t('edit.fields.owner.label')} error={errors.owner_user_id} hint={t('edit.fields.owner.hint')}>
                                 {(control) => (
                                     <select
                                         {...control}
@@ -176,8 +178,8 @@ export default function Edit() {
                         )}
                     </div>
 
-                    <section aria-label="Order lines" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                        <h2 className="text-sm font-medium text-text-2">Lines</h2>
+                    <section aria-label={t('edit.lines.ariaLabel')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+                        <h2 className="text-sm font-medium text-text-2">{t('edit.lines.heading')}</h2>
                         <OrderLinesEditor
                             currency={data.currency}
                             lines={data.lines}
@@ -187,10 +189,10 @@ export default function Edit() {
                     </section>
 
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
-                            Save changes
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel={t('edit.actions.submitPending')}>
+                            {t('edit.actions.submit')}
                         </Button>
-                        <ButtonLink href={`/${workspaceSlug}/orders/${order.id}`}>Cancel</ButtonLink>
+                        <ButtonLink href={`/${workspaceSlug}/orders/${order.id}`}>{t('edit.actions.cancel')}</ButtonLink>
                     </div>
                 </form>
             </div>

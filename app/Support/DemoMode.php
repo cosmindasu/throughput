@@ -147,7 +147,11 @@ final class DemoMode
 
     public static function refusal(string $action): string
     {
-        return __(self::GUARDED_ACTIONS[$action]['message']);
+        // `:owner` e folosit doar de două dintre mesaje (schimbare de rol / eliminare de
+        // membru); celelalte îl ignoră. Numele rolului vine din `lang/{locale}/roles.php`,
+        // sursa unică adăugată la Valul 3 — nu scris literal în catalogul de flash, ca să nu
+        // existe încă un loc de actualizat la revizia traducerii franceze.
+        return __(self::GUARDED_ACTIONS[$action]['message'], ['owner' => __('roles.owner')]);
     }
 
     /**

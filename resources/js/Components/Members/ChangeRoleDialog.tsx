@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
+import { roleLabel } from '@/lib/roles';
 import type { MembershipRow } from '@/types/generated';
 
 interface ChangeRoleDialogProps {
@@ -38,6 +40,7 @@ export default function ChangeRoleDialog({
     onClose,
     onConfirm,
 }: ChangeRoleDialogProps) {
+    const { t } = useTranslation('settings');
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const descriptionId = useId();
@@ -105,16 +108,17 @@ export default function ChangeRoleDialog({
         >
             <div className="w-[min(30rem,90vw)] p-5">
                 <h2 id={titleId} className="text-base font-semibold text-text">
-                    Change {member.user.name}&rsquo;s role
+                    {t('settings:changeRoleDialog.title', { name: member.user.name })}
                 </h2>
 
                 <p id={descriptionId} className="mt-2 text-sm text-text-2">
-                    They are {member.role ?? 'unassigned'} today. A new role takes effect on their very next
-                    request — they do not need to sign out and back in.
+                    {t('settings:changeRoleDialog.description', {
+                        role: roleLabel(t, member.role) ?? t('settings:changeRoleDialog.unassignedRole'),
+                    })}
                 </p>
 
                 <div className="mt-4">
-                    <Field label="New role" error={errors.role}>
+                    <Field label={t('settings:changeRoleDialog.newRoleLabel')} error={errors.role}>
                         {(control) => (
                             <select
                                 {...control}
@@ -122,9 +126,11 @@ export default function ChangeRoleDialog({
                                 value={role}
                                 onChange={(event) => setRole(event.target.value)}
                             >
+                                {/* `value` rămâne identificatorul din `App\Support\Permissions`
+                                    (ce se trimite la server); doar TEXTUL se traduce. */}
                                 {member.assignableRoles.map((option) => (
                                     <option key={option} value={option}>
-                                        {option}
+                                        {roleLabel(t, option)}
                                     </option>
                                 ))}
                             </select>
@@ -136,7 +142,7 @@ export default function ChangeRoleDialog({
                     {/* `aria-disabled`, nu `disabled` nativ, cât cererea e în curs — vezi
                         `DeactivateMemberDialog` și `.ai/rules/frontend.md`. */}
                     <Button aria-disabled={processing ? true : undefined} onClick={requestClose}>
-                        Cancel
+                        {t('settings:changeRoleDialog.cancel')}
                     </Button>
                     <Button
                         variant="primary"
@@ -149,7 +155,7 @@ export default function ChangeRoleDialog({
                             onConfirm(role);
                         }}
                     >
-                        {processing ? 'Saving…' : 'Change role'}
+                        {processing ? t('settings:changeRoleDialog.saving') : t('settings:changeRoleDialog.save')}
                     </Button>
                 </div>
             </div>

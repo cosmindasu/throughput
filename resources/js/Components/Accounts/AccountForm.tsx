@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import DuplicateEmailNotice from '@/Components/DuplicateEmailNotice';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -37,6 +38,7 @@ const emptyAddress = { line1: '', city: '', state: '', postal_code: '', country:
  * propriu pe `/contacts`), deci `mode === 'edit'` nu trimite deloc câmpul `contact`.
  */
 export default function AccountForm({ mode, account, owners, prefillName, action }: AccountFormProps) {
+    const { t } = useTranslation('accounts');
     const [confirmDuplicate, setConfirmDuplicate] = useState(false);
 
     const { data, setData, post, put, transform, processing, errors } = useForm<AccountFormData>({
@@ -123,7 +125,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
     return (
         <form onSubmit={submit} className="flex flex-col gap-8" noValidate>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Account name" error={errors.name} required>
+                <Field label={t('form.name.label')} error={errors.name} required>
                     {(control) => (
                         <input
                             {...control}
@@ -134,7 +136,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Domain" error={errors.domain} hint="e.g. acme.com">
+                <Field label={t('form.domain.label')} error={errors.domain} hint={t('form.domain.hint')}>
                     {(control) => (
                         <input
                             {...control}
@@ -145,7 +147,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Industry" error={errors.industry}>
+                <Field label={t('form.industry.label')} error={errors.industry}>
                     {(control) => (
                         <input
                             {...control}
@@ -156,7 +158,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Phone" error={errors.phone}>
+                <Field label={t('form.phone.label')} error={errors.phone}>
                     {(control) => (
                         <input
                             {...control}
@@ -167,7 +169,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Status" error={errors.status} required>
+                <Field label={t('form.status.label')} error={errors.status} required>
                     {(control) => (
                         <select
                             {...control}
@@ -175,14 +177,14 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                             value={data.status}
                             onChange={(event) => setData('status', event.target.value)}
                         >
-                            <option value="prospect">Prospect</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="prospect">{t('form.status.prospect')}</option>
+                            <option value="active">{t('form.status.active')}</option>
+                            <option value="inactive">{t('form.status.inactive')}</option>
                         </select>
                     )}
                 </Field>
 
-                <Field label="Credit terms" error={errors.credit_terms} required>
+                <Field label={t('form.creditTerms.label')} error={errors.credit_terms} required>
                     {(control) => (
                         <select
                             {...control}
@@ -190,15 +192,15 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                             value={data.credit_terms}
                             onChange={(event) => setData('credit_terms', event.target.value as CreditTerms)}
                         >
-                            <option value="net_15">Net 15</option>
-                            <option value="net_30">Net 30</option>
-                            <option value="net_60">Net 60</option>
-                            <option value="prepaid">Prepaid</option>
+                            <option value="net_15">{t('form.creditTerms.net15')}</option>
+                            <option value="net_30">{t('form.creditTerms.net30')}</option>
+                            <option value="net_60">{t('form.creditTerms.net60')}</option>
+                            <option value="prepaid">{t('form.creditTerms.prepaid')}</option>
                         </select>
                     )}
                 </Field>
 
-                <Field label="Owner" error={errors.owner_user_id} hint="Defaults to you if left unassigned.">
+                <Field label={t('form.owner.label')} error={errors.owner_user_id} hint={t('form.owner.hint')}>
                     {(control) => (
                         <select
                             {...control}
@@ -206,7 +208,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                             value={data.owner_user_id}
                             onChange={(event) => setData('owner_user_id', event.target.value)}
                         >
-                            <option value="">Unassigned</option>
+                            <option value="">{t('form.owner.unassigned')}</option>
                             {owners.map((owner) => (
                                 <option key={owner.id} value={owner.id}>
                                     {owner.name}
@@ -216,7 +218,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Source" error={errors.source}>
+                <Field label={t('form.source.label')} error={errors.source}>
                     {(control) => (
                         <input
                             {...control}
@@ -227,7 +229,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                     )}
                 </Field>
 
-                <Field label="Tags" error={errors.tags} hint="Comma-separated">
+                <Field label={t('form.tags.label')} error={errors.tags} hint={t('form.tags.hint')}>
                     {(control) => (
                         <input
                             {...control}
@@ -241,14 +243,14 @@ export default function AccountForm({ mode, account, owners, prefillName, action
 
             <section className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <AddressFields
-                    legend="Billing address"
+                    legend={t('form.billingAddress.legend')}
                     value={data.billing_address}
                     onChange={(value) => setData('billing_address', value)}
                     errors={errors}
                     prefix="billing_address"
                 />
                 <AddressFields
-                    legend="Shipping address"
+                    legend={t('form.shippingAddress.legend')}
                     value={data.shipping_address}
                     onChange={(value) => setData('shipping_address', value)}
                     errors={errors}
@@ -258,9 +260,9 @@ export default function AccountForm({ mode, account, owners, prefillName, action
 
             {mode === 'create' && (
                 <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-                    <h2 className="text-sm font-medium text-text">Primary contact (optional)</h2>
+                    <h2 className="text-sm font-medium text-text">{t('form.contactSection.heading')}</h2>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <Field label="First name" error={errors['contact.first_name']}>
+                        <Field label={t('form.contactSection.firstName')} error={errors['contact.first_name']}>
                             {(control) => (
                                 <input
                                     {...control}
@@ -270,7 +272,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                                 />
                             )}
                         </Field>
-                        <Field label="Last name" error={errors['contact.last_name']}>
+                        <Field label={t('form.contactSection.lastName')} error={errors['contact.last_name']}>
                             {(control) => (
                                 <input
                                     {...control}
@@ -280,7 +282,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                                 />
                             )}
                         </Field>
-                        <Field label="Email" error={errors['contact.email']}>
+                        <Field label={t('form.contactSection.email')} error={errors['contact.email']}>
                             {(control) => (
                                 <input
                                     {...control}
@@ -291,7 +293,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                                 />
                             )}
                         </Field>
-                        <Field label="Phone" error={errors['contact.phone']}>
+                        <Field label={t('form.contactSection.phone')} error={errors['contact.phone']}>
                             {(control) => (
                                 <input
                                     {...control}
@@ -301,7 +303,7 @@ export default function AccountForm({ mode, account, owners, prefillName, action
                                 />
                             )}
                         </Field>
-                        <Field label="Title" error={errors['contact.title']}>
+                        <Field label={t('form.contactSection.title')} error={errors['contact.title']}>
                             {(control) => (
                                 <input
                                     {...control}
@@ -325,8 +327,8 @@ export default function AccountForm({ mode, account, owners, prefillName, action
             )}
 
             <div className="flex justify-end gap-2">
-                <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
-                    {mode === 'create' ? 'Create account' : 'Save changes'}
+                <Button type="submit" variant="primary" pending={processing} pendingLabel={t('form.submit.pending')}>
+                    {mode === 'create' ? t('form.submit.create') : t('form.submit.edit')}
                 </Button>
             </div>
         </form>
@@ -342,26 +344,28 @@ interface AddressFieldsProps {
 }
 
 function AddressFields({ legend, value, onChange, errors, prefix }: AddressFieldsProps) {
+    const { t } = useTranslation('accounts');
+
     return (
         <fieldset className="flex flex-col gap-3">
             <legend className="text-sm font-medium text-text">{legend}</legend>
-            <Field label="Address line" error={errors[`${prefix}.line1`]}>
+            <Field label={t('form.address.line1')} error={errors[`${prefix}.line1`]}>
                 {(control) => (
                     <input {...control} className={controlClass} value={value.line1} onChange={(event) => onChange({ ...value, line1: event.target.value })} />
                 )}
             </Field>
             <div className="grid grid-cols-2 gap-3">
-                <Field label="City" error={errors[`${prefix}.city`]}>
+                <Field label={t('form.address.city')} error={errors[`${prefix}.city`]}>
                     {(control) => (
                         <input {...control} className={controlClass} value={value.city} onChange={(event) => onChange({ ...value, city: event.target.value })} />
                     )}
                 </Field>
-                <Field label="State" error={errors[`${prefix}.state`]}>
+                <Field label={t('form.address.state')} error={errors[`${prefix}.state`]}>
                     {(control) => (
                         <input {...control} className={controlClass} value={value.state} onChange={(event) => onChange({ ...value, state: event.target.value })} />
                     )}
                 </Field>
-                <Field label="Postal code" error={errors[`${prefix}.postal_code`]}>
+                <Field label={t('form.address.postalCode')} error={errors[`${prefix}.postal_code`]}>
                     {(control) => (
                         <input
                             {...control}
@@ -371,7 +375,7 @@ function AddressFields({ legend, value, onChange, errors, prefix }: AddressField
                         />
                     )}
                 </Field>
-                <Field label="Country" error={errors[`${prefix}.country`]} hint="ISO 2-letter">
+                <Field label={t('form.address.country')} error={errors[`${prefix}.country`]} hint={t('form.address.countryHint')}>
                     {(control) => (
                         <input
                             {...control}

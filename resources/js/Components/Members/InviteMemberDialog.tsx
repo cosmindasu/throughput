@@ -1,7 +1,9 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect, useId, useRef, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
+import { roleLabel } from '@/lib/roles';
 
 interface InviteMemberDialogProps {
     open: boolean;
@@ -44,6 +46,7 @@ export default function InviteMemberDialog({
     onClose,
     onInvited,
 }: InviteMemberDialogProps) {
+    const { t } = useTranslation('settings');
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const descriptionId = useId();
@@ -122,23 +125,22 @@ export default function InviteMemberDialog({
         >
             <form onSubmit={submit} className="w-[min(30rem,90vw)] p-5" noValidate>
                 <h2 id={titleId} className="text-base font-semibold text-text">
-                    Invite a member
+                    {t('settings:inviteMemberDialog.title')}
                 </h2>
 
                 <p id={descriptionId} className="mt-2 text-sm text-text-2">
-                    They get an email with a link that is valid for 7 days. Nothing changes in this workspace
-                    until they accept it.
+                    {t('settings:inviteMemberDialog.description')}
                 </p>
 
                 <div className="mt-4 flex flex-col gap-4">
-                    <Field label="Email address" error={errors.email} required>
+                    <Field label={t('settings:inviteMemberDialog.emailLabel')} error={errors.email} required>
                         {(control) => (
                             <input
                                 {...control}
                                 type="email"
                                 autoComplete="email"
                                 className={controlClass}
-                                placeholder="colleague@example.com"
+                                placeholder={t('settings:inviteMemberDialog.emailPlaceholder')}
                                 value={data.email}
                                 onChange={(event) => setData('email', event.target.value)}
                             />
@@ -146,9 +148,9 @@ export default function InviteMemberDialog({
                     </Field>
 
                     <Field
-                        label="Role"
+                        label={t('settings:inviteMemberDialog.roleLabel')}
                         error={errors.role}
-                        hint="Roles can be changed later from this list."
+                        hint={t('settings:inviteMemberDialog.roleHint')}
                         required
                     >
                         {(control) => (
@@ -158,9 +160,10 @@ export default function InviteMemberDialog({
                                 value={data.role}
                                 onChange={(event) => setData('role', event.target.value)}
                             >
+                                {/* Ca la `ChangeRoleDialog`: `value` e identificatorul, textul e tradus. */}
                                 {invitableRoles.map((role) => (
                                     <option key={role} value={role}>
-                                        {role}
+                                        {roleLabel(t, role)}
                                     </option>
                                 ))}
                             </select>
@@ -170,10 +173,10 @@ export default function InviteMemberDialog({
 
                 <div className="mt-5 flex flex-wrap justify-end gap-2">
                     <Button type="button" aria-disabled={processing ? true : undefined} onClick={requestClose}>
-                        Cancel
+                        {t('settings:inviteMemberDialog.cancel')}
                     </Button>
                     <Button type="submit" variant="primary" aria-disabled={processing ? true : undefined}>
-                        {processing ? 'Sending…' : 'Send invitation'}
+                        {processing ? t('settings:inviteMemberDialog.sending') : t('settings:inviteMemberDialog.send')}
                     </Button>
                 </div>
             </form>

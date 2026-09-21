@@ -1,7 +1,9 @@
 import { Link } from '@inertiajs/react';
 import type { DragEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MoveStageMenu from '@/Components/Deals/MoveStageMenu';
 import StatusBadge from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import { formatMoney } from '@/lib/money';
 import type { DealStage, DealSummary } from '@/types/generated';
 
@@ -27,6 +29,9 @@ export function dealCardDomId(dealId: string): string {
  * drag handle, nici meniu (nu doar dezactivate, ABSENTE — FR-RBAC-01).
  */
 export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onError, onMoved }: DealCardProps) {
+    const { t } = useTranslation('deals');
+    const locale = useLocale();
+
     return (
         <div
             id={dealCardDomId(deal.id)}
@@ -40,14 +45,16 @@ export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onE
                 {deal.title}
             </Link>
 
-            <p className="numeric mt-1 text-sm text-text-2">{formatMoney(deal.value, deal.currency)}</p>
+            <p className="numeric mt-1 text-sm text-text-2">{formatMoney(deal.value, deal.currency, locale)}</p>
             <p className="mt-1 truncate text-xs text-text-3">{deal.account.name}</p>
             <p className="mt-1 truncate text-xs text-text-3">{deal.owner.name}</p>
 
             {deal.status !== 'open' && (
                 <div className="mt-2">
                     <StatusBadge tone={deal.status === 'won' ? 'success' : 'danger'}>
-                        {deal.status === 'won' ? 'Won' : `Lost — ${deal.lostReason ?? 'unknown'}`}
+                        {deal.status === 'won'
+                            ? t('status.won')
+                            : t('card.lost', { reason: deal.lostReason ? t(`lostReasons.${deal.lostReason}`) : t('lostReasons.unknown') })}
                     </StatusBadge>
                 </div>
             )}

@@ -1,12 +1,18 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import Button from '@/Components/Button';
 import ChangeRoleDialog from '@/Components/Members/ChangeRoleDialog';
 import DeactivateMemberDialog from '@/Components/Members/DeactivateMemberDialog';
 import InviteMemberDialog from '@/Components/Members/InviteMemberDialog';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
+import { roleLabel } from '@/lib/roles';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDate as formatDateLocale } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 import type { MembershipRow, MembersIndexPageProps } from '@/types/generated';
 
 function statusTone(status: MembershipRow['status']) {
@@ -21,40 +27,46 @@ function statusTone(status: MembershipRow['status']) {
     return 'danger' as const;
 }
 
-function statusLabel(member: MembershipRow): string {
+/**
+ * Starea reală a unei invitații e „invited" sau „expired", nu „pending": ultimul e
+ * numele coloanei din bază, nu o stare pe care un Owner o recunoaște.
+ */
+function statusLabel(member: MembershipRow, t: TFunction<'settings'>): string {
     if (member.status !== 'pending') {
-        return member.status;
+        return t(`settings:members.status.${member.status}`);
     }
 
-    // Starea reală a unei invitații e „invited" sau „expired", nu „pending": ultimul e
-    // numele coloanei din bază, nu o stare pe care un Owner o recunoaște.
-    return member.invitation?.isExpired ? 'expired' : 'invited';
+    return t(member.invitation?.isExpired ? 'settings:members.status.expired' : 'settings:members.status.invited');
 }
 
-function formatDate(value: string | null): string {
-    if (!value) {
-        return '—';
-    }
-
-    return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+/** `—` pentru `null` — `lib/format.ts` nu tratează cazul lipsă, doar Intl valid. */
+function formatMemberDate(value: string | null, locale: AppLocale): string {
+    return value ? formatDateLocale(value, locale) : '—';
 }
 
-function outcomeMessage(member: MembershipRow, reassigned: boolean): string {
+/**
+ * FR-I18N-06 — `member.user.name` e conținut de utilizator, interpolat, NICIODATĂ tradus.
+ * Tiparele de pluralizare (`record${total === 1 ? '' : 's'}` × 2) sunt motorul CLDR al
+ * i18next (`deactivatedReassigning`/`deactivatedNeedsOwner`), nu `=== 1 ? … : …` scris de
+ * mână — ADR-022 le documenta explicit ca findind două din cele trei tipare cunoscute.
+ */
+function outcomeMessage(member: MembershipRow, reassigned: boolean, t: TFunction<'settings'>): string {
     const total = member.openRecords.total;
+    const name = member.user.name;
 
     if (reassigned) {
         // Practic neatins de pe această pagină — „Reassign and deactivate" redirecționează
         // spre `/bulk/groups/{id}` (altă componentă Inertia), deci `onSuccess` de aici nu
         // mai apucă să randeze. Păstrat pentru corectitudine și pentru cazul în care
         // redirectul se schimbă mai târziu.
-        return `${member.user.name} was deactivated; reassigning ${total} record${total === 1 ? '' : 's'}…`;
+        return t('settings:members.outcomes.deactivatedReassigning', { count: total, name });
     }
 
     if (total > 0) {
-        return `${member.user.name} was deactivated; ${total} record${total === 1 ? '' : 's'} need a new owner — see Unassigned.`;
+        return t('settings:members.outcomes.deactivatedNeedsOwner', { count: total, name });
     }
 
-    return `${member.user.name} was deactivated.`;
+    return t('settings:members.outcomes.deactivated', { name });
 }
 
 /**
@@ -72,6 +84,8 @@ function outcomeMessage(member: MembershipRow, reassigned: boolean): string {
  */
 export default function MembersIndex() {
     const { members, activeMembers, invitableRoles, can, workspace } = usePage<MembersIndexPageProps>().props;
+    const { t } = useTranslation('settings');
+    const locale = useLocale();
 
     // Toate rutele acestui ecran sunt înregistrate sub `/{workspace}` (`routes/web.php`,
     // grupul cu prefix) — `php artisan route:list` arată `{workspace}/settings/members/…`.
@@ -147,7 +161,7 @@ export default function MembersIndex() {
                 onSuccess: () => {
                     setProcessing(false);
                     setTarget(null);
-                    setOutcome(outcomeMessage(member, reassign));
+                    setOutcome(outcomeMessage(member, reassign, t));
                 },
                 onError: (pageErrors) => {
                     setProcessing(false);
@@ -174,7 +188,7 @@ export default function MembersIndex() {
                 onSuccess: () => {
                     setProcessing(false);
                     setRoleTarget(null);
-                    setOutcome(`${member.user.name} is now ${role}.`);
+                    setOutcome(t('settings:members.outcomes.roleChanged', { name: member.user.name, role }));
                 },
                 onError: (pageErrors) => {
                     setProcessing(false);
@@ -190,7 +204,8 @@ export default function MembersIndex() {
             {},
             {
                 preserveScroll: true,
-                onSuccess: () => setOutcome(`A new invitation link was sent to ${member.user.email}.`),
+                onSuccess: () =>
+                    setOutcome(t('settings:members.outcomes.invitationResent', { email: member.user.email })),
             },
         );
     };
@@ -198,24 +213,25 @@ export default function MembersIndex() {
     const revokeInvitation = (member: MembershipRow) => {
         router.delete(`${basePath}/${member.id}`, {
             preserveScroll: true,
-            onSuccess: () => setOutcome(`The invitation to ${member.user.email} was revoked.`),
+            onSuccess: () =>
+                setOutcome(t('settings:members.outcomes.invitationRevoked', { email: member.user.email })),
         });
     };
 
     return (
         <>
             {/* SC 2.4.2 (Page Titled) — vezi nota din `Unassigned/Index.tsx`. */}
-            <Head title="Members" />
+            <Head title={t('settings:members.title')} />
 
             <PageHeader
-                title="Members"
-                description="Everyone with access to this workspace, and their role."
+                title={t('settings:members.title')}
+                description={t('settings:members.description')}
                 actions={
                     // FR-RBAC-01 — absent, nu dezactivat, pentru Agent și Viewer
                     // (`members.invite` e doar la Owner/Manager, matricea §7.4).
                     can.invite ? (
                         <Button variant="primary" onClick={() => setInviteOpen(true)}>
-                            Invite member
+                            {t('settings:members.inviteButton')}
                         </Button>
                     ) : undefined
                 }
@@ -234,16 +250,16 @@ export default function MembersIndex() {
 
             <div className="mt-6 overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-left text-sm">
-                    <caption className="sr-only">Workspace members and their roles</caption>
+                    <caption className="sr-only">{t('settings:members.tableCaption')}</caption>
                     <thead className="border-b border-border bg-surface text-text-2">
                         <tr>
-                            <th scope="col" className="px-4 py-2 font-medium">Name</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Role</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Status</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Joined</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Deactivated</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:members.columns.name')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:members.columns.role')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:members.columns.status')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:members.columns.joined')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:members.columns.deactivated')}</th>
                             <th scope="col" className="px-4 py-2 font-medium">
-                                <span className="sr-only">Actions</span>
+                                <span className="sr-only">{t('settings:members.columns.actions')}</span>
                             </th>
                         </tr>
                     </thead>
@@ -254,26 +270,33 @@ export default function MembersIndex() {
                                     <div className="font-medium text-text">{member.user.name}</div>
                                     <div className="text-text-2">{member.user.email}</div>
                                 </td>
-                                <td className="px-4 py-3 text-text-2">{member.role ?? '—'}</td>
+                                <td className="px-4 py-3 text-text-2">{roleLabel(t, member.role) ?? '—'}</td>
                                 <td className="px-4 py-3">
-                                    <StatusBadge tone={statusTone(member.status)}>{statusLabel(member)}</StatusBadge>
+                                    <StatusBadge tone={statusTone(member.status)}>{statusLabel(member, t)}</StatusBadge>
                                 </td>
                                 <td className="px-4 py-3 text-text-2">
                                     {member.invitation ? (
                                         <>
                                             {member.invitation.isExpired
-                                                ? `Invitation expired ${formatDate(member.invitation.expiresAt)}`
-                                                : `Invited ${formatDate(member.invitation.invitedAt)} · expires ${formatDate(member.invitation.expiresAt)}`}
+                                                ? t('settings:members.invitationExpired', {
+                                                      date: formatMemberDate(member.invitation.expiresAt, locale),
+                                                  })
+                                                : t('settings:members.invitationPending', {
+                                                      invitedDate: formatMemberDate(member.invitation.invitedAt, locale),
+                                                      expiresDate: formatMemberDate(member.invitation.expiresAt, locale),
+                                                  })}
                                         </>
                                     ) : (
-                                        formatDate(member.joinedAt)
+                                        formatMemberDate(member.joinedAt, locale)
                                     )}
                                 </td>
                                 <td className="px-4 py-3 text-text-2">
                                     {member.deactivatedAt ? (
                                         <>
-                                            {formatDate(member.deactivatedAt)}
-                                            {member.deactivatedBy && <> by {member.deactivatedBy.name}</>}
+                                            {formatMemberDate(member.deactivatedAt, locale)}
+                                            {member.deactivatedBy && (
+                                                <> {t('settings:members.deactivatedBy', { name: member.deactivatedBy.name })}</>
+                                            )}
                                         </>
                                     ) : (
                                         '—'
@@ -284,38 +307,38 @@ export default function MembersIndex() {
                                         {member.canManageInvitation && (
                                             <>
                                                 <Button
-                                                    aria-label={`Resend the invitation to ${member.user.email}`}
+                                                    aria-label={t('settings:members.resendAriaLabel', { email: member.user.email })}
                                                     onClick={() => resendInvitation(member)}
                                                 >
-                                                    Resend
+                                                    {t('settings:members.resendButton')}
                                                 </Button>
                                                 <Button
                                                     variant="danger"
-                                                    aria-label={`Revoke the invitation to ${member.user.email}`}
+                                                    aria-label={t('settings:members.revokeAriaLabel', { email: member.user.email })}
                                                     onClick={() => revokeInvitation(member)}
                                                 >
-                                                    Revoke
+                                                    {t('settings:members.revokeButton')}
                                                 </Button>
                                             </>
                                         )}
                                         {member.canUpdateRole && (
                                             <Button
-                                                aria-label={`Change ${member.user.name}'s role`}
+                                                aria-label={t('settings:members.changeRoleAriaLabel', { name: member.user.name })}
                                                 onClick={() => {
                                                     setErrors({});
                                                     setRoleTarget(member);
                                                 }}
                                             >
-                                                Change role
+                                                {t('settings:members.changeRoleButton')}
                                             </Button>
                                         )}
                                         {member.canDeactivate && (
                                             <Button
                                                 variant="danger"
-                                                aria-label={`Deactivate ${member.user.name}`}
+                                                aria-label={t('settings:members.deactivateAriaLabel', { name: member.user.name })}
                                                 onClick={() => openDialogFor(member)}
                                             >
-                                                Deactivate member
+                                                {t('settings:members.deactivateButton')}
                                             </Button>
                                         )}
                                     </div>
@@ -334,7 +357,7 @@ export default function MembersIndex() {
                     onClose={() => setInviteOpen(false)}
                     onInvited={(email) => {
                         setInviteOpen(false);
-                        setOutcome(`Invitation sent to ${email}.`);
+                        setOutcome(t('settings:members.outcomes.invited', { email }));
                     }}
                 />
             )}

@@ -1,0 +1,19 @@
+{
+    "trigger": {
+        "label": "Search",
+        "shortcutMac": "⌘K",
+        "shortcutOther": "Ctrl K"
+    },
+    "dialog": {
+        "ariaLabel": "Global search",
+        "placeholder": "Search accounts, contacts, deals…",
+        "resultsAriaLabel": "Search results"
+    },
+    "status": {
+        "searching": "Searching…",
+        "noResultsFor": "No results for \"{{query}}\"",
+        "empty": "Nothing here yet — start typing to search.",
+        "resultCount_one": "{{count}} result",
+        "resultCount_other": "{{count}} results"
+    }
+}

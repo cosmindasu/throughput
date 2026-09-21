@@ -1,8 +1,10 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { roleLabel } from '@/lib/roles';
 import type { AcceptInvitationPageProps } from '@/types/generated';
 
 /**
@@ -21,6 +23,7 @@ import type { AcceptInvitationPageProps } from '@/types/generated';
 export default function AcceptInvitation() {
     const page = usePage<AcceptInvitationPageProps>();
     const { workspaceName, email, roleName, expired, needsProfile, acceptUrl } = page.props;
+    const { t } = useTranslation('auth');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -44,19 +47,23 @@ export default function AcceptInvitation() {
     if (expired) {
         return (
             <>
-                <Head title="Invitation expired" />
+                <Head title={t('auth:invitations.expiredTitle')} />
 
                 <div className="flex flex-col gap-6">
                     <div>
-                        <h1 className="text-xl font-semibold text-text">This invitation has expired</h1>
+                        <h1 className="text-xl font-semibold text-text">{t('auth:invitations.expiredHeading')}</h1>
                         <p className="mt-1 text-sm text-text-2">
-                            The link to join <strong>{workspaceName}</strong> was valid for 7 days. Ask whoever
-                            invited you to send a new one — your place in the workspace is still reserved.
+                            <Trans
+                                t={t}
+                                i18nKey="auth:invitations.expiredBody"
+                                values={{ workspaceName }}
+                                components={{ strong: <strong /> }}
+                            />
                         </p>
                     </div>
 
                     <Link href="/login" className="text-sm text-accent-text hover:underline">
-                        Back to log in
+                        {t('auth:invitations.backToLogin')}
                     </Link>
                 </div>
             </>
@@ -65,13 +72,18 @@ export default function AcceptInvitation() {
 
     return (
         <>
-            <Head title={`Join ${workspaceName}`} />
+            <Head title={t('auth:invitations.joinHeading', { workspaceName })} />
 
             <div className="flex flex-col gap-6">
                 <div>
-                    <h1 className="text-xl font-semibold text-text">Join {workspaceName}</h1>
+                    <h1 className="text-xl font-semibold text-text">{t('auth:invitations.joinHeading', { workspaceName })}</h1>
                     <p className="mt-1 text-sm text-text-2">
-                        You were invited as <strong>{roleName}</strong>, at <strong>{email}</strong>.
+                        <Trans
+                            t={t}
+                            i18nKey="auth:invitations.invitedAs"
+                            values={{ roleName: roleLabel(t, roleName) ?? roleName, email }}
+                            components={{ strong: <strong /> }}
+                        />
                     </p>
                 </div>
 
@@ -88,7 +100,7 @@ export default function AcceptInvitation() {
 
                     {needsProfile && (
                         <>
-                            <Field label="Your name" error={errors.name} required>
+                            <Field label={t('auth:invitations.nameLabel')} error={errors.name} required>
                                 {(control) => (
                                     <input
                                         {...control}
@@ -101,7 +113,7 @@ export default function AcceptInvitation() {
                                 )}
                             </Field>
 
-                            <Field label="Choose a password" error={errors.password} required>
+                            <Field label={t('auth:invitations.passwordLabel')} error={errors.password} required>
                                 {(control) => (
                                     <input
                                         {...control}
@@ -114,7 +126,7 @@ export default function AcceptInvitation() {
                                 )}
                             </Field>
 
-                            <Field label="Confirm password" error={errors.password_confirmation} required>
+                            <Field label={t('auth:invitations.confirmPasswordLabel')} error={errors.password_confirmation} required>
                                 {(control) => (
                                     <input
                                         {...control}
@@ -131,15 +143,13 @@ export default function AcceptInvitation() {
 
                     {!needsProfile && (
                         <p className="text-sm text-text-2">
-                            You already have a Throughput account for this address. Accepting adds{' '}
-                            {workspaceName} to your workspace switcher — your existing workspaces are not
-                            affected.
+                            {t('auth:invitations.existingAccountBody', { workspaceName })}
                         </p>
                     )}
 
                     <div>
                         <Button type="submit" variant="primary" aria-disabled={processing ? true : undefined}>
-                            {processing ? 'Joining…' : `Join ${workspaceName}`}
+                            {processing ? t('auth:invitations.submitting') : t('auth:invitations.submit', { workspaceName })}
                         </Button>
                     </div>
                 </form>

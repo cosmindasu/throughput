@@ -1,0 +1,20 @@
+{
+    "trigger": {
+        "label": "Rechercher",
+        "shortcutMac": "⌘K",
+        "shortcutOther": "Ctrl K"
+    },
+    "dialog": {
+        "ariaLabel": "Recherche globale",
+        "placeholder": "Rechercher des comptes, contacts, affaires…",
+        "resultsAriaLabel": "Résultats de recherche"
+    },
+    "status": {
+        "searching": "Recherche en cours…",
+        "noResultsFor": "Aucun résultat pour « {{query}} »",
+        "empty": "Rien pour l’instant — commencez à taper pour rechercher.",
+        "resultCount_one": "{{count}} résultat",
+        "resultCount_many": "{{count}} de résultats",
+        "resultCount_other": "{{count}} résultats"
+    }
+}

@@ -1,5 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -36,6 +37,7 @@ function lineErrorsFrom(errors: Partial<Record<string, string>>): string | undef
  * primi linii mai târziu din „Edit".
  */
 export default function Create() {
+    const { t } = useTranslation('orders');
     const { account, contacts, owners, can, workspace } = usePage<OrdersCreatePageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/orders/create`;
@@ -73,14 +75,14 @@ export default function Create() {
 
     return (
         <>
-            <Head title="New order" />
+            <Head title={t('create.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="New order" description={account ? `For ${account.name}` : undefined} />
+                <PageHeader title={t('create.title')} description={account ? t('create.descriptionForAccount', { account: account.name }) : undefined} />
 
                 <form onSubmit={submit} className="flex flex-col gap-4">
                     <div className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-                        <Field label="Account" error={errors.account_id} required>
+                        <Field label={t('create.fields.account.label')} error={errors.account_id} required>
                             {(control) => (
                                 <AccountCombobox
                                     {...control}
@@ -91,7 +93,7 @@ export default function Create() {
                             )}
                         </Field>
 
-                        <Field label="Contact" error={errors.contact_id}>
+                        <Field label={t('create.fields.contact.label')} error={errors.contact_id}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -99,7 +101,7 @@ export default function Create() {
                                     value={data.contact_id}
                                     onChange={(event) => setData('contact_id', event.target.value)}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">{t('create.fields.contact.none')}</option>
                                     {contacts.map((contact) => (
                                         <option key={contact.id} value={contact.id}>
                                             {contact.name}
@@ -109,7 +111,7 @@ export default function Create() {
                             )}
                         </Field>
 
-                        <Field label="Currency" error={errors.currency}>
+                        <Field label={t('create.fields.currency.label')} error={errors.currency}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -126,7 +128,7 @@ export default function Create() {
                             )}
                         </Field>
 
-                        <Field label="Notes" error={errors.notes}>
+                        <Field label={t('create.fields.notes.label')} error={errors.notes}>
                             {(control) => (
                                 <textarea
                                     {...control}
@@ -139,7 +141,7 @@ export default function Create() {
                         </Field>
 
                         {can.changeOwner && (
-                            <Field label="Owner" error={errors.owner_user_id} hint="Leave as “Me” to keep yourself as owner.">
+                            <Field label={t('create.fields.owner.label')} error={errors.owner_user_id} hint={t('create.fields.owner.hint')}>
                                 {(control) => (
                                     <select
                                         {...control}
@@ -147,7 +149,7 @@ export default function Create() {
                                         value={data.owner_user_id}
                                         onChange={(event) => setData('owner_user_id', event.target.value)}
                                     >
-                                        <option value="">Me</option>
+                                        <option value="">{t('create.fields.owner.meOption')}</option>
                                         {owners.map((owner) => (
                                             <option key={owner.id} value={owner.id}>
                                                 {owner.name}
@@ -159,8 +161,8 @@ export default function Create() {
                         )}
                     </div>
 
-                    <section aria-label="Order lines" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                        <h2 className="text-sm font-medium text-text-2">Lines</h2>
+                    <section aria-label={t('create.lines.ariaLabel')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+                        <h2 className="text-sm font-medium text-text-2">{t('create.lines.heading')}</h2>
                         <OrderLinesEditor
                             currency={data.currency}
                             lines={data.lines}
@@ -172,10 +174,12 @@ export default function Create() {
                     <div className="flex items-center gap-2">
                         {/* Primitiva `Button`: clasele erau copiate de mână, iar `disabled`
                             nativ pe butonul apăsat îl blurează și aruncă focusul pe `<body>`. */}
-                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Creating…">
-                            Create order
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel={t('create.actions.submitPending')}>
+                            {t('create.actions.submit')}
                         </Button>
-                        <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/orders`}>Cancel</ButtonLink>
+                        <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/orders`}>
+                            {t('create.actions.cancel')}
+                        </ButtonLink>
                     </div>
                 </form>
             </div>

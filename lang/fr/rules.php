@@ -35,8 +35,14 @@ return [
     ],
 
     'deals' => [
-        // DE VERIFICAT — „affaire" pentru „deal" (terminologie de pipeline de vânzări);
-        // alternativa „opportunité" e la fel de plauzibilă, alegerea rămâne a proprietarului.
+        // TRANȘAT (proprietarul, 2026-09-21) — „deal" se traduce „affaire", peste tot.
+        // Întrebarea fusese lăsată deschisă aici, la Valul 2; Valul 3 a scos la iveală că
+        // între timp apăruseră AMBELE forme, aproape în proporții egale: 35 de ocurențe
+        // „affaire" (acest fișier, `flash.php`, `mail.php`, plus cataloagele i18next ale
+        // ecranelor de conturi/contacte/activitate) față de 30 „opportunité"
+        // (`reports.php` și cataloagele de deals/orders/bulk/search/navigație). Un evaluator
+        // francofon ar fi văzut două cuvinte pentru același obiect, pe ecrane vecine.
+        // Cele 30 au fost convertite; nu mai există a doua formă nicăieri.
         'stage_wrong_pipeline' => "Cette étape n'appartient pas au pipeline de cette affaire.",
         'already_on_stage' => 'Cette affaire est déjà à cette étape.',
         'value_required_for_won' => "Définissez une valeur pour l'affaire avant de la marquer comme Gagnée",

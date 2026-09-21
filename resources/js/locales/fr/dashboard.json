@@ -1,0 +1,29 @@
+{
+    "title": "Tableau de bord",
+    "kpis": {
+        "openPipelineValue": "Valeur du pipeline ouvert",
+        "ordersThisMonth": "Commandes ce mois-ci",
+        "overdueInvoices": "Factures en retard",
+        "lowStockAlerts": "Alertes de stock bas"
+    },
+    "recentActivity": "Activité récente",
+    "unassigned": {
+        "title": "Non attribué",
+        "description": "Affaires ouvertes et commandes actives laissées par des membres désactivés (ADR-011) — rien n’a été perdu ici, il faut juste un nouveau propriétaire.",
+        "reassignLabel": "Tout réaffecter à",
+        "chooseMember": "Choisir un membre…",
+        "reassignAll": "Tout réaffecter",
+        "reassigning": "Réaffectation…",
+        "empty": "Rien à attribuer pour l’instant — chaque affaire ouverte et commande active a un propriétaire actif.",
+        "openDealsHeading": "Affaires ouvertes ({{count}})",
+        "activeOrdersHeading": "Commandes actives ({{count}})",
+        "columns": {
+            "dealTitle": "Titre",
+            "account": "Compte",
+            "stage": "Étape",
+            "owner": "Propriétaire",
+            "order": "Commande",
+            "status": "Statut"
+        }
+    }
+}

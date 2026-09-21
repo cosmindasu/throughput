@@ -66,6 +66,13 @@ final class MembershipRecordsNeedNewOwnerNotification extends Notification imple
             ]))
             ->line(__('mail.membership_records_need_new_owner.unassigned', ['deals' => $deals, 'orders' => $orders]))
             ->action(__('mail.membership_records_need_new_owner.action'), url("/{$this->workspaceSlug}/unassigned"))
-            ->line(__('mail.membership_records_need_new_owner.footer'));
+            // Numele rolurilor vin din `lang/{locale}/roles.php`, sursa unică adăugată la
+            // Valul 3 — NU scrise literal aici și nici în catalogul de mail. `__()` le
+            // rezolvă în limba deja fixată pentru destinatar (`HasLocalePreference`),
+            // aceeași în care se randează și restul mesajului.
+            ->line(__('mail.membership_records_need_new_owner.footer', [
+                'owner' => __('roles.owner'),
+                'manager' => __('roles.manager'),
+            ]));
     }
 }

@@ -260,8 +260,8 @@ return [
     'demo' => [
         'workspace_delete_disabled' => 'Deleting a workspace is disabled in the public demo. The demo data resets every night at 03:00 UTC.',
         'members_deactivate_disabled' => 'Deactivating a member is disabled in the public demo — these are the shared logins other visitors use.',
-        'members_change_role_disabled' => "Changing a member's role is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)",
-        'members_remove_disabled' => 'Removing a member is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active Owner.)',
+        'members_change_role_disabled' => "Changing a member's role is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active :owner.)",
+        'members_remove_disabled' => 'Removing a member is disabled in the public demo — these are the shared logins other visitors use. (A workspace must always keep at least one active :owner.)',
         'api_tokens_revoke_all_disabled' => 'Revoking every API token at once is disabled in the public demo. Revoke tokens one by one instead.',
         'subscription_cancel_disabled' => 'Cancelling the subscription is disabled in the public demo. Billing runs in Stripe test mode here, so there is nothing real to cancel.',
     ],

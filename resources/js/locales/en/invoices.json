@@ -1,0 +1,120 @@
+{
+    "status": {
+        "all": "All statuses",
+        "draft": "Draft",
+        "sent": "Sent",
+        "paid": "Paid",
+        "overdue": "Overdue",
+        "void": "Void"
+    },
+    "actions": {
+        "markAsSent": "Mark as sent",
+        "void": "Void"
+    },
+    "index": {
+        "title": "Invoices",
+        "exportCsv": "Export CSV",
+        "exportPdfZip": "Export PDFs (zip)",
+        "filters": {
+            "search": {
+                "label": "Search",
+                "placeholder": "Search by invoice number…"
+            },
+            "status": {
+                "label": "Status"
+            },
+            "from": "From",
+            "to": "To"
+        },
+        "columns": {
+            "invoiceNumber": "Invoice number",
+            "status": "Status",
+            "account": "Account",
+            "total": "Total",
+            "balanceDue": "Balance due",
+            "dueDate": "Due date"
+        },
+        "empty": "No invoices match this filter."
+    },
+    "show": {
+        "fallbackTitle": "Invoice",
+        "fallbackOrder": "Order",
+        "detailsHeading": "Details",
+        "summary": {
+            "account": "Account",
+            "owner": "Owner",
+            "issueDate": "Issue date",
+            "dueDate": "Due date",
+            "total": "Total",
+            "balanceDue": "Balance due"
+        },
+        "voided": "Voided",
+        "voidedOn": "Voided on {{date}}",
+        "voidReasonAria": "Void reason",
+        "pdf": {
+            "sectionAria": "PDF",
+            "download": "Download PDF",
+            "generating": "Generating PDF…",
+            "failed": "The PDF could not be generated.",
+            "retry": "Retry",
+            "retryError": "The PDF could not be regenerated."
+        },
+        "markSentDialog": {
+            "title": "Mark this invoice as sent?",
+            "body": "This sets the due date from the account's credit terms.",
+            "error": "This invoice could not be marked as sent."
+        },
+        "voidDialog": {
+            "title": "Void this invoice?",
+            "body": "This cannot be undone — any payments already recorded stay on the record.",
+            "reasonLabel": "Reason",
+            "reasonHint": "Explain why this invoice is voided — it stays on the record for anyone who opens it later.",
+            "reasonRequired": "A reason is required to void this invoice.",
+            "error": "This invoice could not be voided."
+        },
+        "payments": {
+            "sectionAria": "Payments",
+            "heading": "Payments",
+            "empty": "No payments recorded yet.",
+            "amount": {
+                "label": "Amount"
+            },
+            "method": {
+                "label": "Method"
+            },
+            "paidAt": {
+                "label": "Paid at"
+            },
+            "submit": "Record payment",
+            "submitting": "Recording…",
+            "methodOptions": {
+                "bankTransfer": "Bank transfer",
+                "check": "Check",
+                "manual": "Manual"
+            }
+        },
+        "historyAria": "History",
+        "historyHeading": "History"
+    },
+    "billing": {
+        "sectionAria": "Billing",
+        "heading": "Billing",
+        "loading": "Loading billing status…",
+        "statusLoading": "Loading billing status.",
+        "statusFound": "Invoice {{number}} found, status {{status}}.",
+        "statusCreatable": "No invoice yet for this order — you can create one.",
+        "statusUnavailable": "No billing information available for this order.",
+        "viewInvoice": "View invoice",
+        "balanceDue": "Balance due: {{amount}}",
+        "create": "Create Invoice",
+        "creating": "Creating…",
+        "createError": "This invoice could not be created.",
+        "statusBadge": {
+            "draft": "draft",
+            "sent": "sent",
+            "paid": "paid",
+            "overdue": "overdue",
+            "void": "void"
+        }
+    }
+}

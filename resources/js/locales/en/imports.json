@@ -1,0 +1,142 @@
+{
+    "statusLabels": {
+        "uploaded": "Uploaded",
+        "mapped": "Mapped",
+        "validating": "Validating…",
+        "validated": "Ready to import",
+        "importing": "Importing…",
+        "completed": "Completed",
+        "completed_with_errors": "Completed with errors",
+        "failed": "Failed"
+    },
+    "index": {
+        "title": "Imports",
+        "description": "Upload a CSV or XLSX file, map its columns, preview what would happen, then commit.",
+        "newImport": "New import",
+        "empty": "No imports yet.",
+        "startFirstImport": "Start your first import",
+        "columns": {
+            "file": "File",
+            "resource": "Resource",
+            "status": "Status",
+            "rows": "Rows",
+            "uploadedBy": "Uploaded by",
+            "uploadedAt": "Uploaded"
+        },
+        "rowCounts": {
+            "totalOnly_one": "{{formattedCount}} row",
+            "totalOnly_other": "{{formattedCount}} rows",
+            "validInvalid": "{{valid}} valid / {{invalid}} invalid"
+        }
+    },
+    "create": {
+        "title": "New import",
+        "description": "Step 1 of 4 — upload a file. You'll map its columns next.",
+        "resourceLabel": "What are you importing?",
+        "downloadTemplate": "Download a CSV template for this resource",
+        "fileLabel": "File (CSV or XLSX)",
+        "fileHint_one": "Up to {{maxFileMb}} MB, up to {{maxRows}} row.",
+        "fileHint_other": "Up to {{maxFileMb}} MB, up to {{maxRows}} rows.",
+        "uploading": "Uploading…",
+        "upload": "Upload"
+    },
+    "show": {
+        "headTitle": "Import — {{filename}}",
+        "pageDescription": "{{resourceLabel}} import",
+        "backToImports": "Back to imports",
+        "columnMappingLabel": "Column mapping",
+        "loadingColumns": "Loading the file's columns…",
+        "templateHelp": "Need the expected columns? <link>Download the template</link> for {{resourceLabel}}.",
+        "starting": "Starting…",
+        "cancelImport": {
+            "trigger": "Cancel import",
+            "confirmTitle": "Cancel this import?",
+            "confirmLabel": "Cancel import",
+            "body": "Rows already imported keep their change. This cannot be undone, and you'll need to start a new import afterwards."
+        },
+        "stepTitles": {
+            "uploaded": "Step 1 of 4 — Upload done",
+            "mapped": "Step 2 of 4 — Columns mapped",
+            "validating": "Step 3 of 4 — Validating…",
+            "validated": "Step 3 of 4 — Dry run complete",
+            "importing": "Step 4 of 4 — Importing…",
+            "completed": "Step 4 of 4 — Completed",
+            "completed_with_errors": "Step 4 of 4 — Completed with errors",
+            "failed": "Failed"
+        },
+        "confidence": {
+            "high": "High confidence",
+            "medium": "Medium confidence",
+            "low": "Low confidence",
+            "none": "No match"
+        },
+        "mapping": {
+            "heading": "Step 2 — Map columns",
+            "description": "We matched columns automatically where possible. Review the mapping below and adjust anything that looks wrong before running the dry run.",
+            "genericError": "Could not save the mapping.",
+            "columnFile": "File column",
+            "columnMapsTo": "Maps to",
+            "columnConfidence": "Confidence",
+            "columnForHeader": "Column for {{header}}",
+            "noColumn": "Don't import this column",
+            "required": " (required)",
+            "saving": "Saving…",
+            "save": "Save mapping and continue"
+        },
+        "mapped": {
+            "runDryRun": "Run dry-run validation"
+        },
+        "progress": {
+            "rowsProcessed_one": "{{processed}} / {{total}} row processed",
+            "rowsProcessed_other": "{{processed}} / {{total}} rows processed",
+            "invalidSoFar_one": "({{formattedCount}} invalid so far)",
+            "invalidSoFar_other": "({{formattedCount}} invalid so far)",
+            "autoUpdate": "This page updates automatically."
+        },
+        "dryRun": {
+            "heading": "Dry-run results",
+            "summary_one": "{{valid}} row ready to import, {{invalid}} invalid, out of {{total}} total.",
+            "summary_other": "{{valid}} rows ready to import, {{invalid}} invalid, out of {{total}} total.",
+            "downloadFailed_one": "Download the {{formattedCount}} failed row as CSV",
+            "downloadFailed_other": "Download the {{formattedCount}} failed rows as CSV",
+            "commit_one": "Import {{formattedCount}} valid row",
+            "commit_other": "Import {{formattedCount}} valid rows"
+        },
+        "invalidRows": {
+            "heading": "Rows that need attention",
+            "columnRow": "Row",
+            "columnErrors": "Errors",
+            "truncated_one": "Showing the first {{formattedCount}} invalid row — download the error report for all of them.",
+            "truncated_other": "Showing the first {{formattedCount}} invalid rows — download the error report for all of them."
+        },
+        "final": {
+            "heading": "Final report",
+            "summary_one": "{{valid}} row imported, {{skipped}} skipped, out of {{total}} total.",
+            "summary_other": "{{valid}} rows imported, {{skipped}} skipped, out of {{total}} total.",
+            "downloadSkipped_one": "Download the {{formattedCount}} skipped row as CSV — correct them and re-import",
+            "downloadSkipped_other": "Download the {{formattedCount}} skipped rows as CSV — correct them and re-import",
+            "startAnother": "Start another import",
+            "failedMessage": "This import failed and could not finish. Start a new import once the issue is resolved.",
+            "startNew": "Start a new import"
+        }
+    },
+    "exports": {
+        "show": {
+            "title": "Export",
+            "rowsCount_one": "{{formattedCount}} row",
+            "rowsCount_other": "{{formattedCount}} rows",
+            "autoUpdate": "This page updates automatically.",
+            "failed": "The export could not be completed. Try again from the list.",
+            "expired": "This export expired on {{date}}.",
+            "availableUntil": "Available for download until {{date}}.",
+            "download": "Download {{format}}",
+            "status": {
+                "pending": "Queued",
+                "running": "Running",
+                "completed": "Ready to download",
+                "failed": "Failed",
+                "cancelled": "Cancelled"
+            }
+        }
+    }
+}

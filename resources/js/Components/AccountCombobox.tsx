@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { controlClass } from '@/Components/Form/Field';
 
 interface AccountOption {
@@ -47,10 +48,12 @@ export default function AccountCombobox({
     value,
     initialLabel = null,
     onChange,
-    placeholder = 'Search accounts…',
+    placeholder,
     'aria-describedby': ariaDescribedBy,
     'aria-invalid': ariaInvalid,
 }: AccountComboboxProps) {
+    const { t } = useTranslation('accounts');
+    const resolvedPlaceholder = placeholder ?? t('combobox.placeholder');
     const { workspace } = usePage().props;
     const [query, setQuery] = useState('');
     const [selectedLabel, setSelectedLabel] = useState<string | null>(initialLabel);
@@ -187,7 +190,7 @@ export default function AccountCombobox({
                     aria-describedby={ariaDescribedBy}
                     aria-invalid={ariaInvalid}
                     readOnly={value !== null}
-                    placeholder={placeholder}
+                    placeholder={resolvedPlaceholder}
                     value={value !== null ? (selectedLabel ?? '') : query}
                     onChange={(event) => {
                         const next = event.target.value;
@@ -213,7 +216,7 @@ export default function AccountCombobox({
                         onClick={clearSelection}
                         className="shrink-0 text-xs text-accent-text underline underline-offset-2 hover:no-underline"
                     >
-                        Clear
+                        {t('combobox.clear')}
                     </button>
                 )}
             </div>
@@ -222,16 +225,16 @@ export default function AccountCombobox({
                 <ul
                     id={listboxId}
                     role="listbox"
-                    aria-label="Accounts"
+                    aria-label={t('combobox.listboxLabel')}
                     className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-overlay py-1 text-sm shadow-lg"
                 >
                     {loading ? (
                         <li aria-disabled="true" className="px-3 py-1.5 text-text-3">
-                            Searching…
+                            {t('combobox.searching')}
                         </li>
                     ) : options.length === 0 ? (
                         <li aria-disabled="true" className="px-3 py-1.5 text-text-3">
-                            No accounts found.
+                            {t('combobox.noResults')}
                         </li>
                     ) : (
                         options.map((option, index) => (

@@ -1,0 +1,83 @@
+{
+    "index": {
+        "title": "Contacts",
+        "description": "People at your accounts — and leads without one yet.",
+        "exportCsv": "Export CSV",
+        "newContact": "New contact",
+        "search": { "label": "Search", "placeholder": "Name or email" },
+        "apply": "Apply",
+        "clearAccountFilter": "Clear account filter",
+        "sort": {
+            "label": "Sort by",
+            "lastName": "Last name (A–Z)",
+            "newestFirst": "Newest first",
+            "oldestFirst": "Oldest first"
+        },
+        "columns": {
+            "name": "Name",
+            "account": "Account",
+            "email": "Email",
+            "title": "Title"
+        },
+        "actionsColumnLabel": "Actions",
+        "noAccount": "No account",
+        "primaryBadge": "Primary",
+        "editRow": "Edit",
+        "empty": {
+            "filtered": "No contacts match this filter.",
+            "none": "No contacts yet.",
+            "clearFilters": "Clear filters",
+            "createFirst": "Create your first contact"
+        }
+    },
+    "create": {
+        "title": "New contact",
+        "descriptionForAccount": "For {{name}}.",
+        "descriptionNoAccount": "A person you work with — with or without a company yet.",
+        "submit": "Create contact"
+    },
+    "edit": {
+        "title": "Edit {{name}}",
+        "submit": "Save changes"
+    },
+    "show": {
+        "actions": { "edit": "Edit", "delete": "Delete" },
+        "primaryContactBadge": "Primary contact",
+        "details": {
+            "email": "Email",
+            "phone": "Phone",
+            "account": "Account",
+            "accountNone": "No account yet",
+            "marketing": "Marketing",
+            "marketingOptedOut": "Opted out",
+            "marketingSubscribed": "Subscribed"
+        },
+        "dealsSection": {
+            "heading": "Deals as primary contact",
+            "empty": "No deals list this contact as primary yet."
+        },
+        "historySection": "History",
+        "deleteDialog": {
+            "title": "Delete this contact?",
+            "confirm": "Delete",
+            "body": "This can’t be undone. If {{name}} isn’t referenced by any deals or orders, the contact is deleted. Otherwise, its personal data (name, email, phone, title) is removed and the record is kept, so deal and order history stays intact."
+        }
+    },
+    "form": {
+        "firstName": { "label": "First name" },
+        "lastName": { "label": "Last name" },
+        "jobTitle": { "label": "Job title" },
+        "email": { "label": "Email" },
+        "phone": { "label": "Phone" },
+        "account": {
+            "label": "Account",
+            "hint": "Leave empty for a lead without a company yet. Search by name to link or move this contact."
+        },
+        "primary": {
+            "label": "Primary contact for this account",
+            "hint": "Available once this contact is linked to an account."
+        },
+        "optOut": "Opted out of marketing communications",
+        "submitPending": "Saving…"
+    }
+}

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 
 interface ViewSwitcherProps {
     workspaceSlug: string;
@@ -10,13 +11,15 @@ interface ViewSwitcherProps {
  * `Deals/Kanban`, ca cele două vederi să rămână la un click distanță.
  */
 export default function ViewSwitcher({ workspaceSlug, active }: ViewSwitcherProps) {
+    const { t } = useTranslation('deals');
+
     return (
         <div className="flex overflow-hidden rounded-md border border-control text-sm">
             <SwitcherLink href={`/${workspaceSlug}/deals`} active={active === 'list'}>
-                List
+                {t('viewSwitcher.list')}
             </SwitcherLink>
             <SwitcherLink href={`/${workspaceSlug}/deals/board`} active={active === 'board'}>
-                Board
+                {t('viewSwitcher.board')}
             </SwitcherLink>
         </div>
     );

@@ -1,21 +1,23 @@
 import { router, useForm, usePoll } from '@inertiajs/react';
+import type { TFunction } from 'i18next';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import { controlClass } from '@/Components/Form/Field';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDateTime } from '@/lib/format';
 import type { Order, Shipment, ShipmentStatus } from '@/types/generated';
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-const STATUS_LABELS: Record<ShipmentStatus, string> = {
-    label_pending: 'Generating label…',
-    label_failed: 'Label failed',
-    label_purchased: 'Label ready',
-    in_transit: 'In transit',
-    delivered: 'Delivered',
-    exception: 'Exception',
-};
+const statusLabels = (t: TFunction): Record<ShipmentStatus, string> => ({
+    label_pending: t('shipments.status.label_pending'),
+    label_failed: t('shipments.status.label_failed'),
+    label_purchased: t('shipments.status.label_purchased'),
+    in_transit: t('shipments.status.in_transit'),
+    delivered: t('shipments.status.delivered'),
+    exception: t('shipments.status.exception'),
+});
 
 const STATUS_TONES: Record<ShipmentStatus, BadgeTone> = {
     label_pending: 'neutral',
@@ -64,6 +66,9 @@ export default function ShipmentsSection({
     canCreateShipment: boolean;
     workspaceSlug: string;
 }) {
+    const { t } = useTranslation('orders');
+    const locale = useLocale();
+    const labels = statusLabels(t);
     const hasPendingLabel = order.shipments.some((shipment) => shipment.status === 'label_pending');
     // Defect real găsit la auditul E2E (raportul pachetului) — `usePoll` pornește
     // polling-ul într-un `useEffect` cu dependențe GOALE (`@inertiajs/react`, citit direct
@@ -153,7 +158,7 @@ export default function ShipmentsSection({
             {},
             {
                 onSuccess: () => focusRowOrHeading(shipment.id),
-                onError: (formErrors) => setActionError(Object.values(formErrors)[0] ?? 'This label could not be retried.'),
+                onError: (formErrors) => setActionError(Object.values(formErrors)[0] ?? t('shipments.errors.retryFailed')),
                 onFinish: () => setRowProcessingId(null),
             },
         );
@@ -188,7 +193,7 @@ export default function ShipmentsSection({
         // anunțată cât `<dialog>` e modal). Utilizatorul poate încerca din nou sau
         // renunța explicit cu „Cancel".
         const onError = (formErrors: Record<string, string>) =>
-            setConfirmError(Object.values(formErrors)[0] ?? 'This action could not be completed.');
+            setConfirmError(Object.values(formErrors)[0] ?? t('shipments.errors.actionFailed'));
 
         const onFinish = () => setRowProcessingId(null);
 
@@ -200,14 +205,14 @@ export default function ShipmentsSection({
     };
 
     return (
-        <section aria-label="Shipments" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <section aria-label={t('shipments.heading')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <h2
                 id={headingId}
                 ref={headingRef}
                 tabIndex={-1}
                 className="text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-                Shipments
+                {t('shipments.heading')}
             </h2>
 
             {actionError && (
@@ -218,7 +223,7 @@ export default function ShipmentsSection({
 
             {canShowCreateForm && (
                 <form onSubmit={submitCreate} className="flex flex-col gap-3 rounded-md border border-border-soft p-3">
-                    <p className="text-xs text-text-3">Choose a quantity for each line to include — leave the rest at 0.</p>
+                    <p className="text-xs text-text-3">{t('shipments.form.hint')}</p>
 
                     {(errors.lines || errors.status) && (
                         <p role="alert" className="text-xs text-danger">
@@ -230,17 +235,17 @@ export default function ShipmentsSection({
                         <table className="w-full text-left text-sm">
                             {/* Headingul de deasupra („Shipments") e al SECȚIUNII, nu al acestui
                                 tabel — deci cazul implicit, `<caption>` (`.ai/rules/frontend.md`). */}
-                            <caption className="sr-only">Lines to include in this shipment</caption>
+                            <caption className="sr-only">{t('shipments.form.table.caption')}</caption>
                             <thead>
                                 <tr className="border-b border-border-soft text-xs text-text-3">
                                     <th scope="col" className="px-3 py-2 font-medium">
-                                        Line
+                                        {t('shipments.form.table.line')}
                                     </th>
                                     <th scope="col" className="px-3 py-2 text-right font-medium">
-                                        Remaining
+                                        {t('shipments.form.table.remaining')}
                                     </th>
                                     <th scope="col" className="px-3 py-2 text-right font-medium">
-                                        Quantity to ship
+                                        {t('shipments.form.table.quantityToShip')}
                                     </th>
                                 </tr>
                             </thead>
@@ -257,7 +262,7 @@ export default function ShipmentsSection({
                                             <td className="px-3 py-2 text-right">
                                                 {remaining > 0 ? (
                                                     <label className="flex flex-col items-end gap-1">
-                                                        <span className="sr-only">Quantity to ship for {line.description}</span>
+                                                        <span className="sr-only">{t('shipments.form.quantityLabel', { description: line.description })}</span>
                                                         <input
                                                             type="number"
                                                             min={0}
@@ -295,14 +300,14 @@ export default function ShipmentsSection({
                             aria-disabled={processing || undefined}
                             className={processing ? 'cursor-not-allowed opacity-60' : ''}
                         >
-                            {processing ? 'Creating…' : 'Create shipment'}
+                            {processing ? t('shipments.form.submitPending') : t('shipments.form.submit')}
                         </Button>
                     </div>
                 </form>
             )}
 
             {order.shipments.length === 0 ? (
-                <p className="text-sm text-text-3">No shipments yet.</p>
+                <p className="text-sm text-text-3">{t('shipments.empty')}</p>
             ) : (
                 <ul className="flex flex-col gap-3">
                     {order.shipments.map((shipment, index) => {
@@ -327,14 +332,14 @@ export default function ShipmentsSection({
                                 className="flex flex-col gap-2 rounded-md border border-border-soft p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             >
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <StatusBadge tone={STATUS_TONES[shipment.status]}>{STATUS_LABELS[shipment.status]}</StatusBadge>
+                                    <StatusBadge tone={STATUS_TONES[shipment.status]}>{labels[shipment.status]}</StatusBadge>
                                     <span className="text-xs text-text-3">
                                         {shipment.carrier}
                                         {shipment.serviceLevel ? ` · ${shipment.serviceLevel}` : ''}
                                     </span>
                                     {shipment.createdAt && (
                                         <span className="text-xs text-text-3">
-                                            Created {dateTimeFormatter.format(new Date(shipment.createdAt))}
+                                            {t('shipments.createdAt', { date: formatDateTime(shipment.createdAt, locale) })}
                                         </span>
                                     )}
                                 </div>
@@ -355,7 +360,7 @@ export default function ShipmentsSection({
 
                                 {shipment.trackingNumber && (
                                     <p className="numeric text-xs text-text-2">
-                                        Tracking:{' '}
+                                        {t('shipments.trackingLabel')}{' '}
                                         {shipment.trackingUrl ? (
                                             <a
                                                 href={shipment.trackingUrl}
@@ -379,7 +384,8 @@ export default function ShipmentsSection({
                                             rel="noreferrer"
                                             className="text-xs font-medium text-accent-text hover:underline"
                                         >
-                                            Download label<span className="sr-only"> for shipment {shipmentName}</span>
+                                            {t('shipments.downloadLabel')}
+                                            <span className="sr-only"> {t('shipments.forShipment', { name: shipmentName })}</span>
                                         </a>
                                     )}
 
@@ -389,8 +395,8 @@ export default function ShipmentsSection({
                                             aria-disabled={isRowProcessing || undefined}
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
-                                            {isRowProcessing ? 'Retrying…' : 'Retry label'}
-                                            <span className="sr-only"> for shipment {shipmentName}</span>
+                                            {isRowProcessing ? t('shipments.retryingLabel') : t('shipments.retryLabel')}
+                                            <span className="sr-only"> {t('shipments.forShipment', { name: shipmentName })}</span>
                                         </Button>
                                     )}
 
@@ -401,7 +407,7 @@ export default function ShipmentsSection({
                                             aria-disabled={isRowProcessing || undefined}
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
-                                            Discard<span className="sr-only"> shipment {shipmentName}</span>
+                                            {t('shipments.discard')}<span className="sr-only"> {t('shipments.discardShipment', { name: shipmentName })}</span>
                                         </Button>
                                     )}
 
@@ -412,7 +418,7 @@ export default function ShipmentsSection({
                                             aria-disabled={isRowProcessing || undefined}
                                             className={isRowProcessing ? 'cursor-not-allowed opacity-60' : ''}
                                         >
-                                            Mark as shipped<span className="sr-only"> — shipment {shipmentName}</span>
+                                            {t('shipments.markShipped')}<span className="sr-only"> {t('shipments.markShippedDash', { name: shipmentName })}</span>
                                         </Button>
                                     )}
                                 </div>
@@ -424,13 +430,13 @@ export default function ShipmentsSection({
 
             <ConfirmDialog
                 open={confirmTarget !== null}
-                title={confirmTarget?.action === 'discard' ? 'Discard this shipment?' : 'Mark this shipment as shipped?'}
+                title={confirmTarget?.action === 'discard' ? t('shipments.discardDialog.title') : t('shipments.markShippedDialog.title')}
                 onClose={() => {
                     setConfirmTarget(null);
                     setConfirmError(null);
                 }}
                 onConfirm={runConfirmedAction}
-                confirmLabel={confirmTarget?.action === 'discard' ? 'Discard' : 'Mark as shipped'}
+                confirmLabel={confirmTarget?.action === 'discard' ? t('shipments.discardDialog.confirmLabel') : t('shipments.markShippedDialog.confirmLabel')}
                 confirmVariant={confirmTarget?.action === 'discard' ? 'danger' : 'primary'}
                 processing={rowProcessingId === confirmTarget?.shipment.id}
             >
@@ -439,9 +445,7 @@ export default function ShipmentsSection({
                         {confirmError}
                     </p>
                 )}
-                {confirmTarget?.action === 'discard'
-                    ? 'This removes the shipment and frees its lines for a new one. This cannot be undone.'
-                    : 'This records the stock leaving the warehouse (on hand and reserved both decrease) and updates the order lines. This cannot be undone.'}
+                {confirmTarget?.action === 'discard' ? t('shipments.discardDialog.body') : t('shipments.markShippedDialog.body')}
             </ConfirmDialog>
         </section>
     );

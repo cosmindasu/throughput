@@ -1,20 +1,22 @@
 import { Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReportForm from '@/Components/Reports/ReportForm';
 import PageHeader from '@/Components/PageHeader';
 import AppLayout from '@/Layouts/AppLayout';
 import type { ReportsCreatePageProps } from '@/types/generated';
 
 export default function Create() {
+    const { t } = useTranslation('reports');
     const { savedViews, builtInReports, workspace } = usePage<ReportsCreatePageProps>().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
     return (
         <>
-            <Head title="New report" />
+            <Head title={t('reports:create.title')} />
 
             <div className="flex max-w-2xl flex-col gap-6">
-                <PageHeader title="New report" />
+                <PageHeader title={t('reports:create.title')} />
                 <ReportForm mode="create" savedViews={savedViews} builtInReports={builtInReports} action={`${base}/reports`} />
             </div>
         </>

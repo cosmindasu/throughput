@@ -1,8 +1,11 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
+import { useLocale } from '@/hooks/useLocale';
+import { formatNumber } from '@/lib/format';
 import AppLayout from '@/Layouts/AppLayout';
 import type { ImportsCreatePageProps } from '@/types/generated';
 
@@ -16,9 +19,14 @@ import type { ImportsCreatePageProps } from '@/types/generated';
  * de eroare pe bordură) ȘI concatenarea `aria-describedby` (indiciul de dimensiune/rânduri
  * dispărea exact când eroarea de fișier prea mare ar fi avut nevoie de context). `Field`
  * rezolvă ambele o singură dată.
+ *
+ * `resources[].label` vine din backend (`ImportableResources::resolve()->label()`), NETRADUS
+ * server-side — vezi nota din `Imports/Index.tsx` și raportul lotului. Nu se re-traduce aici.
  */
 export default function Create() {
     const { resources, limits, workspace } = usePage<ImportsCreatePageProps>().props;
+    const { t } = useTranslation('imports');
+    const locale = useLocale();
     const base = workspace ? `/${workspace.slug}` : '';
 
     const { data, setData, post, processing, errors } = useForm<{
@@ -43,13 +51,13 @@ export default function Create() {
 
     return (
         <>
-            <Head title="New import" />
+            <Head title={t('imports:create.title')} />
 
             <div className="flex max-w-xl flex-col gap-6">
-                <PageHeader title="New import" description="Step 1 of 4 — upload a file. You'll map its columns next." />
+                <PageHeader title={t('imports:create.title')} description={t('imports:create.description')} />
 
                 <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-                    <Field label="What are you importing?" error={errors.resource_type}>
+                    <Field label={t('imports:create.resourceLabel')} error={errors.resource_type}>
                         {(control) => (
                             <>
                                 <select
@@ -66,7 +74,7 @@ export default function Create() {
                                 </select>
                                 {templateHref && (
                                     <a href={templateHref} className="mt-1 self-start text-sm text-accent-text hover:underline">
-                                        Download a CSV template for this resource
+                                        {t('imports:create.downloadTemplate')}
                                     </a>
                                 )}
                             </>
@@ -74,9 +82,13 @@ export default function Create() {
                     </Field>
 
                     <Field
-                        label="File (CSV or XLSX)"
+                        label={t('imports:create.fileLabel')}
                         required
-                        hint={`Up to ${limits.maxFileMb} MB, up to ${limits.maxRows.toLocaleString('en-US')} rows.`}
+                        hint={t('imports:create.fileHint', {
+                            count: limits.maxRows,
+                            maxFileMb: limits.maxFileMb,
+                            maxRows: formatNumber(limits.maxRows, locale),
+                        })}
                         error={errors.file}
                     >
                         {(control) => (
@@ -104,7 +116,7 @@ export default function Create() {
                                 }
                             }}
                         >
-                            {processing ? 'Uploading…' : 'Upload'}
+                            {processing ? t('imports:create.uploading') : t('imports:create.upload')}
                         </Button>
                     </div>
                 </form>

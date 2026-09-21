@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { ButtonLink, buttonClass } from '@/Components/Button';
 
 interface CursorPaginationProps {
@@ -22,6 +23,7 @@ interface CursorPaginationProps {
  * montat o singură dată în layout-ul PERSISTENT (`AppLayout`).
  */
 export default function CursorPagination({ nextCursor, prevCursor }: CursorPaginationProps) {
+    const { t } = useTranslation('common');
     const { url } = usePage();
 
     if (!nextCursor && !prevCursor) {
@@ -38,23 +40,23 @@ export default function CursorPagination({ nextCursor, prevCursor }: CursorPagin
     const inert = `${buttonClass('secondary')} pointer-events-none opacity-60`;
 
     return (
-        <nav aria-label="Pagination" className="flex items-center justify-end gap-2">
+        <nav aria-label={t('common:pagination.label')} className="flex items-center justify-end gap-2">
             {prevCursor ? (
                 <ButtonLink href={hrefFor(prevCursor)} rel="prev">
-                    Previous
+                    {t('common:pagination.previous')}
                 </ButtonLink>
             ) : (
                 <span aria-disabled="true" className={inert}>
-                    Previous
+                    {t('common:pagination.previous')}
                 </span>
             )}
             {nextCursor ? (
                 <ButtonLink href={hrefFor(nextCursor)} rel="next">
-                    Next
+                    {t('common:pagination.next')}
                 </ButtonLink>
             ) : (
                 <span aria-disabled="true" className={inert}>
-                    Next
+                    {t('common:pagination.next')}
                 </span>
             )}
         </nav>

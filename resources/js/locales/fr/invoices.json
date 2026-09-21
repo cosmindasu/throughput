@@ -1,0 +1,120 @@
+{
+    "status": {
+        "all": "Tous les statuts",
+        "draft": "Brouillon",
+        "sent": "Envoyée",
+        "paid": "Payée",
+        "overdue": "En retard",
+        "void": "Annulée"
+    },
+    "actions": {
+        "markAsSent": "Marquer comme envoyée",
+        "void": "Annuler la facture"
+    },
+    "index": {
+        "title": "Factures",
+        "exportCsv": "Exporter en CSV",
+        "exportPdfZip": "Exporter les PDF (zip)",
+        "filters": {
+            "search": {
+                "label": "Rechercher",
+                "placeholder": "Rechercher par numéro de facture…"
+            },
+            "status": {
+                "label": "Statut"
+            },
+            "from": "Du",
+            "to": "Au"
+        },
+        "columns": {
+            "invoiceNumber": "Numéro de facture",
+            "status": "Statut",
+            "account": "Compte",
+            "total": "Total",
+            "balanceDue": "Solde dû",
+            "dueDate": "Date d’échéance"
+        },
+        "empty": "Aucune facture ne correspond à ce filtre."
+    },
+    "show": {
+        "fallbackTitle": "Facture",
+        "fallbackOrder": "Commande",
+        "detailsHeading": "Détails",
+        "summary": {
+            "account": "Compte",
+            "owner": "Propriétaire",
+            "issueDate": "Date d’émission",
+            "dueDate": "Date d’échéance",
+            "total": "Total",
+            "balanceDue": "Solde dû"
+        },
+        "voided": "Annulée",
+        "voidedOn": "Annulée le {{date}}",
+        "voidReasonAria": "Motif d’annulation",
+        "pdf": {
+            "sectionAria": "PDF",
+            "download": "Télécharger le PDF",
+            "generating": "Génération du PDF…",
+            "failed": "Le PDF n’a pas pu être généré.",
+            "retry": "Réessayer",
+            "retryError": "Le PDF n’a pas pu être régénéré."
+        },
+        "markSentDialog": {
+            "title": "Marquer cette facture comme envoyée ?",
+            "body": "Cela définit la date d’échéance à partir des conditions de crédit du compte.",
+            "error": "Cette facture n’a pas pu être marquée comme envoyée."
+        },
+        "voidDialog": {
+            "title": "Annuler cette facture ?",
+            "body": "Cette action est irréversible — les paiements déjà enregistrés restent sur la facture.",
+            "reasonLabel": "Motif",
+            "reasonHint": "Expliquez pourquoi cette facture est annulée — cela reste sur la facture pour quiconque l’ouvre plus tard.",
+            "reasonRequired": "Un motif est requis pour annuler cette facture.",
+            "error": "Cette facture n’a pas pu être annulée."
+        },
+        "payments": {
+            "sectionAria": "Paiements",
+            "heading": "Paiements",
+            "empty": "Aucun paiement enregistré pour le moment.",
+            "amount": {
+                "label": "Montant"
+            },
+            "method": {
+                "label": "Méthode"
+            },
+            "paidAt": {
+                "label": "Date de paiement"
+            },
+            "submit": "Enregistrer le paiement",
+            "submitting": "Enregistrement…",
+            "methodOptions": {
+                "bankTransfer": "Virement bancaire",
+                "check": "Chèque",
+                "manual": "Manuel"
+            }
+        },
+        "historyAria": "Historique",
+        "historyHeading": "Historique"
+    },
+    "billing": {
+        "sectionAria": "Facturation",
+        "heading": "Facturation",
+        "loading": "Chargement du statut de facturation…",
+        "statusLoading": "Chargement du statut de facturation.",
+        "statusFound": "Facture {{number}} trouvée, statut : {{status}}.",
+        "statusCreatable": "Pas encore de facture pour cette commande — vous pouvez en créer une.",
+        "statusUnavailable": "Aucune information de facturation disponible pour cette commande.",
+        "viewInvoice": "Voir la facture",
+        "balanceDue": "Solde dû : {{amount}}",
+        "create": "Créer la facture",
+        "creating": "Création…",
+        "createError": "Cette facture n’a pas pu être créée.",
+        "statusBadge": {
+            "draft": "brouillon",
+            "sent": "envoyée",
+            "paid": "payée",
+            "overdue": "en retard",
+            "void": "annulée"
+        }
+    }
+}

@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * specs.md §12.2 — bannerul de degradare pe 3 trepte. Randat pe ORICE pagină (`AppLayout`),
@@ -17,6 +18,7 @@ import { Link, usePage } from '@inertiajs/react';
  *   unic „Subscription canceled. [Reactivate]" (US-BILL-04, Gherkin).
  */
 export default function SubscriptionBanner() {
+    const { t } = useTranslation('common');
     const { subscription, workspace } = usePage().props;
 
     if (!subscription || subscription.accessLevel === 'blocked') {
@@ -31,14 +33,12 @@ export default function SubscriptionBanner() {
         return (
             <div className="w-full border-b border-border bg-warning-tint text-warning">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
-                    <p className="text-sm">
-                        Your last payment failed — we&apos;re retrying automatically.
-                    </p>
+                    <p className="text-sm">{t('common:subscriptionBanner.pastDue')}</p>
                     <Link
                         href={billingHref}
                         className="shrink-0 rounded-md px-2 py-1 text-xs font-medium underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     >
-                        Update payment method
+                        {t('common:subscriptionBanner.updatePayment')}
                     </Link>
                 </div>
             </div>
@@ -49,14 +49,12 @@ export default function SubscriptionBanner() {
         return (
             <div className="w-full border-b border-border bg-danger-tint text-danger" role="alert">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
-                    <p className="text-sm font-medium">
-                        Subscription unpaid — update your payment method to restore full access.
-                    </p>
+                    <p className="text-sm font-medium">{t('common:subscriptionBanner.unpaid')}</p>
                     <Link
                         href={billingHref}
                         className="shrink-0 rounded-md px-2 py-1 text-xs font-medium underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     >
-                        Update payment method
+                        {t('common:subscriptionBanner.updatePayment')}
                     </Link>
                 </div>
             </div>

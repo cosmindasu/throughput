@@ -1,19 +1,28 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { getDateTimeFormat } from '@/lib/format';
 import type { ActivityIndexPageProps } from '@/types/generated';
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+/**
+ * Opțiuni PĂSTRATE exact ca înainte de Val 3 (FR-I18N-03) — formatorul era la nivel de
+ * modul, cu locale fixat pe engleză; acum trece prin `getDateTimeFormat`, apelat din
+ * corpul componentei cu `locale` din `useLocale()`. `hour: '2-digit'` produce „05:09 PM",
+ * diferit de `'numeric'` („5:09 PM") — nu se schimbă aici.
+ */
+const ACTIVITY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-});
+};
 
 /**
  * FR-AUD-03, §17.3 — jurnal de activitate TENANT-WIDE, filtrabil pe acțiune, utilizator și
@@ -26,6 +35,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
  * deci n-avea rost să tragă întreg mecanismul `useListFilters` după el.
  */
 export default function Index() {
+    const { t } = useTranslation('activity');
+    const locale = useLocale();
     const { entries, filters, actions, members, canFilterByUser } = usePage<ActivityIndexPageProps>().props;
     const { url } = usePage();
     const path = url.split('?')[0];
@@ -48,20 +59,23 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Activity log" />
+            <Head title={t('index.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="Activity log" description="Every change made to accounts, contacts, deals, products and orders." />
+                <PageHeader title={t('index.title')} description={t('index.description')} />
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Action
+                        {t('index.filters.action.label')}
                         <select
                             value={filters.action ?? ''}
                             onChange={(event) => apply({ action: event.target.value || null })}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="">Any action</option>
+                            <option value="">{t('index.filters.action.any')}</option>
+                            {/* Valorile enum-ului rămân RAW (`App\Models\ActivityLog::ACTIONS`, ex.
+                                `login_failed`) — text generat de backend, fără trecere prin catalog,
+                                în afara sferei celor 14 fișiere ale lotului (vezi raportul). */}
                             {actions.map((action) => (
                                 <option key={action} value={action}>
                                     {action}
@@ -72,13 +86,13 @@ export default function Index() {
 
                     {canFilterByUser && (
                         <label className="flex flex-col gap-1 text-sm text-text-2">
-                            Member
+                            {t('index.filters.member.label')}
                             <select
                                 value={filters.userId ?? ''}
                                 onChange={(event) => apply({ userId: event.target.value || null })}
                                 className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                             >
-                                <option value="">Anyone</option>
+                                <option value="">{t('index.filters.member.anyone')}</option>
                                 {members.map((member) => (
                                     <option key={member.id} value={member.id}>
                                         {member.name}
@@ -89,7 +103,7 @@ export default function Index() {
                     )}
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        From
+                        {t('index.filters.from')}
                         <input
                             type="date"
                             value={filters.from ?? ''}
@@ -99,7 +113,7 @@ export default function Index() {
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        To
+                        {t('index.filters.to')}
                         <input
                             type="date"
                             value={filters.to ?? ''}
@@ -110,7 +124,7 @@ export default function Index() {
 
                     {hasFilters && (
                         <Button onClick={() => apply({ action: null, userId: null, from: null, to: null, bulkOperationId: null })}>
-                            Clear filters
+                            {t('index.filters.clear')}
                         </Button>
                     )}
                 </div>
@@ -123,35 +137,39 @@ export default function Index() {
                     `preventDefault()` — nu era o navigare, deci nu era un link. */}
                 {filters.bulkOperationId && (
                     <p className="text-sm text-text-2">
-                        Showing only rows written by a single bulk operation.{' '}
+                        {t('index.bulkOperationNotice')}{' '}
                         <button
                             type="button"
                             className="text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             onClick={() => apply({ bulkOperationId: null })}
                         >
-                            Show all rows
+                            {t('index.showAllRows')}
                         </button>
                     </p>
                 )}
 
                 {entries.data.length === 0 ? (
-                    <EmptyState message={hasFilters ? 'No activity matches this filter.' : 'No activity recorded yet.'} />
+                    <EmptyState message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')} />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Activity log</caption>
+                            <caption className="sr-only">{t('index.title')}</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">Action</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Member</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Changes</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Date</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('index.columns.action')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('index.columns.member')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('index.columns.changes')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('index.columns.date')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border-soft bg-surface">
                                 {entries.data.map((entry) => (
                                     <tr key={entry.id} className="hover:bg-row-hover">
                                         <td className="px-4 py-2.5">
+                                            {/* `entry.actionLabel` vine GATA CONSTRUIT din
+                                                `ActivityLogResource::toArray()` (`Str::headline($this->action)`),
+                                                fără trecere prin catalog — backend, în afara celor 14 fișiere
+                                                ale lotului. Nu-l reconstrui aici (vezi raportul). */}
                                             {entry.entityUrl ? (
                                                 <a href={entry.entityUrl} className="font-medium text-accent-text hover:underline">
                                                     {entry.actionLabel}
@@ -160,12 +178,12 @@ export default function Index() {
                                                 <span className="font-medium text-text">{entry.actionLabel}</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-2.5 text-text-2">{entry.actor?.name ?? 'System'}</td>
+                                        <td className="px-4 py-2.5 text-text-2">{entry.actor?.name ?? t('entry.systemActor')}</td>
                                         <td className="px-4 py-2.5 text-xs text-text-3">
                                             {summarizeChangedFields(entry.oldValues, entry.newValues)}
                                         </td>
                                         <td className="numeric px-4 py-2.5 text-text-2">
-                                            {entry.createdAt ? dateTimeFormatter.format(new Date(entry.createdAt)) : '—'}
+                                            {entry.createdAt ? getDateTimeFormat(locale, ACTIVITY_DATE_TIME_OPTIONS).format(new Date(entry.createdAt)) : '—'}
                                         </td>
                                     </tr>
                                 ))}
@@ -180,6 +198,11 @@ export default function Index() {
     );
 }
 
+/**
+ * Cheile din `oldValues`/`newValues` sunt nume de coloane DB, nu etichete de UI — rămân
+ * RAW (aceeași decizie ca `HistoryValueDiff` din `Components/History/HistoryTab.tsx`, vezi
+ * raportul lotului).
+ */
 function summarizeChangedFields(oldValues: Record<string, unknown> | null, newValues: Record<string, unknown> | null): string {
     const fields = Array.from(new Set([...Object.keys(oldValues ?? {}), ...Object.keys(newValues ?? {})]));
 

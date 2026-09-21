@@ -1,5 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -36,6 +37,7 @@ interface DealFormData {
  * `contacts` din ACELAȘI cont, în `DealController::edit()`.
  */
 export default function Edit() {
+    const { t } = useTranslation('deals');
     const { deal, account, contacts, owners, can, workspace } = usePage<DealsEditPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/deals/${deal.id}/edit`;
@@ -87,13 +89,13 @@ export default function Edit() {
 
     return (
         <>
-            <Head title={`Edit ${deal.title}`} />
+            <Head title={t('edit.title', { title: deal.title })} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title={`Edit ${deal.title}`} description={deal.account.name} />
+                <PageHeader title={t('edit.title', { title: deal.title })} description={deal.account.name} />
 
                 <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-                    <Field label="Account" error={errors.account_id} required>
+                    <Field label={t('edit.fields.account.label')} error={errors.account_id} required>
                         {(control) => (
                             <AccountCombobox
                                 {...control}
@@ -104,7 +106,7 @@ export default function Edit() {
                         )}
                     </Field>
 
-                    <Field label="Title" error={errors.title} required>
+                    <Field label={t('edit.fields.title.label')} error={errors.title} required>
                         {(control) => (
                             <input
                                 {...control}
@@ -115,7 +117,7 @@ export default function Edit() {
                         )}
                     </Field>
 
-                    <Field label="Value" error={errors.value}>
+                    <Field label={t('edit.fields.value.label')} error={errors.value}>
                         {(control) => (
                             <input
                                 {...control}
@@ -129,7 +131,7 @@ export default function Edit() {
                         )}
                     </Field>
 
-                    <Field label="Expected close date" error={errors.expected_close_date}>
+                    <Field label={t('edit.fields.expectedCloseDate.label')} error={errors.expected_close_date}>
                         {(control) => (
                             <input
                                 {...control}
@@ -141,7 +143,7 @@ export default function Edit() {
                         )}
                     </Field>
 
-                    <Field label="Primary contact" error={errors.primary_contact_id}>
+                    <Field label={t('edit.fields.primaryContact.label')} error={errors.primary_contact_id}>
                         {(control) => (
                             <select
                                 {...control}
@@ -149,7 +151,7 @@ export default function Edit() {
                                 value={data.primary_contact_id}
                                 onChange={(event) => setData('primary_contact_id', event.target.value)}
                             >
-                                <option value="">None</option>
+                                <option value="">{t('edit.fields.primaryContact.none')}</option>
                                 {/*
                                     §20.5 — un contact principal anonimizat NU apare în `contacts`
                                     (opțiunile normale, `contactsForAccount()`), dar legătura încă
@@ -160,7 +162,7 @@ export default function Edit() {
                                     `data.primary_contact_id`, nu un steag separat.
                                 */}
                                 {primaryContact?.isAnonymized && data.primary_contact_id === primaryContact.id && (
-                                    <option value={primaryContact.id}>Anonymized contact</option>
+                                    <option value={primaryContact.id}>{t('edit.fields.primaryContact.anonymized')}</option>
                                 )}
                                 {contacts.map((contact) => (
                                     <option key={contact.id} value={contact.id}>
@@ -172,7 +174,7 @@ export default function Edit() {
                     </Field>
 
                     {can.changeOwner && (
-                        <Field label="Owner" error={errors.owner_user_id}>
+                        <Field label={t('edit.fields.owner.label')} error={errors.owner_user_id}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -191,10 +193,10 @@ export default function Edit() {
                     )}
 
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
-                            Save changes
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel={t('edit.actions.submitPending')}>
+                            {t('edit.actions.submit')}
                         </Button>
-                        <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}`}>Cancel</ButtonLink>
+                        <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}`}>{t('edit.actions.cancel')}</ButtonLink>
                     </div>
                 </form>
             </div>

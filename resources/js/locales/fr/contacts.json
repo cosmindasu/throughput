@@ -1,0 +1,83 @@
+{
+    "index": {
+        "title": "Contacts",
+        "description": "Les personnes de vos comptes — et les prospects sans compte pour l’instant.",
+        "exportCsv": "Exporter en CSV",
+        "newContact": "Nouveau contact",
+        "search": { "label": "Recherche", "placeholder": "Nom ou e-mail" },
+        "apply": "Appliquer",
+        "clearAccountFilter": "Effacer le filtre de compte",
+        "sort": {
+            "label": "Trier par",
+            "lastName": "Nom (A–Z)",
+            "newestFirst": "Plus récents d’abord",
+            "oldestFirst": "Plus anciens d’abord"
+        },
+        "columns": {
+            "name": "Nom",
+            "account": "Compte",
+            "email": "E-mail",
+            "title": "Fonction"
+        },
+        "actionsColumnLabel": "Actions",
+        "noAccount": "Aucun compte",
+        "primaryBadge": "Principal",
+        "editRow": "Modifier",
+        "empty": {
+            "filtered": "Aucun contact ne correspond à ce filtre.",
+            "none": "Aucun contact pour le moment.",
+            "clearFilters": "Effacer les filtres",
+            "createFirst": "Créer votre premier contact"
+        }
+    },
+    "create": {
+        "title": "Nouveau contact",
+        "descriptionForAccount": "Pour {{name}}.",
+        "descriptionNoAccount": "Une personne avec qui vous travaillez — avec ou sans entreprise pour l’instant.",
+        "submit": "Créer le contact"
+    },
+    "edit": {
+        "title": "Modifier {{name}}",
+        "submit": "Enregistrer les modifications"
+    },
+    "show": {
+        "actions": { "edit": "Modifier", "delete": "Supprimer" },
+        "primaryContactBadge": "Contact principal",
+        "details": {
+            "email": "E-mail",
+            "phone": "Téléphone",
+            "account": "Compte",
+            "accountNone": "Aucun compte pour le moment",
+            "marketing": "Marketing",
+            "marketingOptedOut": "Désinscrit",
+            "marketingSubscribed": "Abonné"
+        },
+        "dealsSection": {
+            "heading": "Affaires en tant que contact principal",
+            "empty": "Aucune affaire ne liste ce contact comme principal pour le moment."
+        },
+        "historySection": "Historique",
+        "deleteDialog": {
+            "title": "Supprimer ce contact ?",
+            "confirm": "Supprimer",
+            "body": "Cette action est irréversible. Si {{name}} n’est référencé par aucune affaire ni commande, le contact est supprimé. Sinon, ses données personnelles (nom, e-mail, téléphone, fonction) sont retirées et la fiche est conservée, afin que l’historique des affaires et des commandes reste intact."
+        }
+    },
+    "form": {
+        "firstName": { "label": "Prénom" },
+        "lastName": { "label": "Nom" },
+        "jobTitle": { "label": "Fonction" },
+        "email": { "label": "E-mail" },
+        "phone": { "label": "Téléphone" },
+        "account": {
+            "label": "Compte",
+            "hint": "Laissez vide pour un prospect sans entreprise pour l’instant. Recherchez par nom pour lier ou déplacer ce contact."
+        },
+        "primary": {
+            "label": "Contact principal de ce compte",
+            "hint": "Disponible une fois ce contact lié à un compte."
+        },
+        "optOut": "Désinscrit des communications marketing",
+        "submitPending": "Enregistrement…"
+    }
+}

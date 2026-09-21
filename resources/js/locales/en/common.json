@@ -1,5 +1,122 @@
 {
+    "actions": {
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "close": "Close",
+        "confirm": "Confirm",
+        "delete": "Delete",
+        "rename": "Rename",
+        "renaming": "Renaming…"
+    },
+    "states": {
+        "loading": "Loading…",
+        "loadingLabel": "Loading"
+    },
+    "pagination": {
+        "label": "Pagination",
+        "previous": "Previous",
+        "next": "Next"
+    },
+    "nav": {
+        "primary": "Primary",
+        "skipToContent": "Skip to content",
+        "logOut": "Log out",
+        "accounts": "Accounts",
+        "contacts": "Contacts",
+        "deals": "Deals",
+        "products": "Products",
+        "orders": "Orders",
+        "invoices": "Invoices",
+        "reports": "Reports",
+        "imports": "Imports",
+        "unassigned": "Unassigned",
+        "activityLog": "Activity Log",
+        "settings": "Settings",
+        "unassignedBadge_one": "{{label}}, {{count}} record needs a new owner",
+        "unassignedBadge_other": "{{label}}, {{count}} records need a new owner"
+    },
     "localeToggle": {
         "legend": "Language"
+    },
+    "themeToggle": {
+        "legend": "Theme",
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+    },
+    "columnSelector": {
+        "trigger": "Columns",
+        "groupLabel": "Visible columns",
+        "shown": "{{label}} shown.",
+        "hidden": "{{label}} hidden.",
+        "moved": "{{label}} moved to position {{position}} of {{total}}.",
+        "moveUp": "Move {{label}} up",
+        "moveDown": "Move {{label}} down",
+        "hint": "At least one column stays visible."
+    },
+    "savedViews": {
+        "trigger": "Views",
+        "myViews": "My views",
+        "teamViews": "Team views",
+        "noPrivateViews": "No private views yet.",
+        "noTeamViews": "No team views yet.",
+        "saveView": "Save view",
+        "deleteTitle": "Delete \"{{name}}\"?",
+        "deleteBodyTeam": "This removes the view for everyone on the team who can see it. This can’t be undone.",
+        "deleteBodyPrivate": "This can’t be undone.",
+        "setDefaultTooltip": "Set as default",
+        "removeDefaultTooltip": "Remove as default",
+        "defaultLabel": "★ Default",
+        "setDefaultLabel": "☆ Set default",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. My open deals closing this month",
+        "visibilityLegend": "Visibility",
+        "visibilityPrivate": "Private — only you",
+        "visibilityTeam": "Team — everyone in this workspace",
+        "currentFilters": "Current filters",
+        "noFilters": "No filters — sort: {{sort}}",
+        "sortLabel": "Sort: {{sort}}",
+        "saveError": "Could not save this view.",
+        "renameTitle": "Rename view",
+        "renameError": "Could not rename this view."
+    },
+    "demoBanner": {
+        "collapsed": "Demo application — data resets daily.",
+        "full": "Demo application — sample data for portfolio purposes only. Not a real business. Data resets daily.",
+        "show": "Show notice",
+        "minimize": "Minimize"
+    },
+    "duplicateEmail": {
+        "notice": "This email is already linked to <link>{{accountName}}</link>. A person can legitimately work with two companies.",
+        "saveAnyway": "Save anyway"
+    },
+    "helpPanel": {
+        "trigger": "Help for this page",
+        "close": "Close help panel",
+        "introHint": "New here? Press <kbd>?</kbd> or click this button for help about the page you're on.",
+        "gotIt": "Got it",
+        "whatYouCanDo": "What you can do here",
+        "rules": "Rules that apply here",
+        "howItsBuilt": "How it's built"
+    },
+    "listUpdate": {
+        "updated": "Results updated."
+    },
+    "workspaceSwitcher": {
+        "placeholder": "Select workspace",
+        "label": "Workspaces"
+    },
+    "subscriptionBanner": {
+        "pastDue": "Your last payment failed — we're retrying automatically.",
+        "unpaid": "Subscription unpaid — update your payment method to restore full access.",
+        "updatePayment": "Update payment method"
+    },
+    "welcome": {
+        "title": "Home",
+        "description": "Sprint 0 scaffold. The design system — tokens for both themes, self-hosted typefaces, tabular numerals — is already in place, before any business module exists.",
+        "primaryAction": "Primary action",
+        "statusConfirmed": "confirmed",
+        "ordersToday": "Orders today:"
     }
 }

@@ -32,7 +32,12 @@ class BuiltInReportTranslationTest extends TestCase
         App::setLocale('fr');
         $report = new DealVelocityReport;
 
-        $this->assertSame('Vitesse des opportunités par étape', $report->title());
+        // „affaire", nu „opportunité": decizie de terminologie a proprietarului
+        // (2026-09-21), luată la Valul 3, când auditul a găsit ambele forme în cataloagele
+        // franceze — 35 de ocurențe una, 30 cealaltă, pe ecrane vecine. Vezi nota din
+        // `lang/fr/rules.php`. Aserțiunea rămâne pe textul LITERAL, nu pe `__()`: altfel
+        // ar trece verde comparând catalogul cu el însuși.
+        $this->assertSame('Vitesse des affaires par étape', $report->title());
         $this->assertSame('Étape', $report->columns()[1]);
         $this->assertNotSame('Stage', $report->columns()[1]);
 

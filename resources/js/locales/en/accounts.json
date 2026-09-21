@@ -1,0 +1,150 @@
+{
+    "index": {
+        "title": "Accounts",
+        "columns": {
+            "name": "Name",
+            "owner": "Owner",
+            "status": "Status",
+            "created": "Created"
+        },
+        "actionsColumnLabel": "Actions",
+        "exportCsv": "Export CSV",
+        "newAccount": "New account",
+        "selectAllOnPage": "Select all accounts on this page",
+        "selectRow": "Select {{name}}",
+        "editRow": "Edit",
+        "search": {
+            "label": "Search",
+            "placeholder": "Account name…"
+        },
+        "filters": {
+            "owner": {
+                "label": "Owner",
+                "mine": "My accounts",
+                "all": "All accounts",
+                "unassigned": "Unassigned"
+            },
+            "status": {
+                "label": "Status",
+                "any": "Any status",
+                "prospect": "Prospect",
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "sort": {
+                "label": "Sort by",
+                "name": "Name",
+                "newest": "Newest"
+            },
+            "clear": "Clear filters"
+        },
+        "empty": {
+            "filtered": "No accounts match this filter.",
+            "none": "No accounts yet.",
+            "createFirst": "Create your first account"
+        }
+    },
+    "status": {
+        "prospect": "prospect",
+        "active": "active",
+        "inactive": "inactive"
+    },
+    "create": {
+        "title": "New account"
+    },
+    "edit": {
+        "title": "Edit {{name}}"
+    },
+    "show": {
+        "actions": {
+            "addContact": "Add contact",
+            "newDeal": "New deal",
+            "edit": "Edit",
+            "delete": "Delete"
+        },
+        "details": {
+            "domain": "Domain",
+            "phone": "Phone",
+            "creditTerms": "Credit terms",
+            "owner": "Owner",
+            "ownerUnassigned": "Unassigned",
+            "source": "Source",
+            "tags": "Tags"
+        },
+        "sections": {
+            "contacts": "Contacts",
+            "deals": "Deals",
+            "activity": "Activity",
+            "history": "History"
+        },
+        "empty": {
+            "contacts": "No contacts yet.",
+            "deals": "No deals yet.",
+            "activityLoading": "Loading activity…",
+            "activityNone": "No activity recorded yet."
+        },
+        "primaryContactBadge": "Primary",
+        "deleteDialog": {
+            "blockedTitle": "Cannot delete this account",
+            "title": "Delete {{name}}?",
+            "confirm": "Delete",
+            "body": "This action cannot be undone."
+        }
+    },
+    "form": {
+        "name": { "label": "Account name" },
+        "domain": { "label": "Domain", "hint": "e.g. acme.com" },
+        "industry": { "label": "Industry" },
+        "phone": { "label": "Phone" },
+        "status": {
+            "label": "Status",
+            "prospect": "Prospect",
+            "active": "Active",
+            "inactive": "Inactive"
+        },
+        "creditTerms": {
+            "label": "Credit terms",
+            "net15": "Net 15",
+            "net30": "Net 30",
+            "net60": "Net 60",
+            "prepaid": "Prepaid"
+        },
+        "owner": {
+            "label": "Owner",
+            "hint": "Defaults to you if left unassigned.",
+            "unassigned": "Unassigned"
+        },
+        "source": { "label": "Source" },
+        "tags": { "label": "Tags", "hint": "Comma-separated" },
+        "billingAddress": { "legend": "Billing address" },
+        "shippingAddress": { "legend": "Shipping address" },
+        "address": {
+            "line1": "Address line",
+            "city": "City",
+            "state": "State",
+            "postalCode": "Postal code",
+            "country": "Country",
+            "countryHint": "ISO 2-letter"
+        },
+        "contactSection": {
+            "heading": "Primary contact (optional)",
+            "firstName": "First name",
+            "lastName": "Last name",
+            "email": "Email",
+            "phone": "Phone",
+            "title": "Title"
+        },
+        "submit": {
+            "create": "Create account",
+            "edit": "Save changes",
+            "pending": "Saving…"
+        }
+    },
+    "combobox": {
+        "placeholder": "Search accounts…",
+        "clear": "Clear",
+        "listboxLabel": "Accounts",
+        "searching": "Searching…",
+        "noResults": "No accounts found."
+    }
+}

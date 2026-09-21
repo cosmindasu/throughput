@@ -1,0 +1,206 @@
+{
+    "badges": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "lowStock": "Stock faible"
+    },
+    "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "changeLog": "Journal des modifications",
+        "stock": "Stock",
+        "history": "Historique"
+    },
+    "unitOfMeasure": {
+        "each": "Unité",
+        "box": "Boîte",
+        "pallet": "Palette"
+    },
+    "labels": {
+        "status": "Statut"
+    },
+    "index": {
+        "title": "Produits",
+        "newProduct": "Nouveau produit",
+        "filters": {
+            "search": {
+                "label": "Rechercher",
+                "placeholder": "Nom du produit…"
+            },
+            "status": {
+                "label": "Statut",
+                "any": "Tous les statuts"
+            },
+            "sort": {
+                "label": "Trier par",
+                "name": "Nom",
+                "newest": "Plus récent"
+            }
+        },
+        "selectAllAria": "Sélectionner tous les produits de cette page",
+        "selectRowAria": "Sélectionner {{name}}",
+        "empty": {
+            "filtered": "Aucun produit ne correspond à ce filtre.",
+            "none": "Aucun produit pour le moment."
+        },
+        "createFirst": "Créer votre premier produit",
+        "lowStockBadge": "{{count}} en rupture",
+        "columns": {
+            "name": "Nom",
+            "category": "Catégorie",
+            "variants": "Variantes",
+            "created": "Créé le"
+        }
+    },
+    "create": {
+        "title": "Nouveau produit"
+    },
+    "edit": {
+        "title": "Modifier {{name}}"
+    },
+    "form": {
+        "name": {
+            "label": "Nom du produit"
+        },
+        "category": {
+            "label": "Catégorie"
+        },
+        "unitOfMeasure": {
+            "label": "Unité de mesure"
+        },
+        "active": "Actif",
+        "createProduct": "Créer le produit",
+        "saveChanges": "Enregistrer les modifications",
+        "saving": "Enregistrement…"
+    },
+    "show": {
+        "addVariant": "Ajouter une variante",
+        "variantsHeading": "Variantes",
+        "historyHeading": "Historique",
+        "empty": "Aucune variante pour le moment.",
+        "forSku": "pour {{sku}}",
+        "columns": {
+            "sku": "SKU",
+            "price": "Prix",
+            "cost": "Coût",
+            "available": "Disponible",
+            "actions": "Actions"
+        },
+        "deleteBlockedTitle": "Impossible de supprimer ce produit",
+        "deleteConfirmTitle": "Supprimer {{name}} ?",
+        "deleteWarning": "Cette action est irréversible."
+    },
+    "variant": {
+        "create": {
+            "title": "Nouvelle variante — {{name}}",
+            "heading": "Nouvelle variante"
+        },
+        "edit": {
+            "title": "Modifier {{sku}}"
+        },
+        "form": {
+            "sku": {
+                "label": "SKU"
+            },
+            "price": {
+                "label": "Prix"
+            },
+            "cost": {
+                "label": "Coût",
+                "hint": "Jamais visible pour les rôles $t(roles:agent) et $t(roles:viewer)."
+            },
+            "weight": {
+                "label": "Poids",
+                "hint": "Facultatif — utilisé plus tard pour les calculs d’expédition."
+            },
+            "lowStockThreshold": {
+                "label": "Seuil de stock faible",
+                "hint": "Facultatif. Affiche un indicateur de stock faible lorsque le disponible passe sous ce nombre — laissez vide pour désactiver l’alerte."
+            },
+            "active": "Actif",
+            "createVariant": "Créer la variante",
+            "saveChanges": "Enregistrer les modifications",
+            "saving": "Enregistrement…"
+        }
+    },
+    "stock": {
+        "show": {
+            "title": "Stock — {{sku}}",
+            "belowThreshold": "Le disponible est inférieur au seuil de {{threshold}}.",
+            "viewHistory": "Voir l’historique",
+            "tableCaption": "Niveaux de stock par emplacement",
+            "columns": {
+                "location": "Emplacement",
+                "onHand": "En stock",
+                "reserved": "Réservé",
+                "available": "Disponible"
+            },
+            "empty": "Aucun stock enregistré à aucun emplacement pour l’instant.",
+            "receive": {
+                "heading": "Réceptionner du stock",
+                "location": "Emplacement",
+                "quantity": "Quantité",
+                "note": "Note",
+                "noteHint": "Facultatif — par exemple un numéro de bon de commande.",
+                "submit": "Réceptionner",
+                "submitting": "Réception…"
+            },
+            "adjust": {
+                "heading": "Ajuster le stock",
+                "location": "Emplacement",
+                "change": "Changement",
+                "changeHint": "Positif pour ajouter, négatif pour retirer — par exemple -3.",
+                "reason": "Motif",
+                "reasonHint": "Requis — pourquoi cette quantité est-elle corrigée ?",
+                "submit": "Ajuster",
+                "submitting": "Ajustement…"
+            },
+            "transfer": {
+                "heading": "Transférer du stock",
+                "from": "De",
+                "to": "Vers",
+                "quantity": "Quantité",
+                "note": "Note",
+                "noteHint": "Facultatif.",
+                "submit": "Transférer",
+                "submitting": "Transfert…"
+            }
+        },
+        "history": {
+            "title": "Historique de stock — {{sku}}",
+            "tableCaption": "Mouvements de stock pour {{sku}}",
+            "filters": {
+                "reason": {
+                    "label": "Motif",
+                    "any": "Tous les motifs"
+                },
+                "from": "Du",
+                "to": "Au",
+                "sort": {
+                    "label": "Trier par",
+                    "newest": "Plus récent",
+                    "oldest": "Plus ancien"
+                }
+            },
+            "columns": {
+                "date": "Date",
+                "reason": "Motif",
+                "location": "Emplacement",
+                "change": "Changement",
+                "note": "Note",
+                "by": "Par"
+            },
+            "empty": {
+                "filtered": "Aucun mouvement ne correspond à ce filtre.",
+                "none": "Aucun mouvement de stock enregistré pour l’instant."
+            },
+            "reasons": {
+                "receipt": "réception",
+                "sale": "vente",
+                "adjustment": "ajustement",
+                "return": "retour",
+                "transfer": "transfert"
+            }
+        }
+    }
+}

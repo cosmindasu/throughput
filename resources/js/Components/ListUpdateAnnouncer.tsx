@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SC 4.1.3 (Status Messages) — anunță o schimbare de cursor pe ACEEAȘI listă (paginare),
@@ -42,6 +43,7 @@ import { useEffect, useRef, useState } from 'react';
  * înainte ca golirea întârziată să fi apucat să treacă prin DOM.
  */
 export default function ListUpdateAnnouncer() {
+    const { t } = useTranslation('common');
     const { url } = usePage();
     const [announcement, setAnnouncement] = useState('');
     const previousRef = useRef<{ pathname: string; search: string } | null>(null);
@@ -64,10 +66,10 @@ export default function ListUpdateAnnouncer() {
         // într-un singur pas care ar anula tranziția (motivul exact pentru care „golește apoi
         // scrie în ACELAȘI tick" nu ar funcționa aici).
         setAnnouncement('');
-        const frame = requestAnimationFrame(() => setAnnouncement('Results updated.'));
+        const frame = requestAnimationFrame(() => setAnnouncement(t('common:listUpdate.updated')));
 
         return () => cancelAnimationFrame(frame);
-    }, [url]);
+    }, [url, t]);
 
     return (
         <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">

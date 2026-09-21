@@ -1,5 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import EmptyState from '@/Components/EmptyState';
@@ -19,6 +20,7 @@ import type { PipelinePageProps, PipelineStage } from '@/types/generated';
  * segmentul de workspace din propul comun `workspace`.
  */
 export default function PipelineIndex() {
+    const { t } = useTranslation('deals');
     const { workspace, pipelineName, stages, can } = usePage<PipelinePageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const stagesPath = `/${workspaceSlug}/pipeline/stages`;
@@ -85,7 +87,7 @@ export default function PipelineIndex() {
                     // `errors.stage_ids` vine din `ReorderStagesAction` (422 — duplicat, set
                     // incomplet, id străin). Un 403 (drept pierdut între randare și click) sau
                     // un 500 nu populează `stage_ids`, de-aici textul generic de rezervă.
-                    setOrderError(errors.stage_ids ?? 'Could not save the new stage order. Please try again.');
+                    setOrderError(errors.stage_ids ?? t('pipeline.orderError'));
                 },
             },
         );
@@ -117,7 +119,7 @@ export default function PipelineIndex() {
             return;
         }
         lastMovedIdRef.current = stageId;
-        announce(`${stage.name} moved to position ${nextOrder.indexOf(stageId) + 1} of ${nextOrder.length}`);
+        announce(t('pipeline.moveAnnouncement', { name: stage.name, position: nextOrder.indexOf(stageId) + 1, total: nextOrder.length }));
     }
 
     function moveUp(stageId: string) {
@@ -178,7 +180,7 @@ export default function PipelineIndex() {
 
     return (
         <>
-            <Head title="Pipeline" />
+            <Head title={t('pipeline.headTitle')} />
 
             {/* P2-005: anunț pentru cititoarele de ecran la fiecare "Move up"/"Move down" —
                 singurul semnal de reordonare pentru cineva care nu vede tabelul mișcându-se. */}
@@ -188,12 +190,14 @@ export default function PipelineIndex() {
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Pipeline stages"
+                    title={t('pipeline.pageTitle')}
                     description={
-                        <>
-                            Stages of the <span className="font-medium text-text">{pipelineName}</span> pipeline. Won
-                            and Lost are terminal — at most one of each.
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="pipeline.description"
+                            values={{ pipeline: pipelineName }}
+                            components={{ strong: <span className="font-medium text-text" /> }}
+                        />
                     }
                 />
 
@@ -205,35 +209,35 @@ export default function PipelineIndex() {
 
                 {orderedStages.length === 0 ? (
                     <EmptyState
-                        message="This pipeline has no stages yet."
-                        action={can.manage ? <span className="text-xs text-text-3">Add the first one below.</span> : undefined}
+                        message={t('pipeline.empty.message')}
+                        action={can.manage ? <span className="text-xs text-text-3">{t('pipeline.empty.hint')}</span> : undefined}
                     />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Pipeline stages</caption>
+                            <caption className="sr-only">{t('pipeline.table.caption')}</caption>
                             <thead className="bg-raised text-xs font-medium uppercase tracking-wide text-text-2">
                                 <tr>
                                     {can.manage && (
                                         <th scope="col" className="w-24 px-3 py-2">
-                                            Order
+                                            {t('pipeline.table.order')}
                                         </th>
                                     )}
                                     <th scope="col" className="px-3 py-2">
-                                        Stage
+                                        {t('pipeline.table.stage')}
                                     </th>
                                     <th scope="col" className="px-3 py-2">
-                                        Outcome
+                                        {t('pipeline.table.outcome')}
                                     </th>
                                     <th scope="col" className="px-3 py-2 text-right">
-                                        Probability
+                                        {t('pipeline.table.probability')}
                                     </th>
                                     <th scope="col" className="px-3 py-2 text-right">
-                                        Deals
+                                        {t('pipeline.table.deals')}
                                     </th>
                                     {can.manage && (
                                         <th scope="col" className="px-3 py-2 text-right">
-                                            Actions
+                                            {t('pipeline.table.actions')}
                                         </th>
                                     )}
                                 </tr>
@@ -275,17 +279,17 @@ export default function PipelineIndex() {
 
             <ConfirmDialog
                 open={confirmingStage !== null}
-                title={confirmingStage ? `Delete "${confirmingStage.name}"?` : ''}
+                title={confirmingStage ? t('pipeline.deleteDialog.title', { name: confirmingStage.name }) : ''}
                 onClose={() => setConfirmingDeleteId(null)}
                 // BR-DEAL-01: dacă etapa are deals, dialogul doar INFORMEAZĂ (fără
                 // `onConfirm`) — butonul „Delete" rămâne prezent pentru cine are dreptul
                 // (`pipelines.manage`), regula de stare se explică, nu se ascunde.
                 onConfirm={confirmingStage && !confirmingStage.deletionBlockedReason ? () => confirmDelete(confirmingStage.id) : undefined}
-                confirmLabel="Delete"
+                confirmLabel={t('pipeline.deleteDialog.confirmLabel')}
                 confirmVariant="danger"
                 processing={deleting}
             >
-                {confirmingStage?.deletionBlockedReason ?? 'This cannot be undone.'}
+                {confirmingStage?.deletionBlockedReason ?? t('pipeline.deleteDialog.body')}
             </ConfirmDialog>
         </>
     );
@@ -328,6 +332,7 @@ function StageRow({
     stagesPath,
     rowRef,
 }: StageRowProps) {
+    const { t } = useTranslation('deals');
     const editForm = useForm({
         name: stage.name,
         probability: stage.probability !== null ? String(stage.probability) : '',
@@ -372,7 +377,7 @@ function StageRow({
                 <td colSpan={canManage ? 6 : 4} className="px-3 py-3">
                     <form onSubmit={submitEdit} className="flex flex-wrap items-end gap-3" noValidate>
                         <div className="w-48">
-                            <Field label="Name" error={editForm.errors.name} required>
+                            <Field label={t('pipeline.form.nameLabel')} error={editForm.errors.name} required>
                                 {(control) => (
                                     <input
                                         {...control}
@@ -386,7 +391,7 @@ function StageRow({
                         </div>
 
                         <div className="w-32">
-                            <Field label="Probability %" error={editForm.errors.probability} hint="0–100, optional">
+                            <Field label={t('pipeline.form.probabilityLabel')} error={editForm.errors.probability} hint={t('pipeline.form.probabilityHint')}>
                                 {(control) => (
                                     <input
                                         {...control}
@@ -408,7 +413,7 @@ function StageRow({
                                 onChange={(event) => editForm.setData('is_won', event.target.checked)}
                                 className="rounded border-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             />
-                            Won
+                            {t('pipeline.form.wonLabel')}
                         </label>
                         {editForm.errors.is_won && (
                             <p role="alert" className="text-xs text-danger">
@@ -423,7 +428,7 @@ function StageRow({
                                 onChange={(event) => editForm.setData('is_lost', event.target.checked)}
                                 className="rounded border-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             />
-                            Lost
+                            {t('pipeline.form.lostLabel')}
                         </label>
                         {editForm.errors.is_lost && (
                             <p role="alert" className="text-xs text-danger">
@@ -432,11 +437,11 @@ function StageRow({
                         )}
 
                         <div className="flex gap-2">
-                            <Button variant="primary" type="submit" pending={editForm.processing} pendingLabel="Saving…">
-                                Save
+                            <Button variant="primary" type="submit" pending={editForm.processing} pendingLabel={t('pipeline.form.savePending')}>
+                                {t('pipeline.form.save')}
                             </Button>
                             <Button type="button" onClick={onStopEditing}>
-                                Cancel
+                                {t('pipeline.form.cancel')}
                             </Button>
                         </div>
                     </form>
@@ -469,7 +474,7 @@ function StageRow({
                             type="button"
                             onClick={onMoveUp}
                             disabled={isFirst}
-                            aria-label={`Move ${stage.name} up`}
+                            aria-label={t('pipeline.moveUp', { name: stage.name })}
                             className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <span aria-hidden="true">↑</span>
@@ -478,7 +483,7 @@ function StageRow({
                             type="button"
                             onClick={onMoveDown}
                             disabled={isLast}
-                            aria-label={`Move ${stage.name} down`}
+                            aria-label={t('pipeline.moveDown', { name: stage.name })}
                             className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <span aria-hidden="true">↓</span>
@@ -486,10 +491,12 @@ function StageRow({
                     </div>
                 </td>
             )}
+            {/* `stage.name` rămâne NETRADUS — etapă de pipeline, dată de tenant, nu text de
+                UI (brief Val 3, §4; plan-implementare.md, capcana 2). */}
             <td className="px-3 py-2 font-medium">{stage.name}</td>
             <td className="px-3 py-2">
-                {stage.isWon && <StatusBadge tone="success">Won</StatusBadge>}
-                {stage.isLost && <StatusBadge tone="danger">Lost</StatusBadge>}
+                {stage.isWon && <StatusBadge tone="success">{t('status.won')}</StatusBadge>}
+                {stage.isLost && <StatusBadge tone="danger">{t('status.lost')}</StatusBadge>}
                 {!stage.isWon && !stage.isLost && <span className="text-text-3">—</span>}
             </td>
             <td className="numeric px-3 py-2 text-right">
@@ -499,10 +506,10 @@ function StageRow({
             {canManage && (
                 <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
-                        <Button onClick={startEditing}>Edit</Button>
+                        <Button onClick={startEditing}>{t('pipeline.rowEdit')}</Button>
                         {stage.canDelete && (
                             <Button variant="danger" onClick={onRequestDelete}>
-                                Delete
+                                {t('pipeline.rowDelete')}
                             </Button>
                         )}
                     </div>
@@ -513,6 +520,7 @@ function StageRow({
 }
 
 function AddStageForm({ stagesPath }: { stagesPath: string }) {
+    const { t } = useTranslation('deals');
     const form = useForm({
         name: '',
         probability: '',
@@ -539,11 +547,11 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
     }
 
     return (
-        <section className="rounded-lg border border-border bg-surface p-4" aria-label="Add stage">
-            <h2 className="text-sm font-medium text-text-2">Add stage</h2>
+        <section className="rounded-lg border border-border bg-surface p-4" aria-label={t('pipeline.addForm.ariaLabel')}>
+            <h2 className="text-sm font-medium text-text-2">{t('pipeline.addForm.heading')}</h2>
             <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-3" noValidate>
                 <div className="w-48">
-                    <Field label="Name" error={form.errors.name} required>
+                    <Field label={t('pipeline.form.nameLabel')} error={form.errors.name} required>
                         {(control) => (
                             <input
                                 {...control}
@@ -557,7 +565,7 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
                 </div>
 
                 <div className="w-32">
-                    <Field label="Probability %" error={form.errors.probability} hint="0–100, optional">
+                    <Field label={t('pipeline.form.probabilityLabel')} error={form.errors.probability} hint={t('pipeline.form.probabilityHint')}>
                         {(control) => (
                             <input
                                 {...control}
@@ -579,7 +587,7 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
                         onChange={(event) => form.setData('is_won', event.target.checked)}
                         className="rounded border-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     />
-                    Won
+                    {t('pipeline.form.wonLabel')}
                 </label>
                 {form.errors.is_won && (
                     <p role="alert" className="text-xs text-danger">
@@ -594,7 +602,7 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
                         onChange={(event) => form.setData('is_lost', event.target.checked)}
                         className="rounded border-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     />
-                    Lost
+                    {t('pipeline.form.lostLabel')}
                 </label>
                 {form.errors.is_lost && (
                     <p role="alert" className="text-xs text-danger">
@@ -602,8 +610,8 @@ function AddStageForm({ stagesPath }: { stagesPath: string }) {
                     </p>
                 )}
 
-                <Button variant="primary" type="submit" pending={form.processing} pendingLabel="Adding…">
-                    Add stage
+                <Button variant="primary" type="submit" pending={form.processing} pendingLabel={t('pipeline.addForm.submitPending')}>
+                    {t('pipeline.addForm.submit')}
                 </Button>
             </form>
         </section>

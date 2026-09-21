@@ -1,12 +1,88 @@
+import type { TFunction } from 'i18next';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import { controlClass } from '@/Components/Form/Field';
 import { useBulkActionDispatch } from '@/hooks/useBulkActionDispatch';
+import { useLocale } from '@/hooks/useLocale';
+import { formatNumber } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 
 interface BulkOwnerOption {
     id: string;
     name: string;
+}
+
+/**
+ * Cheia din catalogul `bulk` (`resource.*`) pentru substantivul pluralizat CLDR al
+ * resursei bifate — vezi `resourceLabel()`/`resourcePluralLabel()` mai jos și raportul
+ * lotului A2 (Val 3, „Lot I18N") pentru DE CE componenta încă acceptă
+ * `resourceNounSingular`/`resourceNounPlural` ca fallback, în loc să ceară DOAR
+ * `resourceKey`.
+ */
+export type BulkResourceKey = 'accounts' | 'deals' | 'orders' | 'products';
+
+/**
+ * Deducerea lui `resourceKey` din `resourceNounPlural` când apelantul NU dă `resourceKey`
+ * explicit — cazul tuturor celor patru apelanți EXISTENȚI azi (`Accounts/Deals/Orders/
+ * Products/Index.tsx`, verificat cu `grep resourceNounSingular resources/js/Pages`),
+ * fișiere ale altor agenți, needitate în acest lot (P2-003, brief-ul valului).
+ *
+ * Un apelant VIITOR cu un substantiv nou, absent din harta asta, cade pe fallback-ul
+ * necontextualizat din `resourceLabel()` — corect în engleză, dar cu substantivul englez
+ * NETRADUS în franceză. Vezi raportul lotului A2, pct. 3.
+ */
+const RESOURCE_KEY_BY_PLURAL: Partial<Record<string, BulkResourceKey>> = {
+    accounts: 'accounts',
+    deals: 'deals',
+    orders: 'orders',
+    products: 'products',
+};
+
+/**
+ * Substantivul pluralizat CLDR pentru `count`, din `resource.<resourceKey>` — sau,
+ * dacă `resourceKey` e `undefined` (fallback), vechea concatenare
+ * `${formatted} ${singular|plural}`, corectă doar în engleză (substantivul rămâne cel
+ * englez dat de apelant, indiferent de limba activă).
+ */
+function resourceLabel(
+    t: TFunction,
+    locale: AppLocale,
+    count: number,
+    resourceKey: BulkResourceKey | undefined,
+    singular: string,
+    plural: string,
+): string {
+    const formatted = formatNumber(count, locale);
+
+    if (resourceKey) {
+        return t(`bulk:resource.${resourceKey}`, { count, formatted });
+    }
+
+    return `${formatted} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Ca mai sus, dar FORȚEAZĂ categoria CLDR de plural (`_other`/`_many`), INDIFERENT de
+ * `count` — reproduce exact comportamentul vechi al celor trei locuri care foloseau
+ * `resourceNounPlural` direct, NICIODATĂ ternarul `noun` (linia ~137 „Select all N…
+ * matching this filter", linia ~194 mesajul de plafon, linia ~287 corpul dialogului de
+ * reasignare): înainte de acest lot, textul englez zicea „1 accounts” dacă
+ * `effectiveCount` era 1 pe oricare din cele trei — comportament păstrat aici INTENȚIONAT
+ * (textul englez rămâne identic, vezi raportul), nu „reparat” din mers spre o formă
+ * singular-aware, ca să nu schimbe randajul curent al suitei E2E pe aceste trei locuri.
+ * `count: 2` e arbitrar — orice valoare diferită de 1 și de un multiplu exact de milion
+ * selectează garantat categoria „other” în ambele limbi (`Intl.PluralRules`).
+ */
+function resourcePluralLabel(t: TFunction, locale: AppLocale, count: number, resourceKey: BulkResourceKey | undefined, plural: string): string {
+    const formatted = formatNumber(count, locale);
+
+    if (resourceKey) {
+        return t(`bulk:resource.${resourceKey}`, { count: 2, formatted });
+    }
+
+    return `${formatted} ${plural}`;
 }
 
 interface BulkSelectionBarProps {
@@ -14,6 +90,14 @@ interface BulkSelectionBarProps {
     resourceNounSingular: string;
     /** Plural, ex. „accounts". */
     resourceNounPlural: string;
+    /**
+     * Cheia CLDR a resursei (`resource.<cheie>` din catalogul `bulk`), preferată în locul
+     * lui `resourceNounSingular`/`resourceNounPlural` pentru pluralizarea francă — vezi
+     * docblock-ul `RESOURCE_KEY_BY_PLURAL` de mai sus. NICIUNUL dintre cei patru apelanți
+     * actuali n-o dă încă (needitați în acest lot); dedusă automat din `resourceNounPlural`
+     * pentru ei. Un apelant NOU ar trebui s-o dea explicit.
+     */
+    resourceKey?: BulkResourceKey;
     /**
      * N-ul EXACT pe care operația l-ar atinge pe modul „select all matching filter"
      * (`App\Support\Bulk\BulkMatchingRowCount`, P2-003 — restricția Agentului aplicată).
@@ -75,10 +159,17 @@ interface BulkSelectionBarProps {
  * care să mute focusul explicit, el ar cădea pe `<body>`. Wrapper-ul exterior (montat
  * mereu, cu `aria-live`) primește focusul programatic după golire — rămâne stabil în DOM
  * indiferent de starea selecției, deci e o țintă sigură.
+ *
+ * Val 3 („Lot I18N", ADR-022, lotul A2) — namespace `bulk`. Unsprezece formatări
+ * `toLocaleString('en-US')` (măsurat pe disc, nu cele „10" anticipate în brief) și DOUĂ
+ * tipare de pluralizare independente (linia ~107 istorică, ternarul `noun` de mai jos, și
+ * linia ~321 istorică, `CancelDraftsControl`) au trecut pe motorul CLDR — vezi raportul
+ * lotului pentru lista completă, fișier + linie.
  */
 export default function BulkSelectionBar({
     resourceNounSingular,
     resourceNounPlural,
+    resourceKey,
     total,
     selectedCount,
     allOnPageSelected,
@@ -96,15 +187,17 @@ export default function BulkSelectionBar({
     priceUpdateUrl,
     toggleActiveUrl,
 }: BulkSelectionBarProps) {
+    const { t } = useTranslation('bulk');
+    const locale = useLocale();
     const wrapperRef = useRef<HTMLDivElement>(null);
     const totalKnown = typeof total === 'number';
+    const resolvedResourceKey = resourceKey ?? RESOURCE_KEY_BY_PLURAL[resourceNounPlural];
 
     // P1-002 (code review) — pe modul „select all matching filter", numărul care contează
     // e N-ul EXACT al operației (P2-003), NICIODATĂ `selected.size` (plafonat la o pagină,
     // `useBulkSelection`): altfel dialogul arăta „50 accounts" pentru o operație pe mii de
     // rânduri, iar comparația cu pragul de confirmare pornea de la numărul greșit.
     const effectiveCount = matchingFilter && totalKnown ? total : selectedCount;
-    const noun = effectiveCount === 1 ? resourceNounSingular : resourceNounPlural;
     // P2-001 (code review) — plafonul Agentului verificat ȘI client-side, înainte de
     // submit: serverul (`DispatchBulkOperationAction`) rămâne sursa de adevăr, dar
     // dezactivarea aici scutește un drum dus-întors doar ca să afli refuzul.
@@ -125,7 +218,9 @@ export default function BulkSelectionBar({
             {selectedCount > 0 && (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-raised px-4 py-2.5 text-sm">
                     <span className="font-medium text-text">
-                        {effectiveCount.toLocaleString('en-US')} {noun} selected
+                        {t('bulk:selectionBar.selected', {
+                            resource: resourceLabel(t, locale, effectiveCount, resolvedResourceKey, resourceNounSingular, resourceNounPlural),
+                        })}
                     </span>
 
                     {allOnPageSelected && !matchingFilter && totalKnown && total > selectedCount && (
@@ -134,7 +229,9 @@ export default function BulkSelectionBar({
                             onClick={onSelectAllMatching}
                             className="text-accent-text underline decoration-dotted underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                         >
-                            Select all {total.toLocaleString('en-US')} {resourceNounPlural} matching this filter
+                            {t('bulk:selectionBar.selectAllMatching', {
+                                resource: resourcePluralLabel(t, locale, total, resolvedResourceKey, resourceNounPlural),
+                            })}
                         </button>
                     )}
 
@@ -145,7 +242,8 @@ export default function BulkSelectionBar({
                             matchingFilter={matchingFilter}
                             selectedIds={selectedIds}
                             effectiveCount={effectiveCount}
-                            noun={noun}
+                            resourceKey={resolvedResourceKey}
+                            resourceNounSingular={resourceNounSingular}
                             resourceNounPlural={resourceNounPlural}
                             confirmationThreshold={confirmationThreshold}
                             overRowCap={overRowCap}
@@ -169,7 +267,9 @@ export default function BulkSelectionBar({
                             matchingFilter={matchingFilter}
                             selectedIds={selectedIds}
                             effectiveCount={effectiveCount}
-                            noun={noun}
+                            resourceKey={resolvedResourceKey}
+                            resourceNounSingular={resourceNounSingular}
+                            resourceNounPlural={resourceNounPlural}
                             confirmationThreshold={confirmationThreshold}
                             overRowCap={overRowCap}
                         />
@@ -181,17 +281,22 @@ export default function BulkSelectionBar({
                             matchingFilter={matchingFilter}
                             selectedIds={selectedIds}
                             effectiveCount={effectiveCount}
-                            noun={noun}
+                            resourceKey={resolvedResourceKey}
+                            resourceNounSingular={resourceNounSingular}
+                            resourceNounPlural={resourceNounPlural}
                             confirmationThreshold={confirmationThreshold}
                             overRowCap={overRowCap}
                         />
                     )}
 
-                    <Button onClick={handleClear}>Clear selection</Button>
+                    <Button onClick={handleClear}>{t('bulk:selectionBar.clearSelection')}</Button>
 
                     {overRowCap && (
                         <p role="alert" className="w-full rounded-md bg-danger-tint px-3 py-2 text-sm text-danger">
-                            {`This would affect ${effectiveCount.toLocaleString('en-US')} ${resourceNounPlural}, above your role's limit of ${rowCap?.toLocaleString('en-US')} rows per operation.`}
+                            {t('bulk:selectionBar.overRowCap', {
+                                resource: resourcePluralLabel(t, locale, effectiveCount, resolvedResourceKey, resourceNounPlural),
+                                limit: formatNumber(rowCap ?? 0, locale),
+                            })}
                         </p>
                     )}
                 </div>
@@ -205,6 +310,10 @@ export default function BulkSelectionBar({
  * indiferent de unde e randată (bara sau, cât dialogul de confirmare e deschis, ÎN
  * dialog, ca să rămână vizibilă și legată de context, nu ascunsă sub `backdrop`-ul unui
  * `<dialog>` modal).
+ *
+ * `message` vine din `useBulkActionDispatch` (`errors.selection` server-side, sau
+ * fallback-ul lui hardcodat `'This operation could not be started.'`) — fișier al altui
+ * lot, needitat aici; fallback-ul lui rămâne netradus. Vezi raportul lotului A2, pct. 6.
  */
 function ErrorAlert({ message }: { message: string }) {
     return (
@@ -223,17 +332,26 @@ interface ActionControlBaseProps {
     overRowCap: boolean;
 }
 
+interface ResourceNounProps {
+    resourceKey: BulkResourceKey | undefined;
+    resourceNounSingular: string;
+    resourceNounPlural: string;
+}
+
 function ReassignOwnerControl({
     dispatchUrl,
     owners,
     matchingFilter,
     selectedIds,
     effectiveCount,
-    noun,
+    resourceKey,
+    resourceNounSingular,
     resourceNounPlural,
     confirmationThreshold,
     overRowCap,
-}: ActionControlBaseProps & { owners: BulkOwnerOption[]; noun: string; resourceNounPlural: string }) {
+}: ActionControlBaseProps & ResourceNounProps & { owners: BulkOwnerOption[] }) {
+    const { t } = useTranslation('bulk');
+    const locale = useLocale();
     const [ownerId, setOwnerId] = useState('');
     const ownerName = owners.find((owner) => owner.id === ownerId)?.name ?? '';
     const { processing, error, confirmOpen, closeConfirm, run, confirmAndDispatch } = useBulkActionDispatch(
@@ -243,13 +361,18 @@ function ReassignOwnerControl({
         effectiveCount,
         confirmationThreshold,
     );
+    // Titlul/butonul folosesc pluralizarea REALĂ (count-aware, `noun` istoric); corpul
+    // dialogului folosea `resourceNounPlural` NECONDIȚIONAT (niciodată ternarul) —
+    // comportament păstrat identic, vezi `resourcePluralLabel`.
+    const resourceCountAware = resourceLabel(t, locale, effectiveCount, resourceKey, resourceNounSingular, resourceNounPlural);
+    const resourceAlwaysPlural = resourcePluralLabel(t, locale, effectiveCount, resourceKey, resourceNounPlural);
 
     return (
         <>
             <label className="flex items-center gap-1.5 text-text-2">
-                Reassign to
+                {t('bulk:selectionBar.reassignToLabel')}
                 <select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} className={controlClass}>
-                    <option value="">Choose owner…</option>
+                    <option value="">{t('bulk:selectionBar.chooseOwnerOption')}</option>
                     {owners.map((owner) => (
                         <option key={owner.id} value={owner.id}>
                             {owner.name}
@@ -272,19 +395,19 @@ function ReassignOwnerControl({
                 className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 onClick={processing ? undefined : () => run({ owner_user_id: ownerId })}
             >
-                {processing ? 'Starting…' : 'Reassign owner'}
+                {processing ? t('bulk:selectionBar.starting') : t('bulk:selectionBar.reassignOwnerButton')}
             </Button>
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={`Reassign ${effectiveCount.toLocaleString('en-US')} ${noun}?`}
+                title={t('bulk:selectionBar.reassignConfirmTitle', { resource: resourceCountAware })}
                 onConfirm={confirmAndDispatch}
                 onClose={closeConfirm}
                 processing={processing}
-                confirmLabel="Reassign"
+                confirmLabel={t('bulk:selectionBar.reassignConfirmLabel')}
             >
                 <>
-                    {`This changes the owner of ${effectiveCount.toLocaleString('en-US')} ${resourceNounPlural} to ${ownerName}. It runs in the background — you'll land on a status page and can cancel it while it's running.`}
+                    {t('bulk:selectionBar.reassignConfirmBody', { resource: resourceAlwaysPlural, owner: ownerName })}
                     {error && (
                         <div className="mt-3">
                             <ErrorAlert message={error} />
@@ -304,8 +427,16 @@ function ReassignOwnerControl({
  * resursei: anularea atinge doar subsetul `draft` al selecției curente, iar „Select all N"
  * și pragul de confirmare trebuie să reflecte exact acel subset, nu filtrul brut (defectul
  * (g) din v1.24, reprodus altfel pe un tip nou de acțiune dacă am fi refolosit `total`).
+ *
+ * Substantivul (fost `effectiveCount === 1 ? 'draft order' : 'draft orders'`, ternar
+ * hardcodat, independent de `resourceNounSingular`/`resourceNounPlural` ale bării) trece
+ * acum pe `bulk:resource.draftOrders` — CLDR real, singurul din acest fișier care nu
+ * depinde deloc de props-ul de resursă al apelantului (repară complet tiparul, nu doar
+ * parțial, spre deosebire de resursele generice de mai sus).
  */
 function CancelDraftsControl({ dispatchUrl, matchingFilter, selectedIds, effectiveCount, confirmationThreshold, overRowCap }: ActionControlBaseProps) {
+    const { t } = useTranslation('bulk');
+    const locale = useLocale();
     const { processing, error, confirmOpen, closeConfirm, run, confirmAndDispatch } = useBulkActionDispatch(
         dispatchUrl,
         matchingFilter,
@@ -318,7 +449,7 @@ function CancelDraftsControl({ dispatchUrl, matchingFilter, selectedIds, effecti
         return null;
     }
 
-    const noun = effectiveCount === 1 ? 'draft order' : 'draft orders';
+    const draftOrders = t('bulk:resource.draftOrders', { count: effectiveCount, formatted: formatNumber(effectiveCount, locale) });
 
     return (
         <>
@@ -329,20 +460,20 @@ function CancelDraftsControl({ dispatchUrl, matchingFilter, selectedIds, effecti
                 className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 onClick={processing ? undefined : () => run()}
             >
-                {processing ? 'Starting…' : `Cancel ${effectiveCount.toLocaleString('en-US')} ${noun}`}
+                {processing ? t('bulk:selectionBar.starting') : t('bulk:selectionBar.cancelDraftsButton', { resource: draftOrders })}
             </Button>
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={`Cancel ${effectiveCount.toLocaleString('en-US')} ${noun}?`}
+                title={t('bulk:selectionBar.cancelDraftsConfirmTitle', { resource: draftOrders })}
                 onConfirm={confirmAndDispatch}
                 onClose={closeConfirm}
                 processing={processing}
-                confirmLabel="Cancel orders"
+                confirmLabel={t('bulk:selectionBar.cancelDraftsConfirmLabel')}
                 confirmVariant="danger"
             >
                 <>
-                    {`Only draft orders in your selection are affected — confirmed orders and anything already shipped are left exactly as they are. It runs in the background — you'll land on a status page and can cancel it while it's running.`}
+                    {t('bulk:selectionBar.cancelDraftsConfirmBody')}
                     {error && (
                         <div className="mt-3">
                             <ErrorAlert message={error} />
@@ -362,10 +493,14 @@ function PriceUpdateControl({
     matchingFilter,
     selectedIds,
     effectiveCount,
-    noun,
+    resourceKey,
+    resourceNounSingular,
+    resourceNounPlural,
     confirmationThreshold,
     overRowCap,
-}: ActionControlBaseProps & { noun: string }) {
+}: ActionControlBaseProps & ResourceNounProps) {
+    const { t } = useTranslation('bulk');
+    const locale = useLocale();
     const [mode, setMode] = useState<'percent' | 'fixed'>('percent');
     const [direction, setDirection] = useState<'increase' | 'decrease'>('increase');
     const [amount, setAmount] = useState('');
@@ -379,28 +514,34 @@ function PriceUpdateControl({
 
     const parsedAmount = Number(amount);
     const validAmount = amount !== '' && Number.isFinite(parsedAmount) && parsedAmount > 0 && (mode === 'fixed' || parsedAmount <= 100);
-    const summary = `${direction === 'increase' ? 'Increase' : 'Decrease'} price by ${amount || '0'}${mode === 'percent' ? '%' : ''}`;
+    const amountDisplay = amount || '0';
+    const suffix = mode === 'percent' ? t('bulk:selectionBar.percentOption') : '';
+    const summary = t(direction === 'increase' ? 'bulk:selectionBar.priceSummaryIncrease' : 'bulk:selectionBar.priceSummaryDecrease', {
+        amount: amountDisplay,
+        suffix,
+    });
+    const resource = resourceLabel(t, locale, effectiveCount, resourceKey, resourceNounSingular, resourceNounPlural);
 
     return (
         <>
             <label className="flex items-center gap-1.5 text-text-2">
                 <select value={direction} onChange={(event) => setDirection(event.target.value as 'increase' | 'decrease')} className={controlClass}>
-                    <option value="increase">Increase</option>
-                    <option value="decrease">Decrease</option>
+                    <option value="increase">{t('bulk:selectionBar.increaseOption')}</option>
+                    <option value="decrease">{t('bulk:selectionBar.decreaseOption')}</option>
                 </select>
-                price by
+                {t('bulk:selectionBar.priceByLabel')}
                 <input
                     type="number"
                     min="0.01"
                     step="0.01"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
-                    aria-label="Amount"
+                    aria-label={t('bulk:selectionBar.amountAriaLabel')}
                     className={`${controlClass} w-24`}
                 />
                 <select value={mode} onChange={(event) => setMode(event.target.value as 'percent' | 'fixed')} className={controlClass}>
-                    <option value="percent">%</option>
-                    <option value="fixed">currency</option>
+                    <option value="percent">{t('bulk:selectionBar.percentOption')}</option>
+                    <option value="fixed">{t('bulk:selectionBar.currencyOption')}</option>
                 </select>
             </label>
 
@@ -411,19 +552,19 @@ function PriceUpdateControl({
                 className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 onClick={processing ? undefined : () => run({ mode, direction, amount: parsedAmount })}
             >
-                {processing ? 'Starting…' : 'Update price'}
+                {processing ? t('bulk:selectionBar.starting') : t('bulk:selectionBar.updatePriceButton')}
             </Button>
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={`Update the price of ${effectiveCount.toLocaleString('en-US')} ${noun}?`}
+                title={t('bulk:selectionBar.priceConfirmTitle', { resource })}
                 onConfirm={confirmAndDispatch}
                 onClose={closeConfirm}
                 processing={processing}
-                confirmLabel="Update price"
+                confirmLabel={t('bulk:selectionBar.updatePriceButton')}
             >
                 <>
-                    {`${summary} on every variant of ${effectiveCount.toLocaleString('en-US')} ${noun}. Prices never go below zero. It runs in the background — you'll land on a status page and can cancel it while it's running.`}
+                    {t('bulk:selectionBar.priceConfirmBody', { summary, resource })}
                     {error && (
                         <div className="mt-3">
                             <ErrorAlert message={error} />
@@ -443,10 +584,14 @@ function ToggleActiveControl({
     matchingFilter,
     selectedIds,
     effectiveCount,
-    noun,
+    resourceKey,
+    resourceNounSingular,
+    resourceNounPlural,
     confirmationThreshold,
     overRowCap,
-}: ActionControlBaseProps & { noun: string }) {
+}: ActionControlBaseProps & ResourceNounProps) {
+    const { t } = useTranslation('bulk');
+    const locale = useLocale();
     const { processing, error, confirmOpen, closeConfirm, run, confirmAndDispatch } = useBulkActionDispatch(
         dispatchUrl,
         matchingFilter,
@@ -455,6 +600,7 @@ function ToggleActiveControl({
         confirmationThreshold,
     );
     const [pendingActive, setPendingActive] = useState(true);
+    const resource = resourceLabel(t, locale, effectiveCount, resourceKey, resourceNounSingular, resourceNounPlural);
 
     const trigger = (active: boolean) => {
         setPendingActive(active);
@@ -469,7 +615,7 @@ function ToggleActiveControl({
                 className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 onClick={processing ? undefined : () => trigger(true)}
             >
-                {processing && pendingActive ? 'Starting…' : 'Activate'}
+                {processing && pendingActive ? t('bulk:selectionBar.starting') : t('bulk:selectionBar.activateButton')}
             </Button>
             <Button
                 disabled={overRowCap}
@@ -477,19 +623,19 @@ function ToggleActiveControl({
                 className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 onClick={processing ? undefined : () => trigger(false)}
             >
-                {processing && !pendingActive ? 'Starting…' : 'Deactivate'}
+                {processing && !pendingActive ? t('bulk:selectionBar.starting') : t('bulk:selectionBar.deactivateButton')}
             </Button>
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={`${pendingActive ? 'Activate' : 'Deactivate'} ${effectiveCount.toLocaleString('en-US')} ${noun}?`}
+                title={t(pendingActive ? 'bulk:selectionBar.activateConfirmTitle' : 'bulk:selectionBar.deactivateConfirmTitle', { resource })}
                 onConfirm={confirmAndDispatch}
                 onClose={closeConfirm}
                 processing={processing}
-                confirmLabel={pendingActive ? 'Activate' : 'Deactivate'}
+                confirmLabel={pendingActive ? t('bulk:selectionBar.activateButton') : t('bulk:selectionBar.deactivateButton')}
             >
                 <>
-                    {`This runs in the background — you'll land on a status page and can cancel it while it's running.`}
+                    {t('bulk:selectionBar.toggleConfirmBody')}
                     {error && (
                         <div className="mt-3">
                             <ErrorAlert message={error} />

@@ -128,18 +128,60 @@ class HelpTopicCoverageTest extends TestCase
     {
         $source = file_get_contents(base_path('resources/js/Layouts/AppLayout.tsx'));
 
+        // Valul 3 al Lotului I18N a mutat eticheta din literal în catalog:
+        // `label: 'Accounts'` a devenit `label: t('common:nav.accounts')`. Regexul citește
+        // acum CHEIA, iar eticheta engleză se rezolvă mai jos din catalog — nu se renunță la
+        // ea, fiindcă `DEFERRED_NAV_LABELS` și mesajele de eșec ale testului sunt scrise în
+        // termeni de etichetă vizibilă, nu de cheie. `en` e sursa de adevăr a cataloagelor
+        // (vezi `App\Console\Commands\I18nCoverage`), deci eticheta rezolvată de aici e exact
+        // ce vede un utilizator pe engleză.
         preg_match_all(
-            '/label:\s*\'([^\']+)\',\s*permission:\s*\'([^\']+)\',\s*href:\s*\(w\)\s*=>\s*`\/\$\{w\}([^`]*)`/',
+            '/label:\s*t\(\'([^\']+)\'\),\s*permission:\s*\'([^\']+)\',\s*href:\s*\(w\)\s*=>\s*`\/\$\{w\}([^`]*)`/',
             $source,
             $matches,
             PREG_SET_ORDER
         );
 
         return array_map(fn (array $m): array => [
-            'label' => $m[1],
+            'label' => $this->resolveCatalogLabel($m[1]),
             'permission' => $m[2],
             'path' => $m[3],
         ], $matches);
+    }
+
+    /**
+     * Eticheta engleză din spatele unei chei i18next de forma `common:nav.accounts`.
+     *
+     * Întoarce cheia NESCHIMBATĂ dacă nu se găsește: un mesaj de eșec care spune
+     * „common:nav.accounts" e în continuare lizibil și trimite direct la cauză, pe când o
+     * excepție aici ar masca defectul real pe care testul îl caută. Acoperirea propriu-zisă
+     * a cataloagelor e treaba lui `php artisan i18n:coverage`, nu a acestui test.
+     */
+    private function resolveCatalogLabel(string $key): string
+    {
+        [$namespace, $path] = array_pad(explode(':', $key, 2), 2, null);
+
+        if ($path === null) {
+            return $key;
+        }
+
+        $file = base_path("resources/js/locales/en/{$namespace}.json");
+
+        if (! is_file($file)) {
+            return $key;
+        }
+
+        $value = json_decode((string) file_get_contents($file), true);
+
+        foreach (explode('.', $path) as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return $key;
+            }
+
+            $value = $value[$segment];
+        }
+
+        return is_string($value) ? $value : $key;
     }
 
     /**

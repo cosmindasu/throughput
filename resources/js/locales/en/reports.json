@@ -1,0 +1,135 @@
+{
+    "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+    },
+    "runStatus": {
+        "queued": "Queued",
+        "running": "Running",
+        "success": "Success",
+        "failed": "Failed"
+    },
+    "frequency": {
+        "none": "Manual only",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+    },
+    "triggeredBy": {
+        "scheduler": "scheduler",
+        "manual": "manual"
+    },
+    "weekday": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+    },
+    "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "runNow": "Run now",
+        "queuing": "Queuing…"
+    },
+    "index": {
+        "title": "Reports",
+        "newReport": "New report",
+        "columns": {
+            "name": "Name",
+            "source": "Source",
+            "format": "Format",
+            "frequency": "Frequency",
+            "status": "Status",
+            "lastRun": "Last run"
+        },
+        "neverRun": "Never run",
+        "empty": {
+            "ownerView": "No reports yet.",
+            "recipientView": "No reports have been shared with you yet."
+        },
+        "createFirst": "Create your first report"
+    },
+    "create": {
+        "title": "New report"
+    },
+    "edit": {
+        "title": "Edit {{name}}",
+        "headingQuoted": "Edit “{{name}}”"
+    },
+    "show": {
+        "recipientsHeading": "Recipients",
+        "currentResult": {
+            "heading": "Current result",
+            "rowsCount_one": "{{formatted}} row",
+            "rowsCount_other": "{{formatted}} rows",
+            "shown_one": "showing first row",
+            "shown_other": "showing first {{formatted}} rows",
+            "hiddenForCost": "This report includes stock cost/margin data that your role can’t view. An Owner or Manager can see it here; you can still download the file from the history below if you’re a recipient.",
+            "empty": "No data yet.",
+            "tableCaption": "Current result for {{name}}"
+        },
+        "statusRegion": {
+            "autoUpdating": "This page updates automatically.",
+            "success": "The report was generated — see it in the history below.",
+            "failedFallback": "The report could not be generated."
+        },
+        "runHistory": {
+            "heading": "Run history",
+            "empty": "This report hasn’t run yet.",
+            "tableCaption": "Run history for {{name}}",
+            "columns": {
+                "status": "Status",
+                "triggeredBy": "Triggered by",
+                "started": "Started",
+                "rows": "Rows",
+                "download": "Download"
+            },
+            "downloadAria": "Download the run from {{date}}"
+        },
+        "deleteConfirmTitle": "Delete {{name}}?",
+        "deleteWarning": "This action cannot be undone. Scheduled delivery will stop immediately.",
+        "deleteError": "This report could not be deleted."
+    },
+    "form": {
+        "name": {
+            "label": "Report name"
+        },
+        "format": {
+            "label": "Format"
+        },
+        "sourceLegend": "Source",
+        "savedViewExport": "Saved view export",
+        "savedView": {
+            "label": "Saved view",
+            "placeholder": "Select a saved view…"
+        },
+        "inventoryValuationNote": "This report includes stock cost/margin data, which is normally hidden from Agents and Viewers in the app. Recipients receive the file regardless of role — choose them carefully.",
+        "sourceLocked": "— the source of a report can’t change after it’s created. Create a new report instead.",
+        "scheduleLegend": "Schedule",
+        "frequency": {
+            "label": "Frequency"
+        },
+        "time": {
+            "label": "Time (UTC)",
+            "hint": "Scheduled reports run on the hour, compared in UTC."
+        },
+        "dayOfWeek": {
+            "label": "Day of week"
+        },
+        "dayOfMonth": {
+            "label": "Day of month",
+            "hint": "A day beyond the end of a shorter month (e.g. 31) runs on that month’s last day instead."
+        },
+        "recipients": {
+            "label": "Recipients",
+            "hint": "One email address per line (or comma-separated)."
+        },
+        "active": "Active",
+        "createReport": "Create report",
+        "saveChanges": "Save changes",
+        "saving": "Saving…"
+    }
+}

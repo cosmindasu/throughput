@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
+import { useLocale } from '@/hooks/useLocale';
+import { getDateTimeFormat } from '@/lib/format';
 import type { HistoryEntry } from '@/types/generated';
 
 export type HistoryEntityType = 'account' | 'contact' | 'deal' | 'product' | 'variant' | 'order' | 'invoice';
@@ -17,13 +20,19 @@ interface HistoryPage {
     nextCursor: string | null;
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+/**
+ * Opțiuni PĂSTRATE exact ca înainte de Val 3 (FR-I18N-03) — aceleași 5 chei ca în
+ * `Pages/Activity/Index.tsx` (formă distinctă de `formatDateTime`, cu `hour: '2-digit'`).
+ * Declarat separat, ca `const` propriu de modul, la fel cum era înainte de extragere —
+ * cele două ecrane nu partajau formatorul nici înainte.
+ */
+const HISTORY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-});
+};
 
 /**
  * FR-AUD-02, §17.3 — tab „History" reutilizabil, montabil cu o linie pe orice pagină de
@@ -40,6 +49,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
  * o citește.
  */
 export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
+    const { t } = useTranslation('activity');
+    const locale = useLocale();
     const { workspace } = usePage().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
@@ -114,8 +125,16 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                 setAnnouncement('');
                 announcementFrameRef.current = requestAnimationFrame(() => {
                     announcementFrameRef.current = null;
+                    // Val 3 (ADR-022) — tiparul hardcodat `${loaded} more ${loaded === 1 ? 'entry'
+                    // : 'entries'} loaded.${nextCursor === null ? ' End of history.' : ''}` era o
+                    // concatenare de DOUĂ propoziții lipite condiționat. Franceza nu traduce
+                    // bucată cu bucată: sunt DOUĂ chei complete, separate, fiecare cu propria
+                    // pluralizare CLDR (`loaded` / `loadedEndOfHistory`), nu un singur șir
+                    // asamblat din fragmente traduse individual.
                     setAnnouncement(
-                        `${loaded} more ${loaded === 1 ? 'entry' : 'entries'} loaded.${page.nextCursor === null ? ' End of history.' : ''}`,
+                        t(page.nextCursor === null ? 'historyTab.announcement.loadedEndOfHistory' : 'historyTab.announcement.loaded', {
+                            count: loaded,
+                        }),
                     );
                 });
             })
@@ -138,15 +157,15 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
     }, [entityType, entityId, base]);
 
     if (loading) {
-        return <p className="text-sm text-text-2">Loading history…</p>;
+        return <p className="text-sm text-text-2">{t('historyTab.loading')}</p>;
     }
 
     if (failed) {
-        return <p className="text-sm text-danger">Could not load history.</p>;
+        return <p className="text-sm text-danger">{t('historyTab.failed')}</p>;
     }
 
     if (entries.length === 0) {
-        return <EmptyState message="No changes recorded yet." />;
+        return <EmptyState message={t('historyTab.empty')} />;
     }
 
     return (
@@ -155,15 +174,19 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                 {entries.map((entry) => (
                     <li key={entry.id} className="flex flex-col gap-1.5 px-4 py-3 text-sm">
                         <div className="flex items-center justify-between gap-4">
+                            {/* `entry.actionLabel` vine GATA CONSTRUIT din
+                                `ActivityLogResource::toArray()` (`Str::headline($this->action)`), fără
+                                trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu-l
+                                reconstrui aici (vezi raportul). */}
                             <span className="font-medium text-text">{entry.actionLabel}</span>
                             <time
                                 dateTime={entry.createdAt ?? undefined}
                                 className="numeric shrink-0 text-xs text-text-3"
                             >
-                                {entry.createdAt ? dateTimeFormatter.format(new Date(entry.createdAt)) : ''}
+                                {entry.createdAt ? getDateTimeFormat(locale, HISTORY_DATE_TIME_OPTIONS).format(new Date(entry.createdAt)) : ''}
                             </time>
                         </div>
-                        <p className="text-xs text-text-3">{entry.actor?.name ?? 'System'}</p>
+                        <p className="text-xs text-text-3">{entry.actor?.name ?? t('entry.systemActor')}</p>
                         <HistoryValueDiff oldValues={entry.oldValues} newValues={entry.newValues} />
                     </li>
                 ))}
@@ -190,9 +213,9 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                         variant="secondary"
                         onClick={() => load(cursor, true)}
                         pending={loadingMore}
-                        pendingLabel="Loading…"
+                        pendingLabel={t('historyTab.loadMorePending')}
                     >
-                        Load more
+                        {t('historyTab.loadMore')}
                     </Button>
                 </div>
             )}
@@ -205,6 +228,11 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
  * simplu ABSENTE din `oldValues`/`newValues` — nimic aici presupune că toate cheile din
  * `newValues` există și în `oldValues`, sau invers (o creare n-are `oldValues`, o ștergere
  * n-are `newValues`).
+ *
+ * Cheile (`field`) sunt nume de coloane DB (`email`, `status`, …), nu etichete de UI — rămân
+ * RAW, la fel ca `deal.status`/`account.creditTerms` în alte fișiere ale lotului (vezi
+ * raportul): un glosar de etichete pentru fiecare coloană din fiecare model auditat e în
+ * afara sferei Val 3.
  */
 function HistoryValueDiff({
     oldValues,

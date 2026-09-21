@@ -8,17 +8,21 @@
 return [
 
     'deal_velocity' => [
-        // ⚠ NATIV: „Deal" e termen CRM — unele unelte franceze (Salesforce FR) păstrează
-        // „Deal"/„Opportunité" interschimbabil; ales aici „opportunité" (termenul oficial
-        // francez din majoritatea CRM-urilor), de confirmat de un nativ din domeniu.
-        'title' => 'Vitesse des opportunités par étape',
+        // „Deal" → „affaire", decizie a proprietarului (2026-09-21), aplicată uniform în
+        // TOATE cataloagele franceze — vezi nota din `lang/fr/rules.php`, care e locul unde
+        // întrebarea fusese pusă. Varianta respinsă, „opportunité", e termenul folosit de
+        // Salesforce FR și Dynamics FR; alegerea nu s-a făcut pe standardul de industrie, ci
+        // pe consecvență cu mesajele flash și cu e-mailurile scrise deja în Valul 2.
+        // Auditul care a declanșat decizia: 35 de ocurențe „affaire" față de 30
+        // „opportunité", împărțite pe 15 fișiere din ambele valuri.
+        'title' => 'Vitesse des affaires par étape',
         'columns' => [
             // Păstrat ca atare — „Pipeline" e folosit netradus în CRM-urile franceze uzuale.
             'pipeline' => 'Pipeline',
             'stage' => 'Étape',
             // ⚠ NATIV
             'avg_days_in_stage' => 'Jours moyens par étape',
-            'deals_reached' => 'Opportunités atteintes',
+            'deals_reached' => 'Affaires atteintes',
             // ⚠ NATIV
             'conversion_to_next_stage' => "Taux de conversion vers l'étape suivante",
         ],

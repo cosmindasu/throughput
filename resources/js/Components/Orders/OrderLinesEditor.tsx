@@ -1,6 +1,8 @@
 import { useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import VariantCombobox from '@/Components/Orders/VariantCombobox';
 import { controlClass } from '@/Components/Form/Field';
+import { useLocale } from '@/hooks/useLocale';
 import { formatMoney } from '@/lib/money';
 import type { OrderVariantOption } from '@/types/generated';
 
@@ -49,6 +51,8 @@ export default function OrderLinesEditor({
     onChange: (lines: OrderLineFormRow[]) => void;
     error?: string;
 }) {
+    const { t } = useTranslation('orders');
+    const locale = useLocale();
     const tableId = useId();
 
     const addLine = (variant: OrderVariantOption) => {
@@ -84,33 +88,33 @@ export default function OrderLinesEditor({
             )}
 
             {lines.length === 0 ? (
-                <p className="text-sm text-text-3">No lines yet — search a variant above to add one.</p>
+                <p className="text-sm text-text-3">{t('linesEditor.empty')}</p>
             ) : (
                 <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                     <table id={tableId} className="w-full text-left text-sm">
-                        <caption className="sr-only">Order lines</caption>
+                        <caption className="sr-only">{t('linesEditor.table.caption')}</caption>
                         <thead>
                             <tr className="border-b border-border-soft text-xs text-text-3">
                                 <th scope="col" className="px-3 py-2 font-medium">
-                                    Variant
+                                    {t('linesEditor.table.variant')}
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                                    Available
+                                    {t('linesEditor.table.available')}
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                                    Quantity
+                                    {t('linesEditor.table.quantity')}
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                                    Unit price
+                                    {t('linesEditor.table.unitPrice')}
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                                    Discount
+                                    {t('linesEditor.table.discount')}
                                 </th>
                                 <th scope="col" className="px-3 py-2 text-right font-medium">
-                                    Line total
+                                    {t('linesEditor.table.lineTotal')}
                                 </th>
                                 <th scope="col" className="px-3 py-2">
-                                    <span className="sr-only">Remove</span>
+                                    <span className="sr-only">{t('linesEditor.table.removeColumn')}</span>
                                 </th>
                             </tr>
                         </thead>
@@ -131,7 +135,7 @@ export default function OrderLinesEditor({
                                                 min="1"
                                                 step="1"
                                                 aria-invalid={exceedsAvailable ? true : undefined}
-                                                aria-label={`Quantity for ${line.label}`}
+                                                aria-label={t('linesEditor.quantityLabel', { label: line.label })}
                                                 className={`${controlClass} w-24 text-right numeric`}
                                                 value={line.quantity}
                                                 onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
@@ -142,7 +146,7 @@ export default function OrderLinesEditor({
                                                 type="number"
                                                 min="0"
                                                 step="0.01"
-                                                aria-label={`Unit price for ${line.label}`}
+                                                aria-label={t('linesEditor.unitPriceLabel', { label: line.label })}
                                                 className={`${controlClass} w-28 text-right numeric`}
                                                 value={line.unit_price}
                                                 onChange={(event) => updateLine(line.key, { unit_price: event.target.value })}
@@ -153,13 +157,13 @@ export default function OrderLinesEditor({
                                                 type="number"
                                                 min="0"
                                                 step="0.01"
-                                                aria-label={`Discount for ${line.label}`}
+                                                aria-label={t('linesEditor.discountLabel', { label: line.label })}
                                                 className={`${controlClass} w-24 text-right numeric`}
                                                 value={line.discount}
                                                 onChange={(event) => updateLine(line.key, { discount: event.target.value })}
                                             />
                                         </td>
-                                        <td className="numeric whitespace-nowrap px-3 py-2 text-right">{formatMoney(lineTotal(line), currency)}</td>
+                                        <td className="numeric whitespace-nowrap px-3 py-2 text-right">{formatMoney(lineTotal(line), currency, locale)}</td>
                                         <td className="px-3 py-2 text-right">
                                             {/* SC 2.4.4 / 4.1.2 — „Remove" identic pe fiecare linie. */}
                                             <button
@@ -167,7 +171,7 @@ export default function OrderLinesEditor({
                                                 onClick={() => removeLine(line.key)}
                                                 className="rounded text-xs text-danger underline underline-offset-2 hover:no-underline"
                                             >
-                                                Remove<span className="sr-only"> {line.label}</span>
+                                                {t('linesEditor.remove')}<span className="sr-only"> {line.label}</span>
                                             </button>
                                         </td>
                                     </tr>
@@ -177,10 +181,10 @@ export default function OrderLinesEditor({
                         <tfoot>
                             <tr>
                                 <td colSpan={5} className="px-3 py-2 text-right text-sm font-medium text-text-2">
-                                    Total
+                                    {t('linesEditor.total')}
                                 </td>
                                 <td className="numeric whitespace-nowrap px-3 py-2 text-right text-sm font-semibold text-text">
-                                    {formatMoney(grandTotal, currency)}
+                                    {formatMoney(grandTotal, currency, locale)}
                                 </td>
                                 <td />
                             </tr>
@@ -190,10 +194,7 @@ export default function OrderLinesEditor({
             )}
 
             {lines.some((line) => line.available !== null && (Number(line.quantity) || 0) > (line.available ?? 0)) && (
-                <p className="rounded-md bg-warning-tint px-3 py-2 text-xs text-warning">
-                    One or more lines exceed the available stock. You can still save this draft; confirming it will ask you to
-                    acknowledge it ships as a backorder.
-                </p>
+                <p className="rounded-md bg-warning-tint px-3 py-2 text-xs text-warning">{t('linesEditor.warning')}</p>
             )}
         </div>
     );

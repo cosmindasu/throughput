@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import HistoryTab from '@/Components/History/HistoryTab';
@@ -9,11 +10,10 @@ import ShipmentsSection from '@/Components/Orders/ShipmentsSection';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import type { OrderStatus, OrdersShowPageProps } from '@/types/generated';
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
 const STATUS_TONE: Record<OrderStatus, 'neutral' | 'accent' | 'success' | 'danger'> = {
     draft: 'neutral',
@@ -29,6 +29,8 @@ const STATUS_TONE: Record<OrderStatus, 'neutral' | 'accent' | 'success' | 'dange
  * BR-STOCK-04 — nu doar decis în UI) și „Cancel" (`CancelOrderController`, BR-ORD-01).
  */
 export default function Show() {
+    const { t } = useTranslation('orders');
+    const locale = useLocale();
     const { order, can, workspace } = usePage<OrdersShowPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
 
@@ -61,7 +63,7 @@ export default function Show() {
                         // aici la a doua încercare, cu mesajul exact al regulii.
                         setBackorderMessage(errors.acknowledge_backorder);
                     } else {
-                        setErrorMessage(Object.values(errors)[0] ?? 'This order could not be confirmed.');
+                        setErrorMessage(Object.values(errors)[0] ?? t('show.confirmDialog.error'));
                         setConfirming(false);
                     }
                 },
@@ -74,7 +76,7 @@ export default function Show() {
         setProcessing(true);
         router.patch(cancelUrl, {}, {
             onSuccess: () => setCancelling(false),
-            onError: (errors) => setErrorMessage(Object.values(errors)[0] ?? 'This order could not be cancelled.'),
+            onError: (errors) => setErrorMessage(Object.values(errors)[0] ?? t('show.cancelDialog.error')),
             onFinish: () => setProcessing(false),
         });
     };
@@ -91,11 +93,11 @@ export default function Show() {
 
     return (
         <>
-            <Head title={order.orderNumber ?? 'Order'} />
+            <Head title={order.orderNumber ?? t('show.orderFallback')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={order.orderNumber ?? `Draft — ${order.account.name}`}
+                    title={order.orderNumber ?? t('show.draftTitle', { account: order.account.name })}
                     description={
                         <span className="flex flex-wrap items-center gap-2">
                             <Link href={`/${workspaceSlug}/accounts/${order.account.id}`} className="hover:underline">
@@ -111,18 +113,18 @@ export default function Show() {
                                 inelul implicit al browserului, diferit de restul aplicației). */}
                             {can.confirm && (
                                 <Button variant="primary" onClick={() => setConfirming(true)}>
-                                    Confirm order
+                                    {t('show.actions.confirm')}
                                 </Button>
                             )}
-                            {can.edit && <ButtonLink href={`/${workspaceSlug}/orders/${order.id}/edit`}>Edit</ButtonLink>}
+                            {can.edit && <ButtonLink href={`/${workspaceSlug}/orders/${order.id}/edit`}>{t('show.actions.edit')}</ButtonLink>}
                             {can.cancel && (
                                 <Button variant="danger" onClick={() => setCancelling(true)}>
-                                    Cancel order
+                                    {t('show.actions.cancel')}
                                 </Button>
                             )}
                             {can.delete && (
                                 <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
-                                    Delete
+                                    {t('show.actions.delete')}
                                 </Button>
                             )}
                         </>
@@ -136,16 +138,19 @@ export default function Show() {
                 )}
 
                 <dl className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <Field label="Grand total" value={<span className="numeric">{formatMoney(order.grandTotal, order.currency)}</span>} />
-                    <Field label="Owner" value={order.owner.name} />
-                    <Field label="Contact" value={order.contact ? (order.contact.isAnonymized ? 'Anonymized contact' : order.contact.name) : '—'} />
-                    <Field label="Placed at" value={order.placedAt ? dateTimeFormatter.format(new Date(order.placedAt)) : '—'} />
-                    <Field label="Deal" value={order.deal?.title ?? '—'} />
-                    <Field label="Created" value={order.createdAt ? dateFormatter.format(new Date(order.createdAt)) : '—'} />
+                    <Field label={t('show.fields.grandTotal')} value={<span className="numeric">{formatMoney(order.grandTotal, order.currency, locale)}</span>} />
+                    <Field label={t('show.fields.owner')} value={order.owner.name} />
+                    <Field
+                        label={t('show.fields.contact')}
+                        value={order.contact ? (order.contact.isAnonymized ? t('show.fields.contactAnonymized') : order.contact.name) : '—'}
+                    />
+                    <Field label={t('show.fields.placedAt')} value={order.placedAt ? formatDateTime(order.placedAt, locale) : '—'} />
+                    <Field label={t('show.fields.deal')} value={order.deal?.title ?? '—'} />
+                    <Field label={t('show.fields.created')} value={order.createdAt ? formatDate(order.createdAt, locale) : '—'} />
                 </dl>
 
                 {order.notes && (
-                    <section aria-label="Notes" className="rounded-lg border border-border bg-surface p-4 text-sm text-text-2">
+                    <section aria-label={t('show.notes.ariaLabel')} className="rounded-lg border border-border bg-surface p-4 text-sm text-text-2">
                         {order.notes}
                     </section>
                 )}
@@ -153,28 +158,28 @@ export default function Show() {
                 {/* FR-ORD-03 — creat → confirmat → shipment(uri). */}
                 <OrderTimeline order={order} />
 
-                <section aria-label="Lines" className="overflow-x-auto rounded-lg border border-border bg-surface">
+                <section aria-label={t('show.lines.ariaLabel')} className="overflow-x-auto rounded-lg border border-border bg-surface">
                     <table className="w-full text-left text-sm">
                         {/* Fără heading vizibil propriu deasupra -> cazul implicit, `<caption>`
                             (`.ai/rules/frontend.md`). Era al treilea tipar de nume de tabel din
                             aplicație: niciunul. */}
-                        <caption className="sr-only">Order lines</caption>
+                        <caption className="sr-only">{t('show.lines.caption')}</caption>
                         <thead>
                             <tr className="border-b border-border-soft text-xs text-text-3">
                                 <th scope="col" className="px-4 py-2 font-medium">
-                                    Line
+                                    {t('show.lines.columns.line')}
                                 </th>
                                 <th scope="col" className="px-4 py-2 text-right font-medium">
-                                    Quantity
+                                    {t('show.lines.columns.quantity')}
                                 </th>
                                 <th scope="col" className="px-4 py-2 text-right font-medium">
-                                    Fulfilled
+                                    {t('show.lines.columns.fulfilled')}
                                 </th>
                                 <th scope="col" className="px-4 py-2 text-right font-medium">
-                                    Unit price
+                                    {t('show.lines.columns.unitPrice')}
                                 </th>
                                 <th scope="col" className="px-4 py-2 text-right font-medium">
-                                    Line total
+                                    {t('show.lines.columns.lineTotal')}
                                 </th>
                             </tr>
                         </thead>
@@ -186,18 +191,18 @@ export default function Show() {
                                     <td className="px-4 py-2 text-right">
                                         <span className="numeric block">
                                             {line.quantityFulfilled > 0
-                                                ? `Shipped ${line.quantityFulfilled} of ${line.quantity}`
-                                                : 'Not yet shipped'}
+                                                ? t('show.lines.shipped', { fulfilled: line.quantityFulfilled, total: line.quantity })
+                                                : t('show.lines.notYetShipped')}
                                         </span>
                                     </td>
-                                    <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.unitPrice, order.currency)}</td>
-                                    <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.lineTotal, order.currency)}</td>
+                                    <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.unitPrice, order.currency, locale)}</td>
+                                    <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(line.lineTotal, order.currency, locale)}</td>
                                 </tr>
                             ))}
                             {order.lines.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-3 text-center text-text-3">
-                                        No lines yet.
+                                        {t('show.lines.empty')}
                                     </td>
                                 </tr>
                             )}
@@ -213,50 +218,48 @@ export default function Show() {
 
                 {/* FR-AUD-02, §17.3 — distinct de `OrderTimeline` (evenimente de business
                     dedicate: creat/confirmat/expediat), „History" e strict `activity_log`. */}
-                <section aria-label="History" className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">History</h2>
+                <section aria-label={t('show.history.heading')} className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">{t('show.history.heading')}</h2>
                     <HistoryTab entityType="order" entityId={order.id} />
                 </section>
             </div>
 
             <ConfirmDialog
                 open={confirming}
-                title="Confirm this order?"
+                title={t('show.confirmDialog.title')}
                 onClose={() => {
                     setConfirming(false);
                     setBackorderMessage(null);
                 }}
                 onConfirm={() => submitConfirm(backorderMessage !== null)}
-                confirmLabel={backorderMessage !== null ? 'Confirm as backorder' : 'Confirm order'}
+                confirmLabel={backorderMessage !== null ? t('show.confirmDialog.confirmAsBackorderLabel') : t('show.confirmDialog.confirmLabel')}
                 processing={processing}
             >
-                {backorderMessage ?? 'This reserves the stock for every line and assigns the order number. This cannot be undone from here — use Cancel afterwards if needed.'}
+                {backorderMessage ?? t('show.confirmDialog.body')}
             </ConfirmDialog>
 
             <ConfirmDialog
                 open={cancelling}
-                title="Cancel this order?"
+                title={t('show.cancelDialog.title')}
                 onClose={() => setCancelling(false)}
                 onConfirm={submitCancel}
-                confirmLabel="Cancel order"
+                confirmLabel={t('show.cancelDialog.confirmLabel')}
                 confirmVariant="danger"
                 processing={processing}
             >
-                {order.status === 'confirmed'
-                    ? 'This releases the reserved stock on every line. This cannot be undone.'
-                    : 'This draft will be cancelled. This cannot be undone.'}
+                {order.status === 'confirmed' ? t('show.cancelDialog.bodyConfirmed') : t('show.cancelDialog.bodyDraft')}
             </ConfirmDialog>
 
             <ConfirmDialog
                 open={confirmingDelete}
-                title="Delete this order?"
+                title={t('show.deleteDialog.title')}
                 onClose={() => setConfirmingDelete(false)}
                 onConfirm={destroy}
-                confirmLabel="Delete"
+                confirmLabel={t('show.deleteDialog.confirmLabel')}
                 confirmVariant="danger"
                 processing={processing}
             >
-                This removes the draft permanently. This cannot be undone.
+                {t('show.deleteDialog.body')}
             </ConfirmDialog>
         </>
     );

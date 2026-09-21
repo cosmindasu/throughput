@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '@/Components/Button';
 import DealCard, { dealCardDomId } from '@/Components/Deals/DealCard';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
@@ -19,6 +20,7 @@ interface PendingLostMove {
  * (`MoveStageMenu`, FR-DEAL-01) e pe fiecare card, nu doar pe unele.
  */
 export default function Kanban() {
+    const { t } = useTranslation('deals');
     const { props } = usePage<DealsKanbanPageProps>();
     const { pipeline, columns: serverColumns, ownerFilter, can, workspace } = props;
     const workspaceSlug = workspace?.slug ?? '';
@@ -90,11 +92,11 @@ export default function Kanban() {
                     // sau încă în zbor), un `setColumns(previousColumns)` l-ar șterge
                     // vizual, deși respingerea asta nu-l privește.
                     setColumns((current) => revertOptimisticMove(current, deal, targetStage));
-                    setErrorMessage(errors.to_stage_id ?? errors.lost_reason ?? 'Could not move this deal.');
+                    setErrorMessage(errors.to_stage_id ?? errors.lost_reason ?? t('kanban.error'));
                 },
                 onSuccess: () => {
                     setPendingLostMove(null);
-                    setAnnouncement(`Moved ${deal.title} to ${targetStage.name}`);
+                    setAnnouncement(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
                     if (restoreFocus) {
                         requestFocus(deal.id);
                     }
@@ -105,7 +107,7 @@ export default function Kanban() {
     };
 
     const handleCardMoved = (deal: DealSummary, targetStage: DealStage) => {
-        setAnnouncement(`Moved ${deal.title} to ${targetStage.name}`);
+        setAnnouncement(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
         requestFocus(deal.id);
     };
 
@@ -133,13 +135,13 @@ export default function Kanban() {
 
     return (
         <>
-            <Head title="Pipeline board" />
+            <Head title={t('kanban.title')} />
 
             <div className="flex flex-col gap-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 className="text-xl font-semibold text-text">{pipeline.name}</h1>
-                        <p className="mt-1 text-sm text-text-2">Drag a card to another stage, or use “Move to stage…”.</p>
+                        <p className="mt-1 text-sm text-text-2">{t('kanban.hint')}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -147,15 +149,15 @@ export default function Kanban() {
 
                         <div className="flex overflow-hidden rounded-md border border-control text-sm">
                             <OwnerToggleLink href={ownerFilterUrl('me')} active={ownerFilter === 'me'}>
-                                My deals
+                                {t('kanban.owner.mine')}
                             </OwnerToggleLink>
                             <OwnerToggleLink href={ownerFilterUrl('all')} active={ownerFilter === 'all'}>
-                                All deals
+                                {t('kanban.owner.all')}
                             </OwnerToggleLink>
                         </div>
 
                         {can.managePipeline && (
-                            <ButtonLink href={`/${workspaceSlug}/pipeline`}>Manage pipeline</ButtonLink>
+                            <ButtonLink href={`/${workspaceSlug}/pipeline`}>{t('kanban.managePipeline')}</ButtonLink>
                         )}
                     </div>
                 </div>
@@ -202,7 +204,7 @@ export default function Kanban() {
 
                                 {column.deals.length === 0 && (
                                     <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-text-3">
-                                        No deals on this stage.
+                                        {t('kanban.emptyStage')}
                                     </p>
                                 )}
                             </div>
@@ -212,7 +214,7 @@ export default function Kanban() {
                                     href={viewAllUrl(column.stage.id)}
                                     className="text-center text-xs font-medium text-accent-text hover:underline"
                                 >
-                                    View all {column.total}
+                                    {t('kanban.viewAll', { count: column.total })}
                                 </Link>
                             )}
                         </section>

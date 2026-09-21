@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import type { ReportBuiltInOption, ReportDefinitionRow, ReportFormat, ReportScheduleFrequency } from '@/types/generated';
@@ -25,14 +26,14 @@ interface ReportFormData {
     is_active: boolean;
 }
 
-const WEEKDAYS = [
-    { value: '1', label: 'Monday' },
-    { value: '2', label: 'Tuesday' },
-    { value: '3', label: 'Wednesday' },
-    { value: '4', label: 'Thursday' },
-    { value: '5', label: 'Friday' },
-    { value: '6', label: 'Saturday' },
-    { value: '7', label: 'Sunday' },
+const WEEKDAY_VALUES = [
+    { value: '1', key: 'monday' },
+    { value: '2', key: 'tuesday' },
+    { value: '3', key: 'wednesday' },
+    { value: '4', key: 'thursday' },
+    { value: '5', key: 'friday' },
+    { value: '6', key: 'saturday' },
+    { value: '7', key: 'sunday' },
 ];
 
 /**
@@ -44,6 +45,7 @@ const WEEKDAYS = [
  * needitabilă, dar valorile ei circulă tot prin `useForm` (necesare la `put()`).
  */
 export default function ReportForm({ mode, report, savedViews, builtInReports, action }: ReportFormProps) {
+    const { t } = useTranslation('reports');
     const { data, setData, post, put, transform, processing, errors: typedErrors } = useForm<ReportFormData>({
         name: report?.name ?? '',
         report_type: report?.reportType ?? (builtInReports[0]?.value === undefined ? 'saved_view_export' : 'saved_view_export'),
@@ -114,7 +116,7 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
     return (
         <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Report name" error={errors.name} required>
+                <Field label={t('reports:form.name.label')} error={errors.name} required>
                     {(control) => (
                         <input
                             {...control}
@@ -125,7 +127,8 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                     )}
                 </Field>
 
-                <Field label="Format" error={errors.format} required>
+                {/* CSV/XLSX/PDF — coduri de format tehnice, identice în orice limbă (ca „SKU"). */}
+                <Field label={t('reports:form.format.label')} error={errors.format} required>
                     {(control) => (
                         <select
                             {...control}
@@ -142,7 +145,7 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
             </section>
 
             <fieldset className="flex flex-col gap-3 rounded-lg border border-border p-4">
-                <legend className="px-1 text-sm font-medium text-text">Source</legend>
+                <legend className="px-1 text-sm font-medium text-text">{t('reports:form.sourceLegend')}</legend>
 
                 {mode === 'create' ? (
                     <>
@@ -154,11 +157,11 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                                 onChange={() => setData('report_type', 'saved_view_export')}
                                 className="accent-[var(--accent-fill)]"
                             />
-                            Saved view export
+                            {t('reports:form.savedViewExport')}
                         </label>
 
                         {isSavedView && (
-                            <Field label="Saved view" error={errors.saved_view_id} required>
+                            <Field label={t('reports:form.savedView.label')} error={errors.saved_view_id} required>
                                 {(control) => (
                                     <select
                                         {...control}
@@ -166,7 +169,10 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                                         value={data.saved_view_id}
                                         onChange={(event) => setData('saved_view_id', event.target.value)}
                                     >
-                                        <option value="">Select a saved view…</option>
+                                        <option value="">{t('reports:form.savedView.placeholder')}</option>
+                                        {/* `view.name` e conținut scris de utilizator (FR-I18N-06) — netradus.
+                                            `view.resourceType` (ex. „deals") e o valoare tehnică partajată cu
+                                            alte loturi (SavedViewResourceType) — neatinsă aici, în afara scopului. */}
                                         {savedViews.map((view) => (
                                             <option key={view.id} value={view.id}>
                                                 {view.name} ({view.resourceType})
@@ -177,6 +183,9 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                             </Field>
                         )}
 
+                        {/* `option.label` (titlurile rapoartelor built-in, ex. „Deal Velocity by
+                            Stage") vine deja tradus din backend (catalogul Laravel, Val 2) — nu se
+                            retraduce aici. */}
                         {builtInReports.map((option) => (
                             <label key={option.value} className="flex items-center gap-2 text-sm text-text">
                                 <input
@@ -192,22 +201,18 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                     </>
                 ) : (
                     <p className="text-sm text-text-2">
-                        {report?.sourceLabel} — the source of a report can’t change after it’s created. Create a new report instead.
+                        {/* `report.sourceLabel` vine deja tradus din backend — nu se retraduce. */}
+                        {report?.sourceLabel} {t('reports:form.sourceLocked')}
                     </p>
                 )}
 
-                {isInventoryValuation && (
-                    <p role="note" className="text-xs text-warning">
-                        This report includes stock cost/margin data, which is normally hidden from Agents and Viewers in the app.
-                        Recipients receive the file regardless of role — choose them carefully.
-                    </p>
-                )}
+                {isInventoryValuation && <p role="note" className="text-xs text-warning">{t('reports:form.inventoryValuationNote')}</p>}
             </fieldset>
 
             <fieldset className="flex flex-col gap-4 rounded-lg border border-border p-4">
-                <legend className="px-1 text-sm font-medium text-text">Schedule</legend>
+                <legend className="px-1 text-sm font-medium text-text">{t('reports:form.scheduleLegend')}</legend>
 
-                <Field label="Frequency" error={errors.schedule_frequency} required>
+                <Field label={t('reports:form.frequency.label')} error={errors.schedule_frequency} required>
                     {(control) => (
                         <select
                             {...control}
@@ -215,20 +220,20 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                             value={data.schedule_frequency}
                             onChange={(event) => setData('schedule_frequency', event.target.value as ReportScheduleFrequency)}
                         >
-                            <option value="none">Manual only</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
+                            <option value="none">{t('reports:frequency.none')}</option>
+                            <option value="daily">{t('reports:frequency.daily')}</option>
+                            <option value="weekly">{t('reports:frequency.weekly')}</option>
+                            <option value="monthly">{t('reports:frequency.monthly')}</option>
                         </select>
                     )}
                 </Field>
 
                 {data.schedule_frequency !== 'none' && (
                     <Field
-                        label="Time (UTC)"
+                        label={t('reports:form.time.label')}
                         error={errors.schedule_time}
                         required
-                        hint="Scheduled reports run on the hour, compared in UTC."
+                        hint={t('reports:form.time.hint')}
                     >
                         {(control) => (
                             <input
@@ -243,7 +248,7 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                 )}
 
                 {data.schedule_frequency === 'weekly' && (
-                    <Field label="Day of week" error={errors.schedule_day} required>
+                    <Field label={t('reports:form.dayOfWeek.label')} error={errors.schedule_day} required>
                         {(control) => (
                             <select
                                 {...control}
@@ -251,9 +256,9 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                                 value={data.schedule_day}
                                 onChange={(event) => setData('schedule_day', event.target.value)}
                             >
-                                {WEEKDAYS.map((day) => (
+                                {WEEKDAY_VALUES.map((day) => (
                                     <option key={day.value} value={day.value}>
-                                        {day.label}
+                                        {t(`reports:weekday.${day.key}`)}
                                     </option>
                                 ))}
                             </select>
@@ -263,10 +268,10 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
 
                 {data.schedule_frequency === 'monthly' && (
                     <Field
-                        label="Day of month"
+                        label={t('reports:form.dayOfMonth.label')}
                         error={errors.schedule_day}
                         required
-                        hint="A day beyond the end of a shorter month (e.g. 31) runs on that month’s last day instead."
+                        hint={t('reports:form.dayOfMonth.hint')}
                     >
                         {(control) => (
                             <input
@@ -284,10 +289,10 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
             </fieldset>
 
             <Field
-                label="Recipients"
+                label={t('reports:form.recipients.label')}
                 error={[errors.recipients, ...recipientErrors].filter(Boolean).join(' ') || undefined}
                 required
-                hint="One email address per line (or comma-separated)."
+                hint={t('reports:form.recipients.hint')}
             >
                 {(control) => (
                     <textarea
@@ -307,7 +312,7 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                     onChange={(event) => setData('is_active', event.target.checked)}
                     className="h-4 w-4 accent-[var(--accent-fill)]"
                 />
-                Active
+                {t('reports:form.active')}
             </label>
 
             <div className="flex justify-end gap-2">
@@ -317,7 +322,7 @@ export default function ReportForm({ mode, report, savedViews, builtInReports, a
                     aria-disabled={processing || undefined}
                     className={processing ? 'cursor-not-allowed opacity-60' : ''}
                 >
-                    {processing ? 'Saving…' : mode === 'create' ? 'Create report' : 'Save changes'}
+                    {processing ? t('reports:form.saving') : mode === 'create' ? t('reports:form.createReport') : t('reports:form.saveChanges')}
                 </Button>
             </div>
         </form>

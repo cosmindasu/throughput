@@ -1,0 +1,206 @@
+{
+    "badges": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "lowStock": "Low stock"
+    },
+    "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "changeLog": "Change log",
+        "stock": "Stock",
+        "history": "History"
+    },
+    "unitOfMeasure": {
+        "each": "Each",
+        "box": "Box",
+        "pallet": "Pallet"
+    },
+    "labels": {
+        "status": "Status"
+    },
+    "index": {
+        "title": "Products",
+        "newProduct": "New product",
+        "filters": {
+            "search": {
+                "label": "Search",
+                "placeholder": "Product name…"
+            },
+            "status": {
+                "label": "Status",
+                "any": "Any status"
+            },
+            "sort": {
+                "label": "Sort by",
+                "name": "Name",
+                "newest": "Newest"
+            }
+        },
+        "selectAllAria": "Select all products on this page",
+        "selectRowAria": "Select {{name}}",
+        "empty": {
+            "filtered": "No products match this filter.",
+            "none": "No products yet."
+        },
+        "createFirst": "Create your first product",
+        "lowStockBadge": "{{count}} low",
+        "columns": {
+            "name": "Name",
+            "category": "Category",
+            "variants": "Variants",
+            "created": "Created"
+        }
+    },
+    "create": {
+        "title": "New product"
+    },
+    "edit": {
+        "title": "Edit {{name}}"
+    },
+    "form": {
+        "name": {
+            "label": "Product name"
+        },
+        "category": {
+            "label": "Category"
+        },
+        "unitOfMeasure": {
+            "label": "Unit of measure"
+        },
+        "active": "Active",
+        "createProduct": "Create product",
+        "saveChanges": "Save changes",
+        "saving": "Saving…"
+    },
+    "show": {
+        "addVariant": "Add variant",
+        "variantsHeading": "Variants",
+        "historyHeading": "History",
+        "empty": "No variants yet.",
+        "forSku": "for {{sku}}",
+        "columns": {
+            "sku": "SKU",
+            "price": "Price",
+            "cost": "Cost",
+            "available": "Available",
+            "actions": "Actions"
+        },
+        "deleteBlockedTitle": "Cannot delete this product",
+        "deleteConfirmTitle": "Delete {{name}}?",
+        "deleteWarning": "This action cannot be undone."
+    },
+    "variant": {
+        "create": {
+            "title": "New variant — {{name}}",
+            "heading": "New variant"
+        },
+        "edit": {
+            "title": "Edit {{sku}}"
+        },
+        "form": {
+            "sku": {
+                "label": "SKU"
+            },
+            "price": {
+                "label": "Price"
+            },
+            "cost": {
+                "label": "Cost",
+                "hint": "Never shown to Agent or Viewer accounts."
+            },
+            "weight": {
+                "label": "Weight",
+                "hint": "Optional — used for shipping calculations later."
+            },
+            "lowStockThreshold": {
+                "label": "Low stock threshold",
+                "hint": "Optional. Shows a Low stock indicator when available drops below this number — leave empty for no alert."
+            },
+            "active": "Active",
+            "createVariant": "Create variant",
+            "saveChanges": "Save changes",
+            "saving": "Saving…"
+        }
+    },
+    "stock": {
+        "show": {
+            "title": "Stock — {{sku}}",
+            "belowThreshold": "Available is below the threshold of {{threshold}}.",
+            "viewHistory": "View history",
+            "tableCaption": "Stock levels by location",
+            "columns": {
+                "location": "Location",
+                "onHand": "On hand",
+                "reserved": "Reserved",
+                "available": "Available"
+            },
+            "empty": "No stock recorded at any location yet.",
+            "receive": {
+                "heading": "Receive stock",
+                "location": "Location",
+                "quantity": "Quantity",
+                "note": "Note",
+                "noteHint": "Optional — e.g. a PO number.",
+                "submit": "Receive",
+                "submitting": "Receiving…"
+            },
+            "adjust": {
+                "heading": "Adjust stock",
+                "location": "Location",
+                "change": "Change",
+                "changeHint": "Positive to add, negative to remove — e.g. -3.",
+                "reason": "Reason",
+                "reasonHint": "Required — why is this quantity being corrected?",
+                "submit": "Adjust",
+                "submitting": "Adjusting…"
+            },
+            "transfer": {
+                "heading": "Transfer stock",
+                "from": "From",
+                "to": "To",
+                "quantity": "Quantity",
+                "note": "Note",
+                "noteHint": "Optional.",
+                "submit": "Transfer",
+                "submitting": "Transferring…"
+            }
+        },
+        "history": {
+            "title": "Stock history — {{sku}}",
+            "tableCaption": "Stock movements for {{sku}}",
+            "filters": {
+                "reason": {
+                    "label": "Reason",
+                    "any": "Any reason"
+                },
+                "from": "From",
+                "to": "To",
+                "sort": {
+                    "label": "Sort by",
+                    "newest": "Newest",
+                    "oldest": "Oldest"
+                }
+            },
+            "columns": {
+                "date": "Date",
+                "reason": "Reason",
+                "location": "Location",
+                "change": "Change",
+                "note": "Note",
+                "by": "By"
+            },
+            "empty": {
+                "filtered": "No movements match this filter.",
+                "none": "No stock movements recorded yet."
+            },
+            "reasons": {
+                "receipt": "receipt",
+                "sale": "sale",
+                "adjustment": "adjustment",
+                "return": "return",
+                "transfer": "transfer"
+            }
+        }
+    }
+}

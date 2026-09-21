@@ -1,16 +1,17 @@
 import { Head, router, usePage, usePoll } from '@inertiajs/react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import Button, { buttonClass } from '@/Components/Button';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDate, formatDateTime as formatDateTimeLocale } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 import type { DataExportIndexPageProps, DataExportRequestRow, DataExportStatus } from '@/types/generated';
 
 const ACTIVE_STATUSES: DataExportStatus[] = ['queued', 'processing'];
-
-// O singură dată la nivel de modul, nu recreat la fiecare randare (ca `Exports/Show.tsx`).
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
 
 const TONES: Record<DataExportStatus, BadgeTone> = {
     queued: 'neutral',
@@ -19,19 +20,12 @@ const TONES: Record<DataExportStatus, BadgeTone> = {
     failed: 'danger',
 };
 
-const LABELS: Record<DataExportStatus, string> = {
-    queued: 'Queued',
-    processing: 'Preparing',
-    completed: 'Ready to download',
-    failed: 'Failed',
-};
-
-function formatDateTime(value: string | null): string {
-    return value ? dateTimeFormatter.format(new Date(value)) : '—';
+function formatDateTime(value: string | null, locale: AppLocale): string {
+    return value ? formatDateTimeLocale(value, locale) : '—';
 }
 
-function statusLabel(row: DataExportRequestRow): string {
-    return row.status === 'completed' && row.isExpired ? 'Expired' : LABELS[row.status];
+function statusLabel(row: DataExportRequestRow, t: TFunction<'settings'>): string {
+    return t(row.status === 'completed' && row.isExpired ? 'settings:dataExport.status.expired' : `settings:dataExport.status.${row.status}`);
 }
 
 function statusTone(row: DataExportRequestRow): BadgeTone {
@@ -53,6 +47,8 @@ function statusTone(row: DataExportRequestRow): BadgeTone {
  */
 export default function DataExportIndex() {
     const { requests, can, retentionDays, workspace } = usePage<DataExportIndexPageProps>().props;
+    const { t } = useTranslation('settings');
+    const locale = useLocale();
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +79,7 @@ export default function DataExportIndex() {
                 onSuccess: () => setProcessing(false),
                 onError: (pageErrors) => {
                     setProcessing(false);
-                    setError(pageErrors.export ?? 'The export could not be started.');
+                    setError(pageErrors.export ?? t('settings:dataExport.errorFallback'));
                 },
             },
         );
@@ -91,18 +87,18 @@ export default function DataExportIndex() {
 
     return (
         <>
-            <Head title="Export data" />
+            <Head title={t('settings:dataExport.title')} />
 
             <PageHeader
-                title="Export data"
-                description="A complete, machine-readable copy of everything this workspace holds — accounts, contacts, deals, orders, invoices, payments and the activity log."
+                title={t('settings:dataExport.title')}
+                description={t('settings:dataExport.description')}
                 actions={
                     can.create ? (
                         // Audit de accesibilitate (`.ai/rules/frontend.md`) — `aria-disabled`,
                         // nu `disabled`: browserul blurează un buton dezactivat care are
                         // focus, iar focusul cade pe `<body>`. Starea e spusă și în text.
                         <Button variant="primary" aria-disabled={processing} onClick={request}>
-                            {processing ? 'Requesting…' : 'Request export'}
+                            {processing ? t('settings:dataExport.requesting') : t('settings:dataExport.request')}
                         </Button>
                     ) : undefined
                 }
@@ -120,21 +116,21 @@ export default function DataExportIndex() {
                 `.ai/rules/frontend.md`). */}
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-2">
                 {inProgress
-                    ? 'Preparing your archive. This page updates on its own — you will also get an email when it is ready.'
-                    : `Download links stay valid for ${retentionDays} days. After that the file is deleted and the request stays in this list.`}
+                    ? t('settings:dataExport.progressMessage')
+                    : t('settings:dataExport.retentionMessage', { count: retentionDays })}
             </p>
 
             <div className="mt-6 overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-left text-sm">
-                    <caption className="sr-only">Data export requests</caption>
+                    <caption className="sr-only">{t('settings:dataExport.tableCaption')}</caption>
                     <thead className="border-b border-border bg-surface text-text-2">
                         <tr>
-                            <th scope="col" className="px-4 py-2 font-medium">Requested</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Requested by</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Status</th>
-                            <th scope="col" className="px-4 py-2 font-medium">Available until</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:dataExport.columns.requested')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:dataExport.columns.requestedBy')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:dataExport.columns.status')}</th>
+                            <th scope="col" className="px-4 py-2 font-medium">{t('settings:dataExport.columns.availableUntil')}</th>
                             <th scope="col" className="px-4 py-2 font-medium">
-                                <span className="sr-only">Actions</span>
+                                <span className="sr-only">{t('settings:dataExport.columns.actions')}</span>
                             </th>
                         </tr>
                     </thead>
@@ -142,23 +138,23 @@ export default function DataExportIndex() {
                         {requests.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="px-4 py-6 text-center text-text-2">
-                                    No data export has been requested for this workspace yet.
+                                    {t('settings:dataExport.empty')}
                                 </td>
                             </tr>
                         )}
 
                         {requests.map((row) => (
                             <tr key={row.id} className="border-b border-border-soft last:border-0">
-                                <td className="px-4 py-3 text-text">{formatDateTime(row.requestedAt)}</td>
+                                <td className="px-4 py-3 text-text">{formatDateTime(row.requestedAt, locale)}</td>
                                 <td className="px-4 py-3 text-text-2">{row.requestedBy?.name ?? '—'}</td>
                                 <td className="px-4 py-3">
-                                    <StatusBadge tone={statusTone(row)}>{statusLabel(row)}</StatusBadge>
+                                    <StatusBadge tone={statusTone(row)}>{statusLabel(row, t)}</StatusBadge>
                                     {row.status === 'failed' && row.errorMessage && (
                                         <p className="mt-1 text-xs text-danger">{row.errorMessage}</p>
                                     )}
                                 </td>
                                 <td className="px-4 py-3 text-text-2">
-                                    {row.expiresAt ? dateFormatter.format(new Date(row.expiresAt)) : '—'}
+                                    {row.expiresAt ? formatDate(row.expiresAt, locale) : '—'}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {row.canDownload && workspace && (
@@ -170,9 +166,11 @@ export default function DataExportIndex() {
                                         <a
                                             href={`/${workspace.slug}/settings/data-export/${row.id}/download`}
                                             className={buttonClass('secondary')}
-                                            aria-label={`Download the export requested on ${formatDateTime(row.requestedAt)}`}
+                                            aria-label={t('settings:dataExport.downloadAriaLabel', {
+                                                date: formatDateTime(row.requestedAt, locale),
+                                            })}
                                         >
-                                            Download ZIP
+                                            {t('settings:dataExport.downloadButton')}
                                         </a>
                                     )}
                                 </td>

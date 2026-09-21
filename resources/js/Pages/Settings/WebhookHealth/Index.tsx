@@ -1,10 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatNumber, getDateTimeFormat } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 import type { WebhookEventStatus, WebhookHealthPageProps } from '@/types/generated';
 
 /**
@@ -21,33 +26,35 @@ const STATUS_TONE: Record<WebhookEventStatus, BadgeTone> = {
     ignored: 'neutral',
 };
 
-const STATUS_LABEL: Record<WebhookEventStatus, string> = {
-    received: 'Received',
-    processing: 'Processing',
-    processed: 'Processed',
-    failed: 'Failed',
-    ignored: 'Ignored (not ours)',
+function statusLabel(status: WebhookEventStatus, t: TFunction<'settings'>): string {
+    return t(`settings:webhooks.status.${status}`);
+}
+
+/**
+ * `.ai/rules/frontend.md` / brief Val 3 — `OPTIONS` păstrat ca `const` de modul, cu
+ * `hour: 'numeric'` EXACT cum era (nu `2-digit`).
+ */
+const WHEN_OPTIONS: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
 };
 
-function formatWhen(value: string | null): string {
+function formatWhen(value: string | null, locale: AppLocale): string {
     if (value === null) {
         return '—';
     }
 
-    return new Date(value).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return getDateTimeFormat(locale, WHEN_OPTIONS).format(new Date(value));
 }
 
-function CountTile({ status, total }: { status: WebhookEventStatus; total: number }) {
+function CountTile({ status, total, t, locale }: { status: WebhookEventStatus; total: number; t: TFunction<'settings'>; locale: AppLocale }) {
     return (
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-3">
-            <StatusBadge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</StatusBadge>
-            <span className="numeric text-2xl font-semibold text-text">{total}</span>
+            <StatusBadge tone={STATUS_TONE[status]}>{statusLabel(status, t)}</StatusBadge>
+            <span className="numeric text-2xl font-semibold text-text">{formatNumber(total, locale)}</span>
         </div>
     );
 }
@@ -63,6 +70,8 @@ function CountTile({ status, total }: { status: WebhookEventStatus; total: numbe
 export default function WebhookHealthIndex() {
     const page = usePage<WebhookHealthPageProps>();
     const { events, counts, statuses, filter } = page.props;
+    const { t } = useTranslation('settings');
+    const locale = useLocale();
 
     const setStatus = (status: string) => {
         router.get(page.url.split('?')[0], status === '' ? {} : { status }, {
@@ -73,61 +82,63 @@ export default function WebhookHealthIndex() {
 
     return (
         <>
-            <Head title="Webhook health" />
+            <Head title={t('settings:webhooks.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader
-                    title="Webhook health"
-                    description="Every Stripe event this deployment has received, with what happened to it (specs.md §12.3, §25.2)."
-                />
+                <PageHeader title={t('settings:webhooks.title')} description={t('settings:webhooks.description')} />
 
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     {statuses.map((status) => (
-                        <CountTile key={status} status={status} total={counts[status] ?? 0} />
+                        <CountTile key={status} status={status} total={counts[status] ?? 0} t={t} locale={locale} />
                     ))}
                 </div>
 
                 <p className="max-w-3xl text-sm text-text-2">
-                    <strong className="font-medium text-text">Ignored is not an error.</strong> The Stripe sandbox is
-                    shared with another project, so events belonging to that project reach this endpoint with a perfectly
-                    valid signature. They are recorded and left alone — no workspace here maps to their customer. Only{' '}
-                    <span className="font-medium text-danger">Failed</span> needs attention.
+                    <Trans
+                        t={t}
+                        i18nKey="settings:webhooks.ignoredExplanation"
+                        values={{ failedLabel: t('settings:webhooks.status.failed') }}
+                        components={{
+                            strong: <strong className="font-medium text-text" />,
+                            danger: <span className="font-medium text-danger" />,
+                        }}
+                    />
                 </p>
 
                 <label className="flex w-fit flex-col gap-1 text-sm text-text-2">
-                    Status
+                    {t('settings:webhooks.statusFilterLabel')}
                     <select className={controlClass} value={filter.status ?? ''} onChange={(event) => setStatus(event.target.value)}>
-                        <option value="">Any status</option>
+                        <option value="">{t('settings:webhooks.anyStatus')}</option>
                         {statuses.map((status) => (
                             <option key={status} value={status}>
-                                {STATUS_LABEL[status]}
+                                {statusLabel(status, t)}
                             </option>
                         ))}
                     </select>
                 </label>
 
                 {events.length === 0 ? (
-                    <EmptyState message="No webhook events have been received yet." />
+                    <EmptyState message={t('settings:webhooks.empty')} />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Webhook events</caption>
+                            <caption className="sr-only">{t('settings:webhooks.tableCaption')}</caption>
                             <thead>
                                 <tr className="border-b border-border-soft text-xs text-text-3">
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        Received
+                                        {t('settings:webhooks.columns.received')}
                                     </th>
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        Source
+                                        {t('settings:webhooks.columns.source')}
                                     </th>
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        Event
+                                        {t('settings:webhooks.columns.event')}
                                     </th>
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        Status
+                                        {t('settings:webhooks.columns.status')}
                                     </th>
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        Detail
+                                        {t('settings:webhooks.columns.detail')}
                                     </th>
                                 </tr>
                             </thead>
@@ -136,7 +147,7 @@ export default function WebhookHealthIndex() {
                                     <tr key={event.id} className="border-b border-border-soft last:border-b-0">
                                         <td className="whitespace-nowrap px-4 py-2 text-text-2">
                                             <time dateTime={event.receivedAt ?? undefined} className="numeric">
-                                                {formatWhen(event.receivedAt)}
+                                                {formatWhen(event.receivedAt, locale)}
                                             </time>
                                         </td>
                                         <td className="px-4 py-2 text-text-2">{event.source}</td>
@@ -145,7 +156,7 @@ export default function WebhookHealthIndex() {
                                             <div className="numeric text-xs text-text-3">{event.eventId}</div>
                                         </td>
                                         <td className="px-4 py-2">
-                                            <StatusBadge tone={STATUS_TONE[event.status]}>{STATUS_LABEL[event.status]}</StatusBadge>
+                                            <StatusBadge tone={STATUS_TONE[event.status]}>{statusLabel(event.status, t)}</StatusBadge>
                                         </td>
                                         <td className="px-4 py-2 text-text-2">{event.message ?? '—'}</td>
                                     </tr>

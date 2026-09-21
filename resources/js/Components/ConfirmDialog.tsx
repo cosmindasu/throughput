@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { type ButtonVariant } from '@/Components/Button';
 
 interface ConfirmDialogProps {
@@ -7,6 +8,8 @@ interface ConfirmDialogProps {
     children: ReactNode;
     /** Fără `onConfirm`, dialogul doar informează (ex: de ce o ștergere e refuzată). */
     onConfirm?: () => void;
+    /** Implicit `t('common:actions.confirm')` — vezi corpul funcției, un default literal
+     * n-ar putea apela `t()`. */
     confirmLabel?: string;
     confirmVariant?: ButtonVariant;
     processing?: boolean;
@@ -31,13 +34,15 @@ export default function ConfirmDialog({
     title,
     children,
     onConfirm,
-    confirmLabel = 'Confirm',
+    confirmLabel,
     confirmVariant = 'primary',
     processing = false,
     onClose,
 }: ConfirmDialogProps) {
+    const { t } = useTranslation('common');
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
+    const resolvedConfirmLabel = confirmLabel ?? t('common:actions.confirm');
 
     useEffect(() => {
         const dialog = ref.current;
@@ -66,7 +71,7 @@ export default function ConfirmDialog({
                 </h2>
                 <div className="mt-2 text-sm text-text-2">{children}</div>
                 <div className="mt-5 flex justify-end gap-2">
-                    <Button onClick={onClose}>{onConfirm ? 'Cancel' : 'Close'}</Button>
+                    <Button onClick={onClose}>{onConfirm ? t('common:actions.cancel') : t('common:actions.close')}</Button>
                     {onConfirm && (
                         <Button
                             variant={confirmVariant}
@@ -74,7 +79,7 @@ export default function ConfirmDialog({
                             aria-disabled={processing || undefined}
                             className={processing ? 'cursor-not-allowed opacity-60' : ''}
                         >
-                            {processing ? `${confirmLabel}…` : confirmLabel}
+                            {processing ? `${resolvedConfirmLabel}…` : resolvedConfirmLabel}
                         </Button>
                     )}
                 </div>

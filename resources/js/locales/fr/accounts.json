@@ -1,0 +1,150 @@
+{
+    "index": {
+        "title": "Comptes",
+        "columns": {
+            "name": "Nom",
+            "owner": "Propriétaire",
+            "status": "Statut",
+            "created": "Créé le"
+        },
+        "actionsColumnLabel": "Actions",
+        "exportCsv": "Exporter en CSV",
+        "newAccount": "Nouveau compte",
+        "selectAllOnPage": "Sélectionner tous les comptes de cette page",
+        "selectRow": "Sélectionner {{name}}",
+        "editRow": "Modifier",
+        "search": {
+            "label": "Recherche",
+            "placeholder": "Nom du compte…"
+        },
+        "filters": {
+            "owner": {
+                "label": "Propriétaire",
+                "mine": "Mes comptes",
+                "all": "Tous les comptes",
+                "unassigned": "Non attribué"
+            },
+            "status": {
+                "label": "Statut",
+                "any": "Tous les statuts",
+                "prospect": "Prospect",
+                "active": "Actif",
+                "inactive": "Inactif"
+            },
+            "sort": {
+                "label": "Trier par",
+                "name": "Nom",
+                "newest": "Plus récents"
+            },
+            "clear": "Effacer les filtres"
+        },
+        "empty": {
+            "filtered": "Aucun compte ne correspond à ce filtre.",
+            "none": "Aucun compte pour le moment.",
+            "createFirst": "Créer votre premier compte"
+        }
+    },
+    "status": {
+        "prospect": "prospect",
+        "active": "actif",
+        "inactive": "inactif"
+    },
+    "create": {
+        "title": "Nouveau compte"
+    },
+    "edit": {
+        "title": "Modifier {{name}}"
+    },
+    "show": {
+        "actions": {
+            "addContact": "Ajouter un contact",
+            "newDeal": "Nouvelle affaire",
+            "edit": "Modifier",
+            "delete": "Supprimer"
+        },
+        "details": {
+            "domain": "Domaine",
+            "phone": "Téléphone",
+            "creditTerms": "Conditions de crédit",
+            "owner": "Propriétaire",
+            "ownerUnassigned": "Non attribué",
+            "source": "Source",
+            "tags": "Étiquettes"
+        },
+        "sections": {
+            "contacts": "Contacts",
+            "deals": "Affaires",
+            "activity": "Activité",
+            "history": "Historique"
+        },
+        "empty": {
+            "contacts": "Aucun contact pour le moment.",
+            "deals": "Aucune affaire pour le moment.",
+            "activityLoading": "Chargement de l’activité…",
+            "activityNone": "Aucune activité enregistrée pour le moment."
+        },
+        "primaryContactBadge": "Principal",
+        "deleteDialog": {
+            "blockedTitle": "Impossible de supprimer ce compte",
+            "title": "Supprimer {{name}} ?",
+            "confirm": "Supprimer",
+            "body": "Cette action est irréversible."
+        }
+    },
+    "form": {
+        "name": { "label": "Nom du compte" },
+        "domain": { "label": "Domaine", "hint": "ex. acme.com" },
+        "industry": { "label": "Secteur" },
+        "phone": { "label": "Téléphone" },
+        "status": {
+            "label": "Statut",
+            "prospect": "Prospect",
+            "active": "Actif",
+            "inactive": "Inactif"
+        },
+        "creditTerms": {
+            "label": "Conditions de crédit",
+            "net15": "Net 15",
+            "net30": "Net 30",
+            "net60": "Net 60",
+            "prepaid": "Prépayé"
+        },
+        "owner": {
+            "label": "Propriétaire",
+            "hint": "Vous, par défaut, si non attribué.",
+            "unassigned": "Non attribué"
+        },
+        "source": { "label": "Source" },
+        "tags": { "label": "Étiquettes", "hint": "Séparées par des virgules" },
+        "billingAddress": { "legend": "Adresse de facturation" },
+        "shippingAddress": { "legend": "Adresse de livraison" },
+        "address": {
+            "line1": "Adresse",
+            "city": "Ville",
+            "state": "État/Province",
+            "postalCode": "Code postal",
+            "country": "Pays",
+            "countryHint": "2 lettres ISO"
+        },
+        "contactSection": {
+            "heading": "Contact principal (facultatif)",
+            "firstName": "Prénom",
+            "lastName": "Nom",
+            "email": "E-mail",
+            "phone": "Téléphone",
+            "title": "Fonction"
+        },
+        "submit": {
+            "create": "Créer le compte",
+            "edit": "Enregistrer les modifications",
+            "pending": "Enregistrement…"
+        }
+    },
+    "combobox": {
+        "placeholder": "Rechercher des comptes…",
+        "clear": "Effacer",
+        "listboxLabel": "Comptes",
+        "searching": "Recherche en cours…",
+        "noResults": "Aucun compte trouvé."
+    }
+}

@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -7,11 +8,10 @@ import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import type { InvoicesShowPageProps, InvoiceStatus, Payment, PaymentMethod } from '@/types/generated';
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
 const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
     draft: 'neutral',
@@ -21,11 +21,7 @@ const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
     void: 'neutral',
 };
 
-const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
-    { value: 'bank_transfer', label: 'Bank transfer' },
-    { value: 'check', label: 'Check' },
-    { value: 'manual', label: 'Manual' },
-];
+const PAYMENT_METHOD_VALUES: PaymentMethod[] = ['bank_transfer', 'check', 'manual'];
 
 interface PaymentFormData {
     amount: string;
@@ -40,6 +36,8 @@ interface PaymentFormData {
  * obligatorie, `.ai/rules/frontend.md`).
  */
 export default function Show() {
+    const { t } = useTranslation('invoices');
+    const locale = useLocale();
     const { invoice } = usePage<InvoicesShowPageProps>().props;
     const { workspace } = usePage().props;
     const base = workspace ? `/${workspace.slug}` : '';
@@ -91,7 +89,7 @@ export default function Show() {
                     // pe browser să-l ducă pe `<body>`.
                     requestAnimationFrame(() => detailsHeadingRef.current?.focus());
                 },
-                onError: (errors) => setActionError(Object.values(errors)[0] ?? 'This invoice could not be marked as sent.'),
+                onError: (errors) => setActionError(Object.values(errors)[0] ?? t('invoices:show.markSentDialog.error')),
                 onFinish: () => setProcessing(false),
             },
         );
@@ -114,7 +112,7 @@ export default function Show() {
                     setVoidReason('');
                 },
                 onError: (errors) => {
-                    setVoidError(Object.values(errors)[0] ?? 'This invoice could not be voided.');
+                    setVoidError(Object.values(errors)[0] ?? t('invoices:show.voidDialog.error'));
                     focusVoidReason();
                 },
                 onFinish: () => setProcessing(false),
@@ -136,7 +134,7 @@ export default function Show() {
         }
 
         if (voidReason.trim() === '') {
-            setVoidError('A reason is required to void this invoice.');
+            setVoidError(t('invoices:show.voidDialog.reasonRequired'));
             focusVoidReason();
             return;
         }
@@ -158,25 +156,28 @@ export default function Show() {
             `${base}/invoices/${invoice.id}/pdf/retry`,
             {},
             {
-                onError: (errors) => setActionError(Object.values(errors)[0] ?? 'The PDF could not be regenerated.'),
+                onError: (errors) => setActionError(Object.values(errors)[0] ?? t('invoices:show.pdf.retryError')),
                 onFinish: () => setProcessing(false),
             },
         );
     };
 
+    const invoiceTitle = invoice.invoiceNumber ?? t('invoices:show.fallbackTitle');
+
     return (
         <>
-            <Head title={invoice.invoiceNumber ?? 'Invoice'} />
+            <Head title={invoiceTitle} />
 
             <PageHeader
-                title={invoice.invoiceNumber ?? 'Invoice'}
+                title={invoiceTitle}
                 description={
                     <span className="flex flex-wrap items-center gap-2">
                         {invoice.order && (
                             <Link href={`${base}/orders/${invoice.order.id}`} className="hover:underline">
-                                {invoice.order.orderNumber ?? 'Order'}
+                                {invoice.order.orderNumber ?? t('invoices:show.fallbackOrder')}
                             </Link>
                         )}
+                        {/* `invoice.statusLabel` vine deja tradus din backend — nu se retraduce. */}
                         <StatusBadge tone={STATUS_TONE[invoice.status]}>{invoice.statusLabel}</StatusBadge>
                     </span>
                 }
@@ -186,12 +187,12 @@ export default function Show() {
                             focus (SC 2.4.7) — doar inelul implicit al browserului. */}
                         {invoice.can.markSent && (
                             <Button variant="primary" onClick={() => setSending(true)}>
-                                Mark as sent
+                                {t('invoices:actions.markAsSent')}
                             </Button>
                         )}
                         {invoice.can.void && (
                             <Button variant="danger" onClick={() => setVoiding(true)}>
-                                Void
+                                {t('invoices:actions.void')}
                             </Button>
                         )}
                     </>
@@ -214,21 +215,37 @@ export default function Show() {
                     tabIndex={-1}
                     className="text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
-                    Details
+                    {t('invoices:show.detailsHeading')}
                 </h2>
 
                 <dl aria-labelledby={detailsHeadingId} className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <SummaryField label="Account" value={invoice.order?.account?.name ?? '—'} />
-                    <SummaryField label="Owner" value={invoice.order?.owner?.name ?? '—'} />
-                    <SummaryField label="Issue date" value={invoice.issueDate ? dateFormatter.format(new Date(invoice.issueDate)) : '—'} />
-                    <SummaryField label="Due date" value={invoice.dueDate ? dateFormatter.format(new Date(invoice.dueDate)) : '—'} />
-                    <SummaryField label="Total" value={<span className="numeric">{formatMoney(invoice.total, invoice.currency)}</span>} />
-                    <SummaryField label="Balance due" value={<span className="numeric">{formatMoney(invoice.balanceDue, invoice.currency)}</span>} />
+                    <SummaryField label={t('invoices:show.summary.account')} value={invoice.order?.account?.name ?? '—'} />
+                    <SummaryField label={t('invoices:show.summary.owner')} value={invoice.order?.owner?.name ?? '—'} />
+                    <SummaryField
+                        label={t('invoices:show.summary.issueDate')}
+                        value={invoice.issueDate ? formatDate(invoice.issueDate, locale) : '—'}
+                    />
+                    <SummaryField
+                        label={t('invoices:show.summary.dueDate')}
+                        value={invoice.dueDate ? formatDate(invoice.dueDate, locale) : '—'}
+                    />
+                    <SummaryField
+                        label={t('invoices:show.summary.total')}
+                        value={<span className="numeric">{formatMoney(invoice.total, invoice.currency, locale)}</span>}
+                    />
+                    <SummaryField
+                        label={t('invoices:show.summary.balanceDue')}
+                        value={<span className="numeric">{formatMoney(invoice.balanceDue, invoice.currency, locale)}</span>}
+                    />
                 </dl>
 
                 {invoice.status === 'void' && invoice.voidReason && (
-                    <section aria-label="Void reason" className="rounded-lg border border-danger bg-danger-tint p-4 text-sm text-danger">
-                        <p className="font-medium">Voided{invoice.voidedAt ? ` on ${dateTimeFormatter.format(new Date(invoice.voidedAt))}` : ''}</p>
+                    <section aria-label={t('invoices:show.voidReasonAria')} className="rounded-lg border border-danger bg-danger-tint p-4 text-sm text-danger">
+                        <p className="font-medium">
+                            {invoice.voidedAt
+                                ? t('invoices:show.voidedOn', { date: formatDateTime(invoice.voidedAt, locale) })
+                                : t('invoices:show.voided')}
+                        </p>
                         <p className="mt-1">{invoice.voidReason}</p>
                     </section>
                 )}
@@ -239,7 +256,7 @@ export default function Show() {
                     pe mesaj, deci succesul era mai puțin vizibil pentru un cititor de ecran decât
                     eșecul, înainte de acest fix. */}
                 <section
-                    aria-label="PDF"
+                    aria-label={t('invoices:show.pdf.sectionAria')}
                     role="status"
                     aria-live="polite"
                     aria-atomic="true"
@@ -247,14 +264,14 @@ export default function Show() {
                 >
                     {invoice.pdfStatus === 'ready' && (
                         <a href={`${base}/invoices/${invoice.id}/pdf`} className="font-medium text-accent-text hover:underline">
-                            Download PDF
+                            {t('invoices:show.pdf.download')}
                         </a>
                     )}
-                    {invoice.pdfStatus === 'pending' && <span className="text-text-3">Generating PDF…</span>}
+                    {invoice.pdfStatus === 'pending' && <span className="text-text-3">{t('invoices:show.pdf.generating')}</span>}
                     {invoice.pdfStatus === 'failed' && (
                         <>
                             <span role="alert" className="text-danger">
-                                The PDF could not be generated.
+                                {t('invoices:show.pdf.failed')}
                             </span>
                             {invoice.can.retryPdf && (
                                 <button
@@ -263,7 +280,7 @@ export default function Show() {
                                     aria-disabled={processing || undefined}
                                     className={`text-accent-text hover:underline ${processing ? 'cursor-not-allowed opacity-60' : ''}`}
                                 >
-                                    Retry
+                                    {t('invoices:show.pdf.retry')}
                                 </button>
                             )}
                         </>
@@ -275,36 +292,36 @@ export default function Show() {
                 {/* FR-AUD-02, §17.3 — factura e una dintre entitățile principale cu tab
                     „History". Montat la integrarea Fazei 5: componenta și endpointul vin din
                     lotul de jurnal de activitate, pagina din cel de facturare. */}
-                <section aria-label="History" className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">History</h2>
+                <section aria-label={t('invoices:show.historyAria')} className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">{t('invoices:show.historyHeading')}</h2>
                     <HistoryTab entityType="invoice" entityId={invoice.id} />
                 </section>
             </div>
 
             <ConfirmDialog
                 open={sending}
-                title="Mark this invoice as sent?"
+                title={t('invoices:show.markSentDialog.title')}
                 onClose={() => setSending(false)}
                 onConfirm={submitMarkSent}
-                confirmLabel="Mark as sent"
+                confirmLabel={t('invoices:actions.markAsSent')}
                 processing={processing}
             >
-                This sets the due date from the account&apos;s credit terms.
+                {t('invoices:show.markSentDialog.body')}
             </ConfirmDialog>
 
             <ConfirmDialog
                 open={voiding}
-                title="Void this invoice?"
+                title={t('invoices:show.voidDialog.title')}
                 onClose={() => {
                     setVoiding(false);
                     setVoidError(null);
                 }}
                 onConfirm={attemptVoid}
-                confirmLabel="Void"
+                confirmLabel={t('invoices:actions.void')}
                 confirmVariant="danger"
                 processing={processing}
             >
-                <p className="mb-2">This cannot be undone — any payments already recorded stay on the record.</p>
+                <p className="mb-2">{t('invoices:show.voidDialog.body')}</p>
                 {/* Review a11y (P1) — motivul obligatoriu era comunicat DOAR vizual
                     (asteriscul din `Field` e `aria-hidden`): `required`/`aria-required`,
                     un `hint` explicit și `error` legat prin `Field` (`aria-invalid`/
@@ -312,7 +329,12 @@ export default function Show() {
                     necondiționat (`onConfirm={attemptVoid}` mai sus) — cu motivul gol,
                     `attemptVoid` e un handler INERT (nu trimite cererea, dar mută focusul
                     pe câmp, unde eticheta + eroarea se anunță), nu un buton absent din DOM. */}
-                <Field label="Reason" required hint="Explain why this invoice is voided — it stays on the record for anyone who opens it later." error={voidError ?? undefined}>
+                <Field
+                    label={t('invoices:show.voidDialog.reasonLabel')}
+                    required
+                    hint={t('invoices:show.voidDialog.reasonHint')}
+                    error={voidError ?? undefined}
+                >
                     {(control) => (
                         <textarea
                             {...control}
@@ -345,7 +367,15 @@ function SummaryField({ label, value }: { label: string; value: ReactNode }) {
  * `can.registerPayment` (Owner/Manager, §7.4) — Agentul/Viewer văd doar lista, dacă
  * `payments.view` le e acordat (Viewer da, Agent nu — matricea are „—" la Agent).
  */
+/** `bank_transfer` → `bankTransfer` — chei de catalog camelCase pentru valorile enum ale metodei de plată. */
+function paymentMethodKey(method: PaymentMethod): string {
+    return method.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
 function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['invoice']; base: string }) {
+    const { t } = useTranslation('invoices');
+    const locale = useLocale();
+
     const { data, setData, post, processing, errors, reset } = useForm<PaymentFormData>({
         amount: '',
         method: 'bank_transfer',
@@ -371,18 +401,19 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
     const canRegister = invoice.can.registerPayment && (invoice.status === 'sent' || invoice.status === 'overdue');
 
     return (
-        <section aria-label="Payments" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-            <h2 className="text-sm font-semibold text-text">Payments</h2>
+        <section aria-label={t('invoices:show.payments.sectionAria')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="text-sm font-semibold text-text">{t('invoices:show.payments.heading')}</h2>
 
             {invoice.payments.length === 0 ? (
-                <p className="text-sm text-text-3">No payments recorded yet.</p>
+                <p className="text-sm text-text-3">{t('invoices:show.payments.empty')}</p>
             ) : (
                 <ul className="flex flex-col gap-2 text-sm">
                     {invoice.payments.map((payment: Payment) => (
                         <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-soft px-3 py-2">
-                            <span className="numeric font-medium">{formatMoney(payment.amount, invoice.currency)}</span>
+                            <span className="numeric font-medium">{formatMoney(payment.amount, invoice.currency, locale)}</span>
+                            {/* `payment.methodLabel` vine deja tradus din backend — nu se retraduce. */}
                             <span className="text-text-2">{payment.methodLabel}</span>
-                            <span className="text-text-3">{payment.paidAt ? dateFormatter.format(new Date(payment.paidAt)) : '—'}</span>
+                            <span className="text-text-3">{payment.paidAt ? formatDate(payment.paidAt, locale) : '—'}</span>
                             <span className="text-text-3">{payment.createdBy?.name ?? '—'}</span>
                         </li>
                     ))}
@@ -391,7 +422,7 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
 
             {canRegister && (
                 <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-border-soft pt-3">
-                    <Field label="Amount" error={errors.amount} required>
+                    <Field label={t('invoices:show.payments.amount.label')} error={errors.amount} required>
                         {(control) => (
                             <input
                                 {...control}
@@ -405,7 +436,7 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
                         )}
                     </Field>
 
-                    <Field label="Method" error={errors.method} required>
+                    <Field label={t('invoices:show.payments.method.label')} error={errors.method} required>
                         {(control) => (
                             <select
                                 {...control}
@@ -413,16 +444,16 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
                                 value={data.method}
                                 onChange={(event) => setData('method', event.target.value as PaymentMethod)}
                             >
-                                {PAYMENT_METHODS.map((method) => (
-                                    <option key={method.value} value={method.value}>
-                                        {method.label}
+                                {PAYMENT_METHOD_VALUES.map((method) => (
+                                    <option key={method} value={method}>
+                                        {t(`invoices:show.payments.methodOptions.${paymentMethodKey(method)}`)}
                                     </option>
                                 ))}
                             </select>
                         )}
                     </Field>
 
-                    <Field label="Paid at" error={errors.paid_at} required>
+                    <Field label={t('invoices:show.payments.paidAt.label')} error={errors.paid_at} required>
                         {(control) => (
                             <input
                                 {...control}
@@ -434,8 +465,8 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
                         )}
                     </Field>
 
-                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Recording…">
-                        Record payment
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel={t('invoices:show.payments.submitting')}>
+                        {t('invoices:show.payments.submit')}
                     </Button>
                 </form>
             )}

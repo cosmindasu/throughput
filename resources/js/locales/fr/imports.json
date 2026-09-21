@@ -1,0 +1,153 @@
+{
+    "statusLabels": {
+        "uploaded": "Téléversé",
+        "mapped": "Associé",
+        "validating": "Validation…",
+        "validated": "Prêt à importer",
+        "importing": "Import en cours…",
+        "completed": "Terminé",
+        "completed_with_errors": "Terminé avec erreurs",
+        "failed": "Échec"
+    },
+    "index": {
+        "title": "Imports",
+        "description": "Importez un fichier CSV ou XLSX, faites correspondre ses colonnes, prévisualisez ce qui va se passer, puis validez.",
+        "newImport": "Nouvel import",
+        "empty": "Aucun import pour l’instant.",
+        "startFirstImport": "Démarrer votre premier import",
+        "columns": {
+            "file": "Fichier",
+            "resource": "Ressource",
+            "status": "Statut",
+            "rows": "Lignes",
+            "uploadedBy": "Importé par",
+            "uploadedAt": "Importé"
+        },
+        "rowCounts": {
+            "totalOnly_one": "{{formattedCount}} ligne",
+            "totalOnly_many": "{{formattedCount}} de lignes",
+            "totalOnly_other": "{{formattedCount}} lignes",
+            "validInvalid": "{{valid}} valide / {{invalid}} invalide"
+        }
+    },
+    "create": {
+        "title": "Nouvel import",
+        "description": "Étape 1 sur 4 — importez un fichier. Vous ferez correspondre ses colonnes à l’étape suivante.",
+        "resourceLabel": "Que souhaitez-vous importer ?",
+        "downloadTemplate": "Télécharger un modèle CSV pour cette ressource",
+        "fileLabel": "Fichier (CSV ou XLSX)",
+        "fileHint_one": "Jusqu’à {{maxFileMb}} Mo, jusqu’à {{maxRows}} ligne.",
+        "fileHint_many": "Jusqu’à {{maxFileMb}} Mo, jusqu’à {{maxRows}} de lignes.",
+        "fileHint_other": "Jusqu’à {{maxFileMb}} Mo, jusqu’à {{maxRows}} lignes.",
+        "uploading": "Envoi en cours…",
+        "upload": "Importer"
+    },
+    "show": {
+        "headTitle": "Import — {{filename}}",
+        "pageDescription": "Import {{resourceLabel}}",
+        "backToImports": "Retour aux imports",
+        "columnMappingLabel": "Correspondance des colonnes",
+        "loadingColumns": "Chargement des colonnes du fichier…",
+        "templateHelp": "Besoin des colonnes attendues ? <link>Téléchargez le modèle</link> pour {{resourceLabel}}.",
+        "starting": "Démarrage…",
+        "cancelImport": {
+            "trigger": "Annuler l’import",
+            "confirmTitle": "Annuler cet import ?",
+            "confirmLabel": "Annuler l’import",
+            "body": "Les lignes déjà importées conservent leur modification. Cette action est irréversible : vous devrez démarrer un nouvel import ensuite."
+        },
+        "stepTitles": {
+            "uploaded": "Étape 1 sur 4 — Fichier importé",
+            "mapped": "Étape 2 sur 4 — Colonnes associées",
+            "validating": "Étape 3 sur 4 — Validation en cours…",
+            "validated": "Étape 3 sur 4 — Simulation terminée",
+            "importing": "Étape 4 sur 4 — Import en cours…",
+            "completed": "Étape 4 sur 4 — Terminé",
+            "completed_with_errors": "Étape 4 sur 4 — Terminé avec des erreurs",
+            "failed": "Échec"
+        },
+        "confidence": {
+            "high": "Confiance élevée",
+            "medium": "Confiance moyenne",
+            "low": "Confiance faible",
+            "none": "Aucune correspondance"
+        },
+        "mapping": {
+            "heading": "Étape 2 — Associer les colonnes",
+            "description": "Nous avons associé les colonnes automatiquement dans la mesure du possible. Vérifiez la correspondance ci-dessous et corrigez ce qui semble incorrect avant de lancer la simulation.",
+            "genericError": "Impossible d’enregistrer la correspondance.",
+            "columnFile": "Colonne du fichier",
+            "columnMapsTo": "Correspond à",
+            "columnConfidence": "Confiance",
+            "columnForHeader": "Colonne pour {{header}}",
+            "noColumn": "Ne pas importer cette colonne",
+            "required": " (obligatoire)",
+            "saving": "Enregistrement…",
+            "save": "Enregistrer la correspondance et continuer"
+        },
+        "mapped": {
+            "runDryRun": "Lancer la simulation"
+        },
+        "progress": {
+            "rowsProcessed_one": "{{processed}} / {{total}} ligne traitée",
+            "rowsProcessed_many": "{{processed}} / {{total}} de lignes traitées",
+            "rowsProcessed_other": "{{processed}} / {{total}} lignes traitées",
+            "invalidSoFar_one": "({{formattedCount}} invalide pour le moment)",
+            "invalidSoFar_many": "({{formattedCount}} invalides pour le moment)",
+            "invalidSoFar_other": "({{formattedCount}} invalides pour le moment)",
+            "autoUpdate": "Cette page se met à jour automatiquement."
+        },
+        "dryRun": {
+            "heading": "Résultats de la simulation",
+            "summary_one": "{{valid}} ligne prête à être importée, {{invalid}} invalide, sur {{total}} au total.",
+            "summary_many": "{{valid}} de lignes prêtes à être importées, {{invalid}} invalide, sur {{total}} au total.",
+            "summary_other": "{{valid}} lignes prêtes à être importées, {{invalid}} invalide, sur {{total}} au total.",
+            "downloadFailed_one": "Télécharger la {{formattedCount}} ligne en erreur au format CSV",
+            "downloadFailed_many": "Télécharger les {{formattedCount}} de lignes en erreur au format CSV",
+            "downloadFailed_other": "Télécharger les {{formattedCount}} lignes en erreur au format CSV",
+            "commit_one": "Importer {{formattedCount}} ligne valide",
+            "commit_many": "Importer {{formattedCount}} de lignes valides",
+            "commit_other": "Importer {{formattedCount}} lignes valides"
+        },
+        "invalidRows": {
+            "heading": "Lignes nécessitant une attention",
+            "columnRow": "Ligne",
+            "columnErrors": "Erreurs",
+            "truncated_one": "Affichage de la première ligne invalide — téléchargez le rapport d’erreurs pour toutes les lignes.",
+            "truncated_many": "Affichage des {{formattedCount}} premières lignes invalides — téléchargez le rapport d’erreurs pour toutes les lignes.",
+            "truncated_other": "Affichage des {{formattedCount}} premières lignes invalides — téléchargez le rapport d’erreurs pour toutes les lignes."
+        },
+        "final": {
+            "heading": "Rapport final",
+            "summary_one": "{{valid}} ligne importée, {{skipped}} ignorée, sur {{total}} au total.",
+            "summary_many": "{{valid}} de lignes importées, {{skipped}} ignorées, sur {{total}} au total.",
+            "summary_other": "{{valid}} lignes importées, {{skipped}} ignorées, sur {{total}} au total.",
+            "downloadSkipped_one": "Télécharger la {{formattedCount}} ligne ignorée au format CSV — corrigez-les puis réimportez",
+            "downloadSkipped_many": "Télécharger les {{formattedCount}} de lignes ignorées au format CSV — corrigez-les puis réimportez",
+            "downloadSkipped_other": "Télécharger les {{formattedCount}} lignes ignorées au format CSV — corrigez-les puis réimportez",
+            "startAnother": "Démarrer un autre import",
+            "failedMessage": "Cet import a échoué et n’a pas pu aboutir. Démarrez un nouvel import une fois le problème résolu.",
+            "startNew": "Démarrer un nouvel import"
+        }
+    },
+    "exports": {
+        "show": {
+            "title": "Export",
+            "rowsCount_one": "{{formattedCount}} ligne",
+            "rowsCount_many": "{{formattedCount}} de lignes",
+            "rowsCount_other": "{{formattedCount}} lignes",
+            "autoUpdate": "Cette page se met à jour automatiquement.",
+            "failed": "L’export n’a pas pu être terminé. Réessayez depuis la liste.",
+            "expired": "Cet export a expiré le {{date}}.",
+            "availableUntil": "Téléchargement disponible jusqu’au {{date}}.",
+            "download": "Télécharger {{format}}",
+            "status": {
+                "pending": "En attente",
+                "running": "En cours",
+                "completed": "Prêt à télécharger",
+                "failed": "Échec",
+                "cancelled": "Annulé"
+            }
+        }
+    }
+}

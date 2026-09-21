@@ -1,5 +1,6 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useRef, type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
@@ -15,6 +16,7 @@ import type { CarrierSettingRow, SettingsShippingIndexPageProps } from '@/types/
  * verificat oricum, ca restul aplicației.
  */
 function ProviderCard({ provider, canManage, action }: { provider: CarrierSettingRow; canManage: boolean; action: string }) {
+    const { t } = useTranslation('settings');
     const form = useForm({ provider: provider.provider, credentials: { api_key: '' } });
     const apiKeyRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +57,11 @@ function ProviderCard({ provider, canManage, action }: { provider: CarrierSettin
         });
     };
 
-    const actionLabel = provider.isActive ? 'Save' : provider.requiresApiKey ? 'Save & activate' : 'Activate';
+    const actionLabel = provider.isActive
+        ? t('settings:shipping.save')
+        : provider.requiresApiKey
+          ? t('settings:shipping.saveAndActivate')
+          : t('settings:shipping.activate');
     const fieldError = form.errors['credentials.api_key'] ?? provider.credentialError ?? undefined;
 
     // Audit de accesibilitate P2 — starea „cheie deja configurată"/„lipsă" trăia într-un
@@ -63,22 +69,22 @@ function ProviderCard({ provider, canManage, action }: { provider: CarrierSettin
     // câmpuri nu-l aude niciodată. Mutat integral în `hint`-ul lui `Field`, deja legat
     // prin `aria-describedby`.
     const apiKeyHint = provider.configured
-        ? `API key configured (ends in ${provider.credentialPreview?.replace('•••• ', '')}). Leave blank to keep the current key.`
-        : 'No API key configured yet. Sandbox key only (shippo_test_...) — never a live key, in any environment of this deployment.';
+        ? t('settings:shipping.apiKeyConfiguredHint', { last: provider.credentialPreview?.replace('•••• ', '') })
+        : t('settings:shipping.apiKeyMissingHint');
 
     return (
         <form onSubmit={submit} noValidate className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-text">{provider.label}</h2>
                 <StatusBadge tone={provider.isActive ? 'success' : 'neutral'}>
-                    {provider.isActive ? 'Active' : 'Not active'}
+                    {provider.isActive ? t('settings:shipping.active') : t('settings:shipping.notActive')}
                 </StatusBadge>
             </div>
 
             <p className="text-sm text-text-2">{provider.description}</p>
 
             {provider.requiresApiKey && (
-                <Field label="Shippo API key" hint={apiKeyHint} error={fieldError}>
+                <Field label={t('settings:shipping.apiKeyLabel')} hint={apiKeyHint} error={fieldError}>
                     {(control) => (
                         <input
                             {...control}
@@ -106,9 +112,9 @@ function ProviderCard({ provider, canManage, action }: { provider: CarrierSettin
                     // pornește de la „Skip to content". `aria-disabled` + returul timpuriu
                     // din `submit()` de mai sus dau același efect fără să rupă tab-order-ul.
                     aria-disabled={form.processing || undefined}
-                    aria-label={`${actionLabel} ${provider.label}`}
+                    aria-label={t('settings:shipping.actionAriaLabel', { action: actionLabel, label: provider.label })}
                 >
-                    {form.processing ? 'Saving…' : actionLabel}
+                    {form.processing ? t('settings:shipping.saving') : actionLabel}
                 </Button>
             )}
         </form>
@@ -124,17 +130,15 @@ function ProviderCard({ provider, canManage, action }: { provider: CarrierSettin
  */
 export default function Index() {
     const { providers, can, workspace } = usePage<SettingsShippingIndexPageProps>().props;
+    const { t } = useTranslation('settings');
     const action = workspace ? `/${workspace.slug}/settings/shipping` : '/settings/shipping';
 
     return (
         <>
-            <Head title="Carrier settings" />
+            <Head title={t('settings:shipping.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader
-                    title="Carrier settings"
-                    description="Choose the carrier this workspace uses to generate shipping labels, and its credentials."
-                />
+                <PageHeader title={t('settings:shipping.title')} description={t('settings:shipping.description')} />
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {providers.map((provider) => (

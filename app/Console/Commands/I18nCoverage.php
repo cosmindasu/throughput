@@ -38,6 +38,27 @@ use SplFileInfo;
  * ÎNAINTE de bootstrap-ul Postgres și de suita Pest: o cheie desperecheată oprește
  * pipeline-ul înainte să ardă ~15 minute de teste, pe o cotă de minute partajată cu
  * alte proiecte.
+ *
+ * ## Pluralizarea nu e simetrică între limbi (adăugat la Valul 3)
+ *
+ * Engleza are DOUĂ categorii CLDR (`one`, `other`); franceza are TREI (`one`, `many`,
+ * `other`), unde `many` se aplică milioanelor exacte. i18next își alege sufixul cheii
+ * prin `Intl.PluralRules`, iar o categorie lipsă **nu** cade pe `_other` din aceeași
+ * limbă: cade pe `fallbackLng`. Măsurat, nu presupus — cu `rows_one`/`rows_other` scrise
+ * în franceză și fără `rows_many`, `t('rows', { count: 1000000 })` întoarce textul
+ * ENGLEZESC, într-o interfață altfel complet franceză.
+ *
+ * Comparația naivă pe mulțimi de chei nu putea vedea asta: `rows_many` lipsea din AMBELE
+ * cataloage, deci ieșea simetrică și trecea verde. Exact modul de eșec pe care
+ * FR-I18N-02 îl descrie („o cheie lipsă nu cade tăcut pe fallback-ul engleză") — doar că
+ * ascuns într-o categorie gramaticală pe care engleza nu o are.
+ *
+ * De aceea stratul JSON se compară pe **cheia de bază**, cu categoriile cerute de FIECARE
+ * limbă, nu cheie-la-cheie. Un `x_many` prezent în `fr` și absent din `en` nu mai e o
+ * orfană, e forma corectă; unul ABSENT din `fr` e acum o eroare, deși nimic nu lipsește
+ * din `en`. Stratul `lang/` rămâne pe comparația directă: Laravel pluralizează prin
+ * `trans_choice()` cu sintaxa de segmente (`{0}…|[1,*]…`) în interiorul UNEI chei, deci
+ * nu există sufixe de categorie și nu există asimetrie de acoperit.
  */
 class I18nCoverage extends Command
 {
@@ -48,6 +69,27 @@ class I18nCoverage extends Command
     private const SOURCE_LOCALE = 'en';
 
     private const TARGET_LOCALE = 'fr';
+
+    /**
+     * Categoriile CLDR pe care i18next le cere pentru fiecare limbă, enumerate explicit
+     * pentru CELE DOUĂ limbi ale proiectului. PHP nu expune categoriile plurale ale ICU
+     * printr-un API direct (`MessageFormatter` le consumă, nu le listează), iar o listă
+     * scrisă pentru exact limbile suportate e mai ușor de citit și de verificat decât o
+     * derivare indirectă. O a treia limbă ar adăuga un rând aici — și ar trebui să-l
+     * adauge, altfel ar moșteni tăcut regulile englezei.
+     *
+     * Sursa: `Intl.PluralRules(locale).resolvedOptions().pluralCategories`, verificată în
+     * runtime-ul care rulează aplicația.
+     *
+     * @var array<string, list<string>>
+     */
+    private const PLURAL_CATEGORIES = [
+        'en' => ['one', 'other'],
+        'fr' => ['one', 'many', 'other'],
+    ];
+
+    /** Toate sufixele CLDR posibile, pentru a recunoaște o cheie plurală oriunde. */
+    private const ALL_PLURAL_SUFFIXES = ['zero', 'one', 'two', 'few', 'many', 'other'];
 
     public function handle(): int
     {
@@ -105,10 +147,18 @@ class I18nCoverage extends Command
 
                 $totalKeysChecked += count($sourceKeys) + count($targetKeys);
 
-                $missingInTarget = array_values(array_diff($sourceKeys, $targetKeys));
-                $missingInSource = array_values(array_diff($targetKeys, $sourceKeys));
+                // Stratul JSON cunoaște categoriile plurale ale fiecărei limbi; stratul
+                // `lang/` se compară direct (vezi nota de clasă — `trans_choice()` nu
+                // folosește sufixe de categorie).
+                $expectedSource = $layer['json'] ? $this->expectedKeysFor(self::SOURCE_LOCALE, $sourceKeys, $targetKeys) : $targetKeys;
+                $expectedTarget = $layer['json'] ? $this->expectedKeysFor(self::TARGET_LOCALE, $sourceKeys, $targetKeys) : $sourceKeys;
 
-                if ($missingInTarget === [] && $missingInSource === []) {
+                $missingInTarget = array_values(array_diff($expectedTarget, $targetKeys));
+                $missingInSource = array_values(array_diff($expectedSource, $sourceKeys));
+                $orphanInTarget = array_values(array_diff($targetKeys, $expectedTarget));
+                $orphanInSource = array_values(array_diff($sourceKeys, $expectedSource));
+
+                if ($missingInTarget === [] && $missingInSource === [] && $orphanInTarget === [] && $orphanInSource === []) {
                     continue;
                 }
 
@@ -119,11 +169,19 @@ class I18nCoverage extends Command
                 $this->line("  [{$layerName}] {$relative}");
 
                 foreach ($missingInTarget as $key) {
-                    $this->line('    - lipsă în '.self::TARGET_LOCALE.": {$key}");
+                    $this->line('    - lipsă în '.self::TARGET_LOCALE.": {$key}".$this->pluralHint($key, self::TARGET_LOCALE));
                 }
 
                 foreach ($missingInSource as $key) {
-                    $this->line('    - lipsă în '.self::SOURCE_LOCALE.' (orfană în '.self::TARGET_LOCALE."): {$key}");
+                    $this->line('    - lipsă în '.self::SOURCE_LOCALE.": {$key}".$this->pluralHint($key, self::SOURCE_LOCALE));
+                }
+
+                foreach ($orphanInTarget as $key) {
+                    $this->line('    - orfană în '.self::TARGET_LOCALE.' (fără pereche în '.self::SOURCE_LOCALE."): {$key}");
+                }
+
+                foreach ($orphanInSource as $key) {
+                    $this->line('    - orfană în '.self::SOURCE_LOCALE.' (fără pereche în '.self::TARGET_LOCALE."): {$key}");
                 }
             }
 
@@ -143,6 +201,85 @@ class I18nCoverage extends Command
         $this->components->info("Acoperire chei i18n OK — {$totalKeysChecked} chei verificate pe cele două straturi.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Mulțimea de chei pe care catalogul limbii `$locale` TREBUIE să le aibă, dedusă din
+     * reuniunea celor două cataloage.
+     *
+     * O cheie de bază e considerată plurală dacă forma `_other` apare în oricare dintre
+     * limbi — `_other` e singura categorie obligatorie în toate limbile, deci prezența ei
+     * e semnalul sigur, iar un `foo_one` singuratic (fără `_other`) rămâne tratat ca
+     * cheie obișnuită, nu declanșează un fals pozitiv cerând un `foo_other` inventat.
+     *
+     * @param  list<string>  $sourceKeys
+     * @param  list<string>  $targetKeys
+     * @return list<string>
+     */
+    private function expectedKeysFor(string $locale, array $sourceKeys, array $targetKeys): array
+    {
+        $allKeys = array_unique([...$sourceKeys, ...$targetKeys]);
+
+        $pluralBases = [];
+        foreach ($allKeys as $key) {
+            if (str_ends_with($key, '_other')) {
+                $pluralBases[substr($key, 0, -strlen('_other'))] = true;
+            }
+        }
+
+        $expected = [];
+        foreach ($allKeys as $key) {
+            $base = $this->pluralBase($key);
+
+            if ($base !== null && isset($pluralBases[$base])) {
+                continue; // tratată mai jos, o singură dată per bază
+            }
+
+            $expected[$key] = true;
+        }
+
+        foreach (array_keys($pluralBases) as $base) {
+            foreach (self::PLURAL_CATEGORIES[$locale] as $category) {
+                $expected[$base.'_'.$category] = true;
+            }
+        }
+
+        $keys = array_keys($expected);
+        sort($keys);
+
+        return $keys;
+    }
+
+    /**
+     * Cheia de bază a unei chei plurale (`rows_many` → `rows`), sau `null` dacă nu poartă
+     * niciun sufix de categorie CLDR.
+     */
+    private function pluralBase(string $key): ?string
+    {
+        foreach (self::ALL_PLURAL_SUFFIXES as $suffix) {
+            if (str_ends_with($key, '_'.$suffix)) {
+                return substr($key, 0, -strlen('_'.$suffix));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Explicația din dreptul unei chei plurale lipsă — altfel „lipsă în fr: rows_many"
+     * arată ca o greșeală de tastare, nu ca o categorie gramaticală obligatorie.
+     */
+    private function pluralHint(string $key, string $locale): string
+    {
+        $base = $this->pluralBase($key);
+
+        if ($base === null) {
+            return '';
+        }
+
+        $category = substr($key, strlen($base) + 1);
+
+        return "  (categoria CLDR „{$category}\" e obligatorie pentru „{$locale}\"; fără ea i18next cade pe fallbackLng, nu pe _other)";
     }
 
     /**

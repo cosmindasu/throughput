@@ -1,0 +1,137 @@
+{
+    "status": {
+        "active": "Actif",
+        "inactive": "Inactif"
+    },
+    "runStatus": {
+        "queued": "En file d’attente",
+        "running": "En cours",
+        "success": "Réussi",
+        "failed": "Échoué"
+    },
+    "frequency": {
+        "none": "Manuel uniquement",
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire",
+        "monthly": "Mensuelle"
+    },
+    "triggeredBy": {
+        "scheduler": "planificateur",
+        "manual": "manuel"
+    },
+    "weekday": {
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi",
+        "sunday": "Dimanche"
+    },
+    "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "runNow": "Exécuter maintenant",
+        "queuing": "Mise en file d’attente…"
+    },
+    "index": {
+        "title": "Rapports",
+        "newReport": "Nouveau rapport",
+        "columns": {
+            "name": "Nom",
+            "source": "Source",
+            "format": "Format",
+            "frequency": "Fréquence",
+            "status": "Statut",
+            "lastRun": "Dernière exécution"
+        },
+        "neverRun": "Jamais exécuté",
+        "empty": {
+            "ownerView": "Aucun rapport pour le moment.",
+            "recipientView": "Aucun rapport n’a encore été partagé avec vous."
+        },
+        "createFirst": "Créer votre premier rapport"
+    },
+    "create": {
+        "title": "Nouveau rapport"
+    },
+    "edit": {
+        "title": "Modifier {{name}}",
+        "headingQuoted": "Modifier « {{name}} »"
+    },
+    "show": {
+        "recipientsHeading": "Destinataires",
+        "currentResult": {
+            "heading": "Résultat actuel",
+            "rowsCount_one": "{{formatted}} ligne",
+            "rowsCount_many": "{{formatted}} de lignes",
+            "rowsCount_other": "{{formatted}} lignes",
+            "shown_one": "affichage de la première ligne",
+            "shown_many": "affichage des {{formatted}} de premières lignes",
+            "shown_other": "affichage des {{formatted}} premières lignes",
+            "hiddenForCost": "Ce rapport inclut des données de coût/marge sur le stock que votre rôle ne peut pas consulter. Un $t(roles:owner) ou un $t(roles:manager) peut les voir ici ; vous pouvez tout de même télécharger le fichier depuis l’historique ci-dessous si vous êtes destinataire.",
+            "empty": "Aucune donnée pour le moment.",
+            "tableCaption": "Résultat actuel pour {{name}}"
+        },
+        "statusRegion": {
+            "autoUpdating": "Cette page se met à jour automatiquement.",
+            "success": "Le rapport a été généré — voir l’historique ci-dessous.",
+            "failedFallback": "Le rapport n’a pas pu être généré."
+        },
+        "runHistory": {
+            "heading": "Historique des exécutions",
+            "empty": "Ce rapport n’a pas encore été exécuté.",
+            "tableCaption": "Historique des exécutions pour {{name}}",
+            "columns": {
+                "status": "Statut",
+                "triggeredBy": "Déclenché par",
+                "started": "Démarré",
+                "rows": "Lignes",
+                "download": "Télécharger"
+            },
+            "downloadAria": "Télécharger l’exécution du {{date}}"
+        },
+        "deleteConfirmTitle": "Supprimer {{name}} ?",
+        "deleteWarning": "Cette action est irréversible. La livraison programmée s’arrêtera immédiatement.",
+        "deleteError": "Ce rapport n’a pas pu être supprimé."
+    },
+    "form": {
+        "name": {
+            "label": "Nom du rapport"
+        },
+        "format": {
+            "label": "Format"
+        },
+        "sourceLegend": "Source",
+        "savedViewExport": "Export d’une vue enregistrée",
+        "savedView": {
+            "label": "Vue enregistrée",
+            "placeholder": "Sélectionner une vue enregistrée…"
+        },
+        "inventoryValuationNote": "Ce rapport inclut des données de coût/marge sur le stock, normalement masquées aux rôles $t(roles:agent) et $t(roles:viewer) dans l’application. Les destinataires reçoivent le fichier quel que soit leur rôle — choisissez-les avec soin.",
+        "sourceLocked": "— la source d’un rapport ne peut pas changer après sa création. Créez plutôt un nouveau rapport.",
+        "scheduleLegend": "Planification",
+        "frequency": {
+            "label": "Fréquence"
+        },
+        "time": {
+            "label": "Heure (UTC)",
+            "hint": "Les rapports planifiés s’exécutent à l’heure pile, en UTC."
+        },
+        "dayOfWeek": {
+            "label": "Jour de la semaine"
+        },
+        "dayOfMonth": {
+            "label": "Jour du mois",
+            "hint": "Un jour au-delà de la fin d’un mois plus court (par ex. 31) s’exécute le dernier jour de ce mois à la place."
+        },
+        "recipients": {
+            "label": "Destinataires",
+            "hint": "Une adresse e-mail par ligne (ou séparées par des virgules)."
+        },
+        "active": "Actif",
+        "createReport": "Créer le rapport",
+        "saveChanges": "Enregistrer les modifications",
+        "saving": "Enregistrement…"
+    }
+}

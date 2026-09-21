@@ -1,7 +1,9 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { roleLabel } from '@/lib/roles';
 import type { DemoAccountRole, LoginPageProps } from '@/types/generated';
 
 /**
@@ -12,9 +14,20 @@ import type { DemoAccountRole, LoginPageProps } from '@/types/generated';
  * Fallback-ul cu email/parolă rămâne mereu disponibil (§4.2: „doar login cu
  * email/parolă pentru conturile existente, ca fallback la butoanele demo”) —
  * nu există formular de „Sign up” (§2.2, în afara domeniului acestui MVP).
+ *
+ * **RISC CRITIC (Lot I18N, Val 3, ADR-022 consecința 2)** — `e2e/setup/auth.setup.ts`
+ * caută butonul demo după textul literal `Log in as ${DEMO_ROLE_LABELS[role]}` și produce
+ * `storageState`-ul citit de toate testele E2E. Cheia `auth:login.demoButton` are valoarea
+ * ENGLEZĂ `"Log in as {{name}}"` — identică, literă cu literă, cu stringul dinainte de
+ * extragere — iar `account.name` (server, `DemoAccountRole` → etichetă) rămâne interpolat
+ * NETRADUS (FR-I18N-06: valoare de domeniu, nu etichetă de UI). Suita E2E rulează cu
+ * `APP_LOCALE=en` (`playwright.config.ts`), deci catalogul citit la acel test e mereu cel
+ * englez — nu atinge valoarea de-acolo fără să reverifici `e2e/setup/auth.setup.ts` și
+ * `e2e/support/auth.ts:12-17`.
  */
 export default function Login() {
     const { demoMode, canResetPassword, status, demoAccounts } = usePage<LoginPageProps>().props;
+    const { t } = useTranslation('auth');
     const [pendingRole, setPendingRole] = useState<DemoAccountRole | null>(null);
 
     const demoLogin = (role: DemoAccountRole) => {
@@ -52,15 +65,13 @@ export default function Login() {
 
     return (
         <>
-            <Head title="Log in" />
+            <Head title={t('auth:login.title')} />
 
             <div className="flex flex-col gap-6">
                 <div>
-                    <h1 className="text-xl font-semibold text-text">Log in to Throughput</h1>
+                    <h1 className="text-xl font-semibold text-text">{t('auth:login.heading')}</h1>
                     <p className="mt-1 text-sm text-text-2">
-                        {showDemoAccounts
-                            ? 'Pick a demo role to explore instantly, or use a real account below.'
-                            : 'Sign in with your account email and password.'}
+                        {showDemoAccounts ? t('auth:login.subtitleDemo') : t('auth:login.subtitleNoDemo')}
                     </p>
                 </div>
 
@@ -72,7 +83,7 @@ export default function Login() {
 
                 {showDemoAccounts && (
                     <div className="flex flex-col gap-3">
-                        <h2 className="text-sm font-medium text-text-2">Demo accounts</h2>
+                        <h2 className="text-sm font-medium text-text-2">{t('auth:login.demoAccountsHeading')}</h2>
                         {demoAccounts.map((account) => (
                             /* `aria-disabled`, nu `disabled`: un clic dezactiva TOATE butoanele
                                de rol, inclusiv chiar pe cel apăsat — browserul îl blurează și
@@ -88,7 +99,7 @@ export default function Login() {
                                 }`}
                             >
                                 <span className="text-sm font-medium text-text">
-                                    Log in as {account.name}
+                                    {t('auth:login.demoButton', { name: roleLabel(t, account.role) ?? account.name })}
                                     {pendingRole === account.role ? '…' : ''}
                                 </span>
                                 <span className="text-xs text-text-2">{account.description}</span>
@@ -100,7 +111,7 @@ export default function Login() {
                 {showDemoAccounts && (
                     <div className="flex items-center gap-3 text-xs text-text-3">
                         <span aria-hidden="true" className="h-px flex-1 bg-border" />
-                        <span>or sign in with email</span>
+                        <span>{t('auth:login.orSignInWithEmail')}</span>
                         <span aria-hidden="true" className="h-px flex-1 bg-border" />
                     </div>
                 )}
@@ -108,7 +119,7 @@ export default function Login() {
                 <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
                     <div>
                         <label htmlFor="email" className="text-sm font-medium text-text">
-                            Email
+                            {t('auth:login.emailLabel')}
                         </label>
                         <input
                             id="email"
@@ -130,11 +141,11 @@ export default function Login() {
                     <div>
                         <div className="flex items-center justify-between">
                             <label htmlFor="password" className="text-sm font-medium text-text">
-                                Password
+                                {t('auth:login.passwordLabel')}
                             </label>
                             {canResetPassword && (
                                 <Link href="/forgot-password" className="text-xs text-accent-text hover:underline">
-                                    Forgot password?
+                                    {t('auth:login.forgotPassword')}
                                 </Link>
                             )}
                         </div>
@@ -162,11 +173,17 @@ export default function Login() {
                             onChange={(event) => setData('remember', event.target.checked)}
                             className="rounded border-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                         />
-                        Remember me
+                        {t('auth:login.rememberMe')}
                     </label>
 
-                    <Button type="submit" variant="primary" className="px-4 py-2" pending={processing} pendingLabel="Logging in…">
-                        Log in
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        className="px-4 py-2"
+                        pending={processing}
+                        pendingLabel={t('auth:login.submitting')}
+                    >
+                        {t('auth:login.submit')}
                     </Button>
                 </form>
             </div>

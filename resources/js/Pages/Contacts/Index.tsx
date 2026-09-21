@@ -1,5 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
@@ -10,22 +11,23 @@ import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
 import type { ContactsIndexPageProps } from '@/types/generated';
 
-const SORT_OPTIONS = [
-    { value: 'last_name', label: 'Last name (A–Z)' },
-    { value: '-created_at', label: 'Newest first' },
-    { value: 'created_at', label: 'Oldest first' },
-];
-
 /**
  * Lista de contacte — FR-CRM-03-adiacent (aceeași infrastructură de cursor ca
  * Accounts), fără filtrul implicit „My accounts": citirea e pe tot tenantul
  * (`ContactPolicy::viewAny`), doar editarea se îngustează per rând (`can.edit`).
  */
 export default function ContactsIndex() {
+    const { t } = useTranslation('contacts');
     const page = usePage<ContactsIndexPageProps>();
     const { list, can, workspace } = page.props;
     const { url } = page;
     const { setFilter, setSort } = useListFilters(list);
+
+    const SORT_OPTIONS = [
+        { value: 'last_name', label: t('index.sort.lastName') },
+        { value: '-created_at', label: t('index.sort.newestFirst') },
+        { value: 'created_at', label: t('index.sort.oldestFirst') },
+    ];
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -35,12 +37,12 @@ export default function ContactsIndex() {
 
     return (
         <>
-            <Head title="Contacts" />
+            <Head title={t('index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Contacts"
-                    description="People at your accounts — and leads without one yet."
+                    title={t('index.title')}
+                    description={t('index.description')}
                     actions={
                         <>
                             {/* Link simplu, nu Inertia: răspunsul e un fișier CSV sau un redirect către
@@ -49,12 +51,12 @@ export default function ContactsIndex() {
                                 exact rândurile de pe ecran. */}
                             {can.export && workspace && (
                                 <a href={exportHref(url, `/${workspace.slug}/contacts/export`)} className={buttonClass('secondary')}>
-                                    Export CSV
+                                    {t('index.exportCsv')}
                                 </a>
                             )}
                             {can.create && (
                                 <ButtonLink variant="primary" href={workspace ? `/${workspace.slug}/contacts/create` : '#'}>
-                                    New contact
+                                    {t('index.newContact')}
                                 </ButtonLink>
                             )}
                         </>
@@ -65,34 +67,34 @@ export default function ContactsIndex() {
                     <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3" role="search">
                         <div className="flex flex-col gap-1">
                             <label htmlFor="contacts-search" className="text-sm font-medium text-text">
-                                Search
+                                {t('index.search.label')}
                             </label>
                             <input
                                 id="contacts-search"
                                 name="q"
                                 type="search"
                                 defaultValue={list.filter.q ?? ''}
-                                placeholder="Name or email"
+                                placeholder={t('index.search.placeholder')}
                                 className="w-64 rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                             />
                         </div>
                         {/* Primitiva `Button`: aceleași clase, copiate de mână, minus stilul
                             de focus (SC 2.4.7). */}
-                        <Button type="submit">Apply</Button>
+                        <Button type="submit">{t('index.apply')}</Button>
                         {list.filter.account && (
                             <button
                                 type="button"
                                 onClick={() => setFilter('account', null)}
                                 className="text-sm text-accent-text underline underline-offset-2"
                             >
-                                Clear account filter
+                                {t('index.clearAccountFilter')}
                             </button>
                         )}
                     </form>
 
                     <div className="flex flex-col gap-1">
                         <label htmlFor="contacts-sort" className="text-sm font-medium text-text">
-                            Sort by
+                            {t('index.sort.label')}
                         </label>
                         <select
                             id="contacts-sort"
@@ -118,6 +120,7 @@ export default function ContactsIndex() {
 }
 
 function ContactsTable() {
+    const { t } = useTranslation('contacts');
     const { contacts, list, can, workspace } = usePage<ContactsIndexPageProps>().props;
     const { setFilter } = useListFilters(list);
 
@@ -129,13 +132,13 @@ function ContactsTable() {
     if (contacts.data.length === 0) {
         return (
             <EmptyState
-                message={hasFilters ? 'No contacts match this filter.' : 'No contacts yet.'}
+                message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')}
                 action={
                     hasFilters ? (
-                        <Button onClick={() => clearFilters(setFilter)}>Clear filters</Button>
+                        <Button onClick={() => clearFilters(setFilter)}>{t('index.empty.clearFilters')}</Button>
                     ) : (
                         can.create &&
-                        workspace && <ButtonLink variant="primary" href={`/${workspace.slug}/contacts/create`}>Create your first contact</ButtonLink>
+                        workspace && <ButtonLink variant="primary" href={`/${workspace.slug}/contacts/create`}>{t('index.empty.createFirst')}</ButtonLink>
                     )
                 }
             />
@@ -145,23 +148,23 @@ function ContactsTable() {
     return (
         <div className="flex flex-col gap-3">
             <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-border bg-surface text-sm">
-                <caption className="sr-only">Contacts</caption>
+                <caption className="sr-only">{t('index.title')}</caption>
                 <thead>
                     <tr className="text-left text-text-2">
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            Name
+                            {t('index.columns.name')}
                         </th>
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            Account
+                            {t('index.columns.account')}
                         </th>
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            Email
+                            {t('index.columns.email')}
                         </th>
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            Title
+                            {t('index.columns.title')}
                         </th>
                         <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            <span className="sr-only">Actions</span>
+                            <span className="sr-only">{t('index.actionsColumnLabel')}</span>
                         </th>
                     </tr>
                 </thead>
@@ -177,7 +180,7 @@ function ContactsTable() {
                                 </Link>
                                 {contact.isPrimary && (
                                     <StatusBadge tone="accent">
-                                        <span className="ml-1">Primary</span>
+                                        <span className="ml-1">{t('index.primaryBadge')}</span>
                                     </StatusBadge>
                                 )}
                             </td>
@@ -190,7 +193,7 @@ function ContactsTable() {
                                         {contact.account.name}
                                     </Link>
                                 ) : (
-                                    <span className="text-text-3">No account</span>
+                                    <span className="text-text-3">{t('index.noAccount')}</span>
                                 )}
                             </td>
                             <td className="border-b border-border-soft px-4 py-2 text-text-2">{contact.email ?? '—'}</td>
@@ -201,7 +204,7 @@ function ContactsTable() {
                                         href={`/${workspace.slug}/contacts/${contact.id}/edit`}
                                         className="text-accent-text underline-offset-2 hover:underline"
                                     >
-                                        Edit<span className="sr-only"> {contact.fullName}</span>
+                                        {t('index.editRow')}<span className="sr-only"> {contact.fullName}</span>
                                     </Link>
                                 )}
                             </td>

@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { controlClass } from '@/Components/Form/Field';
 import type { OrderVariantOption } from '@/types/generated';
 
@@ -15,8 +16,14 @@ const DEBOUNCE_MS = 200;
  * listbox ca `AccountCombobox` (P2-001), dar fără o „valoare aleasă" persistentă: la
  * fiecare selecție adaugă o linie nouă și se golește, ca să poți căuta imediat
  * următoarea variantă (US-ORD-01 — „adaug 2 linii cu variante și cantități").
+ *
+ * `placeholder` nu mai are valoare implicită la destructurare (Val 3, „Lot I18N"): un
+ * default evaluat la destructurare ar rula ÎNAINTE de `useTranslation()`, deci n-ar putea
+ * folosi `t()`. Fallback-ul e calculat în corpul componentei.
  */
-export default function VariantCombobox({ onSelect, placeholder = 'Search by SKU or product name…' }: VariantComboboxProps) {
+export default function VariantCombobox({ onSelect, placeholder }: VariantComboboxProps) {
+    const { t } = useTranslation('orders');
+    const effectivePlaceholder = placeholder ?? t('variantCombobox.placeholder');
     const { workspace } = usePage().props;
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
@@ -129,8 +136,8 @@ export default function VariantCombobox({ onSelect, placeholder = 'Search by SKU
                 aria-autocomplete="list"
                 aria-expanded={open}
                 aria-controls={listboxId}
-                aria-label="Add a line"
-                placeholder={placeholder}
+                aria-label={t('variantCombobox.ariaLabel')}
+                placeholder={effectivePlaceholder}
                 value={query}
                 onChange={(event) => {
                     const next = event.target.value;
@@ -155,16 +162,16 @@ export default function VariantCombobox({ onSelect, placeholder = 'Search by SKU
                 <ul
                     id={listboxId}
                     role="listbox"
-                    aria-label="Variants"
+                    aria-label={t('variantCombobox.listboxLabel')}
                     className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-overlay py-1 text-sm shadow-lg"
                 >
                     {loading ? (
                         <li aria-disabled="true" className="px-3 py-1.5 text-text-3">
-                            Searching…
+                            {t('variantCombobox.searching')}
                         </li>
                     ) : options.length === 0 ? (
                         <li aria-disabled="true" className="px-3 py-1.5 text-text-3">
-                            No variants found.
+                            {t('variantCombobox.noResults')}
                         </li>
                     ) : (
                         options.map((option, index) => (
@@ -181,7 +188,7 @@ export default function VariantCombobox({ onSelect, placeholder = 'Search by SKU
                                 <span>
                                     {option.name} <span className="text-text-3">· {option.sku}</span>
                                 </span>
-                                <span className="numeric shrink-0 text-xs text-text-3">Available: {option.available}</span>
+                                <span className="numeric shrink-0 text-xs text-text-3">{t('variantCombobox.available', { count: option.available })}</span>
                             </li>
                         ))
                     )}

@@ -1,0 +1,270 @@
+{
+    "index": {
+        "title": "Orders",
+        "table": {
+            "caption": "Orders",
+            "orderNumberColumn": "Order number",
+            "selectAllOnPage": "Select all orders on this page",
+            "selectRow": "Select {{name}}",
+            "draftOrderFallback": "draft order",
+            "draftNumber": "Draft #{{id}}",
+            "draftOrderLower": "draft order {{id}}",
+            "actions": "Actions",
+            "edit": "Edit"
+        },
+        "columns": {
+            "grandTotal": "Grand total",
+            "placedAt": "Placed at",
+            "created": "Created",
+            "status": "Status",
+            "account": "Account",
+            "owner": "Owner"
+        },
+        "statuses": {
+            "all": "All statuses",
+            "draft": "Draft",
+            "confirmed": "Confirmed",
+            "partiallyFulfilled": "Partially fulfilled",
+            "fulfilled": "Fulfilled",
+            "cancelled": "Cancelled"
+        },
+        "export": {
+            "csv": "Export CSV",
+            "pdf": "Export PDF"
+        },
+        "actions": {
+            "create": "New order"
+        },
+        "search": {
+            "label": "Search",
+            "placeholder": "Search by order number…"
+        },
+        "status": {
+            "label": "Status"
+        },
+        "owner": {
+            "mine": "My orders",
+            "all": "All orders"
+        },
+        "empty": {
+            "message": "No orders match this filter.",
+            "hint": "Start one from \"New order\" above."
+        }
+    },
+    "create": {
+        "title": "New order",
+        "descriptionForAccount": "For {{account}}",
+        "fields": {
+            "account": {
+                "label": "Account"
+            },
+            "contact": {
+                "label": "Contact",
+                "none": "None"
+            },
+            "currency": {
+                "label": "Currency"
+            },
+            "notes": {
+                "label": "Notes"
+            },
+            "owner": {
+                "label": "Owner",
+                "hint": "Leave as “Me” to keep yourself as owner.",
+                "meOption": "Me"
+            }
+        },
+        "lines": {
+            "ariaLabel": "Order lines",
+            "heading": "Lines"
+        },
+        "actions": {
+            "submit": "Create order",
+            "submitPending": "Creating…",
+            "cancel": "Cancel"
+        }
+    },
+    "edit": {
+        "headTitle": "Edit {{number}}",
+        "orderFallback": "order",
+        "pageTitle": "Edit order",
+        "descriptionForAccount": "For {{account}}",
+        "fields": {
+            "account": {
+                "label": "Account"
+            },
+            "contact": {
+                "label": "Contact",
+                "none": "None",
+                "anonymized": "Anonymized contact"
+            },
+            "currency": {
+                "label": "Currency"
+            },
+            "notes": {
+                "label": "Notes"
+            },
+            "owner": {
+                "label": "Owner",
+                "hint": "Leave as “Me” to keep the current owner."
+            }
+        },
+        "lines": {
+            "ariaLabel": "Order lines",
+            "heading": "Lines"
+        },
+        "actions": {
+            "submit": "Save changes",
+            "submitPending": "Saving…",
+            "cancel": "Cancel"
+        }
+    },
+    "show": {
+        "orderFallback": "Order",
+        "draftTitle": "Draft — {{account}}",
+        "actions": {
+            "confirm": "Confirm order",
+            "edit": "Edit",
+            "cancel": "Cancel order",
+            "delete": "Delete"
+        },
+        "fields": {
+            "grandTotal": "Grand total",
+            "owner": "Owner",
+            "contact": "Contact",
+            "contactAnonymized": "Anonymized contact",
+            "placedAt": "Placed at",
+            "deal": "Deal",
+            "created": "Created"
+        },
+        "notes": {
+            "ariaLabel": "Notes"
+        },
+        "lines": {
+            "ariaLabel": "Lines",
+            "caption": "Order lines",
+            "columns": {
+                "line": "Line",
+                "quantity": "Quantity",
+                "fulfilled": "Fulfilled",
+                "unitPrice": "Unit price",
+                "lineTotal": "Line total"
+            },
+            "shipped": "Shipped {{fulfilled}} of {{total}}",
+            "notYetShipped": "Not yet shipped",
+            "empty": "No lines yet."
+        },
+        "history": {
+            "heading": "History"
+        },
+        "confirmDialog": {
+            "title": "Confirm this order?",
+            "confirmLabel": "Confirm order",
+            "confirmAsBackorderLabel": "Confirm as backorder",
+            "body": "This reserves the stock for every line and assigns the order number. This cannot be undone from here — use Cancel afterwards if needed.",
+            "error": "This order could not be confirmed."
+        },
+        "cancelDialog": {
+            "title": "Cancel this order?",
+            "confirmLabel": "Cancel order",
+            "bodyConfirmed": "This releases the reserved stock on every line. This cannot be undone.",
+            "bodyDraft": "This draft will be cancelled. This cannot be undone.",
+            "error": "This order could not be cancelled."
+        },
+        "deleteDialog": {
+            "title": "Delete this order?",
+            "confirmLabel": "Delete",
+            "body": "This removes the draft permanently. This cannot be undone."
+        }
+    },
+    "linesEditor": {
+        "empty": "No lines yet — search a variant above to add one.",
+        "table": {
+            "caption": "Order lines",
+            "variant": "Variant",
+            "available": "Available",
+            "quantity": "Quantity",
+            "unitPrice": "Unit price",
+            "discount": "Discount",
+            "lineTotal": "Line total",
+            "removeColumn": "Remove"
+        },
+        "quantityLabel": "Quantity for {{label}}",
+        "unitPriceLabel": "Unit price for {{label}}",
+        "discountLabel": "Discount for {{label}}",
+        "remove": "Remove",
+        "total": "Total",
+        "warning": "One or more lines exceed the available stock. You can still save this draft; confirming it will ask you to acknowledge it ships as a backorder."
+    },
+    "timeline": {
+        "ariaLabel": "Order timeline",
+        "orderSteps": {
+            "created": "Created",
+            "confirmed": "Confirmed"
+        },
+        "shipmentStatus": {
+            "label_pending": "Shipment label generating",
+            "label_failed": "Shipment label failed",
+            "label_purchased": "Shipment label ready",
+            "in_transit": "Shipment shipped",
+            "delivered": "Shipment delivered",
+            "exception": "Shipment exception"
+        }
+    },
+    "shipments": {
+        "heading": "Shipments",
+        "status": {
+            "label_pending": "Generating label…",
+            "label_failed": "Label failed",
+            "label_purchased": "Label ready",
+            "in_transit": "In transit",
+            "delivered": "Delivered",
+            "exception": "Exception"
+        },
+        "form": {
+            "hint": "Choose a quantity for each line to include — leave the rest at 0.",
+            "table": {
+                "caption": "Lines to include in this shipment",
+                "line": "Line",
+                "remaining": "Remaining",
+                "quantityToShip": "Quantity to ship"
+            },
+            "quantityLabel": "Quantity to ship for {{description}}",
+            "submit": "Create shipment",
+            "submitPending": "Creating…"
+        },
+        "empty": "No shipments yet.",
+        "createdAt": "Created {{date}}",
+        "trackingLabel": "Tracking:",
+        "downloadLabel": "Download label",
+        "forShipment": "for shipment {{name}}",
+        "retryLabel": "Retry label",
+        "retryingLabel": "Retrying…",
+        "discard": "Discard",
+        "discardShipment": "shipment {{name}}",
+        "markShipped": "Mark as shipped",
+        "markShippedDash": "— shipment {{name}}",
+        "discardDialog": {
+            "title": "Discard this shipment?",
+            "confirmLabel": "Discard",
+            "body": "This removes the shipment and frees its lines for a new one. This cannot be undone."
+        },
+        "markShippedDialog": {
+            "title": "Mark this shipment as shipped?",
+            "confirmLabel": "Mark as shipped",
+            "body": "This records the stock leaving the warehouse (on hand and reserved both decrease) and updates the order lines. This cannot be undone."
+        },
+        "errors": {
+            "retryFailed": "This label could not be retried.",
+            "actionFailed": "This action could not be completed."
+        }
+    },
+    "variantCombobox": {
+        "placeholder": "Search by SKU or product name…",
+        "ariaLabel": "Add a line",
+        "listboxLabel": "Variants",
+        "searching": "Searching…",
+        "noResults": "No variants found.",
+        "available": "Available: {{count}}"
+    }
+}

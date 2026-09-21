@@ -1,5 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
@@ -14,20 +15,6 @@ const RUN_STATUS_TONES: Record<ReportRunStatus, BadgeTone> = {
     failed: 'danger',
 };
 
-const RUN_STATUS_LABELS: Record<ReportRunStatus, string> = {
-    queued: 'Queued',
-    running: 'Running',
-    success: 'Success',
-    failed: 'Failed',
-};
-
-const FREQUENCY_LABELS: Record<string, string> = {
-    none: 'Manual only',
-    daily: 'Daily',
-    weekly: 'Weekly',
-    monthly: 'Monthly',
-};
-
 /**
  * Reports/Index — specs.md §16, „lista rapoartelor (nume, sursă, format, frecvență,
  * activ, ultima rulare)". Fără paginare pe cursor (spre deosebire de Accounts/Orders): un
@@ -39,37 +26,58 @@ const FREQUENCY_LABELS: Record<string, string> = {
  * server (`ReportRecipients::scopeVisibleTo`) — pagina doar randează ce a primit.
  */
 export default function Index() {
+    const { t } = useTranslation('reports');
     const { reports, can, workspace } = usePage<ReportsIndexPageProps>().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
     return (
         <>
-            <Head title="Reports" />
+            <Head title={t('reports:index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Reports"
-                    actions={can.create && <ButtonLink variant="primary" href={`${base}/reports/create`}>New report</ButtonLink>}
+                    title={t('reports:index.title')}
+                    actions={
+                        can.create && (
+                            <ButtonLink variant="primary" href={`${base}/reports/create`}>
+                                {t('reports:index.newReport')}
+                            </ButtonLink>
+                        )
+                    }
                 />
 
                 {reports.length > 0 ? (
                     <div className="overflow-hidden rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">Reports</caption>
+                            <caption className="sr-only">{t('reports:index.title')}</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">Name</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Source</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Format</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Frequency</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Status</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Last run</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.name')}
+                                    </th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.source')}
+                                    </th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.format')}
+                                    </th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.frequency')}
+                                    </th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.status')}
+                                    </th>
+                                    <th scope="col" className="px-4 py-2 font-medium">
+                                        {t('reports:index.columns.lastRun')}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border-soft bg-surface">
                                 {reports.map((report) => (
                                     <tr key={report.id} className="hover:bg-row-hover">
                                         <td className="px-4 py-2.5">
+                                            {/* `report.name` e conținut scris de utilizator (FR-I18N-06) —
+                                                niciodată tradus, nici retradus la comutarea limbii. */}
                                             <a
                                                 href={`${base}/reports/${report.id}`}
                                                 className="font-medium text-accent-text hover:underline"
@@ -77,21 +85,24 @@ export default function Index() {
                                                 {report.name}
                                             </a>
                                         </td>
+                                        {/* `report.sourceLabel` vine deja tradus din backend — nu se retraduce. */}
                                         <td className="px-4 py-2.5 text-text-2">{report.sourceLabel}</td>
+                                        {/* `report.format` (csv/xlsx/pdf) e un cod de format tehnic,
+                                            identic în orice limbă — nu se traduce (ca „SKU"/„PDF"). */}
                                         <td className="px-4 py-2.5 uppercase text-text-2">{report.format}</td>
-                                        <td className="px-4 py-2.5 text-text-2">{FREQUENCY_LABELS[report.scheduleFrequency]}</td>
+                                        <td className="px-4 py-2.5 text-text-2">{t(`reports:frequency.${report.scheduleFrequency}`)}</td>
                                         <td className="px-4 py-2.5">
                                             <StatusBadge tone={report.isActive ? 'success' : 'neutral'}>
-                                                {report.isActive ? 'Active' : 'Inactive'}
+                                                {report.isActive ? t('reports:status.active') : t('reports:status.inactive')}
                                             </StatusBadge>
                                         </td>
                                         <td className="px-4 py-2.5">
                                             {report.lastRun ? (
                                                 <StatusBadge tone={RUN_STATUS_TONES[report.lastRun.status]}>
-                                                    {RUN_STATUS_LABELS[report.lastRun.status]}
+                                                    {t(`reports:runStatus.${report.lastRun.status}`)}
                                                 </StatusBadge>
                                             ) : (
-                                                <span className="text-text-3">Never run</span>
+                                                <span className="text-text-3">{t('reports:index.neverRun')}</span>
                                             )}
                                         </td>
                                     </tr>
@@ -101,11 +112,11 @@ export default function Index() {
                     </div>
                 ) : (
                     <EmptyState
-                        message={can.create ? 'No reports yet.' : 'No reports have been shared with you yet.'}
+                        message={can.create ? t('reports:index.empty.ownerView') : t('reports:index.empty.recipientView')}
                         action={
                             can.create && (
                                 <ButtonLink variant="primary" href={`${base}/reports/create`}>
-                                    Create your first report
+                                    {t('reports:index.createFirst')}
                                 </ButtonLink>
                             )
                         }

@@ -1,13 +1,20 @@
 import { router, usePage } from '@inertiajs/react';
-import { useId } from 'react';
+import type { TFunction } from 'i18next';
+import { useId, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { applyResolvedTheme, persistResolvedThemeCookie, resolveSystemTheme, useThemeSync } from '@/hooks/useThemeSync';
 
 type ThemeChoice = 'system' | 'light' | 'dark';
 
-const OPTIONS: Array<{ value: ThemeChoice; label: string }> = [
-    { value: 'system', label: 'System' },
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
+/**
+ * Fabrică parametrizată pe `t`, ca `buildDealColumns`/`buildOrderColumns` (§6, brief
+ * Val 3): un tablou de etichete la nivel de modul nu se poate scrie tradus direct — `t()`
+ * cere componenta montată. Memoizată în corpul funcției, mai jos.
+ */
+const buildOptions = (t: TFunction): Array<{ value: ThemeChoice; label: string }> => [
+    { value: 'system', label: t('common:themeToggle.system') },
+    { value: 'light', label: t('common:themeToggle.light') },
+    { value: 'dark', label: t('common:themeToggle.dark') },
 ];
 
 /**
@@ -31,9 +38,11 @@ const OPTIONS: Array<{ value: ThemeChoice; label: string }> = [
  * poate rămâne desincronizat de comportamentul nativ.
  */
 export default function ThemeToggle() {
+    const { t } = useTranslation('common');
     const { auth } = usePage().props;
     const groupName = useId();
     const choice: ThemeChoice = auth.user?.theme ?? 'system';
+    const options = useMemo(() => buildOptions(t), [t]);
 
     // Cât timp alegerea e „System" și fila rămâne deschisă, corectează un prim-paint
     // greșit și urmărește schimbările reale ale sistemului de operare.
@@ -62,8 +71,8 @@ export default function ThemeToggle() {
 
     return (
         <fieldset className="flex items-center gap-0.5 rounded-md border border-control p-0.5">
-            <legend className="sr-only">Theme</legend>
-            {OPTIONS.map((option) => {
+            <legend className="sr-only">{t('common:themeToggle.legend')}</legend>
+            {options.map((option) => {
                 const active = choice === option.value;
 
                 return (

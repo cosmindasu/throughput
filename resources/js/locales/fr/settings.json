@@ -4,6 +4,325 @@
         "heading": "Langue",
         "description": "Choisissez la langue utilisée dans Throughput.",
         "available_one": "Disponible en {{count}} langue.",
+        "available_many": "Disponible en {{count}} de langues.",
         "available_other": "Disponible en {{count}} langues."
+    },
+    "theme": {
+        "heading": "Thème",
+        "description": "Choisissez l’apparence de Throughput. Le mode « Système » suit le réglage de votre appareil."
+    },
+    "index": {
+        "title": "Paramètres",
+        "open": "Ouvrir",
+        "openAriaLabel": "Ouvrir {{title}}",
+        "sections": {
+            "members": {
+                "title": "Membres",
+                "description": "Voir qui a accès à cet espace de travail, et désactiver une personne qui est partie."
+            },
+            "billing": {
+                "title": "Facturation et abonnement",
+                "description": "Gérer l’abonnement Throughput et le moyen de paiement."
+            },
+            "apiTokens": {
+                "title": "Jetons API",
+                "description": "Créer et révoquer des jetons pour l’API publique."
+            },
+            "carrierSettings": {
+                "title": "Paramètres de transporteur",
+                "description": "Choisir le transporteur utilisé par cet espace de travail, et enregistrer ses identifiants de test."
+            },
+            "pipeline": {
+                "title": "Pipeline",
+                "description": "Configurer les étapes du pipeline utilisées par le tableau des affaires."
+            },
+            "preferences": {
+                "title": "Préférences",
+                "description": "Thème et autres préférences personnelles."
+            },
+            "sentEmails": {
+                "title": "E-mails envoyés",
+                "description": "Chaque e-mail transactionnel que la démo publique a tenté d’envoyer — livré ou intercepté (§22.3)."
+            },
+            "dataExports": {
+                "title": "Exporter les données",
+                "description": "Demander une copie complète et exploitable par machine de tout ce que cet espace de travail contient."
+            },
+            "webhooks": {
+                "title": "État des webhooks",
+                "description": "Voir ce que Stripe a envoyé à ce déploiement, et ce qu’il en est advenu."
+            }
+        }
+    },
+    "members": {
+        "title": "Membres",
+        "description": "Toutes les personnes ayant accès à cet espace de travail, et leur rôle.",
+        "inviteButton": "Inviter un membre",
+        "tableCaption": "Membres de l’espace de travail et leurs rôles",
+        "columns": {
+            "name": "Nom",
+            "role": "Rôle",
+            "status": "Statut",
+            "joined": "Arrivé le",
+            "deactivated": "Désactivé le",
+            "actions": "Actions"
+        },
+        "status": {
+            "active": "actif",
+            "deactivated": "désactivé",
+            "invited": "invité",
+            "expired": "expiré"
+        },
+        "invitationExpired": "Invitation expirée le {{date}}",
+        "invitationPending": "Invité le {{invitedDate}} · expire le {{expiresDate}}",
+        "deactivatedBy": "par {{name}}",
+        "resendButton": "Renvoyer",
+        "resendAriaLabel": "Renvoyer l’invitation à {{email}}",
+        "revokeButton": "Révoquer",
+        "revokeAriaLabel": "Révoquer l’invitation à {{email}}",
+        "changeRoleButton": "Changer le rôle",
+        "changeRoleAriaLabel": "Changer le rôle de {{name}}",
+        "deactivateButton": "Désactiver le membre",
+        "deactivateAriaLabel": "Désactiver {{name}}",
+        "outcomes": {
+            "deactivated": "{{name}} a été désactivé.",
+            "deactivatedReassigning_one": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrement…",
+            "deactivatedReassigning_many": "{{name}} a été désactivé ; réaffectation de {{count}} d’enregistrements…",
+            "deactivatedReassigning_other": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrements…",
+            "deactivatedNeedsOwner_one": "{{name}} a été désactivé ; {{count}} enregistrement a besoin d’un nouveau propriétaire — voir Non attribué.",
+            "deactivatedNeedsOwner_many": "{{name}} a été désactivé ; {{count}} d’enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
+            "deactivatedNeedsOwner_other": "{{name}} a été désactivé ; {{count}} enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
+            "roleChanged": "{{name}} est désormais {{role}}.",
+            "invitationResent": "Un nouveau lien d’invitation a été envoyé à {{email}}.",
+            "invitationRevoked": "L’invitation à {{email}} a été révoquée.",
+            "invited": "Invitation envoyée à {{email}}."
+        }
+    },
+    "changeRoleDialog": {
+        "title": "Changer le rôle de {{name}}",
+        "description": "Son rôle actuel est {{role}}. Le nouveau rôle prend effet dès sa prochaine requête — il n’est pas nécessaire de se déconnecter puis de se reconnecter.",
+        "unassignedRole": "non assigné",
+        "newRoleLabel": "Nouveau rôle",
+        "cancel": "Annuler",
+        "save": "Changer le rôle",
+        "saving": "Enregistrement…"
+    },
+    "deactivateMemberDialog": {
+        "title": "Désactiver {{name}}",
+        "lastOwnerWarning": "Transférez la propriété avant de désactiver le dernier $t(roles:owner).",
+        "close": "Fermer",
+        "withOpenRecords": "{{name}} possède {{summary}}. Réaffectez-les maintenant, ou désactivez quand même et examinez-les plus tard dans Non attribué.",
+        "withoutOpenRecords": "{{name}} perdra l’accès immédiatement. Cette personne ne possède aucune affaire ouverte ni commande active.",
+        "summary": {
+            "deals_one": "{{count}} affaire ouverte",
+            "deals_many": "{{count}} d’affaires ouvertes",
+            "deals_other": "{{count}} affaires ouvertes",
+            "orders_one": "{{count}} commande active",
+            "orders_many": "{{count}} de commandes actives",
+            "orders_other": "{{count}} commandes actives",
+            "joiner": "{{deals}} et {{orders}}"
+        },
+        "newOwnerLabel": "Nouveau propriétaire",
+        "chooseMember": "Choisir un membre…",
+        "cancel": "Annuler",
+        "reassignAndDeactivate": "Réaffecter et désactiver",
+        "reassigning": "Réaffectation…",
+        "deactivateAnyway": "Désactiver quand même",
+        "deactivate": "Désactiver",
+        "deactivating": "Désactivation…"
+    },
+    "inviteMemberDialog": {
+        "title": "Inviter un membre",
+        "description": "Cette personne reçoit un e-mail avec un lien valable 7 jours. Rien ne change dans cet espace de travail tant qu’elle ne l’a pas accepté.",
+        "emailLabel": "Adresse e-mail",
+        "emailPlaceholder": "collègue@example.com",
+        "roleLabel": "Rôle",
+        "roleHint": "Les rôles peuvent être modifiés plus tard depuis cette liste.",
+        "cancel": "Annuler",
+        "send": "Envoyer l’invitation",
+        "sending": "Envoi…"
+    },
+    "apiTokens": {
+        "title": "Jetons API",
+        "description": "Les jetons permettent à un système externe de lire et d’écrire dans cet espace de travail via l’API publique. L’espace de travail provient du jeton lui-même — jamais de l’URL.",
+        "newTokenNotice": "Copiez ce jeton maintenant — il ne sera plus jamais affiché.",
+        "copy": "Copier",
+        "copied": "Copié",
+        "createTitle": "Créer un jeton",
+        "nameLabel": "Nom",
+        "nameHint": "À quoi sert ce jeton, par ex. « synchro ERP ».",
+        "scopesLegend": "Portées",
+        "scopesHint": "Un jeton ne peut faire que ce que ses portées autorisent — jamais plus que la personne qui l’a émis.",
+        "expiresLabel": "Expire le",
+        "expiresHint": "Facultatif. Laissez vide pour un jeton qui n’expire jamais de lui-même.",
+        "create": "Créer le jeton",
+        "creating": "Création…",
+        "tableCaption": "Jetons API",
+        "columns": {
+            "name": "Nom",
+            "scopes": "Portées",
+            "created": "Créé le",
+            "lastUsed": "Dernière utilisation",
+            "expires": "Expire le",
+            "status": "Statut",
+            "actions": "Actions"
+        },
+        "createdBy": "par {{name}}",
+        "status": {
+            "active": "actif",
+            "expired": "expiré",
+            "revoked": "révoqué"
+        },
+        "revokeButton": "Révoquer",
+        "revokeAriaLabel": "Révoquer le jeton {{name}}",
+        "empty": "Pas encore de jeton API. Créez-en un pour permettre à un système externe de communiquer avec cet espace de travail.",
+        "revokeDialog": {
+            "title": "Révoquer ce jeton ?",
+            "confirm": "Révoquer",
+            "body": "Toute intégration utilisant encore <strong>{{name}}</strong> cesse de fonctionner immédiatement. Cette action est irréversible — émettez plutôt un nouveau jeton."
+        }
+    },
+    "billing": {
+        "title": "Facturation et abonnement",
+        "canceledTitle": "Abonnement résilié",
+        "canceledBody": "L’abonnement Throughput de cet espace de travail a été résilié. Vos données sont conservées pendant 30 jours à partir de la résiliation, et cet espace de travail peut être réactivé à tout moment durant cette période, sans nouvel onboarding.",
+        "canceledOn": "Résilié le {{date}}.",
+        "reactivate": "Réactiver",
+        "currentPlan": "Offre actuelle",
+        "noActiveSubscription": "Aucun abonnement Stripe actif pour cet espace de travail.",
+        "noStatus": "Pas encore d’abonnement",
+        "status": {
+            "active": "actif",
+            "pastDue": "en retard de paiement",
+            "unpaid": "impayé",
+            "canceled": "résilié"
+        },
+        "paymentMethod": "Moyen de paiement",
+        "paymentMethodValue": "{{type}} se terminant par {{lastFour}}",
+        "noPaymentMethod": "Aucun moyen de paiement enregistré pour l’instant.",
+        "manageButton": "Gérer la facturation",
+        "invoiceHistory": "Historique des factures",
+        "noInvoices": "Pas encore de facture.",
+        "columns": {
+            "date": "Date",
+            "total": "Total",
+            "status": "Statut",
+            "view": "Voir"
+        },
+        "viewInvoice": "Voir",
+        "viewInvoiceSrLabel": "la facture du {{date}}",
+        "unknownDate": "une date inconnue"
+    },
+    "accessBlocked": {
+        "title": "Espace de travail indisponible",
+        "heading": "Cet espace de travail est indisponible",
+        "body": "L’abonnement Throughput de cet espace de travail a été résilié. Seul un $t(roles:owner) peut le réactiver — tout le reste, y compris votre accès, reste suspendu jusque-là.",
+        "askOwner": "Demandez à un $t(roles:owner) de le réactiver :",
+        "logout": "Se déconnecter"
+    },
+    "dataExport": {
+        "title": "Exporter les données",
+        "description": "Une copie complète et exploitable par machine de tout ce que cet espace de travail contient — comptes, contacts, affaires, commandes, factures, paiements et le journal d’activité.",
+        "status": {
+            "queued": "En file d’attente",
+            "processing": "Préparation",
+            "completed": "Prêt à télécharger",
+            "failed": "Échec",
+            "expired": "Expiré"
+        },
+        "request": "Demander l’export",
+        "requesting": "Demande en cours…",
+        "errorFallback": "L’export n’a pas pu être démarré.",
+        "progressMessage": "Préparation de votre archive. Cette page se met à jour automatiquement — vous recevrez aussi un e-mail quand elle sera prête.",
+        "retentionMessage_one": "Les liens de téléchargement restent valables {{count}} jour. Passé ce délai, le fichier est supprimé et la demande reste dans cette liste.",
+        "retentionMessage_many": "Les liens de téléchargement restent valables {{count}} de jours. Passé ce délai, le fichier est supprimé et la demande reste dans cette liste.",
+        "retentionMessage_other": "Les liens de téléchargement restent valables {{count}} jours. Passé ce délai, le fichier est supprimé et la demande reste dans cette liste.",
+        "tableCaption": "Demandes d’export de données",
+        "columns": {
+            "requested": "Demandé le",
+            "requestedBy": "Demandé par",
+            "status": "Statut",
+            "availableUntil": "Disponible jusqu’au",
+            "actions": "Actions"
+        },
+        "empty": "Aucun export n’a encore été demandé pour cet espace de travail.",
+        "downloadAriaLabel": "Télécharger l’export demandé le {{date}}",
+        "downloadButton": "Télécharger le ZIP"
+    },
+    "sentEmails": {
+        "title": "E-mails envoyés",
+        "description": "Chaque e-mail transactionnel que la démo publique a tenté d’envoyer — livré à la liste autorisée, ou intercepté (specs.md §22.3).",
+        "statusFilterLabel": "Statut",
+        "anyStatus": "Tous les statuts",
+        "status": {
+            "delivered": "Livré",
+            "intercepted": "Intercepté",
+            "partial": "Partiellement livré",
+            "failed": "Échec"
+        },
+        "recipientStatus": {
+            "delivered": "livré",
+            "intercepted": "intercepté"
+        },
+        "noRecipient": "(aucun destinataire « À »)",
+        "moreRecipients": "{{address}} +{{count}} autres",
+        "recipientsTotal_one": "{{count}} destinataire au total (à/cc/cci)",
+        "recipientsTotal_many": "{{count}} de destinataires au total (à/cc/cci)",
+        "recipientsTotal_other": "{{count}} destinataires au total (à/cc/cci)",
+        "view": "Voir",
+        "hide": "Masquer",
+        "detailAriaLabel": "{{action}} l’e-mail « {{subject}} » à {{recipient}}",
+        "from": "De",
+        "recipients": "Destinataires",
+        "linkRedacted": "Lien masqué",
+        "emailBodyEmpty": "Aucun contenu n’a été capturé pour cet e-mail.",
+        "emailBodyPreviewTitle": "Aperçu du corps de l’e-mail",
+        "tableCaption": "Journal des e-mails envoyés",
+        "columns": {
+            "when": "Quand",
+            "to": "À",
+            "subject": "Objet",
+            "mailer": "Mailer",
+            "status": "Statut",
+            "details": "Détails"
+        },
+        "empty": "Aucun e-mail n’a encore été envoyé ou intercepté."
+    },
+    "shipping": {
+        "title": "Paramètres de transporteur",
+        "description": "Choisissez le transporteur utilisé par cet espace de travail pour générer les étiquettes d’expédition, et ses identifiants.",
+        "active": "Actif",
+        "notActive": "Inactif",
+        "apiKeyLabel": "Clé API Shippo",
+        "apiKeyConfiguredHint": "Clé API configurée (se terminant par {{last}}). Laissez vide pour conserver la clé actuelle.",
+        "apiKeyMissingHint": "Aucune clé API configurée pour l’instant. Clé de test uniquement (shippo_test_...) — jamais une clé de production, dans aucun environnement de ce déploiement.",
+        "save": "Enregistrer",
+        "saveAndActivate": "Enregistrer et activer",
+        "activate": "Activer",
+        "saving": "Enregistrement…",
+        "actionAriaLabel": "{{action}} {{label}}"
+    },
+    "webhooks": {
+        "title": "État des webhooks",
+        "description": "Chaque événement Stripe reçu par ce déploiement, et ce qu’il en est advenu (specs.md §12.3, §25.2).",
+        "status": {
+            "received": "Reçu",
+            "processing": "Traitement",
+            "processed": "Traité",
+            "failed": "Échec",
+            "ignored": "Ignoré (pas le nôtre)"
+        },
+        "ignoredExplanation": "<strong>Ignoré n’est pas une erreur.</strong> Le bac à sable Stripe est partagé avec un autre projet, donc les événements appartenant à ce projet arrivent sur ce point de terminaison avec une signature parfaitement valide. Ils sont enregistrés puis laissés tels quels — aucun espace de travail ici ne correspond à leur client. Seul <danger>{{failedLabel}}</danger> nécessite une attention.",
+        "statusFilterLabel": "Statut",
+        "anyStatus": "Tous les statuts",
+        "tableCaption": "Événements webhook",
+        "columns": {
+            "received": "Reçu",
+            "source": "Source",
+            "event": "Événement",
+            "status": "Statut",
+            "detail": "Détail"
+        },
+        "empty": "Aucun événement webhook n’a encore été reçu."
     }
 }

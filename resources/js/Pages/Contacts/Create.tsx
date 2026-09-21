@@ -1,5 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import ContactForm from '@/Components/Contacts/ContactForm';
 import PageHeader from '@/Components/PageHeader';
 import AppLayout from '@/Layouts/AppLayout';
@@ -10,20 +11,21 @@ import type { ContactsCreatePageProps } from '@/types/generated';
  * dat click pe „Add contact" (`?account={id}`, citit server-side în controller).
  */
 export default function ContactsCreate() {
+    const { t } = useTranslation('contacts');
     const { account, workspace } = usePage<ContactsCreatePageProps>().props;
 
     return (
         <>
-            <Head title="New contact" />
+            <Head title={t('create.title')} />
 
             <div className="flex max-w-xl flex-col gap-6">
                 <PageHeader
-                    title="New contact"
-                    description={account ? `For ${account.name}.` : 'A person you work with — with or without a company yet.'}
+                    title={t('create.title')}
+                    description={account ? t('create.descriptionForAccount', { name: account.name }) : t('create.descriptionNoAccount')}
                 />
 
                 <ContactForm
-                    submitLabel="Create contact"
+                    submitLabel={t('create.submit')}
                     action={workspace ? `/${workspace.slug}/contacts` : '#'}
                     method="post"
                     initialAccount={account}

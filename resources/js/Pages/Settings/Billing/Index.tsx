@@ -1,9 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import Button from '@/Components/Button';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDateNumeric } from '@/lib/format';
 import type { BillingIndexPageProps } from '@/types/generated';
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -13,12 +17,32 @@ const STATUS_TONE: Record<string, BadgeTone> = {
     canceled: 'danger',
 };
 
-function statusLabel(status: string | null): string {
+/**
+ * Chei explicite pentru statusurile Stripe cunoscute — restul (trialing, incomplete…)
+ * cad pe formatarea generică anterioară (`replace(/_/g, ' ')`), netradusă: o enumerare
+ * completă a vocabularului Stripe ar depăși scopul Val 3 pentru un status marginal, rar
+ * întâlnit în demo.
+ */
+// Valorile din catalog sunt cu MINUSCULĂ, deliberat: înaintea acestui val ecranul randa
+// `status.replace(/_/g, ' ')` peste statusul Stripe brut, adică „past due", nu „Past due".
+// `e2e/specs/stripe-webhook-idempotency.spec.ts:101` caută `'past due'` cu `{ exact: true }`.
+// Capitalizarea ar fi o îmbunătățire reală — dar e o decizie de QA vizual (Val 5), nu ceva
+// de strecurat într-o extragere de string-uri, care prin definiție nu schimbă engleza.
+const STATUS_LABEL_KEYS: Record<string, string> = {
+    active: 'settings:billing.status.active',
+    past_due: 'settings:billing.status.pastDue',
+    unpaid: 'settings:billing.status.unpaid',
+    canceled: 'settings:billing.status.canceled',
+};
+
+function statusLabel(status: string | null, t: TFunction<'settings'>): string {
     if (status === null) {
-        return 'No subscription yet';
+        return t('settings:billing.noStatus');
     }
 
-    return status.replace(/_/g, ' ');
+    const key = STATUS_LABEL_KEYS[status];
+
+    return key ? t(key) : status.replace(/_/g, ' ');
 }
 
 /**
@@ -34,6 +58,8 @@ function statusLabel(status: string | null): string {
  */
 export default function BillingIndex() {
     const { subscription, invoices, can, workspace } = usePage<BillingIndexPageProps>().props;
+    const { t } = useTranslation('settings');
+    const locale = useLocale();
 
     // Cale absolută cu slug-ul workspace-ului curent — fără Ziggy în proiect (vezi
     // `AppLayout.tsx`), iar un URL relativ (`'portal'`) s-ar rezolva greșit față de calea
@@ -49,23 +75,19 @@ export default function BillingIndex() {
     if (subscription.accessLevel === 'blocked') {
         return (
             <>
-                <Head title="Subscription canceled" />
+                <Head title={t('settings:billing.canceledTitle')} />
 
                 <div className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface p-6">
-                    <StatusBadge tone="danger">Subscription canceled</StatusBadge>
-                    <p className="text-sm text-text-2">
-                        This workspace&apos;s Throughput subscription was canceled. Your data is kept for 30 days
-                        from cancellation and this workspace can be reactivated at any time during that window,
-                        with no re-onboarding.
-                    </p>
+                    <StatusBadge tone="danger">{t('settings:billing.canceledTitle')}</StatusBadge>
+                    <p className="text-sm text-text-2">{t('settings:billing.canceledBody')}</p>
                     {subscription.canceledAt && (
                         <p className="text-xs text-text-2">
-                            Canceled on {new Date(subscription.canceledAt).toLocaleDateString()}.
+                            {t('settings:billing.canceledOn', { date: formatDateNumeric(subscription.canceledAt, locale) })}
                         </p>
                     )}
                     {can.manage && (
                         <Button variant="primary" onClick={openPortal}>
-                            Reactivate
+                            {t('settings:billing.reactivate')}
                         </Button>
                     )}
                 </div>
@@ -75,37 +97,40 @@ export default function BillingIndex() {
 
     return (
         <>
-            <Head title="Billing & Subscription" />
+            <Head title={t('settings:billing.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="Billing & Subscription" />
+                <PageHeader title={t('settings:billing.title')} />
 
                 <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-sm font-medium text-text">Current plan</h2>
+                            <h2 className="text-sm font-medium text-text">{t('settings:billing.currentPlan')}</h2>
                             <p className="mt-1 text-sm text-text-2">
-                                {subscription.plan ?? 'No active Stripe subscription for this workspace.'}
+                                {subscription.plan ?? t('settings:billing.noActiveSubscription')}
                             </p>
                         </div>
                         <StatusBadge tone={STATUS_TONE[subscription.status ?? ''] ?? 'neutral'}>
-                            {statusLabel(subscription.status)}
+                            {statusLabel(subscription.status, t)}
                         </StatusBadge>
                     </div>
 
                     <div>
-                        <h2 className="text-sm font-medium text-text">Payment method</h2>
+                        <h2 className="text-sm font-medium text-text">{t('settings:billing.paymentMethod')}</h2>
                         <p className="mt-1 text-sm text-text-2">
                             {subscription.paymentMethod
-                                ? `${subscription.paymentMethod.type} ending in ${subscription.paymentMethod.lastFour ?? '????'}`
-                                : 'No payment method on file yet.'}
+                                ? t('settings:billing.paymentMethodValue', {
+                                      type: subscription.paymentMethod.type,
+                                      lastFour: subscription.paymentMethod.lastFour ?? '????',
+                                  })
+                                : t('settings:billing.noPaymentMethod')}
                         </p>
                     </div>
 
                     {can.manage && (
                         <div>
                             <Button variant="secondary" onClick={openPortal}>
-                                Manage billing
+                                {t('settings:billing.manageButton')}
                             </Button>
                         </div>
                     )}
@@ -113,11 +138,11 @@ export default function BillingIndex() {
 
                 <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
                     <h2 id="invoice-history-heading" className="text-sm font-medium text-text">
-                        Invoice history
+                        {t('settings:billing.invoiceHistory')}
                     </h2>
 
                     {invoices.length === 0 ? (
-                        <p className="text-sm text-text-2">No invoices yet.</p>
+                        <p className="text-sm text-text-2">{t('settings:billing.noInvoices')}</p>
                     ) : (
                         /* `aria-labelledby` către headingul vizibil dedicat de deasupra, nu un
                            `<caption>` separat — excepția din `.ai/rules/frontend.md`. Tabelul
@@ -127,11 +152,11 @@ export default function BillingIndex() {
                         <table className="w-full text-left text-sm" aria-labelledby="invoice-history-heading">
                             <thead>
                                 <tr className="border-b border-border-soft text-text-2">
-                                    <th scope="col" className="py-2 pr-4 font-medium">Date</th>
-                                    <th scope="col" className="py-2 pr-4 font-medium">Total</th>
-                                    <th scope="col" className="py-2 pr-4 font-medium">Status</th>
+                                    <th scope="col" className="py-2 pr-4 font-medium">{t('settings:billing.columns.date')}</th>
+                                    <th scope="col" className="py-2 pr-4 font-medium">{t('settings:billing.columns.total')}</th>
+                                    <th scope="col" className="py-2 pr-4 font-medium">{t('settings:billing.columns.status')}</th>
                                     <th scope="col" className="py-2 font-medium">
-                                        <span className="sr-only">View</span>
+                                        <span className="sr-only">{t('settings:billing.columns.view')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -139,7 +164,7 @@ export default function BillingIndex() {
                                 {invoices.map((invoice) => (
                                     <tr key={invoice.id} className="border-b border-border-soft last:border-0">
                                         <td className="py-2 pr-4 text-text-2">
-                                            {invoice.date ? new Date(invoice.date).toLocaleDateString() : '—'}
+                                            {invoice.date ? formatDateNumeric(invoice.date, locale) : '—'}
                                         </td>
                                         {/* Cifre tabulare — `.ai/rules/frontend.md` */}
                                         <td className="numeric py-2 pr-4 text-text">{invoice.total}</td>
@@ -153,11 +178,14 @@ export default function BillingIndex() {
                                                     className="text-accent-text underline-offset-2 hover:underline"
                                                 >
                                                     {/* SC 2.4.4 — „View" identic pe fiecare rând. */}
-                                                    View
+                                                    {t('settings:billing.viewInvoice')}
                                                     <span className="sr-only">
                                                         {' '}
-                                                        the invoice from{' '}
-                                                        {invoice.date ? new Date(invoice.date).toLocaleDateString() : 'an unknown date'}
+                                                        {t('settings:billing.viewInvoiceSrLabel', {
+                                                            date: invoice.date
+                                                                ? formatDateNumeric(invoice.date, locale)
+                                                                : t('settings:billing.unknownDate'),
+                                                        })}
                                                     </span>
                                                 </a>
                                             )}

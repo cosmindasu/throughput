@@ -206,8 +206,8 @@ return [
         'workspace_delete_disabled' => 'La suppression d’un espace de travail est désactivée dans la démo publique. Les données de démo sont réinitialisées chaque nuit à 03h00 UTC.',
         'members_deactivate_disabled' => 'La désactivation d’un membre est désactivée dans la démo publique — ce sont des identifiants partagés utilisés par d’autres visiteurs.',
         // NATIV: „Owner" non traduit, cohérent avec `members.role_updated` ci-dessus.
-        'members_change_role_disabled' => 'Le changement de rôle d’un membre est désactivé dans la démo publique — ce sont des identifiants partagés utilisés par d’autres visiteurs. (Un espace de travail doit toujours garder au moins un Owner actif.)',
-        'members_remove_disabled' => 'La suppression d’un membre est désactivée dans la démo publique — ce sont des identifiants partagés utilisés par d’autres visiteurs. (Un espace de travail doit toujours garder au moins un Owner actif.)',
+        'members_change_role_disabled' => 'Le changement de rôle d’un membre est désactivé dans la démo publique — ce sont des identifiants partagés utilisés par d’autres visiteurs. (Un espace de travail doit toujours garder au moins un :owner actif.)',
+        'members_remove_disabled' => 'La suppression d’un membre est désactivée dans la démo publique — ce sont des identifiants partagés utilisés par d’autres visiteurs. (Un espace de travail doit toujours garder au moins un :owner actif.)',
         'api_tokens_revoke_all_disabled' => 'La révocation de tous les jetons API en une fois est désactivée dans la démo publique. Révoquez les jetons un par un à la place.',
         'subscription_cancel_disabled' => 'L’annulation de l’abonnement est désactivée dans la démo publique. La facturation fonctionne en mode test Stripe ici, donc il n’y a rien de réel à annuler.',
     ],

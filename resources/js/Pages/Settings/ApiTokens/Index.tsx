@@ -1,12 +1,16 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import EmptyState from '@/Components/EmptyState';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { getDateTimeFormat } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 import type { ApiTokenAbilityOption, ApiTokenRow, ApiTokensIndexPageProps, ApiTokenStatus } from '@/types/generated';
 
 const statusTones: Record<ApiTokenStatus, BadgeTone> = {
@@ -15,18 +19,25 @@ const statusTones: Record<ApiTokenStatus, BadgeTone> = {
     revoked: 'neutral',
 };
 
-function formatWhen(value: string | null): string {
+/**
+ * `.ai/rules/frontend.md` / brief Val 3 — `OPTIONS` păstrat ca `const` de modul, cu
+ * `hour: 'numeric'` EXACT cum era (nu `2-digit`): produce „5:09 PM", nu „05:09 PM" — cei
+ * 297 de selectori E2E pe text fixați pe `en` depind de forma asta.
+ */
+const WHEN_OPTIONS: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+};
+
+function formatWhen(value: string | null, locale: AppLocale): string {
     if (value === null) {
         return '—';
     }
 
-    return new Date(value).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+    return getDateTimeFormat(locale, WHEN_OPTIONS).format(new Date(value));
 }
 
 /**
@@ -38,6 +49,7 @@ function formatWhen(value: string | null): string {
  * `.ai/rules/frontend.md` („declanșatorul dispare după succes"), aplicată preventiv.
  */
 function NewTokenNotice({ token }: { token: string }) {
+    const { t } = useTranslation('settings');
     const ref = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
 
@@ -52,9 +64,7 @@ function NewTokenNotice({ token }: { token: string }) {
             role="status"
             className="flex flex-col gap-2 rounded-lg border border-accent-text bg-accent-tint p-4"
         >
-            <p className="text-sm font-medium text-accent-text">
-                Copy this token now — it is never shown again.
-            </p>
+            <p className="text-sm font-medium text-accent-text">{t('settings:apiTokens.newTokenNotice')}</p>
             <div className="flex flex-wrap items-center gap-2">
                 <code className="numeric min-w-0 flex-1 overflow-x-auto rounded-md border border-border bg-surface px-3 py-2 text-xs text-text">
                     {token}
@@ -65,7 +75,7 @@ function NewTokenNotice({ token }: { token: string }) {
                         setCopied(true);
                     }}
                 >
-                    {copied ? 'Copied' : 'Copy'}
+                    {copied ? t('settings:apiTokens.copied') : t('settings:apiTokens.copy')}
                 </Button>
             </div>
         </div>
@@ -73,6 +83,7 @@ function NewTokenNotice({ token }: { token: string }) {
 }
 
 function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOption[]; baseUrl: string }) {
+    const { t } = useTranslation('settings');
     const form = useForm<{ name: string; abilities: string[]; expires_at: string }>({
         name: '',
         abilities: [],
@@ -99,13 +110,13 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
                 });
             }}
         >
-            <h2 className="text-base font-semibold text-text">Create a token</h2>
+            <h2 className="text-base font-semibold text-text">{t('settings:apiTokens.createTitle')}</h2>
 
             <Field
-                label="Name"
+                label={t('settings:apiTokens.nameLabel')}
                 required
                 error={form.errors.name}
-                hint='What the token is for, e.g. "ERP sync".'
+                hint={t('settings:apiTokens.nameHint')}
             >
                 {(control) => (
                     <input
@@ -120,15 +131,13 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
 
             <fieldset className="flex flex-col gap-2">
                 <legend className="text-sm font-medium text-text">
-                    Scopes
+                    {t('settings:apiTokens.scopesLegend')}
                     <span aria-hidden="true" className="text-danger">
                         {' '}
                         *
                     </span>
                 </legend>
-                <p className="text-xs text-text-3">
-                    A token can only do what its scopes allow — and never more than the person who issued it.
-                </p>
+                <p className="text-xs text-text-3">{t('settings:apiTokens.scopesHint')}</p>
                 <div className="grid gap-1 sm:grid-cols-2">
                     {abilities.map((ability) => (
                         <label key={ability.value} className="flex items-start gap-2 text-sm text-text">
@@ -153,9 +162,9 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
             </fieldset>
 
             <Field
-                label="Expires at"
+                label={t('settings:apiTokens.expiresLabel')}
                 error={form.errors.expires_at}
-                hint="Optional. Leave empty for a token that never expires on its own."
+                hint={t('settings:apiTokens.expiresHint')}
             >
                 {(control) => (
                     <input
@@ -175,7 +184,7 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
                     aria-disabled={form.processing || undefined}
                     onClick={form.processing ? (event) => event.preventDefault() : undefined}
                 >
-                    {form.processing ? 'Creating…' : 'Create token'}
+                    {form.processing ? t('settings:apiTokens.creating') : t('settings:apiTokens.create')}
                 </Button>
             </div>
         </form>
@@ -190,6 +199,8 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
  */
 export default function ApiTokensIndex() {
     const { tokens, abilities, plainTextToken, can, workspace } = usePage<ApiTokensIndexPageProps>().props;
+    const { t } = useTranslation('settings');
+    const locale = useLocale();
     const [pendingRevoke, setPendingRevoke] = useState<ApiTokenRow | null>(null);
     const revokeForm = useForm({});
     // Segmentul de workspace se pune explicit în URL, ca pe toate ecranele cu
@@ -198,13 +209,10 @@ export default function ApiTokensIndex() {
 
     return (
         <>
-            <Head title="API tokens" />
+            <Head title={t('settings:apiTokens.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader
-                    title="API tokens"
-                    description="Tokens let an outside system read and write this workspace through the public API. The workspace comes from the token itself — never from the URL."
-                />
+                <PageHeader title={t('settings:apiTokens.title')} description={t('settings:apiTokens.description')} />
 
                 {plainTextToken && <NewTokenNotice token={plainTextToken} />}
 
@@ -213,17 +221,17 @@ export default function ApiTokensIndex() {
                 {tokens.length > 0 ? (
                     <div className="overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-left text-sm">
-                            <caption className="sr-only">API tokens</caption>
+                            <caption className="sr-only">{t('settings:apiTokens.tableCaption')}</caption>
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">Name</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Scopes</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Created</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Last used</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Expires</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Status</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.name')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.scopes')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.created')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.lastUsed')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.expires')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('settings:apiTokens.columns.status')}</th>
                                     <th scope="col" className="px-4 py-2 font-medium">
-                                        <span className="sr-only">Actions</span>
+                                        <span className="sr-only">{t('settings:apiTokens.columns.actions')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -241,22 +249,26 @@ export default function ApiTokensIndex() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-text-2">
-                                            <span className="numeric">{formatWhen(token.createdAt)}</span>
-                                            {token.createdBy && <div className="text-xs">by {token.createdBy}</div>}
+                                            <span className="numeric">{formatWhen(token.createdAt, locale)}</span>
+                                            {token.createdBy && (
+                                                <div className="text-xs">{t('settings:apiTokens.createdBy', { name: token.createdBy })}</div>
+                                            )}
                                         </td>
-                                        <td className="px-4 py-3 text-text-2 numeric">{formatWhen(token.lastUsedAt)}</td>
-                                        <td className="px-4 py-3 text-text-2 numeric">{formatWhen(token.expiresAt)}</td>
+                                        <td className="px-4 py-3 text-text-2 numeric">{formatWhen(token.lastUsedAt, locale)}</td>
+                                        <td className="px-4 py-3 text-text-2 numeric">{formatWhen(token.expiresAt, locale)}</td>
                                         <td className="px-4 py-3">
-                                            <StatusBadge tone={statusTones[token.status]}>{token.status}</StatusBadge>
+                                            <StatusBadge tone={statusTones[token.status]}>
+                                                {t(`settings:apiTokens.status.${token.status}`)}
+                                            </StatusBadge>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {can.revoke && token.status !== 'revoked' && (
                                                 <Button
                                                     variant="danger"
-                                                    aria-label={`Revoke token ${token.name}`}
+                                                    aria-label={t('settings:apiTokens.revokeAriaLabel', { name: token.name })}
                                                     onClick={() => setPendingRevoke(token)}
                                                 >
-                                                    Revoke
+                                                    {t('settings:apiTokens.revokeButton')}
                                                 </Button>
                                             )}
                                         </td>
@@ -266,14 +278,14 @@ export default function ApiTokensIndex() {
                         </table>
                     </div>
                 ) : (
-                    <EmptyState message="No API tokens yet. Create one to let an outside system talk to this workspace." />
+                    <EmptyState message={t('settings:apiTokens.empty')} />
                 )}
             </div>
 
             <ConfirmDialog
                 open={pendingRevoke !== null}
-                title="Revoke this token?"
-                confirmLabel="Revoke"
+                title={t('settings:apiTokens.revokeDialog.title')}
+                confirmLabel={t('settings:apiTokens.revokeDialog.confirm')}
                 confirmVariant="danger"
                 processing={revokeForm.processing}
                 onClose={() => setPendingRevoke(null)}
@@ -289,8 +301,12 @@ export default function ApiTokensIndex() {
                 }}
             >
                 <p className="text-sm text-text-2">
-                    Any integration still using <strong className="text-text">{pendingRevoke?.name}</strong> stops working
-                    immediately. This cannot be undone — issue a new token instead.
+                    <Trans
+                        t={t}
+                        i18nKey="settings:apiTokens.revokeDialog.body"
+                        values={{ name: pendingRevoke?.name ?? '' }}
+                        components={{ strong: <strong className="text-text" /> }}
+                    />
                 </p>
             </ConfirmDialog>
         </>

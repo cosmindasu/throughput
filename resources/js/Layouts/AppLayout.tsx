@@ -1,5 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, type PropsWithChildren } from 'react';
+import type { TFunction } from 'i18next';
+import { useEffect, useMemo, useRef, type PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 import DemoBanner from '@/Components/DemoBanner';
 import FlashMessages from '@/Components/FlashMessages';
 import GlobalSearch from '@/Components/GlobalSearch';
@@ -21,29 +23,33 @@ interface NavItem {
  * dezactivat (FR-RBAC-01, §7.3). Căile sunt literale (nu există Ziggy în
  * proiect — vezi nota din raport), construite după convenția de rute web din
  * plan-implementare.md §0 (`/{workspace}/{modul}`).
+ *
+ * Fabrică parametrizată pe `t` (§6, brief Val 3) — tabloul trăia la nivel de modul, unde
+ * `t()` nu are o componentă montată de care să se lege; memoizată în corpul componentei,
+ * mai jos.
  */
-const NAV_ITEMS: NavItem[] = [
-    { label: 'Accounts', permission: 'accounts.view', href: (w) => `/${w}/accounts` },
-    { label: 'Contacts', permission: 'contacts.view', href: (w) => `/${w}/contacts` },
-    { label: 'Deals', permission: 'deals.view', href: (w) => `/${w}/deals` },
-    { label: 'Products', permission: 'products.view', href: (w) => `/${w}/products` },
-    { label: 'Orders', permission: 'orders.view', href: (w) => `/${w}/orders` },
-    { label: 'Invoices', permission: 'invoices.view', href: (w) => `/${w}/invoices` },
-    { label: 'Reports', permission: 'reports.view', href: (w) => `/${w}/reports` },
+const buildNavItems = (t: TFunction): NavItem[] => [
+    { label: t('common:nav.accounts'), permission: 'accounts.view', href: (w) => `/${w}/accounts` },
+    { label: t('common:nav.contacts'), permission: 'contacts.view', href: (w) => `/${w}/contacts` },
+    { label: t('common:nav.deals'), permission: 'deals.view', href: (w) => `/${w}/deals` },
+    { label: t('common:nav.products'), permission: 'products.view', href: (w) => `/${w}/products` },
+    { label: t('common:nav.orders'), permission: 'orders.view', href: (w) => `/${w}/orders` },
+    { label: t('common:nav.invoices'), permission: 'invoices.view', href: (w) => `/${w}/invoices` },
+    { label: t('common:nav.reports'), permission: 'reports.view', href: (w) => `/${w}/reports` },
     // §7.4, rândul „Import CSV": CRUD pentru Owner/Manager, „—" pentru Agent și Viewer —
     // singura intrare din navigație pe care Agentul NU o vede deloc, alături de Unassigned.
-    { label: 'Imports', permission: 'imports.view', href: (w) => `/${w}/imports` },
+    { label: t('common:nav.imports'), permission: 'imports.view', href: (w) => `/${w}/imports` },
     // FR-TEN-05 — Owner/Manager (`unassigned.view`, §6.4.1). Indicatorul numeric se
     // randează separat, mai jos, lângă acest link — `unassignedRecordsCount` e un prop
     // comun distinct, nu parte din `navigation`.
-    { label: 'Unassigned', permission: 'unassigned.view', href: (w) => `/${w}/unassigned` },
+    { label: t('common:nav.unassigned'), permission: 'unassigned.view', href: (w) => `/${w}/unassigned` },
     // FR-AUD-03, §17.3 — jurnalul la nivel de tenant. Permisiunea e una COMBINATĂ, calculată
     // server-side în `HandleInertiaRequests::navigationPermissions()`: Owner/Manager au
     // `activity_log.view` (tot tenantul), Agentul are `activity_log.view_own` (doar acțiunile
     // proprii), iar `NavItem` verifică o singură cheie per intrare. Viewer-ul n-are niciuna,
     // deci nu vede linkul (§7.4).
-    { label: 'Activity Log', permission: 'activity_log.any_view', href: (w) => `/${w}/activity` },
-    { label: 'Settings', permission: 'settings.view', href: (w) => `/${w}/settings` },
+    { label: t('common:nav.activityLog'), permission: 'activity_log.any_view', href: (w) => `/${w}/activity` },
+    { label: t('common:nav.settings'), permission: 'settings.view', href: (w) => `/${w}/settings` },
 ];
 
 /**
@@ -53,9 +59,11 @@ const NAV_ITEMS: NavItem[] = [
  * recalculat din rolul brut al utilizatorului (§1.2 regula 2, FR-RBAC-01).
  */
 export default function AppLayout({ children }: PropsWithChildren) {
+    const { t } = useTranslation('common');
     const page = usePage();
     const { auth, workspace, workspaces, navigation, unassignedRecordsCount } = page.props;
     const { url } = page;
+    const navItems = useMemo(() => buildNavItems(t), [t]);
 
     const logout = () => {
         router.post('/logout');
@@ -98,7 +106,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-accent-on focus:outline-2 focus:outline-offset-2 focus:outline-focus"
             >
-                Skip to content
+                {t('common:nav.skipToContent')}
             </a>
 
             <header className="border-b border-border bg-surface">
@@ -125,15 +133,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                 onClick={logout}
                                 className="rounded-md border border-control px-3 py-1.5 text-sm text-text-2 transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             >
-                                Log out
+                                {t('common:nav.logOut')}
                             </button>
                         </div>
                     )}
                 </div>
 
-                <nav aria-label="Primary" className="border-t border-border-soft">
+                <nav aria-label={t('common:nav.primary')} className="border-t border-border-soft">
                     <div className="mx-auto flex max-w-7xl flex-wrap gap-1 px-4 sm:px-6 lg:px-8">
-                        {NAV_ITEMS.filter((item) => navigation[item.permission]).map((item) => {
+                        {navItems.filter((item) => navigation[item.permission]).map((item) => {
                             const href = workspace ? item.href(workspace.slug) : '#';
                             const active = workspace ? url.startsWith(item.href(workspace.slug)) : false;
 
@@ -148,10 +156,13 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                     // Eticheta accesibilă include numărul o SINGURĂ dată (nu și pe
                                     // badge-ul vizual, marcat `aria-hidden`) — altfel un cititor de
                                     // ecran ar anunța „Unassigned 3 unassigned records", redundant.
-                                    // Acord de număr: „1 record needs…" / „N records need…".
+                                    // Acordul de plural (engleză: 2 categorii; franceză: 3, cu „many"
+                                    // pentru milioane exacte) e motorul CLDR, nu concatenare de mână
+                                    // (capcana documentată în ADR-022 / brief Val 3, §3) — șirul întreg
+                                    // e o singură cheie `_one`/`_many`/`_other`, nu două flexiuni lipite.
                                     aria-label={
                                         showUnassignedBadge
-                                            ? `${item.label}, ${unassignedRecordsCount} record${unassignedRecordsCount === 1 ? '' : 's'} need${unassignedRecordsCount === 1 ? 's' : ''} a new owner`
+                                            ? t('common:nav.unassignedBadge', { label: item.label, count: unassignedRecordsCount })
                                             : undefined
                                     }
                                     className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${

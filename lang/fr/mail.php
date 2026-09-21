@@ -11,11 +11,17 @@
  * text din produs pentru un client real, spre deosebire de o etichetă scurtă de UI.
  *
  * Decizii de traducere notate aici, ca să nu pară scăpări:
- *   - „Owner"/„Manager" (rolurile din `membership_records_need_new_owner.footer`) rămân
- *     NETRADUSE, deliberat: numele de rol nu e în perimetrul acestui catalog (nu există
- *     încă un `lang/{locale}/roles.php`, iar `App\Support\Permissions` nu e un fișier al
- *     acestui lot) — traducerea lor izolată aici, fără sincronizare cu restul aplicației,
- *     ar crea exact riscul de „citat UI dezacordat" documentat în plan (Capcana 1, Val 4).
+ *   - „Owner"/„Manager" din `membership_records_need_new_owner.footer` NU mai sunt scrise
+ *     literal aici. Nota anterioară le lăsa netraduse pentru că lipsea o sursă unică —
+ *     `lang/{locale}/roles.php` a fost adăugat între timp (Valul 3, decizie a
+ *     proprietarului din 2026-09-21), iar linia primește acum numele prin înlocuitorii
+ *     `:owner`/`:manager`, rezolvați din acel fișier în
+ *     `MembershipRecordsNeedNewOwnerNotification`. Riscul de „citat dezacordat" pe care
+ *     nota îl invoca (Capcana 1, Val 4) dispare tocmai fiindcă textul nu mai e o copie.
+ *   - Fraza e la SINGULAR („toute personne ayant le rôle …"), nu la plural ca engleza:
+ *     pluralul francez al rolului `agent` („Commercial" → „Commerciaux") e neregulat, iar
+ *     o frază construită pe forma de singular rămâne corectă indiferent ce nume primesc
+ *     rolurile la revizia de traducere.
  *   - `membership_records_need_new_owner.action` NU citează literal eticheta de navigare
  *     „Unassigned" (care aparține cataloagelor `resources/js/locales/`, Val 3, nefăcut
  *     încă) — descrie acțiunea, nu pretinde să reproducă exact un buton care ar putea fi
@@ -84,7 +90,7 @@ return [
         // genre pour ne rien casser si l'une des deux phrases change de forme.
         'unassigned' => ':deals et :orders sont désormais sans propriétaire.',
         'action' => 'Consulter les dossiers non attribués',
-        'footer' => 'Rien n\'a été perdu — ces dossiers restent visibles par tous les Owners et Managers jusqu\'à ce que quelqu\'un les réattribue.',
+        'footer' => 'Rien n\'a été perdu — ces dossiers restent visibles par toute personne ayant le rôle :owner ou :manager, jusqu\'à ce que quelqu\'un les réattribue.',
     ],
 
 ];

@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface WorkspaceOption {
     slug: string;
@@ -30,6 +31,7 @@ interface WorkspaceSwitcherProps {
  * implementabil aici (semnalat în raport).
  */
 export default function WorkspaceSwitcher({ current, workspaces }: WorkspaceSwitcherProps) {
+    const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -139,7 +141,7 @@ export default function WorkspaceSwitcher({ current, workspaces }: WorkspaceSwit
                 onKeyDown={onButtonKeyDown}
                 className="flex items-center gap-2 rounded-md border border-control px-3 py-1.5 text-sm text-text transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-                <span className="max-w-[16rem] truncate">{current?.name ?? 'Select workspace'}</span>
+                <span className="max-w-[16rem] truncate">{current?.name ?? t('common:workspaceSwitcher.placeholder')}</span>
                 <span aria-hidden="true">▾</span>
             </button>
 
@@ -149,7 +151,7 @@ export default function WorkspaceSwitcher({ current, workspaces }: WorkspaceSwit
                     ref={listRef}
                     role="listbox"
                     tabIndex={-1}
-                    aria-label="Workspaces"
+                    aria-label={t('common:workspaceSwitcher.label')}
                     aria-activedescendant={workspaces[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined}
                     onKeyDown={onListKeyDown}
                     className="absolute left-0 z-20 mt-1 max-h-64 w-64 overflow-auto rounded-md border border-border bg-overlay py-1 shadow-lg focus:outline-none"

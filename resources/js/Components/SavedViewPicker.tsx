@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import { controlClass } from '@/Components/Form/Field';
@@ -29,6 +30,7 @@ interface SavedViewPickerProps {
  * focusul pe declanșator, click în afara panoului la fel (ca la `WorkspaceSwitcher`).
  */
 export default function SavedViewPicker({ resourceType, current, columns }: SavedViewPickerProps) {
+    const { t } = useTranslation('common');
     const { workspace } = usePage().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
@@ -125,7 +127,8 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
                 onClick={() => (open ? closePanel() : setOpen(true))}
                 className="flex items-center gap-2 rounded-md border border-control px-3 py-1.5 text-sm text-text transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-                <span className="max-w-[12rem] truncate">{active ? active.name : 'Views'}</span>
+                {/* `active.name` e conținut scris de utilizator (FR-I18N-06) — niciodată tradus. */}
+                <span className="max-w-[12rem] truncate">{active ? active.name : t('common:savedViews.trigger')}</span>
                 <span aria-hidden="true">▾</span>
             </button>
 
@@ -137,12 +140,12 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
                     className="absolute right-0 z-20 mt-1 w-80 rounded-md border border-border bg-overlay p-2 text-sm shadow-lg"
                 >
                     {data === null ? (
-                        <p className="px-2 py-3 text-text-3">Loading…</p>
+                        <p className="px-2 py-3 text-text-3">{t('common:states.loading')}</p>
                     ) : (
                         <>
                             <SavedViewGroup
-                                title="My views"
-                                emptyMessage="No private views yet."
+                                title={t('common:savedViews.myViews')}
+                                emptyMessage={t('common:savedViews.noPrivateViews')}
                                 views={data.mine}
                                 activeId={active?.id ?? null}
                                 defaultId={data.defaultId}
@@ -152,8 +155,8 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
                                 onSetDefault={setDefault}
                             />
                             <SavedViewGroup
-                                title="Team views"
-                                emptyMessage="No team views yet."
+                                title={t('common:savedViews.teamViews')}
+                                emptyMessage={t('common:savedViews.noTeamViews')}
                                 views={data.team}
                                 activeId={active?.id ?? null}
                                 defaultId={data.defaultId}
@@ -174,7 +177,7 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
                                 setSaveDialogOpen(true);
                             }}
                         >
-                            Save view
+                            {t('common:savedViews.saveView')}
                         </Button>
                     </div>
                 </div>
@@ -206,16 +209,18 @@ export default function SavedViewPicker({ resourceType, current, columns }: Save
 
             <ConfirmDialog
                 open={pendingDelete !== null}
-                title={`Delete "${pendingDelete?.name ?? ''}"?`}
+                // `pendingDelete.name` e conținut scris de utilizator (FR-I18N-06) —
+                // interpolat, nu tradus.
+                title={t('common:savedViews.deleteTitle', { name: pendingDelete?.name ?? '' })}
                 onConfirm={deleteView}
-                confirmLabel="Delete"
+                confirmLabel={t('common:actions.delete')}
                 confirmVariant="danger"
                 processing={deleting}
                 onClose={() => setPendingDelete(null)}
             >
                 {pendingDelete?.visibility === 'team'
-                    ? 'This removes the view for everyone on the team who can see it. This can’t be undone.'
-                    : 'This can’t be undone.'}
+                    ? t('common:savedViews.deleteBodyTeam')
+                    : t('common:savedViews.deleteBodyPrivate')}
             </ConfirmDialog>
         </div>
     );
@@ -255,6 +260,8 @@ interface SavedViewGroupProps {
 }
 
 function SavedViewGroup({ title, emptyMessage, views, activeId, defaultId, applyHref, onRename, onDelete, onSetDefault }: SavedViewGroupProps) {
+    const { t } = useTranslation('common');
+
     return (
         <div className="mb-2">
             <p className="px-2 pt-1 pb-1 text-xs font-medium tracking-wide text-text-3 uppercase">{title}</p>
@@ -281,25 +288,29 @@ function SavedViewGroup({ title, emptyMessage, views, activeId, defaultId, apply
                                     `sr-only` DUPĂ textul vizibil, deci numele accesibil ÎNCEPE tot
                                     cu el (SC 2.5.3 Label in Name). `title` rămâne ce era: un
                                     tooltip de mouse, nu numele accesibil — textul îl are deja. */}
+                                {/* `view.name` e conținut scris de utilizator (FR-I18N-06) — folosit
+                                    doar ca discriminator `sr-only`, niciodată tradus. */}
                                 <div className="flex shrink-0 items-center gap-2 text-xs text-text-3">
                                     <button
                                         type="button"
                                         aria-pressed={isDefault}
                                         onClick={() => onSetDefault(isDefault ? null : view)}
                                         className={`rounded hover:text-text ${isDefault ? 'text-accent-text' : ''}`}
-                                        title={isDefault ? 'Remove as default' : 'Set as default'}
+                                        title={isDefault ? t('common:savedViews.removeDefaultTooltip') : t('common:savedViews.setDefaultTooltip')}
                                     >
-                                        {isDefault ? '★ Default' : '☆ Set default'}
+                                        {isDefault ? t('common:savedViews.defaultLabel') : t('common:savedViews.setDefaultLabel')}
                                         <span className="sr-only"> — {view.name}</span>
                                     </button>
                                     {view.canUpdate && (
                                         <button type="button" onClick={() => onRename(view)} className="rounded hover:text-text">
-                                            Rename<span className="sr-only"> {view.name}</span>
+                                            {t('common:actions.rename')}
+                                            <span className="sr-only"> {view.name}</span>
                                         </button>
                                     )}
                                     {view.canDelete && (
                                         <button type="button" onClick={() => onDelete(view)} className="rounded hover:text-danger">
-                                            Delete<span className="sr-only"> {view.name}</span>
+                                            {t('common:actions.delete')}
+                                            <span className="sr-only"> {view.name}</span>
                                         </button>
                                     )}
                                 </div>
@@ -329,6 +340,7 @@ interface SaveViewDialogProps {
  * revalidează totul prin `ResourceList::fromState()` la salvare (§ StoreSavedViewRequest).
  */
 function SaveViewDialog({ open, resourceType, base, current, columns, canCreateTeam, onClose, onSaved }: SaveViewDialogProps) {
+    const { t } = useTranslation('common');
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const [name, setName] = useState('');
@@ -375,7 +387,7 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
             });
             onSaved();
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'Could not save this view.');
+            setError(caught instanceof ApiError ? caught.message : t('common:savedViews.saveError'));
         } finally {
             setProcessing(false);
         }
@@ -392,12 +404,12 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
         >
             <form onSubmit={submit} className="w-[min(26rem,90vw)] p-5">
                 <h2 id={titleId} className="text-base font-semibold text-text">
-                    Save view
+                    {t('common:savedViews.saveView')}
                 </h2>
 
                 <div className="mt-3 flex flex-col gap-1">
                     <label htmlFor={`${titleId}-name`} className="text-sm font-medium text-text">
-                        Name
+                        {t('common:savedViews.nameLabel')}
                     </label>
                     <input
                         id={`${titleId}-name`}
@@ -407,12 +419,12 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         className={controlClass}
-                        placeholder="e.g. My open deals closing this month"
+                        placeholder={t('common:savedViews.namePlaceholder')}
                     />
                 </div>
 
                 <fieldset className="mt-3">
-                    <legend className="text-sm font-medium text-text">Visibility</legend>
+                    <legend className="text-sm font-medium text-text">{t('common:savedViews.visibilityLegend')}</legend>
                     <div className="mt-1 flex flex-col gap-1 text-sm">
                         <label className="flex items-center gap-2">
                             <input
@@ -422,7 +434,7 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
                                 onChange={() => setVisibility('private')}
                                 className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                             />
-                            Private — only you
+                            {t('common:savedViews.visibilityPrivate')}
                         </label>
                         {canCreateTeam && (
                             <label className="flex items-center gap-2">
@@ -433,16 +445,19 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
                                     onChange={() => setVisibility('team')}
                                     className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                                 />
-                                Team — everyone in this workspace
+                                {t('common:savedViews.visibilityTeam')}
                             </label>
                         )}
                     </div>
                 </fieldset>
 
+                {/* `labelize(key)` rămâne netradus — cheile de filtru vin din patru tipuri
+                    de resurse diferite (accounts/deals/orders/products), fără un catalog de
+                    etichete per câmp în perimetrul acestui val; semnalat în raport. */}
                 <div className="mt-3 rounded-md bg-raised px-3 py-2 text-xs text-text-2">
-                    <p className="font-medium text-text-3 uppercase">Current filters</p>
+                    <p className="font-medium text-text-3 uppercase">{t('common:savedViews.currentFilters')}</p>
                     {filterEntries.length === 0 ? (
-                        <p className="mt-1">No filters — sort: {current.sort}</p>
+                        <p className="mt-1">{t('common:savedViews.noFilters', { sort: current.sort })}</p>
                     ) : (
                         <ul className="mt-1 flex flex-col gap-0.5">
                             {filterEntries.map(([key, value]) => (
@@ -450,7 +465,7 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
                                     {labelize(key)}: {value}
                                 </li>
                             ))}
-                            <li>Sort: {current.sort}</li>
+                            <li>{t('common:savedViews.sortLabel', { sort: current.sort })}</li>
                         </ul>
                     )}
                 </div>
@@ -463,10 +478,10 @@ function SaveViewDialog({ open, resourceType, base, current, columns, canCreateT
 
                 <div className="mt-5 flex justify-end gap-2">
                     <Button type="button" onClick={onClose}>
-                        Cancel
+                        {t('common:actions.cancel')}
                     </Button>
-                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Saving…">
-                        Save
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel={t('common:actions.saving')}>
+                        {t('common:actions.save')}
                     </Button>
                 </div>
             </form>
@@ -482,6 +497,7 @@ interface RenameViewDialogProps {
 }
 
 function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogProps) {
+    const { t } = useTranslation('common');
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const [name, setName] = useState('');
@@ -516,7 +532,7 @@ function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogPr
             await api.patch(`${base}/saved-views/${view.id}`, { name });
             onRenamed();
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : 'Could not rename this view.');
+            setError(caught instanceof ApiError ? caught.message : t('common:savedViews.renameError'));
         } finally {
             setProcessing(false);
         }
@@ -531,12 +547,12 @@ function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogPr
         >
             <form onSubmit={submit} className="w-[min(22rem,90vw)] p-5">
                 <h2 id={titleId} className="text-base font-semibold text-text">
-                    Rename view
+                    {t('common:savedViews.renameTitle')}
                 </h2>
 
                 <div className="mt-3 flex flex-col gap-1">
                     <label htmlFor={`${titleId}-name`} className="text-sm font-medium text-text">
-                        Name
+                        {t('common:savedViews.nameLabel')}
                     </label>
                     <input
                         id={`${titleId}-name`}
@@ -557,10 +573,10 @@ function RenameViewDialog({ view, base, onClose, onRenamed }: RenameViewDialogPr
 
                 <div className="mt-5 flex justify-end gap-2">
                     <Button type="button" onClick={onClose}>
-                        Cancel
+                        {t('common:actions.cancel')}
                     </Button>
-                    <Button type="submit" variant="primary" pending={processing} pendingLabel="Renaming…">
-                        Rename
+                    <Button type="submit" variant="primary" pending={processing} pendingLabel={t('common:actions.renaming')}>
+                        {t('common:actions.rename')}
                     </Button>
                 </div>
             </form>

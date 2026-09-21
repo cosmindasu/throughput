@@ -1,5 +1,7 @@
 import { Deferred, Head, usePage } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import type { TFunction } from 'i18next';
+import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
@@ -13,44 +15,69 @@ import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListColumns } from '@/hooks/useListColumns';
 import { useListFilters } from '@/hooks/useListFilters';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDateNumeric } from '@/lib/format';
+import type { AppLocale } from '@/lib/i18n';
 import type { AccountRow, AccountsIndexPageProps } from '@/types/generated';
+
+interface AccountColumnDef extends ColumnDefinition {
+    cellClassName: string;
+    render: (account: AccountRow) => ReactNode;
+}
 
 /**
  * Selector de coloane (specs.md §15.1) — cheile permise pentru Accounts, EXACT ca
  * `App\Support\SavedViews\SavedViewResourceType::permittedColumns('accounts')`. Ordinea de
  * aici e ordinea CANONICĂ (implicit + meniul selectorului); ordinea de AFIȘARE reală e
  * `props.columns` (validat server-side).
+ *
+ * Fabrică parametrizată pe `(t, locale)` — Val 3, „Lot I18N" (ADR-022, FR-I18N-03):
+ * tiparul e cel deja aplicat pentru jumătatea de `locale` în `Pages/Deals/Index.tsx` /
+ * `Pages/Orders/Index.tsx`, extins aici și cu `t`. `account.status` e afișat prin
+ * `StatusBadge`, deci trece prin catalog (`status.*`, text englez IDENTIC — enum-ul era
+ * deja randat lowercase, „active"/„prospect"/„inactive", nu Title Case).
  */
-const ACCOUNT_COLUMNS: Array<ColumnDefinition & { cellClassName: string; render: (account: AccountRow) => ReactNode }> = [
-    { key: 'owner', label: 'Owner', cellClassName: 'px-4 py-2.5 text-text-2', render: (account) => account.owner?.name ?? '—' },
+const buildAccountColumns = (t: TFunction<'accounts'>, locale: AppLocale): AccountColumnDef[] => [
+    {
+        key: 'owner',
+        label: t('index.columns.owner'),
+        cellClassName: 'px-4 py-2.5 text-text-2',
+        render: (account) => account.owner?.name ?? '—',
+    },
     {
         key: 'status',
-        label: 'Status',
+        label: t('index.columns.status'),
         cellClassName: 'px-4 py-2.5',
-        render: (account) => <StatusBadge tone={statusTone(account.status)}>{account.status}</StatusBadge>,
+        render: (account) => <StatusBadge tone={statusTone(account.status)}>{t(`status.${account.status}`)}</StatusBadge>,
     },
     {
         key: 'createdAt',
-        label: 'Created',
+        label: t('index.columns.created'),
         cellClassName: 'px-4 py-2.5 tabular-nums text-text-2',
-        render: (account) => (account.createdAt ? new Date(account.createdAt).toLocaleDateString('en-US') : '—'),
+        // `toLocaleDateString('en-US')` fără opțiuni → `formatDateNumeric` (Val 3, FR-I18N-03):
+        // forma pur numerică, „3/14/2026" în engleză, „14/03/2026" în franceză.
+        render: (account) => (account.createdAt ? formatDateNumeric(account.createdAt, locale) : '—'),
     },
 ];
 
-const ACCOUNT_COLUMNS_BY_KEY: Record<string, (typeof ACCOUNT_COLUMNS)[number]> = Object.fromEntries(
-    ACCOUNT_COLUMNS.map((column) => [column.key, column] as const),
-);
+const buildAccountColumnsByKey = (columns: AccountColumnDef[]): Record<string, AccountColumnDef> =>
+    Object.fromEntries(columns.map((column) => [column.key, column] as const));
 
 /**
  * Accounts/Index — FR-CRM-03, US-CRM-02. `accounts` e deferred (FR-PERF-01): shell-ul
  * (filtre, header) apare instant, rândurile vin după — vezi `TableSkeleton`.
  */
 export default function Index() {
+    const { t } = useTranslation('accounts');
+    const locale = useLocale();
     const { accounts, total, list, columns, owners, can, bulkConfirmationThreshold, bulkRowCap, workspace } = usePage<AccountsIndexPageProps>().props;
     const { url } = usePage();
     const { apply, setFilter, setSort } = useListFilters(list, columns);
     const { toggle: toggleColumn, moveUp: moveColumnUp, moveDown: moveColumnDown } = useListColumns(columns, apply);
+
+    const accountColumns = useMemo(() => buildAccountColumns(t, locale), [t, locale]);
+    const accountColumnsByKey = useMemo(() => buildAccountColumnsByKey(accountColumns), [accountColumns]);
 
     const hasFilters = Object.keys(list.filter).length > 0;
     const base = workspace ? `/${workspace.slug}` : '';
@@ -65,8 +92,8 @@ export default function Index() {
     // server-side, dar defensiv) nu mai dezaliniază tabelul: fără asta, antetul randa
     // necondiționat, corpul sărea coloana, iar rândurile se decalau vizual.
     const visibleColumns = columns
-        .map((key) => ACCOUNT_COLUMNS_BY_KEY[key])
-        .filter((column): column is (typeof ACCOUNT_COLUMNS)[number] => column !== undefined);
+        .map((key) => accountColumnsByKey[key])
+        .filter((column): column is AccountColumnDef => column !== undefined);
 
     // Identitate + coloanele vizibile + acțiuni, +1 pentru checkbox-ul de bulk când există —
     // altfel skeleton-ul (lățimea coloanelor „pulsând" înainte ca rândurile să vină, FR-PERF-01)
@@ -75,47 +102,47 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Accounts" />
+            <Head title={t('index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Accounts"
+                    title={t('index.title')}
                     actions={
                         <>
                             <SavedViewPicker resourceType="accounts" current={list} columns={columns} />
-                            <ColumnSelector columns={ACCOUNT_COLUMNS} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
+                            <ColumnSelector columns={accountColumns} selected={columns} onToggle={toggleColumn} onMoveUp={moveColumnUp} onMoveDown={moveColumnDown} />
                             {can.export && (
                                 <a href={exportHref} className={buttonClass('secondary')}>
-                                    Export CSV
+                                    {t('index.exportCsv')}
                                 </a>
                             )}
-                            {can.create && <ButtonLink variant="primary" href={`${base}/accounts/create`}>New account</ButtonLink>}
+                            {can.create && <ButtonLink variant="primary" href={`${base}/accounts/create`}>{t('index.newAccount')}</ButtonLink>}
                         </>
                     }
                 />
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Search
+                        {t('index.search.label')}
                         <input
                             type="search"
                             defaultValue={list.filter.q ?? ''}
                             onChange={(event) => setFilter('q', event.target.value)}
-                            placeholder="Account name…"
+                            placeholder={t('index.search.placeholder')}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         />
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Owner
+                        {t('index.filters.owner.label')}
                         <select
                             value={list.filter.owner ?? 'all'}
                             onChange={(event) => setFilter('owner', event.target.value)}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="me">My accounts</option>
-                            <option value="all">All accounts</option>
-                            <option value="unassigned">Unassigned</option>
+                            <option value="me">{t('index.filters.owner.mine')}</option>
+                            <option value="all">{t('index.filters.owner.all')}</option>
+                            <option value="unassigned">{t('index.filters.owner.unassigned')}</option>
                             {owners.map((owner) => (
                                 <option key={owner.id} value={owner.id}>
                                     {owner.name}
@@ -125,32 +152,32 @@ export default function Index() {
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Status
+                        {t('index.filters.status.label')}
                         <select
                             value={list.filter.status ?? ''}
                             onChange={(event) => setFilter('status', event.target.value || null)}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="">Any status</option>
-                            <option value="prospect">Prospect</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="">{t('index.filters.status.any')}</option>
+                            <option value="prospect">{t('index.filters.status.prospect')}</option>
+                            <option value="active">{t('index.filters.status.active')}</option>
+                            <option value="inactive">{t('index.filters.status.inactive')}</option>
                         </select>
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Sort by
+                        {t('index.filters.sort.label')}
                         <select
                             value={list.sort}
                             onChange={(event) => setSort(event.target.value)}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="name">Name</option>
-                            <option value="-created_at">Newest</option>
+                            <option value="name">{t('index.filters.sort.name')}</option>
+                            <option value="-created_at">{t('index.filters.sort.newest')}</option>
                         </select>
                     </label>
 
-                    {hasFilters && <Button onClick={() => clearAll(setFilter)}>Clear filters</Button>}
+                    {hasFilters && <Button onClick={() => clearAll(setFilter)}>{t('index.filters.clear')}</Button>}
                 </div>
 
                 {can.bulkWrite && (
@@ -175,26 +202,26 @@ export default function Index() {
                     {accounts && accounts.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-left text-sm">
-                                <caption className="sr-only">Accounts</caption>
+                                <caption className="sr-only">{t('index.title')}</caption>
                                 <thead className="bg-raised text-text-2">
                                     <tr>
                                         {can.bulkWrite && (
                                             <th scope="col" className="w-10 px-4 py-2">
                                                 <RowCheckbox
-                                                    aria-label="Select all accounts on this page"
+                                                    aria-label={t('index.selectAllOnPage')}
                                                     checked={selection.allOnPageSelected}
                                                     onChange={selection.toggleAllOnPage}
                                                 />
                                             </th>
                                         )}
-                                        <th scope="col" className="px-4 py-2 font-medium">Name</th>
+                                        <th scope="col" className="px-4 py-2 font-medium">{t('index.columns.name')}</th>
                                         {visibleColumns.map((column) => (
                                             <th key={column.key} scope="col" className="px-4 py-2 font-medium">
                                                 {column.label}
                                             </th>
                                         ))}
                                         <th scope="col" className="px-4 py-2 font-medium">
-                                            <span className="sr-only">Actions</span>
+                                            <span className="sr-only">{t('index.actionsColumnLabel')}</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -204,7 +231,7 @@ export default function Index() {
                                             {can.bulkWrite && (
                                                 <td className="px-4 py-2.5">
                                                     <RowCheckbox
-                                                        aria-label={`Select ${account.name}`}
+                                                        aria-label={t('index.selectRow', { name: account.name })}
                                                         checked={selection.isSelected(account.id)}
                                                         onChange={() => selection.toggleRow(account.id)}
                                                     />
@@ -230,7 +257,7 @@ export default function Index() {
                                                     in Name). Același tipar pe Contacts/Deals/Orders/Products. */}
                                                 {account.canEdit && (
                                                     <a href={`${base}/accounts/${account.id}/edit`} className="text-sm text-accent-text hover:underline">
-                                                        Edit<span className="sr-only"> {account.name}</span>
+                                                        {t('index.editRow')}<span className="sr-only"> {account.name}</span>
                                                     </a>
                                                 )}
                                             </td>
@@ -242,14 +269,14 @@ export default function Index() {
                     ) : (
                         accounts && (
                             <EmptyState
-                                message={hasFilters ? 'No accounts match this filter.' : 'No accounts yet.'}
+                                message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')}
                                 action={
                                     hasFilters ? (
-                                        <Button onClick={() => clearAll(setFilter)}>Clear filters</Button>
+                                        <Button onClick={() => clearAll(setFilter)}>{t('index.filters.clear')}</Button>
                                     ) : (
                                         can.create && (
                                             <ButtonLink variant="primary" href={`${base}/accounts/create`}>
-                                                Create your first account
+                                                {t('index.empty.createFirst')}
                                             </ButtonLink>
                                         )
                                     )

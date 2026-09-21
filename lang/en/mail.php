@@ -106,7 +106,7 @@ return [
         'orders' => '{0} :count active orders|{1} :count active order|[2,*] :count active orders',
         'unassigned' => ':deals and :orders are now unassigned.',
         'action' => 'Review in Unassigned',
-        'footer' => 'Nothing was lost — these records are visible to every Owner and Manager until someone reassigns them.',
+        'footer' => 'Nothing was lost — these records are visible to every :owner and :manager until someone reassigns them.',
     ],
 
 ];

@@ -1,5 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ButtonLink } from '@/Components/Button';
 import PageHeader from '@/Components/PageHeader';
 import AppLayout from '@/Layouts/AppLayout';
@@ -19,60 +21,65 @@ interface SettingsSection {
  * într-un proiect în care faza următoare e prezentarea, nu module noi. Dacă reapare vreodată
  * o secțiune amânată, se rescrie; ce nu se face e să rămână un `if` mort care sugerează că
  * ecranele încă lipsesc.
+ *
+ * Fabrică parametrizată, nu tablou de modul (Lot I18N, Val 3, `.ai/rules/frontend.md`):
+ * titlul/descrierea fiecărei secțiuni sunt etichete traduse, deci array-ul nu poate mai fi
+ * o constantă calculată o singură dată la import — `useMemo(() => buildSections(t), [t])` în
+ * componentă, ca la `buildDealColumns`/`buildOrderColumns` din `Deals/Index.tsx`/`Orders/Index.tsx`.
  */
-const SECTIONS: SettingsSection[] = [
+const buildSections = (t: TFunction<'settings'>): SettingsSection[] => [
     {
         key: 'members',
-        title: 'Members',
-        description: 'See who has access, and deactivate someone who left.',
+        title: t('settings:index.sections.members.title'),
+        description: t('settings:index.sections.members.description'),
         href: (w) => `/${w}/settings/members`,
     },
     {
         key: 'billing',
-        title: 'Billing & Subscription',
-        description: 'Manage the Throughput subscription and payment method.',
+        title: t('settings:index.sections.billing.title'),
+        description: t('settings:index.sections.billing.description'),
         href: (w) => `/${w}/settings/billing`,
     },
     {
         key: 'apiTokens',
-        title: 'API Tokens',
-        description: 'Create and revoke tokens for the public API.',
+        title: t('settings:index.sections.apiTokens.title'),
+        description: t('settings:index.sections.apiTokens.description'),
         href: (w) => `/${w}/settings/api-tokens`,
     },
     {
         key: 'carrierSettings',
-        title: 'Carrier settings',
-        description: 'Choose the shipping carrier this workspace uses, and store its sandbox credentials.',
+        title: t('settings:index.sections.carrierSettings.title'),
+        description: t('settings:index.sections.carrierSettings.description'),
         href: (w) => `/${w}/settings/shipping`,
     },
     {
         key: 'pipeline',
-        title: 'Pipeline',
-        description: 'Configure the pipeline stages used by the deals board.',
+        title: t('settings:index.sections.pipeline.title'),
+        description: t('settings:index.sections.pipeline.description'),
         href: (w) => `/${w}/pipeline`,
     },
     {
         key: 'preferences',
-        title: 'Preferences',
-        description: 'Theme and other personal preferences.',
+        title: t('settings:index.sections.preferences.title'),
+        description: t('settings:index.sections.preferences.description'),
         href: (w) => `/${w}/settings/preferences`,
     },
     {
         key: 'sentEmails',
-        title: 'Sent Emails',
-        description: 'Every transactional email the public demo tried to send — delivered or intercepted (§22.3).',
+        title: t('settings:index.sections.sentEmails.title'),
+        description: t('settings:index.sections.sentEmails.description'),
         href: (w) => `/${w}/settings/sent-emails`,
     },
     {
         key: 'dataExports',
-        title: 'Export data',
-        description: 'Request a complete, machine-readable copy of everything this workspace holds.',
+        title: t('settings:index.sections.dataExports.title'),
+        description: t('settings:index.sections.dataExports.description'),
         href: (w) => `/${w}/settings/data-export`,
     },
     {
         key: 'webhooks',
-        title: 'Webhook health',
-        description: 'See what Stripe has sent this deployment, and what happened to it.',
+        title: t('settings:index.sections.webhooks.title'),
+        description: t('settings:index.sections.webhooks.description'),
         href: (w) => `/${w}/settings/webhooks`,
     },
 ];
@@ -84,16 +91,18 @@ const SECTIONS: SettingsSection[] = [
  */
 export default function SettingsIndex() {
     const { workspace, can } = usePage<SettingsIndexPageProps>().props;
+    const { t } = useTranslation('settings');
+    const sections = useMemo(() => buildSections(t), [t]);
 
     return (
         <>
-            <Head title="Settings" />
+            <Head title={t('settings:index.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="Settings" />
+                <PageHeader title={t('settings:index.title')} />
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                    {SECTIONS.filter((section) => can[section.key]).map((section) => (
+                    {sections.filter((section) => can[section.key]).map((section) => (
                         <div key={section.key} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
                             <h2 className="text-sm font-medium text-text">{section.title}</h2>
 
@@ -108,9 +117,9 @@ export default function SettingsIndex() {
                                         href={section.href(workspace.slug)}
                                         variant="secondary"
                                         prefetch
-                                        aria-label={`Open ${section.title}`}
+                                        aria-label={t('settings:index.openAriaLabel', { title: section.title })}
                                     >
-                                        Open
+                                        {t('settings:index.open')}
                                     </ButtonLink>
                                 </div>
                             )}

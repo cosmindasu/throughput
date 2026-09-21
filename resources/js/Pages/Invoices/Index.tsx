@@ -1,5 +1,6 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
@@ -9,6 +10,8 @@ import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDate } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import type { Invoice, InvoiceStatus, InvoicesIndexPageProps } from '@/types/generated';
 
@@ -22,16 +25,7 @@ interface InvoicesIndexProps extends InvoicesIndexPageProps {
     can: { export: boolean };
 }
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-
-const STATUSES: Array<{ value: InvoiceStatus | ''; label: string }> = [
-    { value: '', label: 'All statuses' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'sent', label: 'Sent' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'overdue', label: 'Overdue' },
-    { value: 'void', label: 'Void' },
-];
+const STATUS_VALUES: Array<InvoiceStatus | ''> = ['', 'draft', 'sent', 'paid', 'overdue', 'void'];
 
 const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
     draft: 'neutral',
@@ -40,6 +34,11 @@ const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
     overdue: 'danger',
     void: 'neutral',
 };
+
+/** Eticheta filtrului de status (array hardcodat în frontend, distinct de `invoice.statusLabel` care vine deja tradus din backend). */
+function statusFilterLabel(t: (key: string) => string, value: InvoiceStatus | ''): string {
+    return value === '' ? t('invoices:status.all') : t(`invoices:status.${value}`);
+}
 
 /**
  * `Invoices/Index` — specs.md §12.1, „listă Invoices (paginare pe cursor, filtre ca la
@@ -50,6 +49,7 @@ const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
  * livrat).
  */
 export default function Index() {
+    const { t } = useTranslation('invoices');
     const page = usePage<InvoicesIndexProps>();
     const { filters, workspace, can } = page.props;
     const base = workspace ? `/${workspace.slug}` : '';
@@ -58,19 +58,19 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Invoices" />
+            <Head title={t('invoices:index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Invoices"
+                    title={t('invoices:index.title')}
                     actions={
                         can.export && (
                             <>
                                 <a href={buildExportHref(page.url, base, 'csv')} className={buttonClass('secondary')}>
-                                    Export CSV
+                                    {t('invoices:index.exportCsv')}
                                 </a>
                                 <a href={buildExportHref(page.url, base, 'zip')} className={buttonClass('secondary')}>
-                                    Export PDFs (zip)
+                                    {t('invoices:index.exportPdfZip')}
                                 </a>
                             </>
                         )
@@ -79,7 +79,7 @@ export default function Index() {
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Search</span>
+                        <span className="font-medium text-text">{t('invoices:index.filters.search.label')}</span>
                         <input
                             type="search"
                             className={controlClass}
@@ -91,27 +91,27 @@ export default function Index() {
                                 }
                             }}
                             onBlur={() => setFilter('q', search || null)}
-                            placeholder="Search by invoice number…"
+                            placeholder={t('invoices:index.filters.search.placeholder')}
                         />
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">Status</span>
+                        <span className="font-medium text-text">{t('invoices:index.filters.status.label')}</span>
                         <select
                             className={controlClass}
                             value={filters.filter.status ?? ''}
                             onChange={(event) => setFilter('status', event.target.value || null)}
                         >
-                            {STATUSES.map((status) => (
-                                <option key={status.value} value={status.value}>
-                                    {status.label}
+                            {STATUS_VALUES.map((value) => (
+                                <option key={value} value={value}>
+                                    {statusFilterLabel(t, value)}
                                 </option>
                             ))}
                         </select>
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">From</span>
+                        <span className="font-medium text-text">{t('invoices:index.filters.from')}</span>
                         <input
                             type="date"
                             className={controlClass}
@@ -121,7 +121,7 @@ export default function Index() {
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-text">To</span>
+                        <span className="font-medium text-text">{t('invoices:index.filters.to')}</span>
                         <input
                             type="date"
                             className={controlClass}
@@ -151,36 +151,37 @@ function buildExportHref(currentUrl: string, base: string, format: 'csv' | 'zip'
 }
 
 function InvoicesTable({ base }: { base: string }) {
+    const { t } = useTranslation('invoices');
     const { invoices } = usePage<InvoicesIndexPageProps>().props;
 
     if (invoices.data.length === 0) {
-        return <EmptyState message="No invoices match this filter." />;
+        return <EmptyState message={t('invoices:index.empty')} />;
     }
 
     return (
         <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
                 <table className="w-full text-left text-sm">
-                    <caption className="sr-only">Invoices</caption>
+                    <caption className="sr-only">{t('invoices:index.title')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
                             <th scope="col" className="px-4 py-2 font-medium">
-                                Invoice number
+                                {t('invoices:index.columns.invoiceNumber')}
                             </th>
                             <th scope="col" className="px-4 py-2 font-medium">
-                                Status
+                                {t('invoices:index.columns.status')}
                             </th>
                             <th scope="col" className="px-4 py-2 font-medium">
-                                Account
+                                {t('invoices:index.columns.account')}
                             </th>
                             <th scope="col" className="px-4 py-2 text-right font-medium">
-                                Total
+                                {t('invoices:index.columns.total')}
                             </th>
                             <th scope="col" className="px-4 py-2 text-right font-medium">
-                                Balance due
+                                {t('invoices:index.columns.balanceDue')}
                             </th>
                             <th scope="col" className="px-4 py-2 font-medium">
-                                Due date
+                                {t('invoices:index.columns.dueDate')}
                             </th>
                         </tr>
                     </thead>
@@ -198,6 +199,8 @@ function InvoicesTable({ base }: { base: string }) {
 }
 
 function InvoiceRow({ invoice, base }: { invoice: Invoice; base: string }) {
+    const locale = useLocale();
+
     return (
         <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
             <td className="numeric px-4 py-2">
@@ -206,12 +209,14 @@ function InvoiceRow({ invoice, base }: { invoice: Invoice; base: string }) {
                 </Link>
             </td>
             <td className="px-4 py-2">
+                {/* `invoice.statusLabel` vine deja tradus din backend (App\Http\Resources\
+                    InvoiceResource) — nu se retraduce în frontend. */}
                 <StatusBadge tone={STATUS_TONE[invoice.status]}>{invoice.statusLabel}</StatusBadge>
             </td>
             <td className="px-4 py-2">{invoice.order?.account?.name ?? '—'}</td>
-            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(invoice.total, invoice.currency)}</td>
-            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(invoice.balanceDue, invoice.currency)}</td>
-            <td className="whitespace-nowrap px-4 py-2">{invoice.dueDate ? dateFormatter.format(new Date(invoice.dueDate)) : '—'}</td>
+            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(invoice.total, invoice.currency, locale)}</td>
+            <td className="numeric whitespace-nowrap px-4 py-2 text-right">{formatMoney(invoice.balanceDue, invoice.currency, locale)}</td>
+            <td className="whitespace-nowrap px-4 py-2">{invoice.dueDate ? formatDate(invoice.dueDate, locale) : '—'}</td>
         </tr>
     );
 }

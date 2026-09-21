@@ -1,7 +1,9 @@
 import { Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
+import { useLocale } from '@/hooks/useLocale';
 import { formatMoney } from '@/lib/money';
 import type { InvoiceStatus, OrderInvoiceSummary, OrderStatus } from '@/types/generated';
 
@@ -40,6 +42,8 @@ export default function BillingSection({
     orderStatus: OrderStatus;
     workspaceSlug: string;
 }) {
+    const { t } = useTranslation('invoices');
+    const locale = useLocale();
     const base = `/${workspaceSlug}`;
     const [summary, setSummary] = useState<OrderInvoiceSummary | null>(null);
     const [loading, setLoading] = useState(true);
@@ -89,7 +93,7 @@ export default function BillingSection({
             `${base}/orders/${orderId}/invoices`,
             {},
             {
-                onError: (errors) => setError(Object.values(errors)[0] ?? 'This invoice could not be created.'),
+                onError: (errors) => setError(Object.values(errors)[0] ?? t('invoices:billing.createError')),
                 onFinish: () => setCreating(false),
             },
         );
@@ -105,13 +109,28 @@ export default function BillingSection({
     // nod cu textul schimbat, deci o regiune live n-avea ce mutație de DOM să observe.
     // Tiparul corect e cel din `ListUpdateAnnouncer.tsx`: un paragraf `sr-only` PERSISTENT,
     // randat necondiționat, al cărui text se schimbă.
+    // `OrderInvoiceSummary.invoice` (JSON simplu, nu Resource Inertia) n-are `statusLabel`
+    // — spre deosebire de `Invoice` din `types/generated.d.ts`, care îl are deja tradus
+    // din backend. Aici traducem noi statusul, dintr-un catalog local.
+    //
+    // Set de chei PROPRIU (`billing.statusBadge.*`), nu `invoices:status.*` pe care le
+    // folosește filtrul din `Invoices/Index`, fiindcă cele două au registre diferite — și
+    // le aveau și înaintea acestui val: filtrul era un array cu `label: 'Paid'`, pe când
+    // chip-ul de aici randa `{invoice.status}` BRUT, adică `paid`, minuscul. Inconsecvența
+    // e preexistentă (lista de facturi arată „Paid" prin `invoice.statusLabel` de la
+    // server, ecranul de comandă arăta „paid"), iar valul de i18n o păstrează exact, nu o
+    // repară pe furiș: `e2e/specs/order-fulfilment.spec.ts:220` caută `'paid'` cu
+    // `{ exact: true }`. Unificarea celor două registre e o decizie de QA vizual bilingv
+    // (Val 5), nu o schimbare de strecurat într-o extragere de string-uri.
+    const invoiceStatusLabel = invoice ? t(`invoices:billing.statusBadge.${invoice.status}`) : '';
+
     const statusMessage = loading
-        ? 'Loading billing status.'
+        ? t('invoices:billing.statusLoading')
         : invoice
-          ? `Invoice ${invoice.invoiceNumber ?? ''} found, status ${invoice.status}.`
+          ? t('invoices:billing.statusFound', { number: invoice.invoiceNumber ?? '', status: invoiceStatusLabel })
           : canShowCreateButton
-            ? 'No invoice yet for this order — you can create one.'
-            : 'No billing information available for this order.';
+            ? t('invoices:billing.statusCreatable')
+            : t('invoices:billing.statusUnavailable');
 
     return (
         <>
@@ -120,16 +139,16 @@ export default function BillingSection({
             </p>
 
             {loading && (
-                <section aria-label="Billing" className="rounded-lg border border-border bg-surface p-4">
+                <section aria-label={t('invoices:billing.sectionAria')} className="rounded-lg border border-border bg-surface p-4">
                     <p aria-hidden="true" className="text-sm text-text-3">
-                        Loading billing status…
+                        {t('invoices:billing.loading')}
                     </p>
                 </section>
             )}
 
             {hasVisibleContent && (
-                <section aria-label="Billing" className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-                    <h2 className="text-sm font-semibold text-text">Billing</h2>
+                <section aria-label={t('invoices:billing.sectionAria')} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+                    <h2 className="text-sm font-semibold text-text">{t('invoices:billing.heading')}</h2>
 
                     {error && (
                         <p role="alert" className="rounded-md bg-danger-tint px-3 py-2 text-sm text-danger">
@@ -140,11 +159,13 @@ export default function BillingSection({
                     {invoice ? (
                         <div className="flex flex-wrap items-center gap-2 text-sm">
                             <Link href={`${base}/invoices/${invoice.id}`} className="font-medium text-accent-text hover:underline">
-                                {invoice.invoiceNumber ?? 'View invoice'}
+                                {invoice.invoiceNumber ?? t('invoices:billing.viewInvoice')}
                             </Link>
-                            <StatusBadge tone={STATUS_TONE[invoice.status]}>{invoice.status}</StatusBadge>
+                            <StatusBadge tone={STATUS_TONE[invoice.status]}>{invoiceStatusLabel}</StatusBadge>
                             {invoice.balanceDue > 0 && invoice.status !== 'void' && (
-                                <span className="numeric text-text-2">Balance due: {formatMoney(invoice.balanceDue, invoice.currency)}</span>
+                                <span className="numeric text-text-2">
+                                    {t('invoices:billing.balanceDue', { amount: formatMoney(invoice.balanceDue, invoice.currency, locale) })}
+                                </span>
                             )}
                         </div>
                     ) : (
@@ -154,7 +175,7 @@ export default function BillingSection({
                             aria-disabled={creating || undefined}
                             className={creating ? 'cursor-not-allowed opacity-60' : ''}
                         >
-                            {creating ? 'Creating…' : 'Create Invoice'}
+                            {creating ? t('invoices:billing.creating') : t('invoices:billing.create')}
                         </Button>
                     )}
                 </section>

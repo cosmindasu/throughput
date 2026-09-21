@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useId, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import AccountCombobox from '@/Components/AccountCombobox';
 import Button from '@/Components/Button';
 import DuplicateEmailNotice from '@/Components/DuplicateEmailNotice';
@@ -38,6 +39,7 @@ interface ContactFormProps {
  * face alegând din listă, nu lipind id-ul.
  */
 export default function ContactForm({ contact, initialAccount = null, submitLabel, action, method }: ContactFormProps) {
+    const { t } = useTranslation('contacts');
     const primaryCheckboxId = useId();
     const primaryErrorId = `${primaryCheckboxId}-error`;
     const primaryHintId = `${primaryCheckboxId}-hint`;
@@ -75,7 +77,7 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-            <Field label="First name" required error={errors.first_name}>
+            <Field label={t('form.firstName.label')} required error={errors.first_name}>
                 {(control) => (
                     <input
                         {...control}
@@ -88,7 +90,7 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                 )}
             </Field>
 
-            <Field label="Last name" required error={errors.last_name}>
+            <Field label={t('form.lastName.label')} required error={errors.last_name}>
                 {(control) => (
                     <input
                         {...control}
@@ -101,7 +103,7 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                 )}
             </Field>
 
-            <Field label="Job title" error={errors.title}>
+            <Field label={t('form.jobTitle.label')} error={errors.title}>
                 {(control) => (
                     <input
                         {...control}
@@ -114,7 +116,7 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
             </Field>
 
             <div className="flex flex-col gap-2">
-                <Field label="Email" error={errors.email}>
+                <Field label={t('form.email.label')} error={errors.email}>
                     {(control) => (
                         <input
                             {...control}
@@ -133,7 +135,7 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                 />
             </div>
 
-            <Field label="Phone" error={errors.phone}>
+            <Field label={t('form.phone.label')} error={errors.phone}>
                 {(control) => (
                     <input
                         {...control}
@@ -147,9 +149,9 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
             </Field>
 
             <Field
-                label="Account"
+                label={t('form.account.label')}
                 error={errors.account_id}
-                hint="Leave empty for a lead without a company yet. Search by name to link or move this contact."
+                hint={t('form.account.hint')}
             >
                 {(control) => (
                     <AccountCombobox
@@ -196,10 +198,10 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                         onChange={(event) => setData('is_primary', event.target.checked)}
                         className="h-4 w-4 accent-[var(--accent-fill)] disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    Primary contact for this account
+                    {t('form.primary.label')}
                 </label>
                 <p id={primaryHintId} className="sr-only">
-                    Available once this contact is linked to an account.
+                    {t('form.primary.hint')}
                 </p>
                 {errors.is_primary && (
                     <p id={primaryErrorId} role="alert" className="text-xs text-danger">
@@ -215,11 +217,11 @@ export default function ContactForm({ contact, initialAccount = null, submitLabe
                     onChange={(event) => setData('opt_out', event.target.checked)}
                     className="h-4 w-4 accent-[var(--accent-fill)]"
                 />
-                Opted out of marketing communications
+                {t('form.optOut')}
             </label>
 
             <div className="flex justify-end gap-2">
-                <Button variant="primary" type="submit" pending={processing} pendingLabel="Saving…">
+                <Button variant="primary" type="submit" pending={processing} pendingLabel={t('form.submitPending')}>
                     {submitLabel}
                 </Button>
             </div>

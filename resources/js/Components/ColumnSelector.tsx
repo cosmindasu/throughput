@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** Ce a declanșat ultima acțiune — pentru anunțul `aria-live` (SC 4.1.3), calculat DUPĂ ce `selected` s-a schimbat cu adevărat, nu optimist. */
 interface PendingAnnouncement {
@@ -35,6 +36,7 @@ interface ColumnSelectorProps {
  * custom peste ele.
  */
 export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, onMoveDown }: ColumnSelectorProps) {
+    const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -63,7 +65,11 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
             const wasSelected = previous.includes(pending.key);
             const isSelectedNow = selected.includes(pending.key);
             if (wasSelected !== isSelectedNow) {
-                setAnnouncement(`${pending.label} ${isSelectedNow ? 'shown' : 'hidden'}.`);
+                setAnnouncement(
+                    isSelectedNow
+                        ? t('common:columnSelector.shown', { label: pending.label })
+                        : t('common:columnSelector.hidden', { label: pending.label }),
+                );
             }
             return;
         }
@@ -71,9 +77,11 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
         const changed = previous.length !== selected.length || previous.some((key, index) => key !== selected[index]);
         const index = selected.indexOf(pending.key);
         if (changed && index !== -1) {
-            setAnnouncement(`${pending.label} moved to position ${index + 1} of ${selected.length}.`);
+            setAnnouncement(
+                t('common:columnSelector.moved', { label: pending.label, position: index + 1, total: selected.length }),
+            );
         }
-    }, [selected]);
+    }, [selected, t]);
 
     const toggleWithAnnouncement = (column: ColumnDefinition) => {
         pendingAnnouncementRef.current = { key: column.key, label: column.label, type: 'toggle' };
@@ -135,7 +143,7 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
                 onClick={() => (open ? closePanel() : setOpen(true))}
                 className="flex items-center gap-2 rounded-md border border-control px-3 py-1.5 text-sm text-text transition-colors hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-                <span>Columns</span>
+                <span>{t('common:columnSelector.trigger')}</span>
                 <span aria-hidden="true">▾</span>
             </button>
 
@@ -150,7 +158,7 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
                     id={panelId}
                     ref={panelRef}
                     role="group"
-                    aria-label="Visible columns"
+                    aria-label={t('common:columnSelector.groupLabel')}
                     onKeyDown={onPanelKeyDown}
                     className="absolute right-0 z-20 mt-1 w-72 rounded-md border border-border bg-overlay p-2 text-sm shadow-lg"
                 >
@@ -195,7 +203,7 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
                                             type="button"
                                             onClick={() => moveUpWithAnnouncement(column)}
                                             aria-disabled={upDisabled}
-                                            aria-label={`Move ${column.label} up`}
+                                            aria-label={t('common:columnSelector.moveUp', { label: column.label })}
                                             className={`flex size-6 items-center justify-center rounded hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus ${upDisabled ? 'opacity-30' : ''}`}
                                         >
                                             <span aria-hidden="true">↑</span>
@@ -204,7 +212,7 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
                                             type="button"
                                             onClick={() => moveDownWithAnnouncement(column)}
                                             aria-disabled={downDisabled}
-                                            aria-label={`Move ${column.label} down`}
+                                            aria-label={t('common:columnSelector.moveDown', { label: column.label })}
                                             className={`flex size-6 items-center justify-center rounded hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus ${downDisabled ? 'opacity-30' : ''}`}
                                         >
                                             <span aria-hidden="true">↓</span>
@@ -216,7 +224,7 @@ export default function ColumnSelector({ columns, selected, onToggle, onMoveUp, 
                     </ul>
 
                     <p id={hintId} className="mt-2 border-t border-border-soft pt-2 text-xs text-text-3">
-                        At least one column stays visible.
+                        {t('common:columnSelector.hint')}
                     </p>
                 </div>
             )}

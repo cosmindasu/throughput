@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -18,6 +19,7 @@ import type { UnassignedIndexPageProps } from '@/types/generated';
  */
 export default function UnassignedIndex() {
     const { deals, orders, can, activeMembers } = usePage<UnassignedIndexPageProps>().props;
+    const { t } = useTranslation('dashboard');
     const [newOwnerUserId, setNewOwnerUserId] = useState('');
     const [processing, setProcessing] = useState(false);
     // Audit de accesibilitate (P1, pct. 1) — la fel ca `Settings/Members/Index.tsx`:
@@ -55,12 +57,9 @@ export default function UnassignedIndex() {
             {/* SC 2.4.2 (Page Titled) — fără `<Head>`, titlul documentului rămâne cel al
                 paginii ANTERIOARE într-un SPA Inertia: cine navighează cu un cititor de
                 ecran aude titlul vechi la fiecare intrare aici. */}
-            <Head title="Unassigned" />
+            <Head title={t('dashboard:unassigned.title')} />
 
-            <PageHeader
-                title="Unassigned"
-                description="Open deals and active orders left behind by deactivated members (ADR-011) — nothing here was lost, it just needs a new owner."
-            />
+            <PageHeader title={t('dashboard:unassigned.title')} description={t('dashboard:unassigned.description')} />
 
             {!isEmpty && can.reassign && (
                 <div className="mt-4 flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
@@ -71,7 +70,7 @@ export default function UnassignedIndex() {
                     )}
                     <div className="flex flex-wrap items-end gap-3">
                         <div className="min-w-[16rem]">
-                            <Field label="Reassign everything to" error={errors.new_owner_user_id}>
+                            <Field label={t('dashboard:unassigned.reassignLabel')} error={errors.new_owner_user_id}>
                                 {(control) => (
                                     <select
                                         {...control}
@@ -79,7 +78,7 @@ export default function UnassignedIndex() {
                                         value={newOwnerUserId}
                                         onChange={(event) => setNewOwnerUserId(event.target.value)}
                                     >
-                                        <option value="">Choose a member…</option>
+                                        <option value="">{t('dashboard:unassigned.chooseMember')}</option>
                                         {activeMembers.map((member) => (
                                             <option key={member.id} value={member.id}>
                                                 {member.name}
@@ -95,27 +94,31 @@ export default function UnassignedIndex() {
                             aria-disabled={processing || newOwnerUserId === '' ? true : undefined}
                             onClick={reassign}
                         >
-                            {processing ? 'Reassigning…' : 'Reassign all'}
+                            {processing ? t('dashboard:unassigned.reassigning') : t('dashboard:unassigned.reassignAll')}
                         </Button>
                     </div>
                 </div>
             )}
 
-            {isEmpty && <div className="mt-6"><EmptyState message="Nothing unassigned right now — every open deal and active order has an active owner." /></div>}
+            {isEmpty && (
+                <div className="mt-6">
+                    <EmptyState message={t('dashboard:unassigned.empty')} />
+                </div>
+            )}
 
             {deals.data.length > 0 && (
                 <section className="mt-6">
                     <h2 id="unassigned-deals-heading" className="text-sm font-semibold text-text">
-                        Open deals ({deals.data.length})
+                        {t('dashboard:unassigned.openDealsHeading', { count: deals.data.length })}
                     </h2>
                     <div className="mt-2 overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-left text-sm" aria-labelledby="unassigned-deals-heading">
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">Title</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Account</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Stage</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Owner</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.dealTitle')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.account')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.stage')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.owner')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -136,16 +139,16 @@ export default function UnassignedIndex() {
             {orders.data.length > 0 && (
                 <section className="mt-6">
                     <h2 id="unassigned-orders-heading" className="text-sm font-semibold text-text">
-                        Active orders ({orders.data.length})
+                        {t('dashboard:unassigned.activeOrdersHeading', { count: orders.data.length })}
                     </h2>
                     <div className="mt-2 overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-left text-sm" aria-labelledby="unassigned-orders-heading">
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>
-                                    <th scope="col" className="px-4 py-2 font-medium">Order</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Account</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Status</th>
-                                    <th scope="col" className="px-4 py-2 font-medium">Owner</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.order')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.account')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.status')}</th>
+                                    <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.owner')}</th>
                                 </tr>
                             </thead>
                             <tbody>

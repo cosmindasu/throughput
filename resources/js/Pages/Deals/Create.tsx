@@ -1,5 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import AccountCombobox from '@/Components/AccountCombobox';
 import Button, { ButtonLink } from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
@@ -27,6 +28,7 @@ interface DealFormData {
  * pipeline-ului implicit.
  */
 export default function Create() {
+    const { t } = useTranslation('deals');
     const { account, contacts, owners, can, workspace } = usePage<DealsCreatePageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const basePath = `/${workspaceSlug}/deals/create`;
@@ -73,13 +75,13 @@ export default function Create() {
 
     return (
         <>
-            <Head title="New deal" />
+            <Head title={t('create.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title="New deal" description={account ? `For ${account.name}` : undefined} />
+                <PageHeader title={t('create.title')} description={account ? t('create.descriptionForAccount', { account: account.name }) : undefined} />
 
                 <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-                    <Field label="Account" error={errors.account_id} required>
+                    <Field label={t('create.fields.account.label')} error={errors.account_id} required>
                         {(control) => (
                             <AccountCombobox
                                 {...control}
@@ -90,7 +92,7 @@ export default function Create() {
                         )}
                     </Field>
 
-                    <Field label="Title" error={errors.title} required>
+                    <Field label={t('create.fields.title.label')} error={errors.title} required>
                         {(control) => (
                             <input
                                 {...control}
@@ -101,7 +103,7 @@ export default function Create() {
                         )}
                     </Field>
 
-                    <Field label="Value" error={errors.value} hint="Leave blank until qualified.">
+                    <Field label={t('create.fields.value.label')} error={errors.value} hint={t('create.fields.value.hint')}>
                         {(control) => (
                             <input
                                 {...control}
@@ -115,7 +117,7 @@ export default function Create() {
                         )}
                     </Field>
 
-                    <Field label="Expected close date" error={errors.expected_close_date}>
+                    <Field label={t('create.fields.expectedCloseDate.label')} error={errors.expected_close_date}>
                         {(control) => (
                             <input
                                 {...control}
@@ -127,7 +129,7 @@ export default function Create() {
                         )}
                     </Field>
 
-                    <Field label="Primary contact" error={errors.primary_contact_id}>
+                    <Field label={t('create.fields.primaryContact.label')} error={errors.primary_contact_id}>
                         {(control) => (
                             <select
                                 {...control}
@@ -135,7 +137,7 @@ export default function Create() {
                                 value={data.primary_contact_id}
                                 onChange={(event) => setData('primary_contact_id', event.target.value)}
                             >
-                                <option value="">None</option>
+                                <option value="">{t('create.fields.primaryContact.none')}</option>
                                 {contacts.map((contact) => (
                                     <option key={contact.id} value={contact.id}>
                                         {contact.name}
@@ -146,7 +148,7 @@ export default function Create() {
                     </Field>
 
                     {can.changeOwner && (
-                        <Field label="Owner" error={errors.owner_user_id} hint="Leave as “Me” to keep yourself as owner.">
+                        <Field label={t('create.fields.owner.label')} error={errors.owner_user_id} hint={t('create.fields.owner.hint')}>
                             {(control) => (
                                 <select
                                     {...control}
@@ -154,7 +156,7 @@ export default function Create() {
                                     value={data.owner_user_id}
                                     onChange={(event) => setData('owner_user_id', event.target.value)}
                                 >
-                                    <option value="">Me</option>
+                                    <option value="">{t('create.fields.owner.meOption')}</option>
                                     {owners.map((owner) => (
                                         <option key={owner.id} value={owner.id}>
                                             {owner.name}
@@ -166,11 +168,11 @@ export default function Create() {
                     )}
 
                     <div className="flex items-center gap-2">
-                        <Button type="submit" variant="primary" pending={processing} pendingLabel="Creating…">
-                            Create deal
+                        <Button type="submit" variant="primary" pending={processing} pendingLabel={t('create.actions.submitPending')}>
+                            {t('create.actions.submit')}
                         </Button>
                         <ButtonLink href={account ? `/${workspaceSlug}/accounts/${account.id}` : `/${workspaceSlug}/deals`}>
-                            Cancel
+                            {t('create.actions.cancel')}
                         </ButtonLink>
                     </div>
                 </form>

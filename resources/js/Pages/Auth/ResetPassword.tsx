@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import type { ResetPasswordPageProps } from '@/types/generated';
@@ -15,6 +16,7 @@ import type { ResetPasswordPageProps } from '@/types/generated';
  */
 export default function ResetPassword() {
     const { token, email } = usePage<ResetPasswordPageProps>().props;
+    const { t } = useTranslation('auth');
     const { data, setData, post, processing, errors, reset } = useForm({
         token,
         email,
@@ -36,20 +38,18 @@ export default function ResetPassword() {
 
     return (
         <>
-            <Head title="Reset password" />
+            <Head title={t('auth:resetPassword.title')} />
 
             <div className="flex flex-col gap-6">
                 <div>
-                    <h1 className="text-xl font-semibold text-text">Choose a new password</h1>
-                    <p className="mt-1 text-sm text-text-2">
-                        Other devices signed into this account will be logged out automatically once this is saved.
-                    </p>
+                    <h1 className="text-xl font-semibold text-text">{t('auth:resetPassword.heading')}</h1>
+                    <p className="mt-1 text-sm text-text-2">{t('auth:resetPassword.body')}</p>
                 </div>
 
                 <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
                     <div>
                         <label htmlFor="email" className="text-sm font-medium text-text">
-                            Email
+                            {t('auth:resetPassword.emailLabel')}
                         </label>
                         <input
                             id="email"
@@ -62,7 +62,7 @@ export default function ResetPassword() {
 
                     <div>
                         <label htmlFor="password" className="text-sm font-medium text-text">
-                            New password
+                            {t('auth:resetPassword.newPasswordLabel')}
                         </label>
                         <input
                             id="password"
@@ -83,7 +83,7 @@ export default function ResetPassword() {
 
                     <div>
                         <label htmlFor="password_confirmation" className="text-sm font-medium text-text">
-                            Confirm new password
+                            {t('auth:resetPassword.confirmPasswordLabel')}
                         </label>
                         <input
                             id="password_confirmation"
@@ -109,13 +109,19 @@ export default function ResetPassword() {
                         pe un ecran de autentificare asta înseamnă că utilizatorul de tastatură
                         își pierde locul chiar cât serverul lucrează. `Button` face acum și
                         `preventDefault` pe clic, deci al doilea submit rămâne blocat. */}
-                    <Button type="submit" variant="primary" className="px-4 py-2" pending={processing} pendingLabel="Saving…">
-                        Reset password
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        className="px-4 py-2"
+                        pending={processing}
+                        pendingLabel={t('auth:resetPassword.submitting')}
+                    >
+                        {t('auth:resetPassword.submit')}
                     </Button>
                 </form>
 
                 <Link href="/login" className="text-sm text-accent-text hover:underline">
-                    Back to log in
+                    {t('auth:resetPassword.backToLogin')}
                 </Link>
             </div>
         </>

@@ -1,0 +1,270 @@
+{
+    "index": {
+        "title": "Commandes",
+        "table": {
+            "caption": "Commandes",
+            "orderNumberColumn": "Numéro de commande",
+            "selectAllOnPage": "Sélectionner toutes les commandes de cette page",
+            "selectRow": "Sélectionner {{name}}",
+            "draftOrderFallback": "commande brouillon",
+            "draftNumber": "Brouillon #{{id}}",
+            "draftOrderLower": "commande brouillon {{id}}",
+            "actions": "Actions",
+            "edit": "Modifier"
+        },
+        "columns": {
+            "grandTotal": "Total",
+            "placedAt": "Passée le",
+            "created": "Créée le",
+            "status": "Statut",
+            "account": "Compte",
+            "owner": "Propriétaire"
+        },
+        "statuses": {
+            "all": "Tous les statuts",
+            "draft": "Brouillon",
+            "confirmed": "Confirmée",
+            "partiallyFulfilled": "Partiellement honorée",
+            "fulfilled": "Honorée",
+            "cancelled": "Annulée"
+        },
+        "export": {
+            "csv": "Exporter en CSV",
+            "pdf": "Exporter en PDF"
+        },
+        "actions": {
+            "create": "Nouvelle commande"
+        },
+        "search": {
+            "label": "Recherche",
+            "placeholder": "Rechercher par numéro de commande…"
+        },
+        "status": {
+            "label": "Statut"
+        },
+        "owner": {
+            "mine": "Mes commandes",
+            "all": "Toutes les commandes"
+        },
+        "empty": {
+            "message": "Aucune commande ne correspond à ce filtre.",
+            "hint": "Démarrez-en une depuis « Nouvelle commande » ci-dessus."
+        }
+    },
+    "create": {
+        "title": "Nouvelle commande",
+        "descriptionForAccount": "Pour {{account}}",
+        "fields": {
+            "account": {
+                "label": "Compte"
+            },
+            "contact": {
+                "label": "Contact",
+                "none": "Aucun"
+            },
+            "currency": {
+                "label": "Devise"
+            },
+            "notes": {
+                "label": "Notes"
+            },
+            "owner": {
+                "label": "Propriétaire",
+                "hint": "Laisser « Moi » pour rester propriétaire.",
+                "meOption": "Moi"
+            }
+        },
+        "lines": {
+            "ariaLabel": "Lignes de commande",
+            "heading": "Lignes"
+        },
+        "actions": {
+            "submit": "Créer la commande",
+            "submitPending": "Création…",
+            "cancel": "Annuler"
+        }
+    },
+    "edit": {
+        "headTitle": "Modifier {{number}}",
+        "orderFallback": "la commande",
+        "pageTitle": "Modifier la commande",
+        "descriptionForAccount": "Pour {{account}}",
+        "fields": {
+            "account": {
+                "label": "Compte"
+            },
+            "contact": {
+                "label": "Contact",
+                "none": "Aucun",
+                "anonymized": "Contact anonymisé"
+            },
+            "currency": {
+                "label": "Devise"
+            },
+            "notes": {
+                "label": "Notes"
+            },
+            "owner": {
+                "label": "Propriétaire",
+                "hint": "Laisser « Moi » pour conserver le propriétaire actuel."
+            }
+        },
+        "lines": {
+            "ariaLabel": "Lignes de commande",
+            "heading": "Lignes"
+        },
+        "actions": {
+            "submit": "Enregistrer les modifications",
+            "submitPending": "Enregistrement…",
+            "cancel": "Annuler"
+        }
+    },
+    "show": {
+        "orderFallback": "Commande",
+        "draftTitle": "Brouillon — {{account}}",
+        "actions": {
+            "confirm": "Confirmer la commande",
+            "edit": "Modifier",
+            "cancel": "Annuler la commande",
+            "delete": "Supprimer"
+        },
+        "fields": {
+            "grandTotal": "Total",
+            "owner": "Propriétaire",
+            "contact": "Contact",
+            "contactAnonymized": "Contact anonymisé",
+            "placedAt": "Passée le",
+            "deal": "Affaire",
+            "created": "Créée le"
+        },
+        "notes": {
+            "ariaLabel": "Notes"
+        },
+        "lines": {
+            "ariaLabel": "Lignes",
+            "caption": "Lignes de commande",
+            "columns": {
+                "line": "Ligne",
+                "quantity": "Quantité",
+                "fulfilled": "Honorée",
+                "unitPrice": "Prix unitaire",
+                "lineTotal": "Total de la ligne"
+            },
+            "shipped": "{{fulfilled}} expédiée(s) sur {{total}}",
+            "notYetShipped": "Pas encore expédiée",
+            "empty": "Aucune ligne pour l’instant."
+        },
+        "history": {
+            "heading": "Historique"
+        },
+        "confirmDialog": {
+            "title": "Confirmer cette commande ?",
+            "confirmLabel": "Confirmer la commande",
+            "confirmAsBackorderLabel": "Confirmer en rupture de stock",
+            "body": "Ceci réserve le stock de chaque ligne et attribue le numéro de commande. Cette action ne peut pas être annulée ici — utilisez « Annuler » ensuite si besoin.",
+            "error": "Cette commande n’a pas pu être confirmée."
+        },
+        "cancelDialog": {
+            "title": "Annuler cette commande ?",
+            "confirmLabel": "Annuler la commande",
+            "bodyConfirmed": "Ceci libère le stock réservé de chaque ligne. Cette action ne peut pas être annulée.",
+            "bodyDraft": "Ce brouillon sera annulé. Cette action ne peut pas être annulée.",
+            "error": "Cette commande n’a pas pu être annulée."
+        },
+        "deleteDialog": {
+            "title": "Supprimer cette commande ?",
+            "confirmLabel": "Supprimer",
+            "body": "Ceci supprime définitivement le brouillon. Cette action ne peut pas être annulée."
+        }
+    },
+    "linesEditor": {
+        "empty": "Aucune ligne pour l’instant — recherchez une variante ci-dessus pour en ajouter une.",
+        "table": {
+            "caption": "Lignes de commande",
+            "variant": "Variante",
+            "available": "Disponible",
+            "quantity": "Quantité",
+            "unitPrice": "Prix unitaire",
+            "discount": "Remise",
+            "lineTotal": "Total de la ligne",
+            "removeColumn": "Supprimer"
+        },
+        "quantityLabel": "Quantité pour {{label}}",
+        "unitPriceLabel": "Prix unitaire pour {{label}}",
+        "discountLabel": "Remise pour {{label}}",
+        "remove": "Supprimer",
+        "total": "Total",
+        "warning": "Une ou plusieurs lignes dépassent le stock disponible. Vous pouvez tout de même enregistrer ce brouillon ; le confirmer vous demandera de reconnaître qu’il sera expédié en rupture de stock."
+    },
+    "timeline": {
+        "ariaLabel": "Chronologie de la commande",
+        "orderSteps": {
+            "created": "Créée",
+            "confirmed": "Confirmée"
+        },
+        "shipmentStatus": {
+            "label_pending": "Génération de l’étiquette d’expédition",
+            "label_failed": "Échec de l’étiquette d’expédition",
+            "label_purchased": "Étiquette d’expédition prête",
+            "in_transit": "Expédiée",
+            "delivered": "Livrée",
+            "exception": "Anomalie d’expédition"
+        }
+    },
+    "shipments": {
+        "heading": "Expéditions",
+        "status": {
+            "label_pending": "Génération de l’étiquette…",
+            "label_failed": "Échec de l’étiquette",
+            "label_purchased": "Étiquette prête",
+            "in_transit": "En transit",
+            "delivered": "Livrée",
+            "exception": "Anomalie"
+        },
+        "form": {
+            "hint": "Choisissez une quantité pour chaque ligne à inclure — laissez le reste à 0.",
+            "table": {
+                "caption": "Lignes à inclure dans cette expédition",
+                "line": "Ligne",
+                "remaining": "Restant",
+                "quantityToShip": "Quantité à expédier"
+            },
+            "quantityLabel": "Quantité à expédier pour {{description}}",
+            "submit": "Créer l’expédition",
+            "submitPending": "Création…"
+        },
+        "empty": "Aucune expédition pour l’instant.",
+        "createdAt": "Créée le {{date}}",
+        "trackingLabel": "Suivi :",
+        "downloadLabel": "Télécharger l’étiquette",
+        "forShipment": "pour l’expédition {{name}}",
+        "retryLabel": "Réessayer l’étiquette",
+        "retryingLabel": "Nouvelle tentative…",
+        "discard": "Abandonner",
+        "discardShipment": "expédition {{name}}",
+        "markShipped": "Marquer comme expédiée",
+        "markShippedDash": "— expédition {{name}}",
+        "discardDialog": {
+            "title": "Abandonner cette expédition ?",
+            "confirmLabel": "Abandonner",
+            "body": "Ceci supprime l’expédition et libère ses lignes pour une nouvelle. Cette action ne peut pas être annulée."
+        },
+        "markShippedDialog": {
+            "title": "Marquer cette expédition comme expédiée ?",
+            "confirmLabel": "Marquer comme expédiée",
+            "body": "Ceci enregistre la sortie du stock de l’entrepôt (le stock disponible et le stock réservé diminuent tous deux) et met à jour les lignes de la commande. Cette action ne peut pas être annulée."
+        },
+        "errors": {
+            "retryFailed": "Cette étiquette n’a pas pu être réessayée.",
+            "actionFailed": "Cette action n’a pas pu être effectuée."
+        }
+    },
+    "variantCombobox": {
+        "placeholder": "Rechercher par SKU ou nom de produit…",
+        "ariaLabel": "Ajouter une ligne",
+        "listboxLabel": "Variantes",
+        "searching": "Recherche…",
+        "noResults": "Aucune variante trouvée.",
+        "available": "Disponible : {{count}}"
+    }
+}

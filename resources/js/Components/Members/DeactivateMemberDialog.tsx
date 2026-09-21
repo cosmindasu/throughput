@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import Button from '@/Components/Button';
 import Field, { controlClass } from '@/Components/Form/Field';
 import type { MembershipOpenRecords, MembershipRow } from '@/types/generated';
@@ -20,11 +22,15 @@ interface DeactivateMemberDialogProps {
     onDeactivateAnyway: () => void;
 }
 
-function summarize(openRecords: MembershipOpenRecords): string {
-    const deals = `${openRecords.deals} open deal${openRecords.deals === 1 ? '' : 's'}`;
-    const orders = `${openRecords.orders} active order${openRecords.orders === 1 ? '' : 's'}`;
+/**
+ * Motorul CLDR al i18next, nu `=== 1 ? … : …` scris de mână — cele două tipare de aici
+ * erau documentate explicit în ADR-022 printre cele trei găsite la deschiderea lotului.
+ */
+function summarize(openRecords: MembershipOpenRecords, t: TFunction<'settings'>): string {
+    const deals = t('settings:deactivateMemberDialog.summary.deals', { count: openRecords.deals });
+    const orders = t('settings:deactivateMemberDialog.summary.orders', { count: openRecords.orders });
 
-    return `${deals} and ${orders}`;
+    return t('settings:deactivateMemberDialog.summary.joiner', { deals, orders });
 }
 
 /**
@@ -52,6 +58,7 @@ export default function DeactivateMemberDialog({
     onReassignAndDeactivate,
     onDeactivateAnyway,
 }: DeactivateMemberDialogProps) {
+    const { t } = useTranslation('settings');
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const descriptionId = useId();
@@ -127,24 +134,27 @@ export default function DeactivateMemberDialog({
         >
             <div className="w-[min(30rem,90vw)] p-5">
                 <h2 id={titleId} className="text-base font-semibold text-text">
-                    Deactivate {member.user.name}
+                    {t('settings:deactivateMemberDialog.title', { name: member.user.name })}
                 </h2>
 
                 {member.isLastActiveOwner ? (
                     <>
                         <p id={descriptionId} className="mt-2 text-sm text-text-2">
-                            Transfer ownership before deactivating the last Owner.
+                            {t('settings:deactivateMemberDialog.lastOwnerWarning')}
                         </p>
                         <div className="mt-5 flex justify-end">
-                            <Button onClick={onClose}>Close</Button>
+                            <Button onClick={onClose}>{t('settings:deactivateMemberDialog.close')}</Button>
                         </div>
                     </>
                 ) : (
                     <>
                         <p id={descriptionId} className="mt-2 text-sm text-text-2">
                             {hasOpenRecords
-                                ? `${member.user.name} owns ${summarize(member.openRecords)}. Reassign them now, or deactivate anyway and review them later in Unassigned.`
-                                : `${member.user.name} will lose access immediately. They own no open deals or active orders.`}
+                                ? t('settings:deactivateMemberDialog.withOpenRecords', {
+                                      name: member.user.name,
+                                      summary: summarize(member.openRecords, t),
+                                  })
+                                : t('settings:deactivateMemberDialog.withoutOpenRecords', { name: member.user.name })}
                         </p>
 
                         {generalError && (
@@ -155,7 +165,7 @@ export default function DeactivateMemberDialog({
 
                         {hasOpenRecords && (
                             <div className="mt-4">
-                                <Field label="New owner" error={errors.new_owner_user_id}>
+                                <Field label={t('settings:deactivateMemberDialog.newOwnerLabel')} error={errors.new_owner_user_id}>
                                     {(control) => (
                                         <select
                                             {...control}
@@ -163,7 +173,7 @@ export default function DeactivateMemberDialog({
                                             value={newOwnerUserId}
                                             onChange={(event) => setNewOwnerUserId(event.target.value)}
                                         >
-                                            <option value="">Choose a member…</option>
+                                            <option value="">{t('settings:deactivateMemberDialog.chooseMember')}</option>
                                             {reassignOptions.map((option) => (
                                                 <option key={option.id} value={option.id}>
                                                     {option.name}
@@ -182,7 +192,7 @@ export default function DeactivateMemberDialog({
                                 din arborele focalizabil, iar focusul cade pe `<body>`, fără
                                 nicio veste pentru un cititor de ecran. */}
                             <Button aria-disabled={processing ? true : undefined} onClick={requestClose}>
-                                Cancel
+                                {t('settings:deactivateMemberDialog.cancel')}
                             </Button>
                             {hasOpenRecords && (
                                 <Button
@@ -198,7 +208,9 @@ export default function DeactivateMemberDialog({
                                         onReassignAndDeactivate(newOwnerUserId);
                                     }}
                                 >
-                                    {processing && pendingAction === 'reassign' ? 'Reassigning…' : 'Reassign and deactivate'}
+                                    {processing && pendingAction === 'reassign'
+                                        ? t('settings:deactivateMemberDialog.reassigning')
+                                        : t('settings:deactivateMemberDialog.reassignAndDeactivate')}
                                 </Button>
                             )}
                             <Button
@@ -213,7 +225,11 @@ export default function DeactivateMemberDialog({
                                     onDeactivateAnyway();
                                 }}
                             >
-                                {processing && pendingAction === 'anyway' ? 'Deactivating…' : hasOpenRecords ? 'Deactivate anyway' : 'Deactivate'}
+                                {processing && pendingAction === 'anyway'
+                                    ? t('settings:deactivateMemberDialog.deactivating')
+                                    : hasOpenRecords
+                                      ? t('settings:deactivateMemberDialog.deactivateAnyway')
+                                      : t('settings:deactivateMemberDialog.deactivate')}
                             </Button>
                         </div>
                     </>

@@ -1,5 +1,7 @@
 import { Deferred, Head, usePage } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import type { TFunction } from 'i18next';
+import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import { ButtonLink } from '@/Components/Button';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
@@ -12,11 +14,12 @@ import StatusBadge from '@/Components/StatusBadge';
 import TableSkeleton from '@/Components/TableSkeleton';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { useListColumns } from '@/hooks/useListColumns';
+import { useLocale } from '@/hooks/useLocale';
 import { useListFilters } from '@/hooks/useListFilters';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatDate } from '@/lib/format';
+import { type AppLocale } from '@/lib/i18n';
 import type { ProductRow, ProductsIndexPageProps } from '@/types/generated';
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
 
 interface ProductColumnDef extends ColumnDefinition {
     cellClassName: string;
@@ -29,49 +32,57 @@ interface ProductColumnDef extends ColumnDefinition {
  * de aici e ordinea implicită/vizuală (`defaultColumns`): `category`/`variantsCount`/
  * `isActive` se vedeau deja; `lowStock` e implicită de la construcție (FR-STOCK-02, alerta
  * trebuie vizibilă fără acțiune din partea utilizatorului); `createdAt` rămâne opțională.
+ *
+ * Fabrică parametrizată `(t, locale)` (Val 3, „Lot I18N") — tiparul din `Pages/Deals/
+ * Index.tsx`/`Pages/Orders/Index.tsx`, unde doar jumătatea de `locale` era făcută.
  */
-const PRODUCT_COLUMNS: ProductColumnDef[] = [
+const buildProductColumns = (t: TFunction, locale: AppLocale): ProductColumnDef[] => [
     {
         key: 'category',
-        label: 'Category',
+        label: t('products:index.columns.category'),
         cellClassName: 'px-4 py-2.5 text-text-2',
         render: (product) => product.category ?? '—',
     },
     {
         key: 'variantsCount',
-        label: 'Variants',
+        label: t('products:index.columns.variants'),
         cellClassName: 'px-4 py-2.5 tabular-nums text-text-2',
         render: (product) => product.variantsCount,
     },
     {
         key: 'isActive',
-        label: 'Status',
+        label: t('products:labels.status'),
         cellClassName: 'px-4 py-2.5',
         render: (product) => (
-            <StatusBadge tone={product.isActive ? 'success' : 'neutral'}>{product.isActive ? 'Active' : 'Inactive'}</StatusBadge>
+            <StatusBadge tone={product.isActive ? 'success' : 'neutral'}>
+                {product.isActive ? t('products:badges.active') : t('products:badges.inactive')}
+            </StatusBadge>
         ),
     },
     {
         key: 'lowStock',
-        label: 'Low stock',
+        label: t('products:badges.lowStock'),
         cellClassName: 'px-4 py-2.5 tabular-nums',
         // FR-STOCK-02 — `lowStockVariantsCount` vine deja calculat dintr-o subinterogare
         // agregată în `ProductList::baseQuery()` (App\Support\Stock\LowStockRule), nu
         // recalculat aici.
         render: (product) =>
-            product.lowStockVariantsCount > 0 ? <StatusBadge tone="warning">{product.lowStockVariantsCount} low</StatusBadge> : '—',
+            product.lowStockVariantsCount > 0 ? (
+                <StatusBadge tone="warning">{t('products:index.lowStockBadge', { count: product.lowStockVariantsCount })}</StatusBadge>
+            ) : (
+                '—'
+            ),
     },
     {
         key: 'createdAt',
-        label: 'Created',
+        label: t('products:index.columns.created'),
         cellClassName: 'px-4 py-2.5 tabular-nums text-text-2',
-        render: (product) => (product.createdAt ? dateFormatter.format(new Date(product.createdAt)) : '—'),
+        render: (product) => (product.createdAt ? formatDate(product.createdAt, locale) : '—'),
     },
 ];
 
-const PRODUCT_COLUMNS_BY_KEY: Record<string, ProductColumnDef> = Object.fromEntries(
-    PRODUCT_COLUMNS.map((column) => [column.key, column] as const),
-);
+const buildProductColumnsByKey = (columns: ProductColumnDef[]): Record<string, ProductColumnDef> =>
+    Object.fromEntries(columns.map((column) => [column.key, column] as const));
 
 /**
  * Products/Index — specs.md §10, Pachetul A punctul 1. `products` e deferred
@@ -82,6 +93,10 @@ const PRODUCT_COLUMNS_BY_KEY: Record<string, ProductColumnDef> = Object.fromEntr
  * fără export (nu e în tabelul §13.5 pentru Produse/variante).
  */
 export default function Index() {
+    const { t } = useTranslation('products');
+    const locale = useLocale();
+    const productColumns = useMemo(() => buildProductColumns(t, locale), [t, locale]);
+    const productColumnsByKey = useMemo(() => buildProductColumnsByKey(productColumns), [productColumns]);
     const { products, total, list, columns, can, bulkConfirmationThreshold, bulkRowCap, workspace } = usePage<ProductsIndexPageProps>().props;
     const { url } = usePage();
     const { apply, setFilter, setSort } = useListFilters(list, columns);
@@ -97,7 +112,7 @@ export default function Index() {
     // Accounts/Deals/Orders) — o cheie necunoscută (n-ar trebui să apară, `columns` e
     // validat server-side, dar defensiv) nu mai dezaliniază tabelul.
     const visibleColumns = columns
-        .map((key) => PRODUCT_COLUMNS_BY_KEY[key])
+        .map((key) => productColumnsByKey[key])
         .filter((column): column is ProductColumnDef => column !== undefined);
 
     // Identitate (name) + coloanele vizibile + acțiuni-fantomă (Products n-are coloană de
@@ -106,60 +121,64 @@ export default function Index() {
 
     return (
         <>
-            <Head title="Products" />
+            <Head title={t('products:index.title')} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Products"
+                    title={t('products:index.title')}
                     actions={
                         <>
                             <SavedViewPicker resourceType="products" current={list} columns={columns} />
                             <ColumnSelector
-                                columns={PRODUCT_COLUMNS}
+                                columns={productColumns}
                                 selected={columns}
                                 onToggle={toggleColumn}
                                 onMoveUp={moveColumnUp}
                                 onMoveDown={moveColumnDown}
                             />
-                            {can.create && <ButtonLink variant="primary" href={`${base}/products/create`}>New product</ButtonLink>}
+                            {can.create && (
+                                <ButtonLink variant="primary" href={`${base}/products/create`}>
+                                    {t('products:index.newProduct')}
+                                </ButtonLink>
+                            )}
                         </>
                     }
                 />
 
                 <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Search
+                        {t('products:index.filters.search.label')}
                         <input
                             type="search"
                             defaultValue={list.filter.q ?? ''}
                             onChange={(event) => setFilter('q', event.target.value)}
-                            placeholder="Product name…"
+                            placeholder={t('products:index.filters.search.placeholder')}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text placeholder:text-text-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         />
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Status
+                        {t('products:index.filters.status.label')}
                         <select
                             value={list.filter.status ?? ''}
                             onChange={(event) => setFilter('status', event.target.value || null)}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="">Any status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
+                            <option value="">{t('products:index.filters.status.any')}</option>
+                            <option value="active">{t('products:badges.active')}</option>
+                            <option value="inactive">{t('products:badges.inactive')}</option>
                         </select>
                     </label>
 
                     <label className="flex flex-col gap-1 text-sm text-text-2">
-                        Sort by
+                        {t('products:index.filters.sort.label')}
                         <select
                             value={list.sort}
                             onChange={(event) => setSort(event.target.value)}
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
-                            <option value="name">Name</option>
-                            <option value="-created_at">Newest</option>
+                            <option value="name">{t('products:index.filters.sort.name')}</option>
+                            <option value="-created_at">{t('products:index.filters.sort.newest')}</option>
                         </select>
                     </label>
                 </div>
@@ -186,19 +205,21 @@ export default function Index() {
                     {products && products.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-left text-sm">
-                                <caption className="sr-only">Products</caption>
+                                <caption className="sr-only">{t('products:index.title')}</caption>
                                 <thead className="bg-raised text-text-2">
                                     <tr>
                                         {can.bulkWrite && (
                                             <th scope="col" className="w-10 px-4 py-2">
                                                 <RowCheckbox
-                                                    aria-label="Select all products on this page"
+                                                    aria-label={t('products:index.selectAllAria')}
                                                     checked={selection.allOnPageSelected}
                                                     onChange={selection.toggleAllOnPage}
                                                 />
                                             </th>
                                         )}
-                                        <th scope="col" className="px-4 py-2 font-medium">Name</th>
+                                        <th scope="col" className="px-4 py-2 font-medium">
+                                            {t('products:index.columns.name')}
+                                        </th>
                                         {visibleColumns.map((column) => (
                                             <th key={column.key} scope="col" className="px-4 py-2 font-medium">
                                                 {column.label}
@@ -212,7 +233,7 @@ export default function Index() {
                                             {can.bulkWrite && (
                                                 <td className="px-4 py-2.5">
                                                     <RowCheckbox
-                                                        aria-label={`Select ${product.name}`}
+                                                        aria-label={t('products:index.selectRowAria', { name: product.name })}
                                                         checked={selection.isSelected(product.id)}
                                                         onChange={() => selection.toggleRow(product.id)}
                                                     />
@@ -236,12 +257,12 @@ export default function Index() {
                     ) : (
                         products && (
                             <EmptyState
-                                message={hasFilters ? 'No products match this filter.' : 'No products yet.'}
+                                message={hasFilters ? t('products:index.empty.filtered') : t('products:index.empty.none')}
                                 action={
                                     !hasFilters &&
                                     can.create && (
                                         <ButtonLink variant="primary" href={`${base}/products/create`}>
-                                            Create your first product
+                                            {t('products:index.createFirst')}
                                         </ButtonLink>
                                     )
                                 }

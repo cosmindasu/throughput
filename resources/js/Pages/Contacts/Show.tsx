@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import HistoryTab from '@/Components/History/HistoryTab';
@@ -16,6 +17,7 @@ const dealStatusTone = { open: 'accent', won: 'success', lost: 'danger' } as con
  * principal (`Contact::deals()`, `primary_contact_id`).
  */
 export default function ContactsShow() {
+    const { t } = useTranslation('contacts');
     const { contact, can, workspace } = usePage<ContactsShowPageProps>().props;
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -45,31 +47,31 @@ export default function ContactsShow() {
                     actions={
                         <>
                             {can.edit && workspace && (
-                                <ButtonLink href={`/${workspace.slug}/contacts/${contact.id}/edit`}>Edit</ButtonLink>
+                                <ButtonLink href={`/${workspace.slug}/contacts/${contact.id}/edit`}>{t('show.actions.edit')}</ButtonLink>
                             )}
                             {can.delete && (
                                 <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
-                                    Delete
+                                    {t('show.actions.delete')}
                                 </Button>
                             )}
                         </>
                     }
                 />
 
-                {contact.isPrimary && <StatusBadge tone="accent">Primary contact</StatusBadge>}
+                {contact.isPrimary && <StatusBadge tone="accent">{t('show.primaryContactBadge')}</StatusBadge>}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <dl className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm">
                         <div>
-                            <dt className="text-text-2">Email</dt>
+                            <dt className="text-text-2">{t('show.details.email')}</dt>
                             <dd className="text-text">{contact.email ?? '—'}</dd>
                         </div>
                         <div>
-                            <dt className="text-text-2">Phone</dt>
+                            <dt className="text-text-2">{t('show.details.phone')}</dt>
                             <dd className="text-text">{contact.phone ?? '—'}</dd>
                         </div>
                         <div>
-                            <dt className="text-text-2">Account</dt>
+                            <dt className="text-text-2">{t('show.details.account')}</dt>
                             <dd className="text-text">
                                 {contact.account && workspace ? (
                                     <Link
@@ -79,18 +81,20 @@ export default function ContactsShow() {
                                         {contact.account.name}
                                     </Link>
                                 ) : (
-                                    'No account yet'
+                                    t('show.details.accountNone')
                                 )}
                             </dd>
                         </div>
                         <div>
-                            <dt className="text-text-2">Marketing</dt>
-                            <dd className="text-text">{contact.optOut ? 'Opted out' : 'Subscribed'}</dd>
+                            <dt className="text-text-2">{t('show.details.marketing')}</dt>
+                            <dd className="text-text">
+                                {contact.optOut ? t('show.details.marketingOptedOut') : t('show.details.marketingSubscribed')}
+                            </dd>
                         </div>
                     </dl>
 
-                    <section aria-label="Deals" className="rounded-lg border border-border bg-surface p-4 text-sm">
-                        <h2 className="text-sm font-medium text-text-2">Deals as primary contact</h2>
+                    <section aria-label={t('show.dealsSection.heading')} className="rounded-lg border border-border bg-surface p-4 text-sm">
+                        <h2 className="text-sm font-medium text-text-2">{t('show.dealsSection.heading')}</h2>
                         {contact.deals && contact.deals.length > 0 ? (
                             <ul className="mt-3 flex flex-col gap-2">
                                 {contact.deals.map((deal) => (
@@ -101,6 +105,9 @@ export default function ContactsShow() {
                                         >
                                             {deal.title}
                                         </Link>
+                                        {/* `deal.status` (open/won/lost) e domeniul „deals", nu al meu
+                                            (`contacts`) — las raw, vezi raportul lotului (namespace-ul
+                                            `deals` e gol, nimic de refolosit încă). */}
                                         <StatusBadge tone={dealStatusTone[deal.status as keyof typeof dealStatusTone] ?? 'neutral'}>
                                             {deal.status}
                                         </StatusBadge>
@@ -108,29 +115,27 @@ export default function ContactsShow() {
                                 ))}
                             </ul>
                         ) : (
-                            <p className="mt-3 text-text-2">No deals list this contact as primary yet.</p>
+                            <p className="mt-3 text-text-2">{t('show.dealsSection.empty')}</p>
                         )}
                     </section>
                 </div>
 
                 {/* FR-AUD-02, §17.3 */}
-                <section aria-label="History" className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">History</h2>
+                <section aria-label={t('show.historySection')} className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">{t('show.historySection')}</h2>
                     <HistoryTab entityType="contact" entityId={contact.id} />
                 </section>
 
                 <ConfirmDialog
                     open={confirmingDelete}
-                    title="Delete this contact?"
+                    title={t('show.deleteDialog.title')}
                     onClose={() => setConfirmingDelete(false)}
                     onConfirm={destroy}
-                    confirmLabel="Delete"
+                    confirmLabel={t('show.deleteDialog.confirm')}
                     confirmVariant="danger"
                     processing={deleting}
                 >
-                    This can’t be undone. If {contact.fullName} isn’t referenced by any deals or orders, the contact is deleted.
-                    Otherwise, its personal data (name, email, phone, title) is removed and the record is kept, so deal and order
-                    history stays intact.
+                    {t('show.deleteDialog.body', { name: contact.fullName })}
                 </ConfirmDialog>
             </div>
         </>

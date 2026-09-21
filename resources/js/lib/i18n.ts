@@ -1,8 +1,36 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import accountsEn from '@/locales/en/accounts.json';
+import activityEn from '@/locales/en/activity.json';
+import authEn from '@/locales/en/auth.json';
+import bulkEn from '@/locales/en/bulk.json';
 import commonEn from '@/locales/en/common.json';
+import contactsEn from '@/locales/en/contacts.json';
+import dashboardEn from '@/locales/en/dashboard.json';
+import dealsEn from '@/locales/en/deals.json';
+import importsEn from '@/locales/en/imports.json';
+import invoicesEn from '@/locales/en/invoices.json';
+import ordersEn from '@/locales/en/orders.json';
+import productsEn from '@/locales/en/products.json';
+import reportsEn from '@/locales/en/reports.json';
+import rolesEn from '@/locales/en/roles.json';
+import searchEn from '@/locales/en/search.json';
 import settingsEn from '@/locales/en/settings.json';
+import accountsFr from '@/locales/fr/accounts.json';
+import activityFr from '@/locales/fr/activity.json';
+import authFr from '@/locales/fr/auth.json';
+import bulkFr from '@/locales/fr/bulk.json';
 import commonFr from '@/locales/fr/common.json';
+import contactsFr from '@/locales/fr/contacts.json';
+import dashboardFr from '@/locales/fr/dashboard.json';
+import dealsFr from '@/locales/fr/deals.json';
+import importsFr from '@/locales/fr/imports.json';
+import invoicesFr from '@/locales/fr/invoices.json';
+import ordersFr from '@/locales/fr/orders.json';
+import productsFr from '@/locales/fr/products.json';
+import reportsFr from '@/locales/fr/reports.json';
+import rolesFr from '@/locales/fr/roles.json';
+import searchFr from '@/locales/fr/search.json';
 import settingsFr from '@/locales/fr/settings.json';
 
 export type AppLocale = 'en' | 'fr';
@@ -28,12 +56,42 @@ function isAppLocale(value: string): value is AppLocale {
 const initialLocale: AppLocale = isAppLocale(document.documentElement.lang) ? document.documentElement.lang : 'en';
 
 /**
- * Bootstrap i18next — Val 1 din „Lot I18N" (plan-implementare.md, între Fazele 5 și 6,
- * ADR-022). Motorul complet, cataloage-schelet: doar comutatorul, câteva etichete din
- * Settings → Preferences și un caz de pluralizare (`settings:language.available`).
- * Extragerea celor ~385 de etichete ale suprafeței rămâne Val 3 — namespace-urile de mai
- * jos (`common`, `settings`) sunt gândite să se extindă unul per modul din
- * `resources/js/Pages/` (accounts, deals, orders, ...), nu să se reorganizeze atunci.
+ * **Un namespace per modul de ecran**, exact extinderea anticipată la Valul 1: cataloagele
+ * `common`/`settings` de atunci erau schelet, iar comentariul de acolo cerea ca Valul 3 să
+ * le EXTINDĂ pe module (`accounts`, `deals`, `orders`, …), nu să le reorganizeze. Granița
+ * urmărește ecranul, nu componenta: un `Pages/Deals/*` și componentele lui din
+ * `Components/Deals/*` împart `deals`, fiindcă se traduc împreună și se citesc împreună.
+ *
+ * `common` rămâne pentru shell-ul propriu-zis — layout, paginare, primitive de formular,
+ * butoane — adică ce apare pe fiecare ecran indiferent de modul. `bulk` și `search` sunt
+ * separate deși sunt tot componente partajate: sunt funcționalități de sine stătătoare, cu
+ * vocabular propriu (și cu pluralizarea cea mai densă din aplicație).
+ *
+ * Împărțirea are și un motiv operațional: extragerea celor ~385 de etichete s-a făcut pe
+ * loturi paralele, iar un namespace per lot înseamnă că două loturi nu scriu niciodată în
+ * același fișier de catalog.
+ */
+const NAMESPACES = [
+    'common',
+    'settings',
+    'accounts',
+    'contacts',
+    'activity',
+    'deals',
+    'orders',
+    'products',
+    'invoices',
+    'reports',
+    'imports',
+    'bulk',
+    'search',
+    'auth',
+    'dashboard',
+    'roles',
+] as const;
+
+/**
+ * Bootstrap i18next — „Lot I18N" (plan-implementare.md, între Fazele 5 și 6, ADR-022).
  *
  * Cataloagele sunt import-uri STATICE, incluse în bundle la build — NU
  * `i18next-http-backend` cu fetch la runtime. Un catalog per navigare Inertia ar
@@ -50,10 +108,44 @@ void i18n.use(initReactI18next).init({
     fallbackLng: 'en',
     supportedLngs: SUPPORTED_LOCALES,
     defaultNS: 'common',
-    ns: ['common', 'settings'],
+    ns: NAMESPACES,
     resources: {
-        en: { common: commonEn, settings: settingsEn },
-        fr: { common: commonFr, settings: settingsFr },
+        en: {
+            common: commonEn,
+            settings: settingsEn,
+            accounts: accountsEn,
+            contacts: contactsEn,
+            activity: activityEn,
+            deals: dealsEn,
+            orders: ordersEn,
+            products: productsEn,
+            invoices: invoicesEn,
+            reports: reportsEn,
+            imports: importsEn,
+            bulk: bulkEn,
+            search: searchEn,
+            auth: authEn,
+            dashboard: dashboardEn,
+            roles: rolesEn,
+        },
+        fr: {
+            common: commonFr,
+            settings: settingsFr,
+            accounts: accountsFr,
+            contacts: contactsFr,
+            activity: activityFr,
+            deals: dealsFr,
+            orders: ordersFr,
+            products: productsFr,
+            invoices: invoicesFr,
+            reports: reportsFr,
+            imports: importsFr,
+            bulk: bulkFr,
+            search: searchFr,
+            auth: authFr,
+            dashboard: dashboardFr,
+            roles: rolesFr,
+        },
     },
     interpolation: {
         // React scapă deja textul la randare — o a doua scăpare (implicitul i18next
@@ -61,10 +153,10 @@ void i18n.use(initReactI18next).init({
         // traducerile franceze, de ex. „l'affichage").
         escapeValue: false,
     },
-    // Val 1 e schelet, nu suprafața completă — o cheie lipsă azi nu trebuie să crape
-    // ecranul, doar să cadă vizibil pe cheia brută (comportamentul implicit al
-    // bibliotecii). Acoperirea reală, blocantă, vine din `php artisan i18n:coverage`
-    // (App\Console\Commands\I18nCoverage, rulat în CI), nu dintr-un fallback tăcut aici.
+    // O cheie lipsă nu trebuie să crape ecranul, doar să cadă vizibil pe cheia brută
+    // (comportamentul implicit al bibliotecii). Acoperirea reală, blocantă, vine din
+    // `php artisan i18n:coverage` (App\Console\Commands\I18nCoverage, rulat în CI),
+    // nu dintr-un fallback tăcut aici.
     returnEmptyString: false,
 });
 

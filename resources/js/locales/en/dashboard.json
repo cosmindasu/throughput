@@ -1,0 +1,29 @@
+{
+    "title": "Dashboard",
+    "kpis": {
+        "openPipelineValue": "Open pipeline value",
+        "ordersThisMonth": "Orders this month",
+        "overdueInvoices": "Overdue invoices",
+        "lowStockAlerts": "Low stock alerts"
+    },
+    "recentActivity": "Recent activity",
+    "unassigned": {
+        "title": "Unassigned",
+        "description": "Open deals and active orders left behind by deactivated members (ADR-011) — nothing here was lost, it just needs a new owner.",
+        "reassignLabel": "Reassign everything to",
+        "chooseMember": "Choose a member…",
+        "reassignAll": "Reassign all",
+        "reassigning": "Reassigning…",
+        "empty": "Nothing unassigned right now — every open deal and active order has an active owner.",
+        "openDealsHeading": "Open deals ({{count}})",
+        "activeOrdersHeading": "Active orders ({{count}})",
+        "columns": {
+            "dealTitle": "Title",
+            "account": "Account",
+            "stage": "Stage",
+            "owner": "Owner",
+            "order": "Order",
+            "status": "Status"
+        }
+    }
+}

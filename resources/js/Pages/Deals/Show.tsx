@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import type { TFunction } from 'i18next';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink } from '@/Components/Button';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import MoveStageMenu from '@/Components/Deals/MoveStageMenu';
@@ -7,31 +9,38 @@ import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
+import { useLocale } from '@/hooks/useLocale';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import type { DealsShowPageProps } from '@/types/generated';
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-function formatDuration(seconds: number | null): string {
+/**
+ * Val 3 „Lot I18N" — cele DOUĂ tipare de pluralizare hardcodate semnalate în brief
+ * (linia fostă ~23 și ~28) devin chei CLDR (`show.duration.days`/`show.duration.hours`,
+ * `_one`/`_other` în en, `_one`/`_many`/`_other` în fr). `t` vine ca parametru — funcția
+ * rămâne pură, în afara componentei, ca `buildDealColumns` din `Deals/Index.tsx`.
+ */
+function formatDuration(t: TFunction, seconds: number | null): string {
     if (seconds === null) {
         return '—';
     }
 
     const days = Math.floor(seconds / 86400);
     if (days >= 1) {
-        return `${days} day${days === 1 ? '' : 's'}`;
+        return t('show.duration.days', { count: days });
     }
 
     const hours = Math.floor(seconds / 3600);
     if (hours >= 1) {
-        return `${hours} hour${hours === 1 ? '' : 's'}`;
+        return t('show.duration.hours', { count: hours });
     }
 
-    return `${Math.max(Math.round(seconds / 60), 1)} min`;
+    return t('show.duration.minutes', { count: Math.max(Math.round(seconds / 60), 1) });
 }
 
 export default function Show() {
+    const { t } = useTranslation('deals');
+    const locale = useLocale();
     const { deal, stageEvents, stages, can, workspace } = usePage<DealsShowPageProps>().props;
     const workspaceSlug = workspace?.slug ?? '';
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -76,11 +85,11 @@ export default function Show() {
                                     onError={setErrorMessage}
                                 />
                             )}
-                            {can.edit && <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}/edit`}>Edit</ButtonLink>}
+                            {can.edit && <ButtonLink href={`/${workspaceSlug}/deals/${deal.id}/edit`}>{t('show.actions.edit')}</ButtonLink>}
                             {/* Primitiva `Button`, nu clasele variantei `danger` copiate de mână. */}
                             {can.delete && (
                                 <Button variant="danger" onClick={() => setConfirmingDelete(true)}>
-                                    Delete
+                                    {t('show.actions.delete')}
                                 </Button>
                             )}
                         </>
@@ -94,29 +103,36 @@ export default function Show() {
                 )}
 
                 <dl className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <Field label="Value" value={<span className="numeric">{formatMoney(deal.value, deal.currency)}</span>} />
-                    <Field label="Expected close date" value={deal.expectedCloseDate ? dateFormatter.format(new Date(deal.expectedCloseDate)) : '—'} />
-                    <Field label="Owner" value={deal.owner.name} />
-                    <Field label="Primary contact" value={deal.primaryContact?.name ?? '—'} />
-                    <Field label="Pipeline" value={deal.pipeline.name} />
-                    {deal.status === 'lost' && <Field label="Lost reason" value={deal.lostReason ?? '—'} />}
+                    <Field label={t('show.fields.value')} value={<span className="numeric">{formatMoney(deal.value, deal.currency, locale)}</span>} />
+                    <Field label={t('show.fields.expectedCloseDate')} value={deal.expectedCloseDate ? formatDate(deal.expectedCloseDate, locale) : '—'} />
+                    <Field label={t('show.fields.owner')} value={deal.owner.name} />
+                    <Field label={t('show.fields.primaryContact')} value={deal.primaryContact?.name ?? '—'} />
+                    <Field label={t('show.fields.pipeline')} value={deal.pipeline.name} />
+                    {deal.status === 'lost' && (
+                        <Field
+                            label={t('show.fields.lostReason')}
+                            value={deal.lostReason ? t(`lostReasons.${deal.lostReason}`) : '—'}
+                        />
+                    )}
                 </dl>
 
-                <section aria-label="Stage history" className="rounded-lg border border-border bg-surface p-4">
-                    <h2 className="text-sm font-medium text-text-2">Stage history</h2>
+                <section aria-label={t('show.stageHistory.heading')} className="rounded-lg border border-border bg-surface p-4">
+                    <h2 className="text-sm font-medium text-text-2">{t('show.stageHistory.heading')}</h2>
 
                     {stageEvents.length === 0 ? (
-                        <p className="mt-3 text-sm text-text-2">No stage changes yet.</p>
+                        <p className="mt-3 text-sm text-text-2">{t('show.stageHistory.empty')}</p>
                     ) : (
                         <ol className="mt-3 flex flex-col gap-3">
                             {stageEvents.map((event) => (
                                 <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border-soft pb-2 text-sm last:border-b-0">
                                     <span className="text-text">
-                                        {event.fromStage ? `${event.fromStage.name} → ${event.toStage.name}` : `Created on ${event.toStage.name}`}
+                                        {event.fromStage
+                                            ? t('show.stageHistory.transition', { from: event.fromStage.name, to: event.toStage.name })
+                                            : t('show.stageHistory.createdOn', { stage: event.toStage.name })}
                                     </span>
                                     <span className="text-xs text-text-3">
-                                        {event.changedBy?.name ?? 'System'} · {event.changedAt ? dateTimeFormatter.format(new Date(event.changedAt)) : '—'}
-                                        {event.fromStage && <> · spent {formatDuration(event.durationInPreviousStageSeconds)} on {event.fromStage.name}</>}
+                                        {event.changedBy?.name ?? t('show.stageHistory.changedBySystem')} · {event.changedAt ? formatDateTime(event.changedAt, locale) : '—'}
+                                        {event.fromStage && <> · {t('show.stageHistory.spent', { duration: formatDuration(t, event.durationInPreviousStageSeconds), stage: event.fromStage.name })}</>}
                                     </span>
                                 </li>
                             ))}
@@ -126,23 +142,22 @@ export default function Show() {
 
                 {/* FR-AUD-02, §17.3 — distinct de „Stage history" de mai sus (evenimente
                     dedicate de pipeline), „History" e strict `activity_log`. */}
-                <section aria-label="History" className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">History</h2>
+                <section aria-label={t('show.history.heading')} className="flex flex-col gap-3">
+                    <h2 className="text-sm font-medium text-text">{t('show.history.heading')}</h2>
                     <HistoryTab entityType="deal" entityId={deal.id} />
                 </section>
             </div>
 
             <ConfirmDialog
                 open={confirmingDelete}
-                title="Delete this deal?"
+                title={t('show.delete.title')}
                 onClose={() => setConfirmingDelete(false)}
                 onConfirm={destroy}
-                confirmLabel="Delete"
+                confirmLabel={t('show.delete.confirmLabel')}
                 confirmVariant="danger"
                 processing={deleting}
             >
-                This hides “{deal.title}” from lists, the board, search and reports. Its stage history is kept, so stage
-                reports stay correct.
+                {t('show.delete.body', { title: deal.title })}
             </ConfirmDialog>
         </>
     );

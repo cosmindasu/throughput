@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
 import { buttonClass } from '@/Components/Button';
 import type { DealStage, LostReason } from '@/types/generated';
@@ -32,6 +33,7 @@ interface MoveStageMenuProps {
  * cererea — atât de pe kanban, cât și din `Deals/Show`.
  */
 export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, stages, onError, onMoved, dealTitle }: MoveStageMenuProps) {
+    const { t } = useTranslation('deals');
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const [pendingLostStage, setPendingLostStage] = useState<DealStage | null>(null);
@@ -86,7 +88,7 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                 },
                 onError: (errors) => {
                     setPendingLostStage(null);
-                    onError(errors.to_stage_id ?? errors.lost_reason ?? 'Could not move this deal.');
+                    onError(errors.to_stage_id ?? errors.lost_reason ?? t('moveStageMenu.error'));
                 },
                 onFinish: () => setProcessing(false),
             },
@@ -165,14 +167,15 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                 {/* Discriminatorul e `sr-only` DUPĂ textul vizibil, nu un `aria-label` care
                     l-ar înlocui: numele accesibil tot ÎNCEPE cu „Move to stage…" (SC 2.5.3
                     Label in Name) și rămâne găsibil după textul vizibil. */}
-                Move to stage…{dealTitle && <span className="sr-only"> for {dealTitle}</span>}
+                {t('moveStageMenu.trigger')}
+                {dealTitle && <span className="sr-only"> {t('moveStageMenu.triggerFor', { title: dealTitle })}</span>}
             </button>
 
             {open && (
                 <ul
                     id={menuId}
                     role="menu"
-                    aria-label="Move to stage"
+                    aria-label={t('moveStageMenu.ariaLabel')}
                     onKeyDown={onMenuKeyDown}
                     className="absolute z-10 mt-1 w-48 rounded-md border border-border bg-overlay py-1 shadow-lg"
                 >
