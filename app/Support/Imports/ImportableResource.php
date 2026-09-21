@@ -14,7 +14,11 @@ interface ImportableResource
 {
     public function resourceType(): string;
 
-    /** Etichetă umană, pentru UI (titluri, opțiuni de select). */
+    /**
+     * Etichetă umană, pentru UI (titluri, opțiuni de select) — trece prin catalogul de
+     * traducere (`__('imports.resources.<tip>')`, `lang/{en,fr}/imports.php`), în locale-ul
+     * cererii curente (FR-I18N-04, ADR-022). Nu un literal fix.
+     */
     public function label(): string;
 
     /** @return list<ImportField> */

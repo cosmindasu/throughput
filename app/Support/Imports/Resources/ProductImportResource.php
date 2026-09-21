@@ -33,22 +33,22 @@ final class ProductImportResource implements ImportableResource
 
     public function label(): string
     {
-        return 'Products';
+        return __('imports.resources.products');
     }
 
     /** BR-I18N-01 — vezi docblock-ul identic din `AccountImportResource::fields()`. */
     public function fields(): array
     {
         return [
-            new ImportField('name', 'Product name', true, ['required', 'string', 'max:255'], [
+            new ImportField('name', 'imports.fields.products.name', true, ['required', 'string', 'max:255'], [
                 'name', 'product name', 'item name', 'title',
                 'nom du produit', "nom de l'article", 'désignation', 'nom',
             ]),
-            new ImportField('category', 'Category', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('category', 'imports.fields.products.category', false, ['nullable', 'string', 'max:255'], [
                 'category', 'product category',
                 'catégorie',
             ]),
-            new ImportField('unit_of_measure', 'Unit of measure', false, ['nullable', Rule::in(self::UNITS)], [
+            new ImportField('unit_of_measure', 'imports.fields.products.unit_of_measure', false, ['nullable', Rule::in(self::UNITS)], [
                 'unit of measure', 'unit', 'uom',
                 'unité de mesure', 'unité',
             ]),

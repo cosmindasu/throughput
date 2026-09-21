@@ -41,7 +41,12 @@ final class UpdateImportMappingRequest extends FormRequest
 
             foreach ($resource->fields() as $field) {
                 if ($field->required && ! in_array($field->key, $mappedFields, true)) {
-                    $validator->errors()->add('mapping', "\"{$field->label}\" is required for {$resource->label()} and must be mapped to a column.");
+                    // Fraza ÎNTREAGĂ trece prin catalog, nu doar cele două etichete
+                    // interpolate (FR-I18N-04) — vezi nota de la cheie în `lang/en/imports.php`.
+                    $validator->errors()->add('mapping', __('imports.validation.required_field_unmapped', [
+                        'field' => $field->label(),
+                        'resource' => $resource->label(),
+                    ]));
                 }
             }
         });

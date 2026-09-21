@@ -21,9 +21,16 @@
  *
  * Pluralizare (FR-I18N-05, plan „Lot I18N" Val 2 — „Str::plural() → trans_choice()"):
  * franceza tratează 0 ca SINGULAR, engleza îl tratează ca PLURAL — de asta rândurile de
- * mai jos cu chei `rows`/`days`/`deals`/`orders` folosesc condiții explicite `{0}`/`[0,1]`
- * pe fiecare limbă, NICIODATĂ regula implicită cu doar două segmente (`:count
- * apples|:count apple`), care ar presupune aceeași regulă pentru ambele limbi.
+ * mai jos cu chei `rows`/`days`/`deals`/`orders`/`subject` folosesc condiții explicite
+ * `{0}`/`[0,1]` pe fiecare limbă, NICIODATĂ regula implicită cu doar două segmente
+ * (`:count apples|:count apple`), care ar presupune aceeași regulă pentru ambele limbi.
+ *
+ * Regula are o formă verificabilă mecanic, folosită ca să se confirme că e singurul caz:
+ * un șir care are MĂCAR o condiție explicită, dar lasă un `count` să cadă pe calea de
+ * rezervă a lui `MessageSelector`, e un defect — `Illuminate\Translation\MessageSelector::
+ * extract()` întoarce `null` acolo, iar ramura de rezervă nu aplică `trim()`. Trecute
+ * prin filtrul ăsta, toate cheile din `lang/{en,fr}/*.php` ies curate; `subject` era
+ * singura excepție (vezi nota de la ea).
  */
 
 return [
@@ -99,7 +106,18 @@ return [
     // ADR-022) — niciun `->locale()` explicit necesar aici, spre deosebire de
     // `Mail::to()`, care nu rezolvă automat decât pe un SINGUR model, nu pe o listă.
     'membership_records_need_new_owner' => [
-        'subject' => '{1} :count record needs a new owner|[2,*] :count records need a new owner',
+        // Ramura `{0}` nu e decorativă. Fără ea, `trans_choice(..., 0)` nu potrivește
+        // nicio condiție scrisă și cade pe calea de rezervă a lui `MessageSelector`
+        // (`stripConditions()` + indexul gramatical), care NU aplică `trim()` — ieșea
+        // literal „ 0 records need a new owner", cu spațiul de după `}`. Latent azi:
+        // singurul loc care trimite notificarea (`MembersController::applyDeactivation()`)
+        // e păzit de `if ($counts['total'] > 0)`. Reparat totuși, fiindcă `deals`/`orders`
+        // de mai jos au deja ramura și pentru ele 0 chiar se întâmplă (unul din cei doi
+        // numărători poate fi zero când celălalt nu e) — o singură cheie care se abate de
+        // la convenția fișierului e exact cea pe care o rescrie greșit cine adaugă a treia
+        // limbă. Franceza n-are nevoie de perechea asta: `[0,1]` acoperă deja zero, care
+        // acolo e singular.
+        'subject' => '{0} :count records need a new owner|{1} :count record needs a new owner|[2,*] :count records need a new owner',
         'greeting' => 'Hi :name,',
         'deactivated' => ':member was deactivated in :tenant, and chose not to reassign their open records right away.',
         'deals' => '{0} :count open deals|{1} :count open deal|[2,*] :count open deals',

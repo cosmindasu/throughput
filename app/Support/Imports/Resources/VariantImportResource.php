@@ -44,40 +44,40 @@ final class VariantImportResource implements ImportableResource
 
     public function label(): string
     {
-        return 'Products/Variants';
+        return __('imports.resources.variants');
     }
 
     /** BR-I18N-01 — vezi docblock-ul identic din `AccountImportResource::fields()`. */
     public function fields(): array
     {
         return [
-            new ImportField('sku', 'SKU', true, ['required', 'string', 'max:255'], [
+            new ImportField('sku', 'imports.fields.variants.sku', true, ['required', 'string', 'max:255'], [
                 'sku', 'product sku', 'item sku', 'variant sku',
                 // „SKU" rămâne des netradus în franceza de comerț/logistică; „référence"/
                 // „code article" sunt echivalentele uzuale — ambele adăugate.
                 'référence', 'code article', 'référence sku',
             ]),
-            new ImportField('product_name', 'Product name', true, ['required', 'string', 'max:255'], [
+            new ImportField('product_name', 'imports.fields.variants.product_name', true, ['required', 'string', 'max:255'], [
                 'product name', 'product', 'item name',
                 'nom du produit', 'produit',
             ]),
-            new ImportField('category', 'Category', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('category', 'imports.fields.variants.category', false, ['nullable', 'string', 'max:255'], [
                 'category', 'product category',
                 'catégorie',
             ]),
-            new ImportField('unit_of_measure', 'Unit of measure', false, ['nullable', Rule::in(self::UNITS)], [
+            new ImportField('unit_of_measure', 'imports.fields.variants.unit_of_measure', false, ['nullable', Rule::in(self::UNITS)], [
                 'unit of measure', 'unit', 'uom',
                 'unité de mesure', 'unité',
             ]),
-            new ImportField('price', 'Price', true, ['required', 'numeric', 'min:0'], [
+            new ImportField('price', 'imports.fields.variants.price', true, ['required', 'numeric', 'min:0'], [
                 'price', 'unit price', 'sale price',
                 'prix', 'prix unitaire', 'prix de vente',
             ]),
-            new ImportField('cost', 'Cost', true, ['required', 'numeric', 'min:0'], [
+            new ImportField('cost', 'imports.fields.variants.cost', true, ['required', 'numeric', 'min:0'], [
                 'cost', 'unit cost',
                 'coût', 'coût unitaire',
             ]),
-            new ImportField('weight', 'Weight', false, ['nullable', 'numeric', 'min:0'], [
+            new ImportField('weight', 'imports.fields.variants.weight', false, ['nullable', 'numeric', 'min:0'], [
                 'weight', 'item weight',
                 'poids',
             ]),

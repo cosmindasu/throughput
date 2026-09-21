@@ -44,37 +44,37 @@ final class ContactImportResource implements ImportableResource
 
     public function label(): string
     {
-        return 'Contacts';
+        return __('imports.resources.contacts');
     }
 
     /** BR-I18N-01 — vezi docblock-ul identic din `AccountImportResource::fields()`. */
     public function fields(): array
     {
         return [
-            new ImportField('first_name', 'First name', true, ['required', 'string', 'max:255'], [
+            new ImportField('first_name', 'imports.fields.contacts.first_name', true, ['required', 'string', 'max:255'], [
                 'first name', 'firstname', 'given name',
                 'prénom',
             ]),
             // `nom` (fără „de famille"/„famille") e alias sigur aici DOAR fiindcă niciun alt
             // câmp din ACEASTĂ resursă nu-l revendică — spre deosebire de conturi, unde
             // „name" e deja câmpul de firmă (vezi docblock-ul `AccountImportResource`).
-            new ImportField('last_name', 'Last name', true, ['required', 'string', 'max:255'], [
+            new ImportField('last_name', 'imports.fields.contacts.last_name', true, ['required', 'string', 'max:255'], [
                 'last name', 'lastname', 'surname', 'family name',
                 'nom', 'nom de famille',
             ]),
-            new ImportField('email', 'Email', false, ['nullable', 'email', 'max:255'], [
+            new ImportField('email', 'imports.fields.contacts.email', false, ['nullable', 'email', 'max:255'], [
                 'email', 'email address', 'e-mail',
                 'adresse e-mail', 'adresse email', 'courriel',
             ]),
-            new ImportField('phone', 'Phone', false, ['nullable', 'string', 'max:30'], [
+            new ImportField('phone', 'imports.fields.contacts.phone', false, ['nullable', 'string', 'max:30'], [
                 'phone', 'phone number', 'telephone', 'tel',
                 'téléphone', 'numéro de téléphone', 'tél',
             ]),
-            new ImportField('title', 'Job title', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('title', 'imports.fields.contacts.title', false, ['nullable', 'string', 'max:255'], [
                 'title', 'job title', 'position', 'role',
                 'poste', 'fonction', 'titre du poste',
             ]),
-            new ImportField('account_name', 'Company', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('account_name', 'imports.fields.contacts.account_name', false, ['nullable', 'string', 'max:255'], [
                 'company', 'company name', 'account', 'account name', 'organization',
                 'société', 'entreprise', "nom de l'entreprise", 'compte',
             ]),

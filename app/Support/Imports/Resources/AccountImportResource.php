@@ -28,7 +28,7 @@ final class AccountImportResource implements ImportableResource
 
     public function label(): string
     {
-        return 'Accounts';
+        return __('imports.resources.accounts');
     }
 
     /**
@@ -39,28 +39,33 @@ final class AccountImportResource implements ImportableResource
      * l'entreprise") ar ateriza pe „confidence: none" la reimport — mecanismul de mapare
      * automată (`ColumnMappingSuggester`) nu are cum să știe că „Nom de l'entreprise" și
      * „Company name" sunt același câmp fără un alias explicit.
+     *
+     * Al doilea argument al fiecărui `ImportField` e o CHEIE de traducere
+     * (`imports.fields.accounts.*`, `lang/{en,fr}/imports.php`), nu mai literalul englez —
+     * `ColumnMappingSuggester::bestMatch()` cere `$field->allLabels()`, deci eticheta FR
+     * intră în candidați indiferent de limba interfeței celui care importă (BR-I18N-01).
      */
     public function fields(): array
     {
         return [
-            new ImportField('name', 'Company name', true, ['required', 'string', 'max:255'], [
+            new ImportField('name', 'imports.fields.accounts.name', true, ['required', 'string', 'max:255'], [
                 'name', 'company name', 'account name', 'company', 'business name', 'organization',
                 // FR — exemplul chiar citat de BR-I18N-01 în specs.md §15.8.
                 'nom', "nom de l'entreprise", 'nom de la société', 'société', 'raison sociale', 'entreprise',
             ]),
-            new ImportField('domain', 'Domain', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('domain', 'imports.fields.accounts.domain', false, ['nullable', 'string', 'max:255'], [
                 'domain', 'website', 'company domain', 'url', 'web site',
                 'domaine', 'site web', "domaine de l'entreprise", 'site internet',
             ]),
-            new ImportField('industry', 'Industry', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('industry', 'imports.fields.accounts.industry', false, ['nullable', 'string', 'max:255'], [
                 'industry', 'sector', 'vertical',
                 'secteur', "secteur d'activité", 'industrie',
             ]),
-            new ImportField('phone', 'Phone', false, ['nullable', 'string', 'max:30'], [
+            new ImportField('phone', 'imports.fields.accounts.phone', false, ['nullable', 'string', 'max:30'], [
                 'phone', 'phone number', 'telephone', 'tel',
                 'téléphone', 'numéro de téléphone', 'tél',
             ]),
-            new ImportField('source', 'Source', false, ['nullable', 'string', 'max:255'], [
+            new ImportField('source', 'imports.fields.accounts.source', false, ['nullable', 'string', 'max:255'], [
                 'source', 'lead source',
                 'source du prospect', 'origine',
             ]),

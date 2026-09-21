@@ -106,7 +106,7 @@ final class ImportDryRunChunkProcessor
         foreach ($this->resource->fields() as $field) {
             $data[$field->key] = $mapped[$field->key] ?? null;
             $rules[$field->key] = $field->rules;
-            $attributes[$field->key] = $field->label;
+            $attributes[$field->key] = $field->label();
         }
 
         $validator = ValidatorFacade::make($data, $rules, [], $attributes);

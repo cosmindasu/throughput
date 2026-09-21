@@ -69,6 +69,25 @@ class MembershipRecordsNeedNewOwnerNotificationTest extends TestCase
         $this->assertStringContainsString('0 affaire ouverte et 2 commandes actives sont désormais sans propriétaire.', $fr->introLines[1]);
     }
 
+    public function test_a_zero_total_subject_has_an_explicit_branch_in_both_locales(): void
+    {
+        // Gol găsit după Valul 3, exact în cazul pe care docblock-ul de mai sus îl declara
+        // acoperit „pentru orice alt apelant viitor", dar pe care niciun test nu-l atingea:
+        // engleza n-avea ramură `{0}`, deci `trans_choice(..., 0)` nu potrivea nicio condiție
+        // scrisă și cădea pe ramura de rezervă a lui `MessageSelector`, singura care nu aplică
+        // `trim()` — ieșea „ 0 records need a new owner", cu spațiu la început.
+        //
+        // `assertSame` pe șirul ÎNTREG, deliberat: `assertStringContainsString` ar fi trecut
+        // verde și cu spațiul cu tot, adică exact peste defectul căutat.
+        App::setLocale('en');
+        $this->assertSame('0 records need a new owner', $this->notify(openDeals: 0, activeOrders: 0)->subject);
+
+        App::setLocale('fr');
+        // Franceza avea deja `[0,1]` — zero e singular acolo. Aserțiunea o fixează, ca o
+        // eventuală „aliniere" a celor două cataloage să nu i-o rescrie pe modelul englez.
+        $this->assertSame('0 enregistrement a besoin d\'un nouveau propriétaire', $this->notify(openDeals: 0, activeOrders: 0)->subject);
+    }
+
     public function test_subjects_pluralize_correctly_above_one_in_both_locales(): void
     {
         App::setLocale('en');

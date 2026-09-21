@@ -146,7 +146,7 @@ final class ImportController extends Controller
         return Inertia::render('Imports/Show', [
             'import' => new ImportResource($import),
             'fields' => collect($resource->fields())
-                ->map(fn ($field) => ['key' => $field->key, 'label' => $field->label, 'required' => $field->required])
+                ->map(fn ($field) => ['key' => $field->key, 'label' => $field->label(), 'required' => $field->required])
                 ->values(),
             'headers' => $headers,
             'mappingSuggestions' => $mappingSuggestions,

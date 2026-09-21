@@ -175,9 +175,10 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                     <li key={entry.id} className="flex flex-col gap-1.5 px-4 py-3 text-sm">
                         <div className="flex items-center justify-between gap-4">
                             {/* `entry.actionLabel` vine GATA CONSTRUIT din
-                                `ActivityLogResource::toArray()` (`Str::headline($this->action)`), fără
-                                trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu-l
-                                reconstrui aici (vezi raportul). */}
+                                `ActivityLogResource::toArray()`, tradus server-side prin
+                                `App\Support\Activity\ActivityActionLabel` (`lang/{en,fr}/activity.php`,
+                                ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis. Nu-l
+                                reconstrui aici: locale-ul cererii curente, nu al clientului. */}
                             <span className="font-medium text-text">{entry.actionLabel}</span>
                             <time
                                 dateTime={entry.createdAt ?? undefined}

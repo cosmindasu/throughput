@@ -90,7 +90,11 @@ final class ColumnMappingSuggester
                 continue;
             }
 
-            foreach ([$field->key, $field->label, ...$field->aliases] as $candidate) {
+            // `allLabels()`, nu `label()` (BR-I18N-01): eticheta în AMBELE limbi intră în
+            // candidați, indiferent de locale-ul celui care importă acum — altfel un fișier
+            // exportat sub `fr` și reimportat sub `en` (sau invers) ar depinde de limba
+            // curentă a interfeței, exact scenariul pe care regula îl interzice.
+            foreach ([$field->key, ...$field->allLabels(), ...$field->aliases] as $candidate) {
                 $normalizedCandidate = self::normalize($candidate);
 
                 if ($normalizedCandidate === '') {

@@ -341,8 +341,9 @@ function MappingStep({
                                         >
                                             <option value="">{t('imports:show.mapping.noColumn')}</option>
                                             {fields.map((field) => (
-                                                // `field.label` vine din backend (`ImportField->label`), NETRADUS
-                                                // server-side — vezi raportul lotului. Nu se re-traduce aici.
+                                                // `field.label` vine din backend (`ImportField::label()`), deja TRADUS
+                                                // server-side (`__('imports.fields.<resursă>.<câmp>')`, FR-I18N-04).
+                                                // Nu se re-traduce aici.
                                                 <option key={field.key} value={field.key}>
                                                     {field.label}
                                                     {field.required ? t('imports:show.mapping.required') : ''}

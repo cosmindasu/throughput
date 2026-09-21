@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Deal;
 use App\Models\DealStageEvent;
 use App\Models\Order;
+use App\Support\Activity\ActivityActionLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -50,9 +51,11 @@ final class AccountActivityTimeline
             ->limit(self::LIMIT)
             ->get(['id', 'title', 'created_at'])
             ->each(function (Deal $deal) use ($entries, $workspace): void {
+                // FR-I18N-06 — `$deal->title` e conținut scris de utilizator: intră ca
+                // parametru de traducere (`:title`), niciodată concatenat în șirul tradus.
                 $entries->push([
                     'id' => 'deal-created:'.$deal->id,
-                    'description' => "Deal created: {$deal->title}",
+                    'description' => __('activity.timeline.deal_created', ['title' => $deal->title]),
                     'at' => $deal->created_at?->toIso8601String(),
                     'url' => $workspace !== null ? "/{$workspace}/deals/{$deal->id}" : null,
                 ]);
@@ -65,12 +68,15 @@ final class AccountActivityTimeline
             ->limit(self::LIMIT)
             ->get()
             ->each(function (DealStageEvent $event) use ($entries, $workspace): void {
-                $title = $event->deal?->title ?? 'Deal';
-                $stage = $event->toStage?->name ?? 'a new stage';
+                // FR-I18N-06 — `$event->deal->title`/`$event->toStage->name` sunt conținut
+                // de utilizator, deci parametri de traducere; fallback-urile de mai jos
+                // (deal/etapă șterse între timp) sunt text al APLICAȚIEI, deci SE traduc.
+                $title = $event->deal?->title ?? __('activity.timeline.fallback_deal');
+                $stage = $event->toStage?->name ?? __('activity.timeline.fallback_stage');
 
                 $entries->push([
                     'id' => 'stage-event:'.$event->id,
-                    'description' => "{$title} moved to {$stage}",
+                    'description' => __('activity.timeline.stage_moved', ['title' => $title, 'stage' => $stage]),
                     'at' => $event->changed_at?->toIso8601String(),
                     'url' => $workspace !== null && $event->deal_id !== null ? "/{$workspace}/deals/{$event->deal_id}" : null,
                 ]);
@@ -83,11 +89,14 @@ final class AccountActivityTimeline
             ->limit(self::LIMIT)
             ->get(['id', 'order_number', 'placed_at', 'created_at'])
             ->each(function (Order $order) use ($entries): void {
+                // `$order->order_number`/fragmentul de ULID nu sunt text — sunt un
+                // identificator (FR-I18N-06 notă): parametru de traducere neschimbat,
+                // fraza care-l conține trece prin catalog.
                 $label = $order->order_number ?? ('#'.Str::substr($order->id, -8));
 
                 $entries->push([
                     'id' => 'order-placed:'.$order->id,
-                    'description' => "Order placed: {$label}",
+                    'description' => __('activity.timeline.order_placed', ['label' => $label]),
                     'at' => ($order->placed_at ?? $order->created_at)?->toIso8601String(),
                     'url' => null,
                 ]);
@@ -104,9 +113,13 @@ final class AccountActivityTimeline
             ->limit(self::LIMIT)
             ->get(['id', 'action', 'created_at'])
             ->each(function (ActivityLog $log) use ($entries): void {
+                // Aici NU se compune un subiect („Updated Account") — contul curent E
+                // deja implicit (tab-ul „Activity" al ACESTUI cont), deci doar eticheta
+                // scurtă a acțiunii, ca `actionLabel` din jurnalul tenant-ului
+                // (`ActivityActionLabel`, aceeași sursă, ADR-022/FR-I18N-04).
                 $entries->push([
                     'id' => 'activity:'.$log->id,
-                    'description' => Str::headline($log->action),
+                    'description' => ActivityActionLabel::resolve($log->action),
                     'at' => $log->created_at?->toIso8601String(),
                     'url' => null,
                 ]);

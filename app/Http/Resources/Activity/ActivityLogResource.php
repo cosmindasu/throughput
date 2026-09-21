@@ -9,10 +9,10 @@ use App\Models\Deal;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\Activity\ActivityActionLabel;
 use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Str;
 
 /**
  * FR-AUD-02/03, §17.3 — formă COMUNĂ pentru ambele ecrane ale jurnalului:
@@ -50,7 +50,9 @@ class ActivityLogResource extends JsonResource
         return [
             'id' => $this->id,
             'action' => $this->action,
-            'actionLabel' => Str::headline($this->action),
+            // ADR-022/FR-I18N-04 — enum ÎNCHIS al coloanei, tradus prin catalog
+            // (`lang/{en,fr}/activity.php:actions`), nu prin transformare de șir.
+            'actionLabel' => ActivityActionLabel::resolve($this->action),
             // FR-TEN-04 — un membru dezactivat rămâne vizibil ca AUTOR al unei acțiuni
             // trecute („(deactivated)"), la fel ca peste tot unde numele unui membru apare
             // ca referință istorică (§7.4, ADR-011). `null` = acțiune de sistem (§17.1).

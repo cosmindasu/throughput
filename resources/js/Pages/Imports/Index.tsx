@@ -97,9 +97,9 @@ export default function Index() {
                                             </a>
                                         </td>
                                         {/* `row.resourceLabel` vine din backend (`ImportableResources::resolve()->label()`),
-                                            NETRADUS server-side (verificat: `AccountImportResource::label()` întoarce
-                                            literalul englez „Accounts", fără `__()`) — FR-I18N-06 tratează totuși orice
-                                            prop Inertia ca sursă unică, nu re-tradusă în frontend. Vezi raportul lotului. */}
+                                            deja TRADUS server-side (`__('imports.resources.<tip>')`,
+                                            `lang/{en,fr}/imports.php`, FR-I18N-04) — orice prop Inertia e sursă unică,
+                                            nu se re-traduce în frontend (FR-I18N-06). */}
                                         <td className="px-4 py-2.5 text-text-2">{row.resourceLabel}</td>
                                         <td className="px-4 py-2.5">
                                             <StatusBadge tone={IMPORT_STATUS_TONES[row.status]}>{statusLabels[row.status]}</StatusBadge>

@@ -20,8 +20,10 @@ import type { ImportsCreatePageProps } from '@/types/generated';
  * dispărea exact când eroarea de fișier prea mare ar fi avut nevoie de context). `Field`
  * rezolvă ambele o singură dată.
  *
- * `resources[].label` vine din backend (`ImportableResources::resolve()->label()`), NETRADUS
- * server-side — vezi nota din `Imports/Index.tsx` și raportul lotului. Nu se re-traduce aici.
+ * `resources[].label` vine din backend (`ImportableResources::resolve()->label()`), deja
+ * TRADUS server-side (`__('imports.resources.<tip>')`, `lang/{en,fr}/imports.php`), în
+ * locale-ul cererii curente (FR-I18N-04, ADR-022). Nu se re-traduce aici — vezi nota
+ * identică din `Imports/Index.tsx`.
  */
 export default function Create() {
     const { resources, limits, workspace } = usePage<ImportsCreatePageProps>().props;

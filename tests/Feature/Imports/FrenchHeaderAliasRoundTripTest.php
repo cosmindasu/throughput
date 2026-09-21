@@ -13,12 +13,15 @@ use Tests\TestCase;
 
 /**
  * BR-I18N-01 (specs.md §15.8, ADR-022) — round-trip: un CSV cu antete FRANȚUZEȘTI (fie
- * exportat dintr-un mediu cu interfața în franceză, odată ce `app/Support/Lists/*.php` va
- * traduce headerele — afara perimetrului acestui lot, vezi raportul —, fie scris de mână de
- * un utilizator francofon) se REIMPORTĂ fără intervenție manuală de mapare: aliasurile FR
- * adăugate pe `ImportField` (`AccountImportResource`/`ContactImportResource`/
- * `ProductImportResource`/`VariantImportResource`) fac `ColumnMappingSuggester` să recunoască
- * antetele franceze cu încredere „high", exact ca la engleză.
+ * exportat dintr-un mediu cu interfața în franceză — `app/Support/Lists/*.php` traduce deja
+ * headerele, verifică `ExportHeaderRoundTripTest`, care rulează pe anteturile REALE produse
+ * de acolo —, fie scris de mână de un utilizator francofon) se REIMPORTĂ fără intervenție
+ * manuală de mapare: aliasurile FR adăugate pe `ImportField` (`AccountImportResource`/
+ * `ContactImportResource`/`ProductImportResource`/`VariantImportResource`) fac
+ * `ColumnMappingSuggester` să recunoască antetele franceze cu încredere „high", exact ca la
+ * engleză. Testul de FAȚĂ pornește de la antete FR scrise de mână (nu de la exportul real) —
+ * simetric la `ImportLabelLocaleTest`, care verifică garda BR-I18N-01 pe template-ul REAL
+ * produs de `ImportTemplateBuilder`, în ambele sensuri de locale.
  *
  * Maparea rămâne pe CHEIE STABILĂ internă (`name`, `email`, `sku`, ...) indiferent de
  * `locale` — `ImportRowMapper::apply()` (NEATINS de acest lot, per BR-I18N-01) primește
