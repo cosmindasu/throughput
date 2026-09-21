@@ -39,8 +39,8 @@ final class AdjustStockRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'delta.not_in' => 'The adjustment must change the quantity by at least 1.',
-            'note.required' => 'Explain why you are correcting this quantity.',
+            'delta.not_in' => __('forms.stock.adjust.delta_not_in'),
+            'note.required' => __('forms.stock.adjust.note_required'),
         ];
     }
 }

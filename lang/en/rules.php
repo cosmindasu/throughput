@@ -5,10 +5,22 @@
  * `ValidationException::withMessages()` din `app/Actions/**` și câteva puncte de graniță
  * adiacente (vezi raportul lotului I18N, Val 2, ADR-022, specs.md §15.8 FR-I18N-04).
  *
- * NU e vorba de mesajele de FORMULAR („required", „email", „min") — acelea rămân pe
- * `lang/{locale}/validation.php`, deja localizabile din framework fără nicio schimbare
- * aici. Astea sunt reguli scrise manual, care depind de STAREA curentă a datelor
- * (tranziții, praguri, concurență), nu de forma câmpurilor trimise.
+ * NU e vorba de mesajele de FORMULAR („required", „email", „min") — acelea stau pe
+ * `lang/{locale}/validation.php`. Astea sunt reguli scrise manual, care depind de STAREA
+ * curentă a datelor (tranziții, praguri, concurență), nu de forma câmpurilor trimise.
+ *
+ * CORECȚIE (2026-09-21): nota de mai sus spunea că mesajele de formular sunt „deja
+ * localizabile din framework fără nicio schimbare aici". Prima jumătate era corectă, a doua
+ * FALSĂ, și a mascat un gol până după Valul 3: Laravel livrează `validation.php` DOAR în
+ * engleză, iar proiectul nu-l publicase niciodată — deci pe interfața franceză orice eroare
+ * de formular apărea în engleză. Măsurat: `__('validation.required')` sub locale `fr`
+ * întorcea „The email field is required." Reparat prin publicarea `validation.php`/`auth.php`/
+ * `passwords.php` și scrierea perechilor franceze.
+ *
+ * Familia are acum TREI fișiere, delimitate astfel (vezi și docblock-ul din `forms.php`):
+ * `validation.php` = mesajele generice ale framework-ului · `rules.php` = ACEST fișier,
+ * reguli de business pe starea datelor · `forms.php` = suprascrieri per formular ale
+ * mesajelor generice, acolo unde „câmpul e obligatoriu" e corect dar inutil.
  *
  * Structurat pe domeniu (stoc, comenzi, deal-uri, pipeline, expedieri, facturi, curierat,
  * importuri, GDPR, operații în masă) — în oglindă exactă cu `lang/fr/rules.php`;

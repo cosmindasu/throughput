@@ -46,7 +46,9 @@ class UpdateCarrierSettingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'credentials.api_key.regex' => 'Only Shippo sandbox keys (shippo_test_...) are accepted in this deployment — never a live key.',
+            // Aproape geamăn cu `rules.shipping.sandbox_key_only`, dar cu altă prepoziție —
+            // vezi nota de la cheie în `lang/en/forms.php`.
+            'credentials.api_key.regex' => __('forms.settings.carrier.api_key_regex'),
         ];
     }
 

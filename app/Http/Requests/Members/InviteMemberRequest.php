@@ -48,10 +48,13 @@ class InviteMemberRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Enter the email address to invite.',
-            'email.email' => 'Enter a valid email address.',
-            'role.required' => 'Choose a role for the new member.',
-            'role.in' => 'Choose one of the four workspace roles.',
+            // FR-I18N-04 — suprascrieri de formular, din `lang/{en,fr}/forms.php`. Ele
+            // există fiindcă mesajul generic al framework-ului („The email field is
+            // required.") e corect, dar nu spune ce să faci; de aceea sunt la imperativ.
+            'email.required' => __('forms.members.invite.email_required'),
+            'email.email' => __('forms.members.invite.email_email'),
+            'role.required' => __('forms.members.invite.role_required'),
+            'role.in' => __('forms.members.role_in'),
         ];
     }
 

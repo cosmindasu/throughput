@@ -30,8 +30,9 @@ class UpdateMemberRoleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'role.required' => 'Choose a role.',
-            'role.in' => 'Choose one of the four workspace roles.',
+            'role.required' => __('forms.members.update_role.role_required'),
+            // Aceeași cheie ca în `InviteMemberRequest` — același text, aceeași regulă.
+            'role.in' => __('forms.members.role_in'),
         ];
     }
 
