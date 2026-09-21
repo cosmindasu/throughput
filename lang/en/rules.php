@@ -128,4 +128,45 @@ return [
         'concurrency_limit' => 'You already have :limit bulk operation running. Wait for one to finish (or cancel it) before starting another.|You already have :limit bulk operations running. Wait for one to finish (or cancel it) before starting another.',
     ],
 
+    /*
+     * Refuzurile de pe fluxul de membri (§6.4, §7.4, BR-TEN-01/02/06) — adăugate după
+     * Valul 3, când s-a văzut că sunt singura familie de text vizibil rămasă integral în
+     * engleză. Stau AICI, nu într-un fișier propriu, fiindcă sunt exact ce descrie
+     * docblock-ul acestui catalog: reguli scrise manual, care depind de STAREA curentă a
+     * datelor (ultimul Owner activ, invitație deja acceptată, membru deja dezactivat), nu
+     * de forma câmpurilor trimise. Sursa lor e `Illuminate\Auth\Access\Response::deny()`
+     * din `App\Policies\MembershipPolicy` și `App\Actions\Members\UpdateMemberRoleAction`,
+     * plus patru `withErrors()` din controllere — toate ajung în același loc: alerta din
+     * dialogul de pe `Settings/Members`, nu un 403 opac (vezi nota de accesibilitate P1 din
+     * `MembersController::deactivate()`).
+     *
+     * `:owner`/`:manager` NU sunt scrise literal: vin din `lang/{locale}/roles.php` prin
+     * `__('roles.owner')` la apelant, ca peste tot unde un nume de rol apare într-o frază
+     * (`App\Support\DemoMode`, `MembershipRecordsNeedNewOwnerNotification`) — decizie a
+     * proprietarului din 2026-09-21, o singură sursă pentru numele rolurilor. În engleză
+     * substituția dă exact literalul dinainte, caracter cu caracter; 13 aserțiuni din
+     * `tests/Feature/Members/*` și `tests/Feature/Rbac/MembershipPolicyTest` îl compară
+     * literal și sunt garda care dovedește asta.
+     *
+     * `already_deactivated` e o singură cheie pentru DOUĂ surse (Policy și verificarea de
+     * concurență din `MembersController::applyDeactivation()`) — același text, deci același
+     * șir sursă, tradus o dată. Erau deja duplicate ca literal înainte.
+     */
+    'members' => [
+        'cannot_invite' => 'You cannot invite members to this workspace.',
+        'owner_invites_owner' => 'Only an :owner can invite another :owner.',
+        'invitation_not_pending' => 'This invitation is no longer pending.',
+        'invitation_expired' => 'This invitation has expired. Ask for a new one.',
+        'invitation_invalid' => 'This invitation is no longer valid. Ask for a new one.',
+        'cannot_change_roles' => 'You cannot change roles in this workspace.',
+        'owner_changes_owner' => 'Only an :owner can promote or demote another :owner.',
+        'last_owner_required' => 'A workspace needs at least one :owner.',
+        'cannot_deactivate' => 'You cannot deactivate members in this workspace.',
+        'owner_deactivates_owner' => 'Only an :owner can deactivate another :owner.',
+        'already_deactivated' => 'This member is already deactivated.',
+        'transfer_ownership_first' => 'Transfer ownership before deactivating the last :owner.',
+        'cannot_deactivate_self' => "You can't deactivate yourself. Ask another :owner or :manager.",
+        'no_longer_a_member' => 'This member no longer exists in this workspace.',
+    ],
+
 ];

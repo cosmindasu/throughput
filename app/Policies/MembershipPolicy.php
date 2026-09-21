@@ -20,6 +20,12 @@ use Illuminate\Support\Facades\DB;
  *
  * Singura blocare absolută e ultimul Owner activ (BR-TEN-01): un workspace fără proprietar
  * nu are un „mai târziu".
+ *
+ * ADR-022 / specs.md §15.8 FR-I18N-04 — TEXTUL fiecărui refuz stă în `lang/{en,fr}/rules.php`
+ * (`rules.members.*`), nu ca literal aici: mesajele astea se randează în dialogul de pe
+ * `Settings/Members`, deci sunt interfață, nu jurnal. Numele rolurilor vin din
+ * `lang/{locale}/roles.php` prin `:owner`/`:manager`, sursa unică decisă de proprietar —
+ * niciodată scrise în fraza tradusă, fiindcă ar diverge tăcut la o redenumire de rol.
  */
 class MembershipPolicy
 {
@@ -49,11 +55,11 @@ class MembershipPolicy
     public function inviteWithRole(User $user, string $role): Response
     {
         if (! $user->can('members.invite')) {
-            return Response::deny('You cannot invite members to this workspace.');
+            return Response::deny(__('rules.members.cannot_invite'));
         }
 
         if ($role === Permissions::OWNER && ! $user->hasRole(Permissions::OWNER)) {
-            return Response::deny('Only an Owner can invite another Owner.');
+            return Response::deny(__('rules.members.owner_invites_owner', ['owner' => __('roles.owner')]));
         }
 
         return Response::allow();
@@ -68,7 +74,7 @@ class MembershipPolicy
     public function resendInvitation(User $user, Membership $membership): Response
     {
         if ($membership->status !== Membership::STATUS_PENDING) {
-            return Response::deny('This invitation is no longer pending.');
+            return Response::deny(__('rules.members.invitation_not_pending'));
         }
 
         return $this->inviteWithRole($user, (string) $membership->user?->getRoleNames()->first());
@@ -83,7 +89,7 @@ class MembershipPolicy
     public function revokeInvitation(User $user, Membership $membership): Response
     {
         if ($membership->status !== Membership::STATUS_PENDING) {
-            return Response::deny('This invitation is no longer pending.');
+            return Response::deny(__('rules.members.invitation_not_pending'));
         }
 
         return $this->inviteWithRole($user, (string) $membership->user?->getRoleNames()->first());
@@ -96,17 +102,17 @@ class MembershipPolicy
     public function updateRole(User $user, Membership $membership, ?string $newRole = null): Response
     {
         if (! $user->can('members.update_role')) {
-            return Response::deny('You cannot change roles in this workspace.');
+            return Response::deny(__('rules.members.cannot_change_roles'));
         }
 
         $touchesOwnership = $this->isOwner($membership) || $newRole === Permissions::OWNER;
 
         if ($touchesOwnership && ! $user->hasRole(Permissions::OWNER)) {
-            return Response::deny('Only an Owner can promote or demote another Owner.');
+            return Response::deny(__('rules.members.owner_changes_owner', ['owner' => __('roles.owner')]));
         }
 
         if ($this->isOwner($membership) && $newRole !== Permissions::OWNER && $this->isLastActiveOwner($membership)) {
-            return Response::deny('A workspace needs at least one Owner.');
+            return Response::deny(__('rules.members.last_owner_required', ['owner' => __('roles.owner')]));
         }
 
         return Response::allow();
@@ -115,11 +121,11 @@ class MembershipPolicy
     public function deactivate(User $user, Membership $membership): Response
     {
         if (! $user->can('members.deactivate')) {
-            return Response::deny('You cannot deactivate members in this workspace.');
+            return Response::deny(__('rules.members.cannot_deactivate'));
         }
 
         if ($this->isOwner($membership) && ! $user->hasRole(Permissions::OWNER)) {
-            return Response::deny('Only an Owner can deactivate another Owner.');
+            return Response::deny(__('rules.members.owner_deactivates_owner', ['owner' => __('roles.owner')]));
         }
 
         // P2-001 (review general, lotul „Membri și roluri") — idempotență. Un al doilea
@@ -131,12 +137,12 @@ class MembershipPolicy
         // ÎNAINTE de verificarea ultimului Owner — un membership deja dezactivat nu mai e
         // Owner activ, deci ar trece silențios pe lângă acea verificare oricum.
         if (! $membership->isActive()) {
-            return Response::deny('This member is already deactivated.');
+            return Response::deny(__('rules.members.already_deactivated'));
         }
 
         if ($this->isLastActiveOwner($membership)) {
             // Singurul caz în care blocarea e corectă — și singurul fără buton de forțare.
-            return Response::deny('Transfer ownership before deactivating the last Owner.');
+            return Response::deny(__('rules.members.transfer_ownership_first', ['owner' => __('roles.owner')]));
         }
 
         // P2-004 (review general) — decizie: auto-dezactivarea e blocată. DUPĂ verificarea
@@ -147,7 +153,10 @@ class MembershipPolicy
         // încerci să-ți revoci singur accesul): acțiunea n-are niciun „mai târziu" de
         // gestionat de pe acest ecran — cere altui Owner/Manager s-o facă.
         if ($membership->user_id === $user->getKey()) {
-            return Response::deny("You can't deactivate yourself. Ask another Owner or Manager.");
+            return Response::deny(__('rules.members.cannot_deactivate_self', [
+                'owner' => __('roles.owner'),
+                'manager' => __('roles.manager'),
+            ]));
         }
 
         // Deliberat NU verificăm ce deține membrul. 47 de conturi, 12 oportunități deschise

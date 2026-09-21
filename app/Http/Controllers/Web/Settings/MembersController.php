@@ -276,7 +276,7 @@ final class MembersController extends Controller
             });
 
             if (! $stillActive) {
-                return back()->withErrors(['deactivate' => 'This member is already deactivated.']);
+                return back()->withErrors(['deactivate' => __('rules.members.already_deactivated')]);
             }
 
             return redirect()
@@ -287,7 +287,7 @@ final class MembersController extends Controller
         $stillActive = DB::transaction(fn () => $this->lockAndApplyDeactivation($membership, $request));
 
         if (! $stillActive) {
-            return back()->withErrors(['deactivate' => 'This member is already deactivated.']);
+            return back()->withErrors(['deactivate' => __('rules.members.already_deactivated')]);
         }
 
         if ($counts['total'] > 0) {

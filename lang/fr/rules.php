@@ -112,4 +112,43 @@ return [
         'concurrency_limit' => "Vous avez déjà :limit opération en masse en cours. Attendez qu'elle se termine (ou annulez-la) avant d'en démarrer une autre.|Vous avez déjà :limit opérations en masse en cours. Attendez qu'elles se terminent (ou annulez-les) avant d'en démarrer une autre.",
     ],
 
+    /*
+     * Vezi `lang/en/rules.php` pentru rolul acestui bloc și pentru de ce `:owner`/`:manager`
+     * nu sunt scrise literal.
+     *
+     * ACORD DE GEN — constrângerea de care depind frazele de mai jos, de verificat dacă se
+     * schimbă vreodată un nume de rol: „un autre :owner" și „le dernier :owner" funcționează
+     * fiindcă singurele roluri interpolate aici sunt « Propriétaire » și « Gestionnaire »,
+     * amândouă substantive epicene care primesc „un/le". Un nume de rol feminin ar cere
+     * „une autre"/„la dernière" și ar rupe fraza tăcut. Dacă se ajunge acolo, soluția e
+     * ancorarea pe „le rôle :owner" (invariabil, masculin), cum face deja
+     * `lang/fr/mail.php` la `membership_records_need_new_owner.footer` — nu alegerea unui
+     * gen la nimereală.
+     *
+     * „Ce membre est déjà désactivé." — acord pe substantivul « membre », masculin
+     * gramatical, deci corect indiferent de persoana reală. Diferit DELIBERAT de
+     * `lang/fr/mail.php`, care scrie „:member a été désactivé(e)": acolo subiectul e NUMELE
+     * persoanei, aici e substantivul comun.
+     *
+     * Terminologie preluată, nu reinventată: « espace de travail » (29 de ocurențe în
+     * cataloagele existente) și fraza „au moins un :owner", deja prezentă la
+     * `flash.php:members_change_role_disabled`.
+     */
+    'members' => [
+        'cannot_invite' => 'Vous ne pouvez pas inviter de membres dans cet espace de travail.',
+        'owner_invites_owner' => 'Seul un :owner peut inviter un autre :owner.',
+        'invitation_not_pending' => "Cette invitation n'est plus en attente.",
+        'invitation_expired' => 'Cette invitation a expiré. Demandez-en une nouvelle.',
+        'invitation_invalid' => "Cette invitation n'est plus valide. Demandez-en une nouvelle.",
+        'cannot_change_roles' => 'Vous ne pouvez pas modifier les rôles dans cet espace de travail.',
+        'owner_changes_owner' => 'Seul un :owner peut promouvoir ou rétrograder un autre :owner.',
+        'last_owner_required' => 'Un espace de travail doit avoir au moins un :owner.',
+        'cannot_deactivate' => 'Vous ne pouvez pas désactiver de membres dans cet espace de travail.',
+        'owner_deactivates_owner' => 'Seul un :owner peut désactiver un autre :owner.',
+        'already_deactivated' => 'Ce membre est déjà désactivé.',
+        'transfer_ownership_first' => 'Transférez la propriété avant de désactiver le dernier :owner.',
+        'cannot_deactivate_self' => 'Vous ne pouvez pas vous désactiver vous-même. Demandez à un autre :owner ou :manager de le faire.',
+        'no_longer_a_member' => "Ce membre n'existe plus dans cet espace de travail.",
+    ],
+
 ];

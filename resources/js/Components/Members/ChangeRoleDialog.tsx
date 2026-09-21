@@ -28,9 +28,11 @@ interface ChangeRoleDialogProps {
  * starea sincron (regula `react-hooks/set-state-in-effect`). La EROARE cheia rămâne
  * aceeași, deci selecția utilizatorului supraviețuiește refuzului.
  *
- * BR-TEN-01 — mesajul „A workspace needs at least one Owner" vine din
+ * BR-TEN-01 — mesajul „ultimul Owner" (`rules.members.last_owner_required`) vine din
  * `MembershipPolicy::updateRole()`, prin `errors.role`: blocarea e server-side, aici se
- * doar AFIȘEAZĂ. Ascunderea opțiunii în interfață n-ar fi fost o blocare.
+ * doar AFIȘEAZĂ. Ascunderea opțiunii în interfață n-ar fi fost o blocare. Textul e citat
+ * aici prin CHEIE, nu prin șirul englez: vine tradus din `lang/{en,fr}/rules.php`, deci un
+ * citat literal n-ar mai fi găsit de grep și ar fi fals pe franceză.
  */
 export default function ChangeRoleDialog({
     open,

@@ -58,7 +58,7 @@ final class AcceptInvitationController extends Controller
         // (tab lăsat deschis peste fereastra de 7 zile) se întoarce pe aceeași pagină, care
         // îl va randa în starea „expired".
         if ($invitation->isExpired()) {
-            return back()->withErrors(['token' => 'This invitation has expired. Ask for a new one.']);
+            return back()->withErrors(['token' => __('rules.members.invitation_expired')]);
         }
 
         $needsProfile = $invitation->needsProfile();
@@ -81,7 +81,7 @@ final class AcceptInvitationController extends Controller
             // Reverificarea sub blocare a picat: invitația a fost revocată, retrimisă (token
             // nou) sau a expirat între afișarea paginii și trimiterea formularului.
             throw ValidationException::withMessages([
-                'token' => 'This invitation is no longer valid. Ask for a new one.',
+                'token' => __('rules.members.invitation_invalid'),
             ]);
         }
 

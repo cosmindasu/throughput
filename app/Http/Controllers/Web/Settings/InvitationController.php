@@ -40,7 +40,7 @@ final class InvitationController extends Controller
 
         if ($decision->denied()) {
             // Cheia `role`, nu una generică: refuzul privește EXACT câmpul „Role" din
-            // formular („Only an Owner can invite another Owner"), deci `Field` îl poate
+            // formular (`rules.members.owner_invites_owner`), deci `Field` îl poate
             // lega de select prin `aria-describedby`, în loc să-l arate ca alertă ruptă de
             // controlul care l-a cauzat (audit de accesibilitate P1, pct. 1).
             return back()->withErrors(['role' => $decision->message()])->withInput();

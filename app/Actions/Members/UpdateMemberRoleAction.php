@@ -41,7 +41,7 @@ final class UpdateMemberRoleAction
             $locked = Membership::query()->whereKey($membership->getKey())->lockForUpdate()->with('user')->first();
 
             if ($locked === null) {
-                return Response::deny('This member no longer exists in this workspace.');
+                return Response::deny(__('rules.members.no_longer_a_member'));
             }
 
             $registrar = app(PermissionRegistrar::class);
@@ -50,7 +50,7 @@ final class UpdateMemberRoleAction
             $user = $locked->user;
 
             if ($user === null) {
-                return Response::deny('This member no longer exists in this workspace.');
+                return Response::deny(__('rules.members.no_longer_a_member'));
             }
 
             // Relația de roluri poate fi deja încărcată cu starea de dinainte de blocare.
