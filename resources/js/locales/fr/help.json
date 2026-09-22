@@ -190,7 +190,7 @@
         },
         "dashboard": {
             "title": "Tableau de bord",
-            "whatIsThis": "C’est le premier écran sur lequel vous arrivez après avoir ouvert un espace de travail — un instantané de la santé de l’activité à l’instant présent. Il ne permet de rien modifier ; c’est le point de départ avant de vous diriger vers un module.",
+            "whatIsThis": "C’est le premier écran sur lequel vous arrivez après avoir ouvert un espace de travail — un instantané de la santé de l’activité à l’instant présent. Il ne permet de rien modifier ; c’est le point de départ avant de vous diriger vers un module.",
             "whatCanYouDo": [
                 "Parcourez les quatre tuiles d’indicateurs clés : « Valeur du pipeline ouvert », « Commandes ce mois-ci », « Factures en retard » et « Alertes de stock bas ».",
                 "Consultez « Activité récente » : les 10 entrées les plus récentes du journal d’activité de l’espace de travail que votre rôle peut lire.",
@@ -338,7 +338,7 @@
             "title": "Nouvel import",
             "whatIsThis": "Étape 1 sur 4. Vous indiquez quel type d’enregistrements contient le fichier, puis vous le transmettez. Rien n’est encore lu dans votre espace de travail — l’écran suivant vous montre les colonnes trouvées et vous permet de les associer.",
             "whatCanYouDo": [
-                "Choisissez la cible sous « Que souhaitez-vous importer ? » : Comptes, Contacts, Produits, ou Produits/Variantes.",
+                "Choisissez la cible sous « Que souhaitez-vous importer ? » : Comptes, Contacts, Produits, ou Produits/Variantes.",
                 "Prenez de l’avance avec « Télécharger un modèle CSV pour cette ressource » — sa ligne d’en-tête porte déjà les noms de champs exacts attendus par cet import.",
                 "Choisissez votre fichier sous « Fichier (CSV ou XLSX) » et appuyez sur « Importer ». Vous arrivez directement sur l’étape de correspondance."
             ],
@@ -360,7 +360,7 @@
                 "Lisez où en est chaque fichier grâce à son statut : « Téléversé », « Associé », « Validation… », « Prêt à importer », « Import en cours… », « Terminé », « Terminé avec erreurs » ou « Échec ».",
                 "Consultez la colonne « Lignes » pour la répartition « {{valid}} valide / {{invalid}} invalide » produite par la simulation, avant de décider si le fichier mérite même d’être ouvert.",
                 "Ouvrez le nom d’un fichier pour revenir dans son flux en quatre étapes, ou directement vers son rapport final.",
-                "Consultez qui a apporté chaque fichier, et quand, sous « Importé par » et « Téléversé »."
+                "Consultez qui a apporté chaque fichier, et quand, sous « Importé par » et « Importé »."
             ],
             "rules": [
                 "Seuls le Propriétaire et le Gestionnaire accèdent à cet écran. Le Commercial et l’Observateur n’ont absolument aucun droit d’import (specs.md §7.4) — « Importations » est absent de leur navigation, et la route les refuse elle aussi, si bien que le menu n’est pas la seule protection.",
@@ -504,19 +504,19 @@
             "title": "Préférences",
             "whatIsThis": "C’est ici que vous contrôlez l’apparence et la langue de l’application pour vous, personnellement — l’écran de personne d’autre ne change quand vous changez le vôtre.",
             "whatCanYouDo": [
-                "Choisissez « Système », « Clair » ou « Sombre » sous « Thème » — le changement s’applique immédiatement.",
-                "Basculez l’interface entre « EN » et « FR » sous « Langue » — le changement s’applique lui aussi immédiatement, sans recharger la page.",
+                "Choisissez « Système », « Clair » ou « Sombre » sous « Thème » — le changement s’applique immédiatement.",
+                "Basculez l’interface entre « EN » et « FR » sous « Langue » — le changement s’applique lui aussi immédiatement, sans recharger la page.",
                 "Utilisez le même bouton de thème dans la barre supérieure, sur chaque écran, sans revenir ici. Le sélecteur de langue, lui, n’existe que sur cette page."
             ],
             "rules": [
                 "Votre choix de thème vous suit, pas votre espace de travail — changer d’espace de travail conserve le même thème.",
-                "Votre choix de langue vous suit de la même manière, et il n’est jamais deviné depuis votre navigateur : un compte qui n’a jamais touché au sélecteur s’affiche en anglais, quelles que soient les langues demandées par le navigateur.",
-                "Si vous n’avez jamais choisi de thème, vous obtenez « Sombre ».",
-                "« Système » suit le réglage clair ou sombre de votre appareil, et continue de le suivre tant que l’onglet reste ouvert ; un appareil sans préférence de luminosité obtient le thème sombre.",
+                "Votre choix de langue vous suit de la même manière, et il n’est jamais deviné depuis votre navigateur : un compte qui n’a jamais touché au sélecteur s’affiche en anglais, quelles que soient les langues demandées par le navigateur.",
+                "Si vous n’avez jamais choisi de thème, vous obtenez « Sombre ».",
+                "« Système » suit le réglage clair ou sombre de votre appareil, et continue de le suivre tant que l’onglet reste ouvert ; un appareil sans préférence de luminosité obtient le thème sombre.",
                 "Seul ce que l’application rédige change de langue. Ce que vous avez saisi vous-même — noms de vues enregistrées, noms de rapports, noms d’entreprises et de contacts importés — reste dans la langue où vous l’avez écrit, et basculer l’interface ne le réécrit jamais.",
                 "Les deux réglages sont disponibles pour tous les rôles, y compris Observateur, et aucun n’est jamais désactivé dans la démo publique — ce ne sont pas des actions métier, juste des préférences d’affichage."
             ],
-            "howItsBuilt": "Les deux préférences fonctionnent de la même façon, délibérément : le choix est enregistré sur votre ligne utilisateur (`users.theme`, `users.locale`) et recopié dans un cookie, et le serveur le résout avant que le moindre JavaScript ne s’exécute — la classe `dark` et l’attribut `lang` sont tous deux écrits sur `<html>` dès la toute première réponse. L’ordre est le même pour chacune : d’abord votre choix enregistré, puis le cookie, puis la valeur par défaut. Il n’y a donc ni flash du mauvais thème, ni moment où un lecteur d’écran annonce la mauvaise langue, pendant le démarrage de la page. Une version qui corrigerait l’une ou l’autre après l’hydratation, dans un `useEffect`, scintillerait — c’est explicitement traité ici comme un défaut, pas un détail cosmétique. L’en-tête `Accept-Language` du navigateur n’est volontairement pas consulté : l’anglais est la valeur par défaut voulue, et une démo qui s’ouvrirait dans une langue différente selon qui a cliqué sur le lien serait plus difficile à évaluer, pas plus accueillante."
+            "howItsBuilt": "Les deux préférences fonctionnent de la même façon, délibérément : le choix est enregistré sur votre ligne utilisateur (`users.theme`, `users.locale`) et recopié dans un cookie, et le serveur le résout avant que le moindre JavaScript ne s’exécute — la classe `dark` et l’attribut `lang` sont tous deux écrits sur `<html>` dès la toute première réponse. L’ordre est le même pour chacune : d’abord votre choix enregistré, puis le cookie, puis la valeur par défaut. Il n’y a donc ni flash du mauvais thème, ni moment où un lecteur d’écran annonce la mauvaise langue, pendant le démarrage de la page. Une version qui corrigerait l’une ou l’autre après l’hydratation, dans un `useEffect`, scintillerait — c’est explicitement traité ici comme un défaut, pas un détail cosmétique. L’en-tête `Accept-Language` du navigateur n’est volontairement pas consulté : l’anglais est la valeur par défaut voulue, et une démo qui s’ouvrirait dans une langue différente selon qui a cliqué sur le lien serait plus difficile à évaluer, pas plus accueillante."
         },
         "product-detail": {
             "title": "Produit",
@@ -545,7 +545,7 @@
                 "Ouvrez un produit pour voir ses variantes, leur stock et leur prix.",
                 "Créez un nouveau produit avec « Nouveau produit » (Propriétaire et Gestionnaire uniquement).",
                 "Modifiez un produit depuis son lien « Modifier », ou ajoutez une variante depuis l’intérieur.",
-                "Sélectionnez plusieurs produits avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et changez le prix de chacune de leurs variantes d’un pourcentage ou d’un montant fixe, ou activez/désactivez-les, en une seule action (Propriétaire et Gestionnaire uniquement)."
+                "Sélectionnez plusieurs produits avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et changez le prix de chacune de leurs variantes d’un pourcentage ou d’un montant fixe, ou activez/désactivez-les, en une seule action (Propriétaire et Gestionnaire uniquement)."
             ],
             "rules": [
                 "Propriétaire et Gestionnaire ont un accès complet en lecture/écriture ; Commercial et Observateur ne peuvent que consulter — aucun « Nouveau produit », « Modifier », « Supprimer » ni action groupée n’apparaît pour eux.",

@@ -29,13 +29,12 @@ final class DunningPaymentFailedMail extends Mailable
         public readonly string $tenantName,
         public readonly string $workspaceSlug,
         public readonly int $attemptCount,
-        // ADR-022, specs.md §15.8 FR-I18N-05 — destinatarii sunt Owner-ii ACTIVI ai
-        // tenantului (conturi reale, `users.locale`), dar `Mail::to($recipients)` cu un
-        // ARRAY de adrese nu rezolvă automat limba (spre deosebire de un singur model
-        // `HasLocalePreference` — `Illuminate\Mail\PendingMail::to()`); trebuie unul per
-        // destinatar. NEcablat încă la apelantul real
-        // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`, în afara perimetrului
-        // acestui lot — vezi raportul de livrare). `null` păstrează comportamentul actual.
+        // ADR-022, specs.md §15.8 FR-I18N-05, Lot I18N Val 5 — CABLAT la apelantul real
+        // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`): un `Mailable` proaspăt
+        // se construiește per Owner, iar `Mail::to($owner)` (modelul, nu adresa) declanșează
+        // `Illuminate\Mail\PendingMail::to()` să citească `$owner->preferredLocale()` și să
+        // suprascrie acest parametru înainte de trimitere (`PendingMail::fill()`). Rămâne
+        // `null` aici — locale-ul REAL vine mereu din `Mail::to()`, nu din constructor.
         ?string $locale = null,
     ) {
         // Ultima linie, obligatoriu (docblock-ul trait-ului) — după ce toate

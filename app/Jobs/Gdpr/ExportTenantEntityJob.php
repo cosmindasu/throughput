@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Throwable;
 
 /**
@@ -27,6 +28,17 @@ use Throwable;
  * Idempotent: rescrie fișierele entității de la zero la fiecare rulare, deci o redelivrare
  * după timeout nu dublează nimic. De-asta `$tries = 2` e sigur aici, spre deosebire de
  * planificator.
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `locale` e SCALAR de constructor, exact ca
+ * `tenantId`/`dataExportRequestId` (ADR-013/014), rezolvat de `App\Jobs\Gdpr\PlanDataExportJob`
+ * ÎNAINTE de dispecerizare, din `users.locale` al Owner-ului care a cerut exportul. E jobul
+ * care CHIAR evaluează `App\Actions\Gdpr\DataExportSources::all()` (prin `resolve()`) —
+ * `label`/`note` trec acum prin `lang/gdpr.php` — deci e și jobul care are nevoie de
+ * `App::setLocale()`, nu doar `App\Jobs\Gdpr\FinalizeDataExportJob`, care doar CITEȘTE
+ * valorile deja scrise în `{entitate}.meta.json` de acesta. Lipsa asta era defectul real
+ * (semnalat la verificarea Valului 5, a treia trecere): fără ea, un worker de coadă de
+ * viață lungă (`.ai/rules/tenancy.md:123-138`) ar fi păstrat limba lăsată de exportul
+ * ANTERIOR procesat pe același worker — vezi `tests/Feature/I18n/JobLocaleLeakTest.php`.
  */
 class ExportTenantEntityJob implements ShouldQueue
 {
@@ -44,10 +56,16 @@ class ExportTenantEntityJob implements ShouldQueue
         public string $tenantId,
         public string $dataExportRequestId,
         public string $entity,
+        public string $locale = 'en',
     ) {}
 
     public function handle(): void
     {
+        // Vezi docblock-ul clasei — obligatoriu la ÎNCEPUTUL lui handle(), necondiționat
+        // (nu doar „dacă diferă de ce e setat deja"): un worker de viață lungă n-are niciun
+        // alt semnal de încredere despre ce a lăsat jobul anterior în urmă.
+        App::setLocale($this->locale);
+
         if ($this->batch()?->cancelled()) {
             return;
         }

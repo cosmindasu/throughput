@@ -16,7 +16,7 @@ return [
         'updated' => 'Compte mis à jour.',
         'deleted' => 'Compte supprimé.',
 
-        'deletion_blocked' => 'Ce compte ne peut pas être supprimé : il a :parts.',
+        'deletion_blocked' => 'Ce compte ne peut pas être supprimé : il a :parts.',
         'deletion_blocked_deals_clause' => ':count affaire|:count affaires',
         // Pluralizată AICI, deși engleza (sursa) e invariantă pe acest string — acordul
         // „supprimée/supprimées" depinde de `:deleted`, un subset separat de `:count` de
@@ -64,7 +64,7 @@ return [
         'updated' => 'Produit mis à jour.',
         'deleted' => 'Produit supprimé.',
 
-        'deletion_blocked' => 'Ce produit ne peut pas être supprimé : il a :parts.',
+        'deletion_blocked' => 'Ce produit ne peut pas être supprimé : il a :parts.',
         'deletion_blocked_stock_history_clause' => ':count variante avec un historique de stock|:count variantes avec un historique de stock',
         'deletion_blocked_used_on_orders_clause' => ':count variante utilisée sur des commandes|:count variantes utilisées sur des commandes',
 
@@ -73,8 +73,8 @@ return [
             'updated' => 'Variante mise à jour.',
             'deleted' => 'Variante supprimée.',
 
-            'deletion_blocked_stock_movements' => 'Cette variante ne peut pas être supprimée : elle a des mouvements de stock enregistrés.',
-            'deletion_blocked_order_lines' => 'Cette variante ne peut pas être supprimée : elle est utilisée sur au moins une commande.',
+            'deletion_blocked_stock_movements' => 'Cette variante ne peut pas être supprimée : elle a des mouvements de stock enregistrés.',
+            'deletion_blocked_order_lines' => 'Cette variante ne peut pas être supprimée : elle est utilisée sur au moins une commande.',
         ],
     ],
 
@@ -140,7 +140,7 @@ return [
     ],
 
     'saved_views' => [
-        'default_team_view_deleted' => 'La vue « Team » que vous utilisiez par défaut a été supprimée.',
+        'default_team_view_deleted' => 'La vue « Team » que vous utilisiez par défaut a été supprimée.',
     ],
 
     'members' => [
@@ -195,7 +195,7 @@ return [
         'started' => 'Export démarré — cette page se mettra à jour automatiquement.',
         'demo_limit_exceeded' => 'Cet export dépasse la limite de la démo et ne peut pas être démarré.',
         // `:format` non traduit — voir la note dans `lang/en/flash.php`.
-        'pdf_row_cap_exceeded' => 'Cet export contient :total ligne ; l’export :format est plafonné à :cap. Utilisez le CSV pour les exports plus volumineux.|Cet export contient :total lignes ; l’export :format est plafonné à :cap. Utilisez le CSV pour les exports plus volumineux.',
+        'pdf_row_cap_exceeded' => 'Cet export contient :total ligne ; l’export :format est plafonné à :cap. Utilisez le CSV pour les exports plus volumineux.|Cet export contient :total lignes ; l’export :format est plafonné à :cap. Utilisez le CSV pour les exports plus volumineux.',
     ],
 
     'subscription' => [

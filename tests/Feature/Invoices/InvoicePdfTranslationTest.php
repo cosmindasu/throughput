@@ -72,6 +72,42 @@ class InvoicePdfTranslationTest extends TestCase
         $this->assertStringContainsString('Solde dû', $html);
     }
 
+    /**
+     * FR-I18N-03 — sumele din PDF urmează limba cererii, nu convenția engleză.
+     *
+     * Până la Valul 5, șablonul folosea `number_format()` (punct zecimal, virgulă la mii,
+     * fixate în PHP) și prefixa codul ISO: `USD 1,234.56`, identic în ambele limbi. Pe
+     * franceză era greșit de două ori — separatorii și poziția simbolului.
+     *
+     * Sumele se suprascriu ÎN MEMORIE, nu în fixtură: șablonul doar le citește, iar fixtura
+     * comună (total 120) n-are cifre suficiente ca să arate separatorul de mii — exact
+     * capcana pe care `.ai/rules/frontend.md` o numește pentru lățimea coloanelor
+     * („verifică pe cel mai lung total din seed, nu pe un exemplu scurt").
+     */
+    public function test_amounts_follow_the_locale_in_the_pdf(): void
+    {
+        $invoice = $this->invoiceWithOneLine();
+        $invoice->subtotal = 1234.56;
+        $invoice->total = 1234.56;
+        $invoice->balance_due = 1000.0;
+
+        App::setLocale('fr');
+        $french = View::make('invoices.pdf.invoice', ['invoice' => $invoice])->render();
+        App::setLocale('en');
+        $english = View::make('invoices.pdf.invoice', ['invoice' => $invoice])->render();
+
+        // U+202F la mii, U+00A0 înaintea simbolului, simbolul DUPĂ sumă — și simbolul
+        // „îngust" (`$`), nu `$US`, cum cere FR-I18N-03 și cum randează deja frontendul.
+        $this->assertStringContainsString("1\u{202F}234,56\u{00A0}$", $french);
+        $this->assertStringNotContainsString('$US', $french);
+        // Codul ISO prefixat a dispărut din totaluri — simbolul îl înlocuiește.
+        $this->assertStringNotContainsString('USD 1', $french);
+
+        // Engleza: simbolul ÎNAINTE, fără spațiu, separatori englezești.
+        $this->assertStringContainsString('$1,234.56', $english);
+        $this->assertStringNotContainsString('USD 1', $english);
+    }
+
     public function test_status_and_labels_stay_in_english_by_default(): void
     {
         $invoice = $this->invoiceWithOneLine();

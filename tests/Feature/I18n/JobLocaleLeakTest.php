@@ -6,6 +6,7 @@ use App\Jobs\Reports\DeliverReportJob;
 use App\Jobs\Reports\GenerateReportJob;
 use App\Mail\DataExportReadyMail;
 use App\Mail\ReportDeliveryMail;
+use App\Models\DataExportRequest;
 use App\Models\ReportDefinition;
 use App\Models\ReportRun;
 use App\Models\Tenant;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use ZipArchive;
 
 /**
  * ADR-022, specs.md §15.8 FR-I18N-05, `.ai/rules/tenancy.md:123-138` — garda anti-scurgere
@@ -36,6 +38,16 @@ use Tests\TestCase;
  * `App\Jobs\Reports\DeliverReportJob::handle()` sau din
  * `App\Jobs\Gdpr\FinalizeDataExportJob::handle()`, testul de mai jos pică — nu doar
  * teoretic, măsurat.
+ *
+ * Lotul I18N Val 5 (a treia trecere) a adăugat `App\Jobs\Gdpr\ExportTenantEntityJob` la
+ * aceeași listă: e jobul care CHIAR evaluează `App\Actions\Gdpr\DataExportSources::all()`
+ * (label/note-urile celor șapte surse, acum în `lang/gdpr.php`), nu doar
+ * `FinalizeDataExportJob`, care doar CITEȘTE ce a scris deja acela în `*.meta.json`. Fără
+ * `App::setLocale($this->locale)` necondiționat la începutul lui, defectul era invizibil pe
+ * un export IZOLAT (limba cererii HTTP care l-a declanșat rămânea, din întâmplare, corectă
+ * pe tot restul procesului de test) — se vedea DOAR cu două exporturi succesive, de limbi
+ * diferite, pe același worker: `test_two_consecutive_gdpr_exports_with_different_locales_do_not_leak_entity_labels_into_each_other`
+ * mai jos.
  */
 class JobLocaleLeakTest extends TestCase
 {
@@ -185,5 +197,85 @@ class JobLocaleLeakTest extends TestCase
 
         Mail::assertSent(DataExportReadyMail::class, fn (DataExportReadyMail $mail) => $mail->hasTo($enOwner->email)
             && $mail->hasSubject(trans('mail.data_export_ready.subject', ['workspace' => 'Marlin Fasteners & Supply Co.'], 'en')));
+    }
+
+    /**
+     * Lotul I18N Val 5 (a treia trecere) — DOUĂ exporturi GDPR COMPLETE, pentru tenanți
+     * diferiți (o cerere activă per tenant, deci nu pot împărți unul singur), cu owneri de
+     * limbi diferite, ambele dispecerizate ÎNAINTE de orice drenare. Planificatorul FR
+     * dispecerizează primele 7 `ExportTenantEntityJob(locale: 'fr')` pe coada `bulk`; cel
+     * EN, imediat după, celelalte 7 — un SINGUR `queue:work` le procesează pe toate, în
+     * ordinea FIFO a inserării, deci cele 7 franceze rulează consecutiv, urmate direct de
+     * cele 7 engleze, PE ACELAȘI worker. Exact scenariul din docblock-ul clasei.
+     *
+     * Verifică manifestul REAL din arhiva fiecărui export, nu un literal scris de test —
+     * o comparație catalog-cu-catalog n-ar vedea niciodată scurgerea asta.
+     */
+    public function test_two_consecutive_gdpr_exports_with_different_locales_do_not_leak_entity_labels_into_each_other(): void
+    {
+        // `$this->marlin` există deja din `setUp()` — o a doua creare cu același slug ar
+        // eșua pe indexul unic `tenants_slug_unique`.
+        $marlin = $this->marlin;
+        $cascade = $this->makeTenant('cascade', 'Cascade Hydraulic Components');
+
+        $frOwner = User::factory()->create(['locale' => 'fr']);
+        $this->makeMember($marlin, $frOwner->email, Permissions::OWNER, $frOwner);
+        $this->clearDatabaseTenantContext();
+
+        $enOwner = User::factory()->create(['locale' => 'en']);
+        $this->makeMember($cascade, $enOwner->email, Permissions::OWNER, $enOwner);
+        $this->clearDatabaseTenantContext();
+
+        // Ambele cereri QUEUED înainte de orice drenare.
+        $this->actingAs($frOwner)->post('/marlin/settings/data-export')->assertRedirect();
+        $this->actingAs($enOwner)->post('/cascade/settings/data-export')->assertRedirect();
+
+        $this->clearDatabaseTenantContext();
+        $this->artisan('queue:work', [
+            '--queue' => 'bulk',
+            '--stop-when-empty' => true,
+            '--no-interaction' => true,
+        ]);
+
+        $frExport = TenantContext::run($marlin, fn () => DataExportRequest::query()->where('requested_by', $frOwner->getKey())->sole());
+        $enExport = TenantContext::run($cascade, fn () => DataExportRequest::query()->where('requested_by', $enOwner->getKey())->sole());
+        $this->clearDatabaseTenantContext();
+
+        $this->assertSame(DataExportRequest::STATUS_COMPLETED, $frExport->status, (string) $frExport->error_message);
+        $this->assertSame(DataExportRequest::STATUS_COMPLETED, $enExport->status, (string) $enExport->error_message);
+
+        $frLabel = collect($this->manifestOf($frExport)['entities'])->firstWhere('name', 'accounts')['label'];
+        $enLabel = collect($this->manifestOf($enExport)['entities'])->firstWhere('name', 'accounts')['label'];
+
+        $this->assertSame('Comptes', $frLabel);
+        $this->assertSame(
+            'Accounts',
+            $enLabel,
+            'Scurgere de limbă între exporturi GDPR — al doilea export a moștenit franceza primului. '
+            .'Vezi App\Jobs\Gdpr\ExportTenantEntityJob::handle(): App::setLocale($this->locale) '
+            .'trebuie să ruleze necondiționat, la începutul metodei.',
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function manifestOf(DataExportRequest $export): array
+    {
+        $zip = new ZipArchive;
+        $this->assertTrue(
+            $zip->open(Storage::disk('local')->path($export->file_path)) === true,
+            'Arhiva nu s-a putut deschide.',
+        );
+
+        $contents = $zip->getFromName('manifest.json');
+        $zip->close();
+
+        $this->assertIsString($contents, 'Arhiva nu conține manifest.json.');
+
+        /** @var array<string, mixed> $manifest */
+        $manifest = json_decode($contents, true);
+
+        return $manifest;
     }
 }

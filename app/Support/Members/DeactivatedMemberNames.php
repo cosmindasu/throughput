@@ -22,7 +22,7 @@ final class DeactivatedMemberNames
             return null;
         }
 
-        return self::isDeactivated($userId) ? "{$name} (deactivated)" : $name;
+        return self::isDeactivated($userId) ? trans('enums.membership.deactivated_name', ['name' => $name]) : $name;
     }
 
     public static function isDeactivated(?string $userId): bool

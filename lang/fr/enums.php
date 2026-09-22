@@ -40,4 +40,28 @@ return [
         'inventory:write' => 'Enregistrement de mouvements de stock',
     ],
 
+    /**
+     * ACORD DE GEN — le nom devant `:name` est celui d'une personne de genre inconnu.
+     * Forme choisie : « (désactivé) », masculin par défaut, SANS marque « (e) ». Diffère
+     * délibérément de `lang/fr/mail.php` (`members.deactivated` → « a été désactivé(e) »),
+     * qui marque les deux genres pour une PHRASE complète. Ici, le texte d'aide déjà publié
+     * (`resources/js/locales/fr/help.json`, clés `members.details.rules` et
+     * `unassigned.rules`, 3 occurrences) promet explicitement « (désactivé) » à l'utilisateur
+     * — reprendre ce libellé exact évite une INCOHÉRENCE entre l'aide et l'écran, ce qui
+     * compte ici plus que l'accord de genre sur une étiquette courte entre parenthèses (pas
+     * une phrase). DE VERIFICAT par le propriétaire (ADR-022) si cet arbitrage doit changer.
+     */
+    'membership' => [
+        'deactivated_name' => ':name (désactivé)',
+    ],
+
+    // Formulation IDENTIQUE à `resources/js/locales/fr/invoices.json`
+    // (`show.payments.methodOptions`) — le dropdown du formulaire et la liste des paiements
+    // affichent désormais le MÊME texte sur le même écran (Val 5, corrige la divergence).
+    'payment_method' => [
+        'bank_transfer' => 'Virement bancaire',
+        'check' => 'Chèque',
+        'manual' => 'Manuel',
+    ],
+
 ];

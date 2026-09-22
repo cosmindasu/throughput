@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Orders\Concerns;
 
 use App\Models\Variant;
+use App\Support\LocaleFormat;
 use Closure;
 use Illuminate\Support\Collection;
 
@@ -41,7 +42,7 @@ trait ValidatesOrderLineDiscount
             $lineSubtotal = round($quantity * $this->resolvedOrderLineUnitPrice($line), 2);
 
             if ((float) $value > $lineSubtotal) {
-                $fail("The discount can't exceed the line subtotal ({$lineSubtotal}).");
+                $fail(__('rules.orders.discount_exceeds_line_subtotal', ['subtotal' => LocaleFormat::amount($lineSubtotal)]));
             }
         };
     }

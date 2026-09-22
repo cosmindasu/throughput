@@ -31,12 +31,12 @@
 return [
 
     'report_delivery' => [
-        'subject' => 'Votre rapport est prêt : :report',
+        'subject' => 'Votre rapport est prêt : :report',
         'greeting' => 'Bonjour,',
         // NATIV: formulare standard, dar verificați ghilimelele franceze « » față de
         // simplele " " — păstrate " " deliberat aici (numele raportului e conținut
         // introdus de utilizator, FR-I18N-06, nu se retraduce/reformatează).
-        'body' => 'Votre rapport « :report » a été généré (:rows, :format).',
+        'body' => 'Votre rapport « :report » a été généré (:rows, :format).',
         'rows' => '[0,1] :count ligne|[2,*] :count lignes',
         'attached' => 'Le fichier est joint à cet e-mail.',
         'signature' => '— Throughput',
@@ -48,7 +48,7 @@ return [
         'download' => 'Télécharger l’archive',
         // NATIV: phrase longue, registre "légal/contractuel" — la plus exposée à un ton
         // maladroit si un francophone natif ne la relit pas.
-        'retention' => 'Le lien reste valable :days et cessera de fonctionner le :expires ; passé ce délai, le fichier est supprimé. La demande elle-même reste visible dans l’historique des exports — il en restera donc toujours une trace — et vous pouvez demander un nouvel export à tout moment.',
+        'retention' => 'Le lien reste valable :days et cessera de fonctionner le :expires ; passé ce délai, le fichier est supprimé. La demande elle-même reste visible dans l’historique des exports — il en restera donc toujours une trace — et vous pouvez demander un nouvel export à tout moment.',
         'days' => '[0,1] :count jour|[2,*] :count jours',
         'contents' => 'L’archive contient un fichier JSON par entité, un CSV à côté chaque fois que la table est plate, ainsi qu’un manifeste décrivant ce qu’elle contient et ce qu’elle ne contient pas.',
         'signature' => '— Throughput',
@@ -60,8 +60,21 @@ return [
 
     // NATIV: formule d'ouverture commerciale — ton à valider (une entreprise B2B
     // francophone attend souvent un registre plus formel que l'anglais d'origine).
+    // Corps complet depuis la seconde passe du Val 5 — voir `lang/en/mail.php` pour le
+    // contexte de la panne précédente (seuls le sujet et `accept_cta` passaient par le
+    // catalogue).
     'member_invitation' => [
         'subject' => ':inviter vous a invité à rejoindre :workspace sur Throughput',
+        'greeting' => 'Bonjour,',
+        // DE VERIFICAT — accord de genre : « invité(e) » laissé neutre, comme
+        // `membership_records_need_new_owner.deactivated` ci-dessus (le sujet réel,
+        // :inviter, peut être un homme ou une femme).
+        'body' => 'Vous avez été invité(e) par :inviter à rejoindre :workspace sur Throughput en tant que :role.',
+        'accept_cta' => 'Accepter l’invitation',
+        'expiry' => 'Ce lien est valable :days. S’il expire, demandez à :inviter de vous en envoyer un nouveau.',
+        'days' => '[0,1] :count jour|[2,*] :count jours',
+        'unsolicited' => 'Si vous ne vous attendiez pas à cette invitation, vous pouvez ignorer cet e-mail — il ne se passe rien tant que vous n’avez pas accepté.',
+        'signature' => '— Throughput',
     ],
 
     'dunning_payment_failed' => [
@@ -73,7 +86,7 @@ return [
     ],
 
     'subscription_unpaid' => [
-        'subject' => 'Action requise : l’abonnement :tenant est impayé',
+        'subject' => 'Action requise : l’abonnement :tenant est impayé',
     ],
 
     'membership_records_need_new_owner' => [

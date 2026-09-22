@@ -90,6 +90,60 @@ class ImportUploadTest extends TestCase
         $this->assertSame(0, TenantContext::run($this->marlin, fn () => Import::query()->count()));
     }
 
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.imports.row_limit_exceeded`,
+     * mesajul era literal englez direct în `StoreImportRequest::withValidator()`.
+     */
+    public function test_a_file_over_the_row_limit_message_translates_to_french(): void
+    {
+        config(['throughput.limits.import_max_rows' => 3]);
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $content = "SKU,Product Name,Price,Cost\n";
+
+        for ($i = 1; $i <= 5; $i++) {
+            $content .= "SKU-{$i},Widget {$i},9.99,4.00\n";
+        }
+
+        $file = UploadedFile::fake()->createWithContent('products.csv', $content);
+
+        $response = $this->actingAs($this->owner)->post('/marlin/imports', ['resource_type' => 'variants', 'file' => $file]);
+
+        $response->assertSessionHasErrors([
+            'file' => 'Ce fichier contient 5 lignes, ce qui dépasse la limite de 3 lignes par import. Divisez-le en fichiers plus petits et importez-les un par un.',
+        ]);
+    }
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.imports.no_data_rows`,
+     * mesajul era literal englez direct în `StoreImportRequest::withValidator()`.
+     * Fișier cu DOAR antet, zero rânduri de date.
+     */
+    public function test_a_file_with_only_a_header_is_rejected_with_a_clear_message(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('products.csv', "SKU,Product Name,Price,Cost\n");
+
+        $response = $this->actingAs($this->owner)->post('/marlin/imports', ['resource_type' => 'variants', 'file' => $file]);
+
+        $response->assertSessionHasErrors([
+            'file' => 'This file has no data rows to import — only a header (or nothing at all).',
+        ]);
+        $this->assertSame(0, TenantContext::run($this->marlin, fn () => Import::query()->count()));
+    }
+
+    public function test_a_file_with_only_a_header_message_translates_to_french(): void
+    {
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $file = UploadedFile::fake()->createWithContent('products.csv', "SKU,Product Name,Price,Cost\n");
+
+        $response = $this->actingAs($this->owner)->post('/marlin/imports', ['resource_type' => 'variants', 'file' => $file]);
+
+        $response->assertSessionHasErrors([
+            'file' => 'Ce fichier ne contient aucune ligne de données à importer — seulement un en-tête (ou rien du tout).',
+        ]);
+    }
+
     public function test_a_second_concurrent_import_is_refused_with_a_clear_message(): void
     {
         TenantContext::run($this->marlin, function (): void {

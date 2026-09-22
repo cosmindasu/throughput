@@ -58,7 +58,7 @@ final class UpdateContactRequest extends FormRequest
 
         $validator->after(function (Validator $validator): void {
             if ($this->boolean('is_primary') && $this->input('account_id') === null) {
-                $validator->errors()->add('is_primary', 'A primary contact must belong to an account.');
+                $validator->errors()->add('is_primary', __('rules.contacts.primary_requires_account'));
             }
         });
 

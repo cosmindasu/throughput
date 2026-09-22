@@ -184,11 +184,11 @@ final class DemoMode
         // `count` suprascris explicit (formatat cu separator de mii) — `trans_choice()`
         // folosește `$rows` BRUT (parametrul de mai jos) doar ca să aleagă forma
         // singular/plural, apoi înlocuiește `:count` cu ce găsește în `$replace['count']`,
-        // dacă e prezent (`Translator::choice()`) — EXACT `number_format($rows)` de dinainte
-        // de mutare, păstrat identic.
+        // dacă e prezent (`Translator::choice()`). Lot I18N, Val 5: `number_format()` e fixat pe
+        // convenția engleză, deci un francofon citea „1,234" ca unu-virgulă-doi-trei-patru.
         return trans_choice('rules.bulk.demo_row_cap', $rows, [
-            'count' => number_format($rows),
-            'cap' => number_format((int) self::bulkRowCap()),
+            'count' => LocaleFormat::count($rows),
+            'cap' => LocaleFormat::count((int) self::bulkRowCap()),
         ]);
     }
 }

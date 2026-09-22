@@ -11,7 +11,7 @@
     },
     "status": {
         "searching": "Recherche en cours…",
-        "noResultsFor": "Aucun résultat pour « {{query}} »",
+        "noResultsFor": "Aucun résultat pour « {{query}} »",
         "empty": "Rien pour l’instant — commencez à taper pour rechercher.",
         "resultCount_one": "{{count}} résultat",
         "resultCount_many": "{{count}} de résultats",

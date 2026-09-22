@@ -357,6 +357,45 @@ class MemberDeactivationTest extends TestCase
         ]);
     }
 
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.members.owner_not_active`,
+     * mesajul era literal englez direct în `DeactivateMembershipRequest`.
+     */
+    public function test_reassigning_to_someone_outside_the_workspace_message_translates_to_french(): void
+    {
+        $jane = $this->makeMember($this->marlin, 'jane@throughput.dev', Permissions::AGENT);
+        $outsider = User::query()->create(['name' => 'Outsider', 'email' => 'outsider@throughput.dev', 'password' => 'password']);
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $response = $this->actingAs($this->owner)->post(
+            "/marlin/settings/members/{$this->membershipOf($jane)->getKey()}/deactivate",
+            ['reassign' => true, 'new_owner_user_id' => $outsider->getKey()],
+        );
+
+        $response->assertSessionHasErrors([
+            'new_owner_user_id' => 'Le propriétaire sélectionné n’est pas membre actif de cet espace de travail.',
+        ]);
+    }
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.members.new_owner_is_target`,
+     * mesajul era literal englez direct în `DeactivateMembershipRequest`.
+     */
+    public function test_reassigning_to_the_member_being_deactivated_message_translates_to_french(): void
+    {
+        $jane = $this->makeMember($this->marlin, 'jane@throughput.dev', Permissions::AGENT);
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $response = $this->actingAs($this->owner)->post(
+            "/marlin/settings/members/{$this->membershipOf($jane)->getKey()}/deactivate",
+            ['reassign' => true, 'new_owner_user_id' => $jane->getKey()],
+        );
+
+        $response->assertSessionHasErrors([
+            'new_owner_user_id' => 'Le nouveau propriétaire ne peut pas être le membre en cours de désactivation.',
+        ]);
+    }
+
     private function membershipOf(User $user, ?Tenant $tenant = null): Membership
     {
         return TenantContext::run($tenant ?? $this->marlin, fn () => Membership::query()->where('user_id', $user->getKey())->firstOrFail());

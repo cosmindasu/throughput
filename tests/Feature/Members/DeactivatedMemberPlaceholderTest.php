@@ -67,6 +67,34 @@ class DeactivatedMemberPlaceholderTest extends TestCase
     }
 
     /**
+     * FR-I18N-04, Lotul I18N Val 5 — până acum `DeactivatedMemberNames::label()` concatena
+     * „(deactivated)" literal, în engleză, INDIFERENT de `users.locale` al celui care
+     * privește lista. Aserțiune NOUĂ, alături de cea engleză de mai sus (neschimbată — proba
+     * că literalul englezesc a rămas identic bit cu bit pentru un utilizator care n-a atins
+     * comutatorul de limbă). Locale-ul care contează e al VIEWER-ULUI (`$this->owner`, cel
+     * care cere pagina), nu al lui Jane (membrul dezactivat) — la fel ca în
+     * `MemberRefusalLocaleTest`/`ValidationMessageLocaleTest`.
+     */
+    public function test_a_deactivated_owner_shows_the_french_placeholder_on_the_accounts_list(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $account = new Account(['name' => 'Janes Account', 'owner_user_id' => $this->jane->getKey()]);
+            $account->created_by = $this->owner->getKey();
+            $account->save();
+        });
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)
+            ->get('/marlin/accounts')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Accounts/Index')
+                ->loadDeferredProps(fn (Assert $deferred) => $deferred->where('accounts.data.0.owner.name', 'Jane (désactivé)'))
+            );
+    }
+
+    /**
      * Interogarea care încarcă setul de user_id dezactivați rulează O SINGURĂ DATĂ per
      * cerere (`App\Support\Members\DeactivatedMemberIds`, `scoped()`), indiferent de câte
      * rânduri au owner dezactivat pe pagină — la fel ca testul de N+1 al Pachetului

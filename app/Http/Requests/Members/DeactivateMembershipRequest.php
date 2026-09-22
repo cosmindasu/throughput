@@ -51,7 +51,7 @@ class DeactivateMembershipRequest extends FormRequest
             }
 
             if ($value === $this->route('membership')?->user_id) {
-                $fail('The new owner cannot be the member being deactivated.');
+                $fail(__('rules.members.new_owner_is_target'));
 
                 return;
             }
@@ -62,7 +62,7 @@ class DeactivateMembershipRequest extends FormRequest
                 ->exists();
 
             if (! $isActiveMember) {
-                $fail('The selected owner is not an active member of this workspace.');
+                $fail(__('rules.members.owner_not_active'));
             }
         };
     }

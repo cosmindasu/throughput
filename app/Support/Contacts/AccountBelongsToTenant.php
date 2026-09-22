@@ -20,7 +20,7 @@ final class AccountBelongsToTenant implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! Account::query()->whereKey($value)->exists()) {
-            $fail('Select an account from this workspace.');
+            $fail(__('rules.contacts.account_not_in_workspace'));
         }
     }
 }

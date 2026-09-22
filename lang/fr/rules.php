@@ -18,8 +18,10 @@ return [
 
     'stock' => [
         // DE VERIFICAT — terminologie de stoc.
-        'negative_on_hand' => 'Il ne reste que :count unité en stock à cet emplacement ; cette modification ferait passer le stock sous zéro.|Il ne reste que :count unités en stock à cet emplacement ; cette modification ferait passer le stock sous zéro.',
+        'negative_on_hand' => 'Il ne reste que :count unité en stock à cet emplacement ; cette modification ferait passer le stock sous zéro.|Il ne reste que :count unités en stock à cet emplacement ; cette modification ferait passer le stock sous zéro.',
         'insufficient_at_source' => 'Il ne reste que :count unité en stock à l’emplacement source.|Il ne reste que :count unités en stock à l’emplacement source.',
+        // DE VERIFICAT — formulation aussi laconique que l’anglais d’origine (sans « unité(s) »).
+        'transfer_available_at_source' => 'Il n’y a que :available en stock à l’emplacement source.',
     ],
 
     'orders' => [
@@ -32,6 +34,9 @@ return [
         // business; „rupture différée" e o alegere explicativă, nu un termen standard.
         'backorder_confirmation_required' => 'Une ou plusieurs lignes dépassent le stock disponible. Confirmez explicitement pour passer cette commande en rupture différée (backorder).',
         'cannot_transition' => 'Cette commande ne peut pas passer à :target depuis son statut actuel (:status).',
+        // DE VERIFICAT — « sous-total » reprend le terme déjà établi dans
+        // `lang/fr/pdf.php` (`subtotal` → « Sous-total »).
+        'discount_exceeds_line_subtotal' => 'La remise ne peut pas dépasser le sous-total de la ligne (:subtotal).',
     ],
 
     'deals' => [
@@ -69,13 +74,13 @@ return [
         'discard_requires_label_failed' => 'Seule une expédition dont l’étiquette a échoué peut être abandonnée (actuellement :status).',
         'mark_shipped_requires_label_purchased' => 'Seule une expédition avec une étiquette achetée peut être marquée comme expédiée (actuellement :status).',
         'no_lines' => 'Cette expédition n’a aucune ligne.',
-        'insufficient_stock' => 'Stock insuffisant pour expédier ceci : :available en stock, :requested demandé(s).',
+        'insufficient_stock' => 'Stock insuffisant pour expédier ceci : :available en stock, :requested demandé(s).',
         'retry_requires_label_failed' => 'Seule une expédition dont l’étiquette a échoué peut être retentée (actuellement :status).',
         'line_no_room' => 'Cette ligne n’a plus de place pour cette expédition — abandonnez-la et créez-en une nouvelle pour ce qu’il reste réellement.',
     ],
 
     'invoices' => [
-        'invalid_status_for_creation' => 'Une facture ne peut être créée qu’à partir d’une commande confirmée ou honorée (statut actuel : :status).',
+        'invalid_status_for_creation' => 'Une facture ne peut être créée qu’à partir d’une commande confirmée ou honorée (statut actuel : :status).',
         'already_has_active' => 'Cette commande a déjà une facture active. Annulez-la avant d’en créer une nouvelle.',
         'only_draft_can_be_sent' => 'Seule une facture brouillon peut être marquée comme envoyée.',
         'only_sent_or_overdue_can_receive_payment' => 'Un paiement ne peut être enregistré que pour une facture envoyée ou en retard.',
@@ -90,6 +95,13 @@ return [
         'sandbox_key_only' => 'Seules les clés sandbox Shippo (shippo_test_...) sont acceptées sur ce déploiement — jamais une clé live.',
     ],
 
+    // Voir `lang/en/rules.php` — règle réutilisée par les contacts ET les affaires.
+    'contacts' => [
+        'account_not_in_workspace' => 'Sélectionnez un compte de cet espace de travail.',
+        'primary_requires_account' => 'Un contact principal doit appartenir à un compte.',
+        'email_already_linked' => 'Cet e-mail est déjà lié à :account.',
+    ],
+
     'imports' => [
         'concurrency_limit' => 'Cet espace de travail a déjà un import en cours. Terminez-le ou attendez sa fin avant d’en démarrer un autre (un seul import actif par espace de travail).',
         'already_finished' => 'Cet import est déjà terminé et ne peut plus être annulé.',
@@ -99,10 +111,22 @@ return [
         'cannot_commit' => 'Cet import ne peut pas être finalisé depuis son statut actuel.',
         'cannot_validate' => 'Cet import ne peut pas démarrer sa validation depuis son statut actuel.',
         'processing_in_background' => 'Cet import est actuellement traité en arrière-plan — attendez la fin avant de modifier le mappage.',
+        'row_limit_exceeded' => 'Ce fichier contient :rows lignes, ce qui dépasse la limite de :max_rows lignes par import. Divisez-le en fichiers plus petits et importez-les un par un.',
+        'no_data_rows' => 'Ce fichier ne contient aucune ligne de données à importer — seulement un en-tête (ou rien du tout).',
     ],
 
     'gdpr' => [
         'export_already_running' => 'Cet espace de travail a déjà un export de données en cours. Attendez sa fin avant d’en demander un autre.',
+    ],
+
+    // Voir `lang/en/rules.php` pour le contexte — validation de SENS sur `saved_view_id`.
+    'reports' => [
+        'saved_view_not_found' => 'Cette vue enregistrée est introuvable.',
+        'saved_view_forbidden' => 'Vous n’avez pas accès à cette vue enregistrée.',
+        // DE VERIFICAT — `:type` est le type technique de la vue enregistrée
+        // (`saved_views.resource_type`, ex. `deals`), pas un mot français ; la phrase
+        // reste correcte quel que soit le type inséré.
+        'saved_view_unsupported_type' => 'Les vues enregistrées sur ":type" ne peuvent pas encore être utilisées comme source de rapport.',
     ],
 
     'bulk' => [
@@ -149,6 +173,18 @@ return [
         'transfer_ownership_first' => 'Transférez la propriété avant de désactiver le dernier :owner.',
         'cannot_deactivate_self' => 'Vous ne pouvez pas vous désactiver vous-même. Demandez à un autre :owner ou :manager de le faire.',
         'no_longer_a_member' => 'Ce membre n’existe plus dans cet espace de travail.',
+        // Accord sur « personne » (féminin) — le sujet grammatical de la phrase anglaise
+        // ("That person...") est un nom commun, pas le nom de l'invité·e.
+        'already_a_member' => 'Cette personne est déjà membre de cet espace de travail.',
+        'invitation_already_pending' => 'Une invitation est déjà en attente pour cette adresse. Renvoyez-la ou révoquez-la depuis la liste ci-dessous.',
+        // `owner_not_active`/`new_owner_is_target` — voir `lang/en/rules.php` pour le
+        // contexte exact (trois appelantes pour la première clé). « Propriétaire » ici
+        // désigne le propriétaire d’un ENREGISTREMENT (`owner_user_id`), pas le rôle
+        // Propriétaire ci-dessus — formulation déjà établie dans
+        // `resources/js/locales/fr/help.json` (« un propriétaire qui n’est plus membre
+        // actif »).
+        'owner_not_active' => 'Le propriétaire sélectionné n’est pas membre actif de cet espace de travail.',
+        'new_owner_is_target' => 'Le nouveau propriétaire ne peut pas être le membre en cours de désactivation.',
     ],
 
 ];

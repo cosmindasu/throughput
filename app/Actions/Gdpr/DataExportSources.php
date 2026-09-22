@@ -25,6 +25,15 @@ use InvalidArgumentException;
  * șapte, deci nimeni nu pierde nimic prin lipsa unui CSV.
  *
  * **Niciun PDF** (plan §11, decizie explicită): arhiva conține exclusiv JSON și CSV.
+ *
+ * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `label`/`note` treceau prin `lang/gdpr.php`
+ * abia acum: ambele ajung DOAR în `manifest.json`, deci gate-ul `i18n:coverage` (care
+ * compară cataloagele între ele) n-avea cum să vadă că engleza nu ajunsese niciodată în
+ * catalog. Randate în limba celui care a CERUT exportul — `__()` citește `App::getLocale()`,
+ * setat EXPLICIT la începutul lui `App\Jobs\Gdpr\ExportTenantEntityJob::handle()` (unde
+ * `self::all()` se evaluează efectiv, prin `DataExportSources::resolve()`), nu doar al lui
+ * `FinalizeDataExportJob::handle()` — vezi docblock-ul jobului de entitate pentru motivul
+ * exact (worker de coadă de viață lungă, `.ai/rules/tenancy.md:123-138`).
  */
 final class DataExportSources
 {
@@ -36,59 +45,59 @@ final class DataExportSources
         return [
             new DataExportSource(
                 name: 'accounts',
-                label: 'Accounts',
+                label: __('gdpr.sources.accounts.label'),
                 modelClass: Account::class,
                 with: [],
                 csv: false,
-                note: 'Every company record in this workspace. Billing address, shipping address and tags are structured objects, which is why this entity is JSON only — a spreadsheet column would have flattened them into text.',
+                note: __('gdpr.sources.accounts.note'),
             ),
             new DataExportSource(
                 name: 'contacts',
-                label: 'Contacts',
+                label: __('gdpr.sources.contacts.label'),
                 modelClass: Contact::class,
                 with: [],
                 csv: true,
-                note: 'Every person recorded against an account. Contacts that were anonymised under the right to erasure are not here: their identifying fields were already cleared, so the row that remains carries no personal data to hand over.',
+                note: __('gdpr.sources.contacts.note'),
             ),
             new DataExportSource(
                 name: 'deals',
-                label: 'Deals',
+                label: __('gdpr.sources.deals.label'),
                 modelClass: Deal::class,
                 with: [],
                 csv: true,
-                note: 'Every deal, including the ones that were deleted from the board: a deleted deal is still stored, so it is still data held about you. Those rows carry a "deleted_at" date; the live ones have it empty.',
+                note: __('gdpr.sources.deals.note'),
             ),
             new DataExportSource(
                 name: 'orders',
-                label: 'Orders',
+                label: __('gdpr.sources.orders.label'),
                 modelClass: Order::class,
                 with: ['orderLines'],
                 csv: true,
-                note: 'Every order, with its lines nested under "order_lines" in the JSON file. The CSV holds the order rows only — one row per order, without the lines, because a line-per-row table would repeat every order total.',
+                note: __('gdpr.sources.orders.note'),
             ),
             new DataExportSource(
                 name: 'invoices',
-                label: 'Invoices',
+                label: __('gdpr.sources.invoices.label'),
                 modelClass: Invoice::class,
                 with: [],
                 csv: true,
-                note: 'Every invoice raised against an order. The generated PDF itself is not in the archive — it is a rendering of these same figures, and a PDF does not count as a machine-readable format for portability.',
+                note: __('gdpr.sources.invoices.note'),
             ),
             new DataExportSource(
                 name: 'payments',
-                label: 'Payments',
+                label: __('gdpr.sources.payments.label'),
                 modelClass: Payment::class,
                 with: [],
                 csv: true,
-                note: 'Every payment recorded against an invoice. Payments are entered by hand in this product, so there is no card or bank data of any kind to export.',
+                note: __('gdpr.sources.payments.note'),
             ),
             new DataExportSource(
                 name: 'activity_log',
-                label: 'Activity log',
+                label: __('gdpr.sources.activity_log.label'),
                 modelClass: ActivityLog::class,
                 with: [],
                 csv: false,
-                note: 'Who changed what, and when. Entries older than the retention window have their before/after values replaced with "[anonymized]" — the shape of the entry survives, the values do not. JSON only, because those before/after values are structured objects.',
+                note: __('gdpr.sources.activity_log.note'),
             ),
         ];
     }

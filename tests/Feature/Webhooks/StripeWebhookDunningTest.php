@@ -64,6 +64,13 @@ class StripeWebhookDunningTest extends TestCase
 
     public function test_the_same_payment_failed_event_id_only_emails_once(): void
     {
+        // Lot I18N, Val 5 — raza de explozie a buclei per destinatar (fiecare Owner ia
+        // ACUM un `Mailable` propriu, cf. `App\Listeners\Billing\SendPaymentFailedDunningEmail`).
+        // `Mail::assertSentCount(1)` era adevărat aici doar pentru că tenantul din `setUp()`
+        // are UN SINGUR Owner activ — nu verifica idempotența pe `event_id`, care e chiar
+        // ce testul ăsta pretinde să dovedească. Forma corectă: numărul de email-uri
+        // PER Owner (`assertSentTimes`, nu totalul global al fake-ului) rămâne NESCHIMBAT
+        // înainte/după a doua livrare a ACELUIAȘI eveniment.
         Mail::fake();
 
         $event = $this->stripeEvent('invoice.payment_failed', [
@@ -75,10 +82,18 @@ class StripeWebhookDunningTest extends TestCase
         $this->postStripeWebhook($event)->assertOk();
         $this->workTheQueue(2);
 
+        // Exact câți Owner-i activi are tenantul din setUp() ($this->owner) — NU o
+        // constantă arbitrară.
+        Mail::assertSentTimes(DunningPaymentFailedMail::class, 1);
+        $sentAfterFirstDelivery = Mail::sent(DunningPaymentFailedMail::class)->count();
+
         $this->postStripeWebhook($event)->assertOk();
         $this->workTheQueue(0);
 
-        Mail::assertSentCount(1);
+        // Idempotența pe `event_id`: a doua livrare a ACELUIAȘI eveniment nu adaugă niciun
+        // email nou — comparăm cu numărul de dinainte, nu cu o valoare fixă care s-ar
+        // nimeri să coincidă.
+        Mail::assertSentTimes(DunningPaymentFailedMail::class, $sentAfterFirstDelivery);
     }
 
     private function workTheQueue(int $expected): void

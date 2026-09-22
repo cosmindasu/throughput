@@ -187,6 +187,12 @@ test('dunning complet: active → past_due → unpaid (scriere blocată) → pay
         )
         .toBe(1);
 
+    // Referință pentru aserțiunea de idempotență de mai jos (pasul 4) — capturată AICI, nu
+    // hardcodată „1": un alt agent schimbă chiar acum server-side trimiterea către „câte un
+    // email PER Owner" (azi seed-ul demo are un singur Owner pe Northgate, deci numărul rămâne
+    // 1, dar aserțiunea nu trebuie să presupună asta).
+    const transitionEmailBaselineCount = await sentEmailRows(page, UNPAID_TRANSITION_SUBJECT).count();
+
     // ------------------------------- 4. `invoice.payment_failed` retrimis de DOUĂ ori
     const paymentFailed = stripeEvent(
         'invoice.payment_failed',
@@ -207,6 +213,10 @@ test('dunning complet: active → past_due → unpaid (scriere blocată) → pay
         )
         .toBe(1);
 
+    // Referință pentru aserțiunea de idempotență pe `event_id` de mai jos — la fel ca la
+    // tranziție, capturată dinamic, nu hardcodată.
+    const dunningEmailBaselineCount = await sentEmailRows(page, DUNNING_SUBJECT).count();
+
     // A doua livrare a ACELUIAȘI eveniment (Stripe reîncearcă la timeout de rețea).
     const redelivery = await deliverStripeWebhook(page, paymentFailed);
     expect(redelivery.status).toBe(200);
@@ -221,8 +231,21 @@ test('dunning complet: active → past_due → unpaid (scriere blocată) → pay
     await deliverAndSettle(page, subscriptionUpdated('unpaid', `evt_e2e_queue_barrier_${ts}`));
 
     await openSentEmails(page);
-    await expect(sentEmailRows(page, DUNNING_SUBJECT), 'două livrări ale aceluiași event_id, un singur email').toHaveCount(1);
-    await expect(sentEmailRows(page, UNPAID_TRANSITION_SUBJECT), 'al doilea `unpaid` nu retrimite emailul de tranziție').toHaveCount(1);
+    // Idempotență pe `event_id` (NU pe „numărul de destinatari" — un fanout viitor „un email
+    // per Owner" ar schimba baseline-ul de mai sus de la 1 la N, dar aserțiunea de-aici tot ar
+    // trebui să treacă: a doua livrare a ACELUIAȘI `event_id` (`PAYMENT_FAILED_EVENT_ID`,
+    // redistribuit mai sus) nu adaugă NIMIC față de numărul deja stabilit după prima livrare).
+    await expect(
+        sentEmailRows(page, DUNNING_SUBJECT),
+        'idempotență pe event_id: a doua livrare a aceluiași invoice.payment_failed nu adaugă niciun email față de numărul de dinaintea redistribuirii',
+    ).toHaveCount(dunningEmailBaselineCount);
+    // Simetric — un al doilea `customer.subscription.updated` cu STATUSUL NESCHIMBAT
+    // (`unpaid` → `unpaid`) nu e o tranziție nouă (`ProcessStripeWebhookJob::syncSubscription()`
+    // compară cu statusul anterior), deci nu retrimite emailul de tranziție.
+    await expect(
+        sentEmailRows(page, UNPAID_TRANSITION_SUBJECT),
+        'un status neschimbat (unpaid → unpaid) nu retrimite emailul de tranziție — numărul rămâne cel de dinaintea celui de-al doilea eveniment',
+    ).toHaveCount(transitionEmailBaselineCount);
 
     // Emailul e interceptat (DEMO_MODE, BR-DEMO-02) și atribuit workspace-ului — altfel
     // n-ar fi vizibil AICI, în Settings-ul tenantului care tocmai a avut plata eșuată.

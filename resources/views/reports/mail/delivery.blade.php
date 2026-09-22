@@ -18,7 +18,7 @@
 <p>
     {!! __('mail.report_delivery.body', [
         'report' => '<strong>'.e($reportName).'</strong>',
-        'rows' => trans_choice('mail.report_delivery.rows', $rowCount, ['count' => number_format($rowCount)]),
+        'rows' => trans_choice('mail.report_delivery.rows', $rowCount, ['count' => \App\Support\LocaleFormat::count($rowCount)]),
         'format' => strtoupper($formatLabel),
     ]) !!}
 </p>

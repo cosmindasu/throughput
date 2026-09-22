@@ -38,6 +38,13 @@ class SubscriptionTransitionEmailsTest extends TestCase
 
     public function test_the_transition_to_unpaid_emails_the_owner_exactly_once(): void
     {
+        // Lot I18N, Val 5 — raza de explozie a buclei per destinatar (fiecare Owner ia
+        // ACUM un `Mailable` propriu, cf. `App\Listeners\Billing\SendSubscriptionUnpaidEmail`).
+        // `Mail::assertSentCount(1)` era adevărat aici doar pentru că tenantul din `setUp()`
+        // are UN SINGUR Owner activ — nu verifica idempotența pe `event_id`, care e chiar
+        // ce testul ăsta pretinde să dovedească. Forma corectă: numărul de email-uri PER
+        // Owner (`assertSentTimes`, nu totalul global al fake-ului) rămâne NESCHIMBAT
+        // înainte/după al doilea webhook care confirmă aceeași tranziție.
         Mail::fake();
 
         $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
@@ -57,7 +64,10 @@ class SubscriptionTransitionEmailsTest extends TestCase
         $this->workTheQueue(2); // sync job + listener de email
 
         Mail::assertSent(SubscriptionUnpaidMail::class, fn (SubscriptionUnpaidMail $mail): bool => $mail->hasTo($this->owner->email));
-        Mail::assertSentCount(1);
+        // Exact câți Owner-i activi are tenantul din setUp() ($this->owner) — NU o
+        // constantă arbitrară.
+        Mail::assertSentTimes(SubscriptionUnpaidMail::class, 1);
+        $sentAfterFirstTransition = Mail::sent(SubscriptionUnpaidMail::class)->count();
 
         // Un AL DOILEA webhook, eveniment DIFERIT, care confirmă TOT `unpaid` (Stripe poate
         // retrimite `customer.subscription.updated` pentru alte câmpuri neschimbate) — NU
@@ -69,11 +79,18 @@ class SubscriptionTransitionEmailsTest extends TestCase
         ], eventId: 'evt_to_unpaid_2'))->assertOk();
         $this->workTheQueue(1); // doar sync job — niciun email nou de dispecerizat
 
-        Mail::assertSentCount(1);
+        // Idempotența pe `event_id`: numărul rămâne identic cu cel de dinainte de al
+        // doilea webhook, nu cu o valoare fixă care s-ar nimeri să coincidă.
+        Mail::assertSentTimes(SubscriptionUnpaidMail::class, $sentAfterFirstTransition);
     }
 
     public function test_the_transition_to_canceled_emails_the_owner_exactly_once(): void
     {
+        // Lot I18N, Val 5 — aceeași notă ca la testul de `unpaid` de mai sus:
+        // `Mail::assertSentCount(1)` era adevărat doar pentru că tenantul are UN SINGUR
+        // Owner activ, nu pentru că verifica idempotența pe `event_id`. Forma corectă
+        // rămâne per Owner (`assertSentTimes`) și compară explicit numărul dinainte/după
+        // al doilea eveniment de anulare.
         Mail::fake();
 
         $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
@@ -84,7 +101,10 @@ class SubscriptionTransitionEmailsTest extends TestCase
         $this->workTheQueue(2); // sync job + listener de email
 
         Mail::assertSent(SubscriptionCanceledMail::class, fn (SubscriptionCanceledMail $mail): bool => $mail->hasTo($this->owner->email));
-        Mail::assertSentCount(1);
+        // Exact câți Owner-i activi are tenantul din setUp() ($this->owner) — NU o
+        // constantă arbitrară.
+        Mail::assertSentTimes(SubscriptionCanceledMail::class, 1);
+        $sentAfterFirstCancellation = Mail::sent(SubscriptionCanceledMail::class)->count();
 
         // Al doilea eveniment, tot spre `canceled` (ex: `customer.subscription.deleted`
         // separat) — NU retrimite.
@@ -95,7 +115,9 @@ class SubscriptionTransitionEmailsTest extends TestCase
         ], eventId: 'evt_second_cancel'))->assertOk();
         $this->workTheQueue(1); // doar sync job
 
-        Mail::assertSentCount(1);
+        // Idempotența pe `event_id`: numărul rămâne identic cu cel de dinainte de al
+        // doilea eveniment, nu cu o valoare fixă care s-ar nimeri să coincidă.
+        Mail::assertSentTimes(SubscriptionCanceledMail::class, $sentAfterFirstCancellation);
     }
 
     private function workTheQueue(int $expected): void

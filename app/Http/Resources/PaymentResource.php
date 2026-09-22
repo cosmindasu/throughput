@@ -15,12 +15,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class PaymentResource extends JsonResource
 {
-    private const METHOD_LABELS = [
-        Payment::METHOD_BANK_TRANSFER => 'Bank transfer',
-        Payment::METHOD_CHECK => 'Check',
-        Payment::METHOD_MANUAL => 'Manual',
-    ];
-
     /**
      * @return array<string, mixed>
      */
@@ -30,7 +24,16 @@ final class PaymentResource extends JsonResource
             'id' => $this->id,
             'amount' => (float) $this->amount,
             'method' => $this->method,
-            'methodLabel' => self::METHOD_LABELS[$this->method] ?? ucfirst((string) $this->method),
+            // FR-I18N-04, Lotul I18N Val 5 — trecea printr-un array PHP hardcodat
+            // ('Bank transfer'/'Check'/'Manual'), randat neschimbat pe interfața franceză;
+            // dropdown-ul formularului (`resources/js/locales/fr/invoices.json`,
+            // `show.payments.methodOptions`) era deja tradus, deci cele două căi ale
+            // aceluiași ecran divergeau. `ucfirst()` rămâne fallback-ul pentru o valoare
+            // viitoare care n-are încă intrare în `enums.payment_method` — comportament
+            // identic cu dinainte.
+            'methodLabel' => in_array($this->method, Payment::methods(), true)
+                ? __('enums.payment_method.'.$this->method)
+                : ucfirst((string) $this->method),
             'paidAt' => $this->paid_at?->toIso8601String(),
             // FR-TEN-04 — placeholder „(deactivated)" pe cine a înregistrat plata.
             'createdBy' => $this->whenLoaded('createdBy', fn () => $this->createdBy ? [

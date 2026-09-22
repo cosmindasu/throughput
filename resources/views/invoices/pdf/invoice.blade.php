@@ -189,9 +189,9 @@
                 <tr>
                     <td>{{ $line->description }}</td>
                     <td class="numeric">{{ $line->quantity }}</td>
-                    <td class="numeric">{{ number_format((float) $line->unit_price, 2) }}</td>
-                    <td class="numeric">{{ number_format((float) $line->discount, 2) }}</td>
-                    <td class="numeric">{{ number_format((float) $line->line_total, 2) }}</td>
+                    <td class="numeric">{{ \App\Support\LocaleFormat::amount((float) $line->unit_price) }}</td>
+                    <td class="numeric">{{ \App\Support\LocaleFormat::amount((float) $line->discount) }}</td>
+                    <td class="numeric">{{ \App\Support\LocaleFormat::amount((float) $line->line_total) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -204,23 +204,23 @@
     <table class="totals">
         <tr>
             <td class="label">{{ __('pdf.invoice.subtotal') }}</td>
-            <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->subtotal, 2) }}</td>
+            <td class="value">{{ \App\Support\LocaleFormat::money((float) $invoice->subtotal, $invoice->currency) }}</td>
         </tr>
         <tr>
             <td class="label">{{ __('pdf.invoice.tax') }}</td>
-            <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->tax_total, 2) }}</td>
+            <td class="value">{{ \App\Support\LocaleFormat::money((float) $invoice->tax_total, $invoice->currency) }}</td>
         </tr>
         <tr class="grand">
             <td class="label">{{ __('pdf.invoice.total') }}</td>
-            <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}</td>
+            <td class="value">{{ \App\Support\LocaleFormat::money((float) $invoice->total, $invoice->currency) }}</td>
         </tr>
         <tr>
             <td class="label">{{ __('pdf.invoice.paid') }}</td>
-            <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->amount_paid, 2) }}</td>
+            <td class="value">{{ \App\Support\LocaleFormat::money((float) $invoice->amount_paid, $invoice->currency) }}</td>
         </tr>
         <tr>
             <td class="label">{{ __('pdf.invoice.balance_due') }}</td>
-            <td class="value">{{ $invoice->currency }} {{ number_format((float) $invoice->balance_due, 2) }}</td>
+            <td class="value">{{ \App\Support\LocaleFormat::money((float) $invoice->balance_due, $invoice->currency) }}</td>
         </tr>
     </table>
 </body>

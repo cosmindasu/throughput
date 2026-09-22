@@ -34,7 +34,7 @@ class ReportDefinitionResource extends JsonResource
             'isBuiltIn' => $isBuiltIn,
             'sourceLabel' => $isBuiltIn
                 ? BuiltInReports::resolve($this->report_type)->title()
-                : ($this->savedView?->name ?? 'Saved view'),
+                : ($this->savedView?->name ?? __('reports.saved_view_fallback')),
             'savedView' => $this->savedView !== null ? [
                 'id' => $this->savedView->id,
                 'name' => $this->savedView->name,

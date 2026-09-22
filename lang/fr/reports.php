@@ -7,6 +7,9 @@
  */
 return [
 
+    // Voir `lang/en/reports.php` pour le contexte — repli de `ReportDefinitionResource::sourceLabel`.
+    'saved_view_fallback' => 'Vue enregistrée',
+
     'deal_velocity' => [
         // „Deal" → „affaire", decizie a proprietarului (2026-09-21), aplicată uniform în
         // TOATE cataloagele franceze — vezi nota din `lang/fr/rules.php`, care e locul unde

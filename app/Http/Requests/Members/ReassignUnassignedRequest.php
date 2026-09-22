@@ -35,7 +35,7 @@ class ReassignUnassignedRequest extends FormRequest
                 ->exists();
 
             if (! $isActiveMember) {
-                $fail('The selected owner is not an active member of this workspace.');
+                $fail(__('rules.members.owner_not_active'));
             }
         };
     }

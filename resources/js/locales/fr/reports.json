@@ -69,7 +69,7 @@
             "shown_one": "affichage de la première ligne",
             "shown_many": "affichage des {{formatted}} de premières lignes",
             "shown_other": "affichage des {{formatted}} premières lignes",
-            "hiddenForCost": "Ce rapport inclut des données de coût/marge sur le stock que votre rôle ne peut pas consulter. Un $t(roles:owner) ou un $t(roles:manager) peut les voir ici ; vous pouvez tout de même télécharger le fichier depuis l’historique ci-dessous si vous êtes destinataire.",
+            "hiddenForCost": "Ce rapport inclut des données de coût/marge sur le stock que votre rôle ne peut pas consulter. Un $t(roles:owner) ou un $t(roles:manager) peut les voir ici ; vous pouvez tout de même télécharger le fichier depuis l’historique ci-dessous si vous êtes destinataire.",
             "empty": "Aucune donnée pour le moment.",
             "tableCaption": "Résultat actuel pour {{name}}"
         },

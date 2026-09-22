@@ -115,4 +115,38 @@ class TransferStockTest extends TestCase
             'quantity' => 1000,
         ])->assertSessionHasErrors('quantity');
     }
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.stock.transfer_available_at_source`,
+     * mesajul era literal englez direct în `TransferStockRequest::withValidator()`, cu
+     * interpolare `{$var}` în loc de substituent. `:available` trece prin
+     * `App\Support\LocaleFormat::count()` — 100, neschimbat (fără zecimale) în ambele limbi.
+     */
+    public function test_the_transfer_quantity_message_translates_to_french(): void
+    {
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $response = $this->actingAs($this->owner)->post("/marlin/variants/{$this->variant->id}/stock/transfer", [
+            'from_location_id' => $this->main->id,
+            'to_location_id' => $this->overflow->id,
+            'quantity' => 1000,
+        ]);
+
+        $response->assertSessionHasErrors([
+            'quantity' => 'Il n’y a que 100 en stock à l’emplacement source.',
+        ]);
+    }
+
+    public function test_the_same_transfer_quantity_message_stays_english_by_default(): void
+    {
+        $response = $this->actingAs($this->owner)->post("/marlin/variants/{$this->variant->id}/stock/transfer", [
+            'from_location_id' => $this->main->id,
+            'to_location_id' => $this->overflow->id,
+            'quantity' => 1000,
+        ]);
+
+        $response->assertSessionHasErrors([
+            'quantity' => 'Only 100 on hand at the source location.',
+        ]);
+    }
 }

@@ -86,6 +86,76 @@ class MemberRefusalLocaleTest extends TestCase
     }
 
     /**
+     * FR-I18N-04, Lotul I18N Val 5 — `already_a_member` (`InviteMemberRequest::
+     * notAlreadyInWorkspaceRule()`) rămăsese literal, în engleză, deși stă în ACEEAȘI
+     * familie de refuzuri decât cele de mai sus (aceeași cerere, `rules.members`). Aserțiune
+     * NOUĂ, nu o rescriere; perechea engleză e testul imediat următor.
+     */
+    public function test_the_already_a_member_refusal_renders_in_french(): void
+    {
+        $this->speaksFrench($this->owner);
+
+        $this->actingAs($this->owner)
+            ->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => 'manager@throughput.dev', 'role' => Permissions::VIEWER])
+            ->assertSessionHasErrors([
+                'email' => 'Cette personne est déjà membre de cet espace de travail.',
+            ]);
+    }
+
+    public function test_the_same_already_a_member_refusal_stays_english_by_default(): void
+    {
+        $this->actingAs($this->owner)
+            ->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => 'manager@throughput.dev', 'role' => Permissions::VIEWER])
+            ->assertSessionHasErrors([
+                'email' => 'That person is already a member of this workspace.',
+            ]);
+    }
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a doua trecere) — `invitation_already_pending`
+     * (`InviteMemberRequest::notAlreadyInWorkspaceRule()`, ramura `STATUS_PENDING`), în
+     * ACEEAȘI metodă decât `already_a_member` de mai sus, rămăsese literală, în engleză,
+     * după prima trecere — semnalată separat atunci, reparată acum. Aserțiune NOUĂ, nu o
+     * rescriere; perechea engleză e testul imediat următor.
+     */
+    public function test_the_invitation_already_pending_refusal_renders_in_french(): void
+    {
+        $this->speaksFrench($this->owner);
+        $email = 'pending.invite@exemplu.com';
+
+        $this->actingAs($this->owner);
+
+        $this->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => $email, 'role' => Permissions::VIEWER])
+            ->assertSessionHasNoErrors();
+
+        $this->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => $email, 'role' => Permissions::VIEWER])
+            ->assertSessionHasErrors([
+                'email' => 'Une invitation est déjà en attente pour cette adresse. Renvoyez-la ou révoquez-la depuis la liste ci-dessous.',
+            ]);
+    }
+
+    public function test_the_same_invitation_already_pending_refusal_stays_english_by_default(): void
+    {
+        $email = 'pending.invite@exemplu.com';
+
+        $this->actingAs($this->owner);
+
+        $this->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => $email, 'role' => Permissions::VIEWER])
+            ->assertSessionHasNoErrors();
+
+        $this->from('/marlin/settings/members')
+            ->post('/marlin/settings/members/invite', ['email' => $email, 'role' => Permissions::VIEWER])
+            ->assertSessionHasErrors([
+                'email' => 'An invitation to that address is already pending. Resend or revoke it from the list below.',
+            ]);
+    }
+
+    /**
      * Proba că numele rolului chiar vine din `lang/{locale}/roles.php` prin înlocuitorul
      * `:owner`, nu e scris în fraza din `rules.php` (decizia proprietarului din 2026-09-21,
      * o singură sursă pentru numele rolurilor).

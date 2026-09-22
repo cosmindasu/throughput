@@ -255,6 +255,47 @@ class OrderCrudHttpTest extends TestCase
         });
     }
 
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.orders.discount_exceeds_line_subtotal`,
+     * mesajul era literal englez direct în `ValidatesOrderLineDiscount`, cu interpolare
+     * `{$var}` în loc de substituent. `:subtotal` trece prin `App\Support\LocaleFormat::amount()`
+     * — 2 × 10.00 = 20.00, „20.00" în engleză, „20,00" în franceză (virgulă zecimală).
+     */
+    public function test_the_line_discount_message_translates_to_french(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner15@throughput.dev', Permissions::OWNER);
+        $owner->forceFill(['locale' => 'fr'])->save();
+        $variantId = TenantContext::run($this->marlin, fn () => $this->makeVariant(price: 10.0)->getKey());
+
+        $response = $this->actingAs($owner)->post('/marlin/orders', [
+            'account_id' => $this->account->getKey(),
+            'lines' => [
+                ['variant_id' => $variantId, 'quantity' => 2, 'unit_price' => 10.0, 'discount' => 25.0],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors([
+            'lines.0.discount' => 'La remise ne peut pas dépasser le sous-total de la ligne (20,00).',
+        ]);
+    }
+
+    public function test_the_same_line_discount_message_stays_english_by_default(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner16@throughput.dev', Permissions::OWNER);
+        $variantId = TenantContext::run($this->marlin, fn () => $this->makeVariant(price: 10.0)->getKey());
+
+        $response = $this->actingAs($owner)->post('/marlin/orders', [
+            'account_id' => $this->account->getKey(),
+            'lines' => [
+                ['variant_id' => $variantId, 'quantity' => 2, 'unit_price' => 10.0, 'discount' => 25.0],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors([
+            'lines.0.discount' => "The discount can't exceed the line subtotal (20.00).",
+        ]);
+    }
+
     /** Simetric cu testul de mai sus, pe editarea unui draft existent. */
     public function test_a_line_discount_exceeding_its_subtotal_is_refused_on_update(): void
     {

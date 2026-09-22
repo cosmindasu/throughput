@@ -156,7 +156,10 @@ class ActivityLocaleTest extends TestCase
         $this->actingAs($agent)->get('/marlin/dashboard')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('activity.0.description', 'Export : Compte'));
+                // U+202F (espace fine insécable) înaintea lui « : », nu spațiu ASCII —
+                // `lang/fr/activity.php` a fost renormalizat la Valul 5 al Lotului I18N,
+                // ca punctuația dublă franceză să respecte peste tot aceeași convenție.
+                ->where('activity.0.description', 'Export : Compte'));
     }
 
     public function test_the_dashboard_activity_feed_description_stays_in_english_by_default(): void
@@ -219,6 +222,7 @@ class ActivityLocaleTest extends TestCase
         $this->actingAs($this->owner)->get("/marlin/accounts/{$account->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->loadDeferredProps(fn (AssertableInertia $deferred) => $deferred
-                    ->where('activity.0.description', 'Affaire créée : Northwind Renewal — DO NOT TRANSLATE')));
+                    // U+202F înaintea lui « : », la fel ca mai sus — renormalizat la Valul 5.
+                    ->where('activity.0.description', 'Affaire créée : Northwind Renewal — DO NOT TRANSLATE')));
     }
 }

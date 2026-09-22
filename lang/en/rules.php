@@ -50,6 +50,13 @@ return [
     'stock' => [
         'negative_on_hand' => 'Only :count unit is on hand at this location; this change would take it below zero.|Only :count units are on hand at this location; this change would take it below zero.',
         'insufficient_at_source' => 'Only :count unit is on hand at the source location.|Only :count units are on hand at the source location.',
+        // `transfer_available_at_source` — Lotul I18N Val 5 (a treia trecere),
+        // `App\Http\Requests\Stock\TransferStockRequest::withValidator()`: feedback rapid
+        // de FORMULAR (verificarea SUB LOCK din `TransferStockAction` rămâne garanția
+        // reală), text DISTINCT de `insufficient_at_source` de mai sus — fără „unit(s)",
+        // preluat identic din literalul dinainte de extragere. `:available` e o CANTITATE,
+        // trecută prin `App\Support\LocaleFormat::count()` la apelant.
+        'transfer_available_at_source' => 'Only :available on hand at the source location.',
     ],
 
     'orders' => [
@@ -60,6 +67,11 @@ return [
         'lines_required' => 'Add at least one line before confirming this order.',
         'backorder_confirmation_required' => 'One or more lines exceed the available stock. Confirm explicitly to place this order as a backorder.',
         'cannot_transition' => "This order can't move to :target from its current status (:status).",
+        // `discount_exceeds_line_subtotal` — Lotul I18N Val 5 (a treia trecere),
+        // `App\Http\Requests\Orders\Concerns\ValidatesOrderLineDiscount`. `:subtotal` e o
+        // SUMĂ, trecută prin `App\Support\LocaleFormat::amount()` la apelant — niciodată
+        // `number_format()`, fixat pe convenția engleză.
+        'discount_exceeds_line_subtotal' => "The discount can't exceed the line subtotal (:subtotal).",
     ],
 
     'deals' => [
@@ -121,16 +133,68 @@ return [
         'sandbox_key_only' => 'Only Shippo sandbox keys (shippo_test_...) are accepted in this deployment — never a live key.',
     ],
 
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 — `App\Support\Contacts\AccountBelongsToTenant`, o
+     * `ValidationRule` reutilizată din DOUĂ domenii (`Contacts\Store/UpdateContactRequest`
+     * ȘI `Deals\UpdateDealRequest`), nu doar contacte — grupată aici sub numele clasei
+     * sursă, ca restul catalogului (`imports`, `shipping`) grupat pe domeniu tehnic, nu
+     * (neapărat) pe ecranul care o declanșează.
+     *
+     * `primary_requires_account` — validare de SENS distinctă, din
+     * `StoreContactRequest::withValidator()` (`is_primary` fără `account_id`), semnalată
+     * separat la prima trecere a Valului 5 și reparată la a doua trecere.
+     */
+    /**
+     * `email_already_linked` — Lotul I18N Val 5 (a treia trecere), `App\Support\Contacts\
+     * DuplicateContactEmail::check()`, comun formularului de cont nou ȘI celui de contact
+     * (US-CRM-01). `:account` e numele contului existent, generat de aplicație — nu conținut
+     * introdus liber de utilizator (nu atinge granița FR-I18N-06).
+     */
+    'contacts' => [
+        'account_not_in_workspace' => 'Select an account from this workspace.',
+        'primary_requires_account' => 'A primary contact must belong to an account.',
+        'email_already_linked' => 'This email is already linked to :account.',
+    ],
+
+    /**
+     * `row_limit_exceeded`/`no_data_rows` — Lotul I18N Val 5 (a treia trecere),
+     * `App\Http\Requests\Imports\StoreImportRequest::withValidator()` (FR-IMP-02).
+     * `:rows`/`:max_rows` sunt numere ÎNTREGI de rânduri, interpolate ca substituenți
+     * simpli (nu prin `App\Support\LocaleFormat`, spre deosebire de sumele/cantitățile de
+     * la `orders`/`stock` de mai jos — vezi raportul lotului pentru limita explicită a
+     * acestei treceri).
+     */
     'imports' => [
         'concurrency_limit' => 'This workspace already has an import in progress. Finish or wait for it to complete before starting another (only one active import per workspace).',
         'already_finished' => 'This import has already finished and cannot be cancelled.',
         'cannot_commit' => 'This import cannot be committed from its current status.',
         'cannot_validate' => 'This import cannot start validation from its current status.',
         'processing_in_background' => 'This import is currently being processed in the background — wait for it to finish before changing the mapping.',
+        'row_limit_exceeded' => 'This file has :rows rows, which is over the :max_rows-row limit for a single import. Split it into smaller files and import them one at a time.',
+        'no_data_rows' => 'This file has no data rows to import — only a header (or nothing at all).',
     ],
 
     'gdpr' => [
         'export_already_running' => 'This workspace already has a data export running. Wait for it to finish before requesting another one.',
+    ],
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 — validarea de SENS a `saved_view_id` din
+     * `StoreReportRequest`/`UpdateReportRequest` (`withValidator()`), NU regulile de FORMĂ
+     * (acelea stau pe `rules()`, mesajele generice din `validation.php`). Aceleași trei
+     * chei, duplicate identic în ambele cereri înainte de acest lot — un singur șir sursă
+     * per mesaj, ca la `members` mai jos.
+     *
+     * `saved_view_unsupported_type` — a treia eroare din ACEEAȘI metodă, semnalată separat
+     * la prima trecere a Valului 5 (interpolare prin concatenare manuală, nu prin
+     * substituent) și reparată la a doua trecere: `:type` e `:type`-ul tehnic al vederii
+     * salvate (`saved_views.resource_type`, ex. `deals`), nu conținut introdus de
+     * utilizator — nu cere `e()`/randare RAW.
+     */
+    'reports' => [
+        'saved_view_not_found' => 'This saved view could not be found.',
+        'saved_view_forbidden' => 'You do not have access to this saved view.',
+        'saved_view_unsupported_type' => 'Saved views on ":type" cannot be used as a report source yet.',
     ],
 
     'bulk' => [
@@ -163,6 +227,12 @@ return [
      * `already_deactivated` e o singură cheie pentru DOUĂ surse (Policy și verificarea de
      * concurență din `MembersController::applyDeactivation()`) — același text, deci același
      * șir sursă, tradus o dată. Erau deja duplicate ca literal înainte.
+     *
+     * `already_a_member` — adăugată la Val 5, din `App\Http\Requests\Members\InviteMemberRequest`
+     * (`notAlreadyInWorkspaceRule()`), găsită tot literală, în engleză, lângă restul familiei.
+     * ACEEAȘI metodă mai arunca un al doilea mesaj („An invitation to that address is
+     * already pending…"), semnalat separat la prima trecere a Valului 5 — reparat la a
+     * doua trecere, ca `invitation_already_pending` de mai jos.
      */
     'members' => [
         'cannot_invite' => 'You cannot invite members to this workspace.',
@@ -179,6 +249,17 @@ return [
         'transfer_ownership_first' => 'Transfer ownership before deactivating the last :owner.',
         'cannot_deactivate_self' => "You can't deactivate yourself. Ask another :owner or :manager.",
         'no_longer_a_member' => 'This member no longer exists in this workspace.',
+        'already_a_member' => 'That person is already a member of this workspace.',
+        'invitation_already_pending' => 'An invitation to that address is already pending. Resend or revoke it from the list below.',
+        // `owner_not_active`/`new_owner_is_target` — Lotul I18N Val 5 (a treia trecere), o
+        // SINGURĂ cheie pentru TREI apelante ale primeia (`App\Http\Requests\Bulk\
+        // ReassignOwnerRequest`, `App\Http\Requests\Members\DeactivateMembershipRequest`,
+        // `App\Http\Requests\Members\ReassignUnassignedRequest`) — același text, deja
+        // duplicat verbatim în trei fișiere. „owner" aici înseamnă „the record's owner"
+        // (câmpul `owner_user_id`/`new_owner_user_id`, un membru oarecare), NU rolul
+        // Owner de mai sus — de-asta rămâne cuvânt literal, nu substituentul `:owner`.
+        'owner_not_active' => 'The selected owner is not an active member of this workspace.',
+        'new_owner_is_target' => 'The new owner cannot be the member being deactivated.',
     ],
 
 ];

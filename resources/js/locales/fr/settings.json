@@ -9,7 +9,7 @@
     },
     "theme": {
         "heading": "Thème",
-        "description": "Choisissez l’apparence de Throughput. Le mode « Système » suit le réglage de votre appareil."
+        "description": "Choisissez l’apparence de Throughput. Le mode « Système » suit le réglage de votre appareil."
     },
     "index": {
         "title": "Paramètres",
@@ -86,12 +86,12 @@
         "deactivateAriaLabel": "Désactiver {{name}}",
         "outcomes": {
             "deactivated": "{{name}} a été désactivé.",
-            "deactivatedReassigning_one": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrement…",
-            "deactivatedReassigning_many": "{{name}} a été désactivé ; réaffectation de {{count}} d’enregistrements…",
-            "deactivatedReassigning_other": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrements…",
-            "deactivatedNeedsOwner_one": "{{name}} a été désactivé ; {{count}} enregistrement a besoin d’un nouveau propriétaire — voir Non attribué.",
-            "deactivatedNeedsOwner_many": "{{name}} a été désactivé ; {{count}} d’enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
-            "deactivatedNeedsOwner_other": "{{name}} a été désactivé ; {{count}} enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
+            "deactivatedReassigning_one": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrement…",
+            "deactivatedReassigning_many": "{{name}} a été désactivé ; réaffectation de {{count}} d’enregistrements…",
+            "deactivatedReassigning_other": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrements…",
+            "deactivatedNeedsOwner_one": "{{name}} a été désactivé ; {{count}} enregistrement a besoin d’un nouveau propriétaire — voir Non attribué.",
+            "deactivatedNeedsOwner_many": "{{name}} a été désactivé ; {{count}} d’enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
+            "deactivatedNeedsOwner_other": "{{name}} a été désactivé ; {{count}} enregistrements ont besoin d’un nouveau propriétaire — voir Non attribué.",
             "roleChanged": "{{name}} est désormais {{role}}.",
             "invitationResent": "Un nouveau lien d’invitation a été envoyé à {{email}}.",
             "invitationRevoked": "L’invitation à {{email}} a été révoquée.",
@@ -150,7 +150,7 @@
         "copied": "Copié",
         "createTitle": "Créer un jeton",
         "nameLabel": "Nom",
-        "nameHint": "À quoi sert ce jeton, par ex. « synchro ERP ».",
+        "nameHint": "À quoi sert ce jeton, par ex. « synchro ERP ».",
         "scopesLegend": "Portées",
         "scopesHint": "Un jeton ne peut faire que ce que ses portées autorisent — jamais plus que la personne qui l’a émis.",
         "expiresLabel": "Expire le",
@@ -217,7 +217,7 @@
         "title": "Espace de travail indisponible",
         "heading": "Cet espace de travail est indisponible",
         "body": "L’abonnement Throughput de cet espace de travail a été résilié. Seul un $t(roles:owner) peut le réactiver — tout le reste, y compris votre accès, reste suspendu jusque-là.",
-        "askOwner": "Demandez à un $t(roles:owner) de le réactiver :",
+        "askOwner": "Demandez à un $t(roles:owner) de le réactiver :",
         "logout": "Se déconnecter"
     },
     "dataExport": {
@@ -264,14 +264,14 @@
             "delivered": "livré",
             "intercepted": "intercepté"
         },
-        "noRecipient": "(aucun destinataire « À »)",
+        "noRecipient": "(aucun destinataire « À »)",
         "moreRecipients": "{{address}} +{{count}} autres",
         "recipientsTotal_one": "{{count}} destinataire au total (à/cc/cci)",
         "recipientsTotal_many": "{{count}} de destinataires au total (à/cc/cci)",
         "recipientsTotal_other": "{{count}} destinataires au total (à/cc/cci)",
         "view": "Voir",
         "hide": "Masquer",
-        "detailAriaLabel": "{{action}} l’e-mail « {{subject}} » à {{recipient}}",
+        "detailAriaLabel": "{{action}} l’e-mail « {{subject}} » à {{recipient}}",
         "from": "De",
         "recipients": "Destinataires",
         "linkRedacted": "Lien masqué",

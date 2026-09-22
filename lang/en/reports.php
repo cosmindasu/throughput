@@ -13,6 +13,12 @@
  */
 return [
 
+    // FR-I18N-04, Lotul I18N Val 5 — eticheta de rezervă a `ReportDefinitionResource::sourceLabel`
+    // când raportul e pe o vedere salvată fără (sau cu) nume, nu titlul unui raport built-in
+    // (acela vine din `BuiltInReports::resolve()->title()`, nu din acest fișier). Nivel de
+    // top, nu sub `deal_velocity`/`inventory_valuation` — nu descrie un raport built-in.
+    'saved_view_fallback' => 'Saved view',
+
     'deal_velocity' => [
         'title' => 'Deal Velocity by Stage',
         'columns' => [

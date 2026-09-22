@@ -311,6 +311,14 @@ jobs:
 
       # PR (non-draft): subset `@smoke`. Push pe `main`/tag: suită completă (RBAC,
       # comutare workspace, axe-core pe ambele teme).
+      #
+      # Lot I18N, Val 5 — subsetul `@fr` (`e2e/specs/locale-fr.spec.ts`,
+      # `e2e/specs/i18n-layout.spec.ts`) NU are nevoie de un pas propriu sau de vreo
+      # modificare aici: teste tăguite `@fr` și NEtăguite `@smoke` nu se potrivesc cu
+      # `--grep @smoke` de mai jos, deci nu rulează pe niciun PR, dar SUNT incluse în suita
+      # completă (fără `--grep`) de pe `main`/tag-uri — exact comutarea de care are nevoie
+      # (catalogul `fr` nu merită cost de CI pe fiecare PR). Verificat citind acest pas, nu
+      # presupus.
       - name: "Playwright"
         # `e2eEnv()` (e2e/support/env.ts) citește DB_HOST/DB_PORT din mediul procesului, nu din
         # `.env`, cu implicitul local 55432. Fără ele aici, serverul și `migrate:fresh` ar căuta

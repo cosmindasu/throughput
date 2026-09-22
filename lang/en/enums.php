@@ -46,4 +46,29 @@ return [
         'inventory:write' => 'Record stock movements',
     ],
 
+    /**
+     * FR-TEN-04, Lotul I18N Val 5 — placeholder-ul „(deactivated)" atașat numelui unui
+     * membru dezactivat (`App\Support\Members\DeactivatedMemberNames::label()`). Compus
+     * ÎNTREG prin catalog, nu doar sufixul concatenat în PHP: franceza reordonează sau
+     * schimbă punctuația în jurul lui `:name` mai liber decât ar permite o concatenare
+     * fixă `"{$name} (deactivated)"`.
+     */
+    'membership' => [
+        'deactivated_name' => ':name (deactivated)',
+    ],
+
+    /**
+     * FR-TEN-04 / US-BILL-02, Lotul I18N Val 5 — etichetele metodei de încasare
+     * (`App\Http\Resources\PaymentResource`), cheia identică cu `App\Models\Payment::METHOD_*`.
+     * Trebuiau să fie deja pe acest catalog din Valul 2; găsite hardcodate direct în
+     * Resource, divergente de `resources/js/locales/{en,fr}/invoices.json`
+     * (`show.payments.methodOptions`), care alimentează dropdown-ul formularului cu
+     * ACELAȘI set de metode pe același ecran.
+     */
+    'payment_method' => [
+        'bank_transfer' => 'Bank transfer',
+        'check' => 'Check',
+        'manual' => 'Manual',
+    ],
+
 ];

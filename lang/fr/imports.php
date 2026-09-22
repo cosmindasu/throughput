@@ -90,6 +90,6 @@ return [
      * rezolvată la fel — prin formulare, nu prin alegerea arbitrară a unui gen.
      */
     'validation' => [
-        'required_field_unmapped' => 'Le champ « :field » est obligatoire pour :resource et doit être associé à une colonne.',
+        'required_field_unmapped' => 'Le champ « :field » est obligatoire pour :resource et doit être associé à une colonne.',
     ],
 ];

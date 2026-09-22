@@ -6,6 +6,7 @@ use App\Models\InventoryLevel;
 use App\Models\Scopes\TenantScope;
 use App\Models\StockMovement;
 use App\Models\Variant;
+use App\Support\LocaleFormat;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -61,7 +62,7 @@ final class TransferStockRequest extends FormRequest
                 ->value('on_hand') ?? 0;
 
             if ($quantity > $onHand) {
-                $validator->errors()->add('quantity', "Only {$onHand} on hand at the source location.");
+                $validator->errors()->add('quantity', __('rules.stock.transfer_available_at_source', ['available' => LocaleFormat::count($onHand)]));
             }
         });
     }

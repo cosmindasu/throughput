@@ -56,14 +56,14 @@ return [
 
     'entries' => [
         // Voir la note „NATIV" en tête de fichier pour le choix de formulation.
-        'created' => 'Création : :subject',
-        'updated' => 'Modification : :subject',
-        'deleted' => 'Suppression : :subject',
+        'created' => 'Création : :subject',
+        'updated' => 'Modification : :subject',
+        'deleted' => 'Suppression : :subject',
         'login' => 'Connexion',
         'login_failed' => 'Échec de connexion',
-        'exported' => 'Export : :subject',
-        'imported' => 'Import : :subject',
-        'bulk_action' => 'Action groupée : :subject',
+        'exported' => 'Export : :subject',
+        'imported' => 'Import : :subject',
+        'bulk_action' => 'Action groupée : :subject',
         'role_changed' => 'Rôle d’un membre modifié',
 
         'member_deactivated' => 'Membre désactivé',
@@ -74,12 +74,12 @@ return [
     'timeline' => [
         // Ici le sujet est FIXE dans la clé (une affaire, une commande) — l'accord du
         // participe passé est donc toujours correct, contrairement à `entries.*` ci-dessus.
-        'deal_created' => 'Affaire créée : :title',
+        'deal_created' => 'Affaire créée : :title',
         // NATIV: évite d'accorder un verbe sur `:title` (contenu utilisateur, genre
         // inconnu côté serveur) — reformulé en « prochaine étape » plutôt que
         // « déplacée vers ».
-        'stage_moved' => 'Nouvelle étape pour :title : :stage',
-        'order_placed' => 'Commande passée : :label',
+        'stage_moved' => 'Nouvelle étape pour :title : :stage',
+        'order_placed' => 'Commande passée : :label',
 
         'fallback_deal' => 'Affaire',
         'fallback_stage' => 'une nouvelle étape',

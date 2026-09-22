@@ -55,10 +55,11 @@ class PlanDataExportJob implements ShouldQueue
     public function handle(): void
     {
         // ADR-022, specs.md §15.8 FR-I18N-05 — rezolvat AICI, la planificare, nu recitit
-        // în `FinalizeDataExportJob::handle()`: `requestedBy` e cel mai devreme punct la
-        // care avem sigur, sub context, cine a cerut exportul — exact simetric cu
-        // `tenantId`/`dataExportRequestId`, rezolvate tot aici și transmise mai departe ca
-        // scalari (ADR-013/014), nu recitite dintr-un model User serializat.
+        // în `ExportTenantEntityJob::handle()`/`FinalizeDataExportJob::handle()`:
+        // `requestedBy` e cel mai devreme punct la care avem sigur, sub context, cine a
+        // cerut exportul — exact simetric cu `tenantId`/`dataExportRequestId`, rezolvate
+        // tot aici și transmise mai departe ca scalari (ADR-013/014) CĂTRE AMBELE joburi
+        // din josul metodei, nu recitite dintr-un model User serializat.
         $claimed = TenantContext::run($this->tenantId, function (): array {
             $export = DataExportRequest::query()->with('requestedBy')->find($this->dataExportRequestId);
 
@@ -82,8 +83,11 @@ class PlanDataExportJob implements ShouldQueue
         $requestId = $this->dataExportRequestId;
         $locale = $claimed['locale'];
 
+        // `$locale` merge și aici, nu doar la `FinalizeDataExportJob` mai jos —
+        // `ExportTenantEntityJob` e cel care evaluează efectiv `label`/`note` (prin
+        // `DataExportSources::resolve()`); vezi docblock-ul lui pentru motivul exact.
         $jobs = array_map(
-            static fn (string $name): ExportTenantEntityJob => new ExportTenantEntityJob($tenantId, $requestId, $name),
+            static fn (string $name): ExportTenantEntityJob => new ExportTenantEntityJob($tenantId, $requestId, $name, $locale),
             DataExportSources::names(),
         );
 

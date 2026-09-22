@@ -19,11 +19,12 @@ final class SubscriptionCanceledMail extends Mailable
     public function __construct(
         public readonly string $tenantName,
         public readonly string $workspaceSlug,
-        // ADR-022, specs.md §15.8 FR-I18N-05 — aceeași notă ca `DunningPaymentFailedMail`:
-        // destinatarii sunt un ARRAY de Owner-i, nerezolvat automat de `Mail::to()`.
-        // NEcablat încă la apelantul real
-        // (`App\Listeners\Billing\SendSubscriptionCanceledEmail`, în afara perimetrului
-        // acestui lot). `null` păstrează comportamentul actual.
+        // ADR-022, specs.md §15.8 FR-I18N-05, Lot I18N Val 5 — CABLAT la apelantul real
+        // (`App\Listeners\Billing\SendSubscriptionCanceledEmail`): un `Mailable` proaspăt
+        // se construiește per Owner, iar `Mail::to($owner)` (modelul, nu adresa) declanșează
+        // `Illuminate\Mail\PendingMail::to()` să citească `$owner->preferredLocale()` și să
+        // suprascrie acest parametru înainte de trimitere (`PendingMail::fill()`). Rămâne
+        // `null` aici — locale-ul REAL vine mereu din `Mail::to()`, nu din constructor.
         ?string $locale = null,
     ) {
         $this->attributeSentEmailToCurrentTenant();

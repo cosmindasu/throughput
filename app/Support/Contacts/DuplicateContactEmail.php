@@ -52,6 +52,6 @@ final class DuplicateContactEmail
             'accountName' => $existing->account->name,
         ]);
 
-        $validator->errors()->add($field, "This email is already linked to {$existing->account->name}.");
+        $validator->errors()->add($field, __('rules.contacts.email_already_linked', ['account' => $existing->account->name]));
     }
 }

@@ -61,7 +61,7 @@ final class StoreImportRequest extends FormRequest
             if ($rows > $maxRows) {
                 $validator->errors()->add(
                     'file',
-                    "This file has {$rows} rows, which is over the {$maxRows}-row limit for a single import. Split it into smaller files and import them one at a time.",
+                    __('rules.imports.row_limit_exceeded', ['rows' => $rows, 'max_rows' => $maxRows]),
                 );
 
                 return;
@@ -72,7 +72,7 @@ final class StoreImportRequest extends FormRequest
             // niciun mesaj: mai degrabă o greșeală a utilizatorului (fișier greșit ales) decât
             // un import valid.
             if ($rows === 0) {
-                $validator->errors()->add('file', 'This file has no data rows to import — only a header (or nothing at all).');
+                $validator->errors()->add('file', __('rules.imports.no_data_rows'));
             }
         });
     }

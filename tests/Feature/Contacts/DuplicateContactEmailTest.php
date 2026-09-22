@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Contacts\DuplicateContactEmail;
 use App\Support\Permissions;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Support\SessionKey;
 use Tests\TestCase;
@@ -46,6 +47,26 @@ class DuplicateContactEmailTest extends TestCase
                 $validator->errors()->get('contact.email')
             );
             $this->assertSame('Northwind Industrial Supply LLC', session(SessionKey::FLASH_DATA)[DuplicateContactEmail::FLASH_KEY]['accountName']);
+        });
+    }
+
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.contacts.email_already_linked`,
+     * mesajul era literal englez direct în `DuplicateContactEmail::check()`.
+     */
+    public function test_the_duplicate_email_message_translates_to_french(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $this->contactAt($this->account('Northwind Industrial Supply LLC'), 'jane.doe@northwind.test');
+
+            App::setLocale('fr');
+            $validator = $this->validate('Jane.Doe@Northwind.test', confirmed: false);
+            App::setLocale('en');
+
+            $this->assertSame(
+                ['Cet e-mail est déjà lié à Northwind Industrial Supply LLC.'],
+                $validator->errors()->get('contact.email')
+            );
         });
     }
 

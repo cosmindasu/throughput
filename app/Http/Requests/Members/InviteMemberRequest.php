@@ -95,13 +95,13 @@ class InviteMemberRequest extends FormRequest
             }
 
             if ($membership->status === Membership::STATUS_ACTIVE) {
-                $fail('That person is already a member of this workspace.');
+                $fail(__('rules.members.already_a_member'));
 
                 return;
             }
 
             if ($membership->status === Membership::STATUS_PENDING) {
-                $fail('An invitation to that address is already pending. Resend or revoke it from the list below.');
+                $fail(__('rules.members.invitation_already_pending'));
             }
         };
     }

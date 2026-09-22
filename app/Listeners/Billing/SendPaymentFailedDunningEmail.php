@@ -4,6 +4,7 @@ namespace App\Listeners\Billing;
 
 use App\Mail\DunningPaymentFailedMail;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Billing\Events\StripeInvoicePaymentFailed;
 use App\Support\Billing\TenantOwners;
@@ -25,6 +26,24 @@ use Illuminate\Support\Facades\Mail;
  * citește tenantul/destinatarii și construiește `Mailable`-ul (unde
  * `AttributesSentEmailToTenant` captează tenantul cât încă e activ), apoi `Mail::send()`
  * rulează STRICT în afara oricărei tranzacții. Nimic de scris înapoi după trimitere.
+ *
+ * Lot I18N, Val 5 (plan-implementare.md, gol lăsat deschis din Val 2, decis explicit acum:
+ * „bucla per destinatar") — un `Mailable` PROASPĂT per Owner, niciodată reutilizat.
+ * `Illuminate\Mail\Mailable::to()` (`setAddress()`) ADAUGĂ la lista de destinatari a
+ * INSTANȚEI, nu o înlocuiește — trimiterea aceleiași instanțe de două ori ar aduna
+ * Owner-ii unul peste altul (al doilea Owner ar primi un email adresat și lui, și
+ * primului). `Mail::to($owner)` — modelul, NU adresa — e ce declanșează
+ * `Illuminate\Mail\PendingMail::to()` să citească `$owner->preferredLocale()`
+ * (`App\Models\User implements HasLocalePreference`); mecanismul nativ de rezolvare a
+ * limbii NU funcționează pentru un array de adrese, doar pentru UN SINGUR model — de-asta
+ * `Mail::to($recipients)` cu array-ul de mai jos (dinainte de acest lot) trimitea tuturor
+ * Owner-ilor în ACEEAȘI limbă, oricare ar fi fost `users.locale` al fiecăruia.
+ *
+ * `DunningPaymentFailedMail` rămâne construit ÎNĂUNTRUL `TenantContext::run()` de mai jos
+ * (neschimbat față de dinainte de acest lot, vezi paragraful de mai sus despre
+ * `AttributesSentEmailToTenant`) — construit în AFARA lui, antetul
+ * `X-Throughput-Tenant-Id` ar lipsi din jurnalul „Sent Emails". Bucla de trimitere rămâne
+ * după ce `TenantContext::run()` a returnat (ADR-013).
  */
 final class SendPaymentFailedDunningEmail implements ShouldQueue
 {
@@ -36,32 +55,34 @@ final class SendPaymentFailedDunningEmail implements ShouldQueue
 
     public function handle(StripeInvoicePaymentFailed $event): void
     {
-        [$mailable, $recipients] = TenantContext::run($event->tenantId, function () use ($event): array {
+        /** @var list<array{owner: User, mailable: DunningPaymentFailedMail}> $deliveries */
+        $deliveries = TenantContext::run($event->tenantId, function () use ($event): array {
             $tenant = Tenant::query()->find($event->tenantId);
 
             if ($tenant === null) {
-                return [null, []];
+                return [];
             }
 
             $owners = TenantOwners::forTenant($event->tenantId);
 
             if ($owners->isEmpty()) {
-                return [null, []];
+                return [];
             }
 
-            $mailable = new DunningPaymentFailedMail(
-                tenantName: $tenant->name,
-                workspaceSlug: $tenant->slug,
-                attemptCount: $event->attemptCount,
-            );
-
-            return [$mailable, $owners->pluck('email')->all()];
+            return $owners
+                ->map(fn (User $owner): array => [
+                    'owner' => $owner,
+                    'mailable' => new DunningPaymentFailedMail(
+                        tenantName: $tenant->name,
+                        workspaceSlug: $tenant->slug,
+                        attemptCount: $event->attemptCount,
+                    ),
+                ])
+                ->all();
         });
 
-        if ($mailable === null || $recipients === []) {
-            return;
+        foreach ($deliveries as $delivery) {
+            Mail::to($delivery['owner'])->send($delivery['mailable']);
         }
-
-        Mail::to($recipients)->send($mailable);
     }
 }

@@ -12,9 +12,10 @@
  *
  * Cheile de mai jos acoperă:
  *   - subiectul FIECĂRUIA din cele 6 `Mailable`-uri din `app/Mail/` (§16.2, §12.2, §20.5,
- *     §6.4) — corpul e randat prin catalogul ăsta doar pentru cele DOUĂ vederi Blade
- *     deținute de acest lot (`reports/mail/delivery`, `gdpr/mail/export-ready`); corpul
- *     celorlalte patru (`members/mail/invitation`, `billing/mail/*`) aparține altor
+ *     §6.4) — corpul e randat prin catalogul ăsta pentru CELE TREI vederi Blade deținute
+ *     de acest lot (`reports/mail/delivery`, `gdpr/mail/export-ready`,
+ *     `members/mail/invitation`, aceasta din urmă completată la a doua trecere a
+ *     Valului 5); corpul celor trei rămase (`billing/mail/*`) aparține altor
  *     agenți/valuri, neatins aici;
  *   - conținutul integral al `App\Notifications\MembershipRecordsNeedNewOwnerNotification`
  *     (BR-TEN-06) — singura notificare din `app/Notifications/`.
@@ -68,33 +69,46 @@ return [
         'subject' => 'Your data export for :workspace is ready',
     ],
 
-    // App\Mail\MemberInvitationMail (US-TEN-01, §6.4) — subiect DOAR; corpul
-    // (`members/mail/invitation.blade.php`) nu e al acestui lot. Destinatarul e o adresă
-    // fără cont încă (invitație) — FR-I18N-05 cere limba sesiunii care a trimis invitația,
-    // ca aproximare rezonabilă, cu fallback `en`; firul de apel real
-    // (`App\Actions\Members\InviteMemberAction`) nu e în perimetrul acestui lot — vezi
-    // raportul de livrare.
+    // App\Mail\MemberInvitationMail (US-TEN-01, §6.4) — subiect + corpul întreg
+    // (`members/mail/invitation.blade.php`), completat la a doua trecere a Valului 5.
+    // Prima trecere mutase doar `accept_cta` și lăsase restul literal, în engleză, cu o
+    // notă care presupunea greșit că „restul emailului trece deja prin catalog"; nu era
+    // adevărat, iar analiza a semnalat golul în loc să-l repare. Structură în oglindă cu
+    // `report_delivery` mai sus: `body` conține numele de invitator/workspace/rol,
+    // conținut introdus de UTILIZATOR, deci vederea le compune manual cu `<strong>`+`e()`
+    // înainte de interpolare și randează rezultatul RAW (`{!! !!}`) — exact tehnica de
+    // acolo. Destinatarul e o adresă fără cont încă (invitație) — FR-I18N-05 cere limba
+    // sesiunii care a trimis invitația, ca aproximare rezonabilă, cu fallback `en`; firul
+    // de apel real (`App\Actions\Members\InviteMemberAction`) nu e în perimetrul acestui
+    // lot — vezi raportul de livrare.
     'member_invitation' => [
         'subject' => ':inviter invited you to :workspace on Throughput',
+        'greeting' => 'Hi,',
+        'body' => ':inviter invited you to join :workspace on Throughput as :role.',
+        'accept_cta' => 'Accept the invitation',
+        'expiry' => 'This link is valid for :days. If it expires, ask :inviter to send a new one.',
+        'days' => '{0} :count days|{1} :count day|[2,*] :count days',
+        'unsolicited' => "If you weren't expecting this invitation, you can ignore this email — nothing happens until you accept.",
+        'signature' => '— Throughput',
     ],
 
     // App\Mail\DunningPaymentFailedMail (FR-BILL-04, §12.2) — subiect DOAR; corpul
     // (`billing/mail/payment-failed.blade.php`) nu e al acestui lot. Destinatarii sunt
     // Owner-ii ACTIVI ai tenantului (conturi reale, `users.locale`) — firul de apel real
-    // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`) nu e în perimetrul acestui
-    // lot — vezi raportul de livrare.
+    // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`) e cablat per destinatar din
+    // Lot I18N Val 5 (`Mail::to($owner)`, un `Mailable` per Owner, fiecare în limba lui).
     'dunning_payment_failed' => [
         'subject' => 'Payment failed for your :tenant subscription (attempt :attempt)',
     ],
 
     // App\Mail\SubscriptionCanceledMail (§12.2/§20.5) — subiect DOAR, aceeași notă ca mai
-    // sus (`App\Listeners\Billing\SendSubscriptionCanceledEmail`, nu e al acestui lot).
+    // sus (`App\Listeners\Billing\SendSubscriptionCanceledEmail`, cablat din Lot I18N Val 5).
     'subscription_canceled' => [
         'subject' => ':tenant subscription canceled',
     ],
 
     // App\Mail\SubscriptionUnpaidMail (§12.2) — subiect DOAR, aceeași notă
-    // (`App\Listeners\Billing\SendSubscriptionUnpaidEmail`, nu e al acestui lot).
+    // (`App\Listeners\Billing\SendSubscriptionUnpaidEmail`, cablat din Lot I18N Val 5).
     'subscription_unpaid' => [
         'subject' => 'Action needed: :tenant subscription is unpaid',
     ],

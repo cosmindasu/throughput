@@ -59,7 +59,7 @@ final class GlobalSearchService
         if ($recent !== []) {
             $groups[] = [
                 'type' => 'recent',
-                'label' => 'Recent',
+                'label' => __('search.groups.recent'),
                 'results' => collect($recent)->map(fn (array $item) => [
                     'type' => $item['type'],
                     'id' => $item['id'],
@@ -75,7 +75,7 @@ final class GlobalSearchService
         $actions = $this->frequentActions($user);
 
         if ($actions !== []) {
-            $groups[] = ['type' => 'actions', 'label' => 'Actions', 'results' => $actions];
+            $groups[] = ['type' => 'actions', 'label' => __('search.groups.actions'), 'results' => $actions];
         }
 
         return ['query' => '', 'groups' => $groups];
@@ -97,7 +97,7 @@ final class GlobalSearchService
             $results = $this->accountResults($term);
 
             if ($results !== []) {
-                $groups[] = ['type' => 'accounts', 'label' => 'Accounts', 'results' => $results];
+                $groups[] = ['type' => 'accounts', 'label' => __('search.groups.accounts'), 'results' => $results];
             }
         }
 
@@ -105,7 +105,7 @@ final class GlobalSearchService
             $results = $this->contactResults($term);
 
             if ($results !== []) {
-                $groups[] = ['type' => 'contacts', 'label' => 'Contacts', 'results' => $results];
+                $groups[] = ['type' => 'contacts', 'label' => __('search.groups.contacts'), 'results' => $results];
             }
         }
 
@@ -113,14 +113,14 @@ final class GlobalSearchService
             $results = $this->dealResults($term);
 
             if ($results !== []) {
-                $groups[] = ['type' => 'deals', 'label' => 'Deals', 'results' => $results];
+                $groups[] = ['type' => 'deals', 'label' => __('search.groups.deals'), 'results' => $results];
             }
         }
 
         $actions = $this->searchActions($user, $term);
 
         if ($actions !== []) {
-            $groups[] = ['type' => 'actions', 'label' => 'Actions', 'results' => $actions];
+            $groups[] = ['type' => 'actions', 'label' => __('search.groups.actions'), 'results' => $actions];
         }
 
         return ['query' => $term, 'groups' => $groups];
@@ -209,15 +209,15 @@ final class GlobalSearchService
         $actions = [];
 
         if ($user->can('create', Account::class)) {
-            $actions[] = $this->action('create-account', 'Create account', "/{$this->tenantSlug()}/accounts/create");
+            $actions[] = $this->action('create-account', __('search.actions.create_account'), "/{$this->tenantSlug()}/accounts/create");
         }
 
         if ($user->can('create', Contact::class)) {
-            $actions[] = $this->action('create-contact', 'Create contact', "/{$this->tenantSlug()}/contacts/create");
+            $actions[] = $this->action('create-contact', __('search.actions.create_contact'), "/{$this->tenantSlug()}/contacts/create");
         }
 
         if ($user->can('create', Deal::class)) {
-            $actions[] = $this->action('create-deal', 'Create deal', "/{$this->tenantSlug()}/deals/create");
+            $actions[] = $this->action('create-deal', __('search.actions.create_deal'), "/{$this->tenantSlug()}/deals/create");
         }
 
         return $actions;
@@ -239,17 +239,17 @@ final class GlobalSearchService
         if ($user->can('create', Account::class)) {
             $actions[] = $this->action(
                 'create-account',
-                sprintf('Create account named "%s"', $term),
+                __('search.actions.create_account_named', ['term' => $term]),
                 "/{$this->tenantSlug()}/accounts/create?name=".urlencode($term)
             );
         }
 
         if ($user->can('create', Contact::class)) {
-            $actions[] = $this->action('create-contact', 'Create contact', "/{$this->tenantSlug()}/contacts/create");
+            $actions[] = $this->action('create-contact', __('search.actions.create_contact'), "/{$this->tenantSlug()}/contacts/create");
         }
 
         if ($user->can('create', Deal::class)) {
-            $actions[] = $this->action('create-deal', 'Create deal', "/{$this->tenantSlug()}/deals/create");
+            $actions[] = $this->action('create-deal', __('search.actions.create_deal'), "/{$this->tenantSlug()}/deals/create");
         }
 
         return $actions;

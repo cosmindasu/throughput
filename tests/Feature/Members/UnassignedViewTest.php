@@ -196,6 +196,23 @@ class UnassignedViewTest extends TestCase
     }
 
     /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.members.owner_not_active`,
+     * mesajul era literal englez direct în `ReassignUnassignedRequest`.
+     */
+    public function test_reassigning_to_someone_outside_the_workspace_message_translates_to_french(): void
+    {
+        $manager = $this->makeMember($this->marlin, 'manager@throughput.dev', Permissions::MANAGER);
+        $manager->forceFill(['locale' => 'fr'])->save();
+        $outsider = User::query()->create(['name' => 'Outsider', 'email' => 'outsider@throughput.dev', 'password' => 'password']);
+
+        $response = $this->actingAs($manager)->post('/marlin/unassigned/reassign', ['new_owner_user_id' => $outsider->getKey()]);
+
+        $response->assertSessionHasErrors([
+            'new_owner_user_id' => 'Le propriétaire sélectionné n’est pas membre actif de cet espace de travail.',
+        ]);
+    }
+
+    /**
      * Drenează coada `bulk` până se golește — planificatorul, chunk-urile ȘI jobul de
      * finalizare, ca într-un worker real (la fel ca `MemberDeactivationTest`).
      */

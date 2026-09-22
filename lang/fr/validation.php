@@ -21,10 +21,25 @@
  * `i18n:coverage`; umplut și în engleză ar SCHIMBA engleza vizibilă, ceea ce lotul nu are
  * voie să facă. Rămâne o îmbunătățire posibilă, de făcut simetric, ca decizie separată.
  *
- * Tipografie: spațiu simplu înaintea lui „:", ca în restul cataloagelor franceze ale
- * proiectului (vezi `lang/fr/mail.php`, „Votre rapport est prêt : :report") — nu spațiu
+ * Tipografie (revizuit la Valul 5 al Lotului I18N — inversează nota veche, păstrată mai jos
+ * ca istoric): spațiu INSECABIL ÎNGUST (U+202F) înaintea lui „:", „;", „?", „!" și „»", și
+ * după „«" — convenția majoritară a proiectului (735 de ocurențe deja corecte, măsurate în
+ * restul cataloagelor chiar înainte de acest val), nu excepția motivată mai jos. Nota veche
+ * pornea de la o premisă greșită: „restul cataloagelor" NU folosea spațiu simplu, ci era deja
+ * majoritar pe U+202F — verificat, nu presupus.
+ *
+ * Compromisul e asumat, nu ascuns: fișierul e publicat din framework (`3af6807`), scris de
+ * mână prin comparație cu englezul VERBATIM din `lang/en/validation.php`. Procedura de
+ * upgrade descrisă acolo („se adaugă cheile noi în AMBELE limbi") nu impune nicăieri U+202F —
+ * `vendor/laravel/framework` nu are oricum o variantă franceză de comparat — deci orice cheie
+ * nouă tastată manual, de cineva care nu cunoaște regula asta, va reintroduce spațiul ASCII
+ * simplu. Garda e `tests/Feature/I18n/FrenchTypographyTest.php`: dacă pică pe fișierul ăsta
+ * după un upgrade viitor, e exact scenariul de mai sus — de renormalizat, nu un bug al gărzii.
+ *
+ * Nota veche (până la Valul 5, greșită pe premisă — păstrată pentru istoric): „spațiu simplu
+ * înaintea lui « : », ca în restul cataloagelor franceze ale proiectului […] — nu spațiu
  * insecabil, care ar fi regula tipografică strictă, dar ar introduce un caracter invizibil
- * într-un fișier pe care cineva îl va compara cândva cu varianta din amonte.
+ * într-un fișier pe care cineva îl va compara cândva cu varianta din amonte."
  *
  * Apostrof TIPOGRAFIC (U+2019): mesajele astea se randează în formulare, imediat sub
  * etichete venite din `resources/js/locales/fr/*.json`, care îl folosesc peste tot. Aceeași
@@ -44,7 +59,7 @@ return [
     'alpha_num' => 'Le champ :attribute doit contenir uniquement des lettres et des chiffres.',
     'any_of' => 'Le champ :attribute n’est pas valide.',
     'array' => 'Le champ :attribute doit être un tableau.',
-    'array_keys' => 'Le champ :attribute doit contenir uniquement les clés suivantes : :values.',
+    'array_keys' => 'Le champ :attribute doit contenir uniquement les clés suivantes : :values.',
     'ascii' => 'Le champ :attribute doit contenir uniquement des caractères alphanumériques et des symboles sur un octet.',
     'base64' => 'Le champ :attribute doit être une chaîne Base64 valide.',
     'before' => 'Le champ :attribute doit être une date antérieure au :date.',
@@ -73,15 +88,15 @@ return [
     'digits_between' => 'Le champ :attribute doit contenir entre :min et :max chiffres.',
     'dimensions' => 'Le champ :attribute a des dimensions d’image non valides.',
     'distinct' => 'Le champ :attribute contient une valeur en double.',
-    'doesnt_contain' => 'Le champ :attribute ne doit contenir aucune des valeurs suivantes : :values.',
-    'doesnt_end_with' => 'Le champ :attribute ne doit pas se terminer par l’une des valeurs suivantes : :values.',
-    'doesnt_start_with' => 'Le champ :attribute ne doit pas commencer par l’une des valeurs suivantes : :values.',
+    'doesnt_contain' => 'Le champ :attribute ne doit contenir aucune des valeurs suivantes : :values.',
+    'doesnt_end_with' => 'Le champ :attribute ne doit pas se terminer par l’une des valeurs suivantes : :values.',
+    'doesnt_start_with' => 'Le champ :attribute ne doit pas commencer par l’une des valeurs suivantes : :values.',
     'email' => 'Le champ :attribute doit être une adresse e-mail valide.',
     'encoding' => 'Le champ :attribute doit être encodé en :encoding.',
-    'ends_with' => 'Le champ :attribute doit se terminer par l’une des valeurs suivantes : :values.',
+    'ends_with' => 'Le champ :attribute doit se terminer par l’une des valeurs suivantes : :values.',
     'enum' => 'La valeur sélectionnée pour :attribute n’est pas valide.',
     'exists' => 'La valeur sélectionnée pour :attribute n’est pas valide.',
-    'extensions' => 'Le champ :attribute doit avoir l’une des extensions suivantes : :values.',
+    'extensions' => 'Le champ :attribute doit avoir l’une des extensions suivantes : :values.',
     'file' => 'Le champ :attribute doit être un fichier.',
     'filled' => 'Le champ :attribute doit avoir une valeur.',
     'gt' => [
@@ -100,7 +115,7 @@ return [
     'image' => 'Le champ :attribute doit être une image.',
     'in' => 'La valeur sélectionnée pour :attribute n’est pas valide.',
     'in_array' => 'Le champ :attribute doit exister dans :other.',
-    'in_array_keys' => 'Le champ :attribute doit contenir au moins l’une des clés suivantes : :values.',
+    'in_array_keys' => 'Le champ :attribute doit contenir au moins l’une des clés suivantes : :values.',
     'integer' => 'Le champ :attribute doit être un entier.',
     'ip' => 'Le champ :attribute doit être une adresse IP valide.',
     'ipv4' => 'Le champ :attribute doit être une adresse IPv4 valide.',
@@ -128,8 +143,8 @@ return [
         'string' => 'Le champ :attribute ne doit pas contenir plus de :max caractères.',
     ],
     'max_digits' => 'Le champ :attribute ne doit pas contenir plus de :max chiffres.',
-    'mimes' => 'Le champ :attribute doit être un fichier de type : :values.',
-    'mimetypes' => 'Le champ :attribute doit être un fichier de type : :values.',
+    'mimes' => 'Le champ :attribute doit être un fichier de type : :values.',
+    'mimetypes' => 'Le champ :attribute doit être un fichier de type : :values.',
     'min' => [
         'array' => 'Le champ :attribute doit contenir au moins :min éléments.',
         'file' => 'Le champ :attribute doit faire au moins :min kilo-octets.',
@@ -169,7 +184,7 @@ return [
     'prohibits' => 'Le champ :attribute interdit la présence de :other.',
     'regex' => 'Le format du champ :attribute n’est pas valide.',
     'required' => 'Le champ :attribute est obligatoire.',
-    'required_array_keys' => 'Le champ :attribute doit contenir des entrées pour : :values.',
+    'required_array_keys' => 'Le champ :attribute doit contenir des entrées pour : :values.',
     'required_if' => 'Le champ :attribute est obligatoire quand :other vaut :value.',
     'required_if_accepted' => 'Le champ :attribute est obligatoire quand :other est accepté.',
     'required_if_declined' => 'Le champ :attribute est obligatoire quand :other est refusé.',
@@ -185,7 +200,7 @@ return [
         'numeric' => 'Le champ :attribute doit être égal à :size.',
         'string' => 'Le champ :attribute doit contenir :size caractères.',
     ],
-    'starts_with' => 'Le champ :attribute doit commencer par l’une des valeurs suivantes : :values.',
+    'starts_with' => 'Le champ :attribute doit commencer par l’une des valeurs suivantes : :values.',
     'string' => 'Le champ :attribute doit être une chaîne de caractères.',
     'timezone' => 'Le champ :attribute doit être un fuseau horaire valide.',
     'unique' => 'La valeur du champ :attribute est déjà utilisée.',

@@ -194,7 +194,7 @@
         "discountLabel": "Remise pour {{label}}",
         "remove": "Supprimer",
         "total": "Total",
-        "warning": "Une ou plusieurs lignes dépassent le stock disponible. Vous pouvez tout de même enregistrer ce brouillon ; le confirmer vous demandera de reconnaître qu’il sera expédié en rupture de stock."
+        "warning": "Une ou plusieurs lignes dépassent le stock disponible. Vous pouvez tout de même enregistrer ce brouillon ; le confirmer vous demandera de reconnaître qu’il sera expédié en rupture de stock."
     },
     "timeline": {
         "ariaLabel": "Chronologie de la commande",

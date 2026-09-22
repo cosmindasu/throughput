@@ -5,6 +5,7 @@ namespace App\Actions\Invoices;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\LocaleFormat;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -47,14 +48,16 @@ final class RegisterPaymentAction
             // TOCTOU generic pe care restul proiectului îl tratează cu blocare, nu doar
             // cu validare la intrare).
             if ($amount > $currentBalance) {
-                // `:amount`/`:balance` deja formatate cu '$' — EXACT stringificarea folosită
-                // înainte de mutare (interpolare directă a unui float rotunjit, nu
-                // `number_format()`); formatarea locale-aware a monedei (FR-I18N-03) e a
-                // Valului 3 (frontend), nu a acestui lot de backend.
+                // Lot I18N, Val 5 — `'$'.$amount` era hardcodat, cu un comentariu care amâna
+                // formatarea „la Valul 3 (frontend)": val care nu putea prelua NICIODATĂ un
+                // mesaj de backend. Defectul nu era doar de limbă — `tenants.currency` e
+                // configurabilă (specs.md §2.3), deci un tenant pe EUR citea „$1234.5" și în
+                // engleză. `LocaleFormat::money()` rezolvă ambele: simbolul vine din moneda facturii,
+                // iar separatorii din limba cererii (FR-I18N-03).
                 throw ValidationException::withMessages([
                     'amount' => trans('rules.invoices.payment_exceeds_balance', [
-                        'amount' => '$'.$amount,
-                        'balance' => '$'.$currentBalance,
+                        'amount' => LocaleFormat::money($amount, $locked->currency),
+                        'balance' => LocaleFormat::money($currentBalance, $locked->currency),
                     ]),
                 ]);
             }

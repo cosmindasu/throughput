@@ -122,6 +122,45 @@ class ReassignOwnerTest extends TestCase
         $this->assertSame(2, $reassigned);
     }
 
+    /**
+     * FR-I18N-04, Lotul I18N Val 5 (a treia trecere) — `rules.members.owner_not_active`,
+     * mesajul era literal englez direct în `ReassignOwnerRequest::activeMembershipRule()`.
+     */
+    public function test_reassigning_to_someone_outside_the_workspace_returns_a_field_error(): void
+    {
+        TenantContext::run($this->marlin, fn () => (new AccountFactory)->create(['created_by' => $this->owner->getKey()]));
+        $this->clearDatabaseTenantContext();
+
+        $outsider = User::query()->create(['name' => 'Outsider', 'email' => 'outsider@throughput.dev', 'password' => 'password']);
+
+        $response = $this->actingAs($this->owner)->post(
+            '/marlin/accounts/bulk/reassign-owner',
+            ['selectAllMatching' => true, 'owner_user_id' => $outsider->getKey()],
+        );
+
+        $response->assertSessionHasErrors([
+            'owner_user_id' => 'The selected owner is not an active member of this workspace.',
+        ]);
+    }
+
+    public function test_reassigning_to_someone_outside_the_workspace_message_translates_to_french(): void
+    {
+        TenantContext::run($this->marlin, fn () => (new AccountFactory)->create(['created_by' => $this->owner->getKey()]));
+        $this->clearDatabaseTenantContext();
+
+        $outsider = User::query()->create(['name' => 'Outsider', 'email' => 'outsider@throughput.dev', 'password' => 'password']);
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $response = $this->actingAs($this->owner)->post(
+            '/marlin/accounts/bulk/reassign-owner',
+            ['selectAllMatching' => true, 'owner_user_id' => $outsider->getKey()],
+        );
+
+        $response->assertSessionHasErrors([
+            'owner_user_id' => 'Le propriétaire sélectionné n’est pas membre actif de cet espace de travail.',
+        ]);
+    }
+
     public function test_viewer_cannot_reassign_accounts(): void
     {
         TenantContext::run($this->marlin, fn () => (new AccountFactory)->create(['created_by' => $this->owner->getKey()]));

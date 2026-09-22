@@ -71,13 +71,13 @@ final class StoreReportRequest extends FormRequest
             $savedView = SavedView::query()->find($savedViewId);
 
             if ($savedView === null) {
-                $validator->errors()->add('saved_view_id', 'This saved view could not be found.');
+                $validator->errors()->add('saved_view_id', __('rules.reports.saved_view_not_found'));
 
                 return;
             }
 
             if (! $this->user()->can('view', $savedView)) {
-                $validator->errors()->add('saved_view_id', 'You do not have access to this saved view.');
+                $validator->errors()->add('saved_view_id', __('rules.reports.saved_view_forbidden'));
 
                 return;
             }
@@ -86,7 +86,7 @@ final class StoreReportRequest extends FormRequest
                 || ! SavedViewResourceType::isSupported($savedView->resource_type)) {
                 $validator->errors()->add(
                     'saved_view_id',
-                    "Saved views on \"{$savedView->resource_type}\" cannot be used as a report source yet.",
+                    __('rules.reports.saved_view_unsupported_type', ['type' => $savedView->resource_type]),
                 );
             }
         });

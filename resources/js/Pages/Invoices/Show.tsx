@@ -411,7 +411,11 @@ function PaymentsSection({ invoice, base }: { invoice: InvoicesShowPageProps['in
                     {invoice.payments.map((payment: Payment) => (
                         <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border-soft px-3 py-2">
                             <span className="numeric font-medium">{formatMoney(payment.amount, invoice.currency, locale)}</span>
-                            {/* `payment.methodLabel` vine deja tradus din backend — nu se retraduce. */}
+                            {/* `payment.methodLabel` vine tradus din backend (`PaymentResource`, catalogul
+                                `lang/{en,fr}/enums.php` → `payment_method`) — nu se retraduce aici. Până la
+                                Lotul I18N Val 5, `PaymentResource` avea un array PHP hardcodat în engleză și
+                                acest comentariu era FALS; verifică `payment_method` din `enums.php` dacă
+                                textul reapare netradus. */}
                             <span className="text-text-2">{payment.methodLabel}</span>
                             <span className="text-text-3">{payment.paidAt ? formatDate(payment.paidAt, locale) : '—'}</span>
                             <span className="text-text-3">{payment.createdBy?.name ?? '—'}</span>
