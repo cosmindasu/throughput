@@ -15,7 +15,11 @@ const activityLog: HelpTopic = {
     whatIsThis:
         "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants, orders and invoices, plus bulk operations (one row per record touched) and membership changes: invitations sent, accepted or revoked, roles changed, members deactivated.",
     whatCanYouDo: [
-        'Filter by action type ("created", "updated", "deleted", "bulk_action", "role_changed"...), by "Member", and by a "From"/"To" date range.',
+        // Citatele urmează ETICHETELE afișate în dropdown, nu valorile brute ale enum-ului:
+        // filtrul randa până acum `bulk_action`/`role_changed` direct din coloană, iar acum
+        // arată eticheta tradusă. Capcana 1 a Valului 4 („subiectele citează literal
+        // etichete de buton"), plătită aici pentru prima oară.
+        'Filter by action type ("Created", "Updated", "Deleted", "Bulk Action", "Role Changed"...), by "Member", and by a "From"/"To" date range.',
         'Click the action name on a row to jump to the record it changed — variants are the exception, since they have no page of their own; their history is on the product.',
         'Open a bulk operation\'s "View in Activity Log" link (from its progress page) to see every row it touched, filtered to just that operation.',
         'See which fields a change touched in the "Changes" column — the old and new values themselves are shown side by side on the record\'s own "History" section, one click away.',

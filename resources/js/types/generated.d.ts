@@ -1450,12 +1450,21 @@ export interface ActivityMemberOption {
     name: string;
 }
 
+// App\Http\Controllers\Web\ActivityLogController::actionOptions(). `value` e valoarea
+// STABILĂ a enum-ului (merge în query string, nu se traduce); `label` vine tradus din
+// `App\Support\Activity\ActivityActionLabel`, aceeași sursă cu `HistoryEntry.actionLabel`.
+export interface ActivityActionOption {
+    value: string;
+    label: string;
+}
+
 // App\Http\Controllers\Web\ActivityLogController::index() — FR-AUD-03.
 export interface ActivityIndexPageProps {
     entries: CursorPage<HistoryEntry>;
     filters: ActivityLogFilters;
-    // App\Models\ActivityLog::ACTIONS — valorile enum-ului `action`, pentru dropdown.
-    actions: string[];
+    // App\Models\ActivityLog::ACTIONS — valorile enum-ului `action`, cu eticheta lor
+    // tradusă, pentru dropdown-ul de filtrare.
+    actions: ActivityActionOption[];
     // Gol pentru un Agent (§7.4): `canFilterByUser` distinge „nimeni de filtrat" de
     // „lista chiar e goală" — un tenant nou, fără alți membri, ar arăta identic altfel.
     members: ActivityMemberOption[];

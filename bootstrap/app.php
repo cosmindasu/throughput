@@ -8,12 +8,14 @@ use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSessionContext;
+use App\Support\LocalePreference;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
+use Illuminate\Support\Facades\App;
 
 return Application::configure(basePath: dirname(__DIR__))
     // BUG DE FUNDAȚIE găsit la testarea lotului de abonament (Faza 5, specs.md §12.2),
@@ -145,4 +147,28 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // ADR-022, specs.md §15.8 FR-I18N-04 — limba pentru VEDERILE DE EROARE ale
+        // framework-ului (`lang/{en,fr}.json`: „Not Found", „Page Expired", …).
+        //
+        // `SetLocale` stă în grupul `web`, deci NU acoperă tot ce ajunge aici. Măsurat, nu
+        // presupus: un 404 pe o rută inexistentă e aruncat de router ÎNAINTE ca grupul `web`
+        // să se aplice, iar un 419 e aruncat de `ValidateCsrfToken`, care rulează înaintea
+        // lui `SetLocale` (acesta e `append`-uit, deci ultimul din grup). Ambele randau
+        // engleză pentru un utilizator francez — cu catalogul tradus lângă ele, nefolosit.
+        //
+        // Callback-ul întoarce `null` DELIBERAT: fixează doar limba și lasă randarea
+        // implicită să continue (`renderViaCallbacks()` trece mai departe la `null`). Nu e
+        // un handler de erori, e un pas de locale.
+        //
+        // Pe calea asta `$request->user()` e adesea `null` (sesiunea nu a pornit), deci
+        // rezoluția cade pe pasul 2 din `LocalePreference` — cookie-ul `locale`, exceptat de
+        // la criptare tocmai ca să fie lizibil fără grupul `web`. Degradare acceptată și
+        // identică cu a temei: cine a comutat limba o dată are cookie-ul. Unde sesiunea A
+        // pornit (403 dintr-un Policy), pasul 1 câștigă ca oriunde altundeva.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            App::setLocale(LocalePreference::resolveForRequest($request));
+
+            return null;
+        });
     })->create();

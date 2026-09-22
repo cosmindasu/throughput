@@ -73,12 +73,14 @@ export default function Index() {
                             className="rounded-md border border-control bg-surface px-3 py-1.5 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                         >
                             <option value="">{t('index.filters.action.any')}</option>
-                            {/* Valorile enum-ului rămân RAW (`App\Models\ActivityLog::ACTIONS`, ex.
-                                `login_failed`) — text generat de backend, fără trecere prin catalog,
-                                în afara sferei celor 14 fișiere ale lotului (vezi raportul). */}
+                            {/* `value` e valoarea STABILĂ a enum-ului — merge în query string
+                                (`?action=login_failed`), deci nu se traduce niciodată. `label` vine
+                                tradus din backend, din ACEEAȘI sursă cu eticheta din tabelul de mai
+                                jos (`ActivityActionLabel`), ca filtrul și rândurile să nu numească
+                                diferit aceeași acțiune. */}
                             {actions.map((action) => (
-                                <option key={action} value={action}>
-                                    {action}
+                                <option key={action.value} value={action.value}>
+                                    {action.label}
                                 </option>
                             ))}
                         </select>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Activity\ActivityLogResource;
 use App\Models\ActivityLog;
 use App\Models\Membership;
+use App\Support\Activity\ActivityActionLabel;
 use App\Support\Activity\AuditableResources;
 use App\Support\Lists\CursorPage;
 use Carbon\CarbonImmutable;
@@ -89,7 +90,7 @@ final class ActivityLogController extends Controller
                 'to' => $request->string('to')->value() ?: null,
                 'bulkOperationId' => $request->string('bulkOperationId')->value() ?: null,
             ],
-            'actions' => ActivityLog::ACTIONS,
+            'actions' => $this->actionOptions(),
             'members' => $canViewAll ? $this->memberOptions() : [],
             'canFilterByUser' => $canViewAll,
         ]);
@@ -125,6 +126,25 @@ final class ActivityLogController extends Controller
      *
      * @return list<array{id: string, name: string}>
      */
+    /**
+     * Opțiunile filtrului de acțiune: valoarea STABILĂ a enum-ului (merge în query string,
+     * deci nu se traduce niciodată) plus eticheta tradusă.
+     *
+     * Eticheta vine din `ActivityActionLabel`, ACEEAȘI sursă cu `actionLabel` din
+     * `ActivityLogResource` — altfel filtrul și tabelul de sub el ar numi diferit aceeași
+     * acțiune. Înainte, dropdown-ul randa valoarea brută (`login_failed`), deci nu doar
+     * netradusă, ci nici măcar engleză corectă.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function actionOptions(): array
+    {
+        return array_map(
+            fn (string $action): array => ['value' => $action, 'label' => ActivityActionLabel::resolve($action)],
+            ActivityLog::ACTIONS,
+        );
+    }
+
     private function memberOptions(): array
     {
         return Membership::query()

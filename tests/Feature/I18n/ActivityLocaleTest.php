@@ -84,6 +84,58 @@ class ActivityLocaleTest extends TestCase
                 ->where('entries.data.0.actionLabel', 'Login Failed'));
     }
 
+    /**
+     * Filtrul de acțiune randa până acum valoarea BRUTĂ a coloanei (`login_failed`), deci
+     * nici tradusă, nici măcar engleză corectă — singurul loc din lot unde repararea CHIAR
+     * schimbă engleza vizibilă, nu doar franceza. De aici cele două aserțiuni de mai jos:
+     * una pe noua engleză, una pe franceză.
+     *
+     * `value` NU se traduce: merge în query string (`?action=login_failed`), iar o valoare
+     * tradusă ar rupe filtrarea pe franceză. Asertat explicit, fiindcă e exact genul de
+     * lucru pe care o „traducere completă" l-ar strica din bune intenții.
+     */
+    public function test_the_action_filter_options_carry_a_translated_label_and_a_stable_value(): void
+    {
+        // Array-ul ÎNTREG, nu un rând: asta blochează ordinea, numărul ȘI toate etichetele
+        // deodată. Dacă migrația adaugă vreodată o valoare în enum, testul pică aici și
+        // spune exact ce lipsește — mai util decât un `has('actions', 9)` care ar trece
+        // verde cu o etichetă netradusă înăuntru.
+        $this->actingAs($this->owner)->get('/marlin/activity')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Activity/Index')
+                ->where('actions', [
+                    ['value' => 'created', 'label' => 'Created'],
+                    ['value' => 'updated', 'label' => 'Updated'],
+                    ['value' => 'deleted', 'label' => 'Deleted'],
+                    ['value' => 'login', 'label' => 'Login'],
+                    ['value' => 'login_failed', 'label' => 'Login Failed'],
+                    ['value' => 'exported', 'label' => 'Exported'],
+                    ['value' => 'imported', 'label' => 'Imported'],
+                    ['value' => 'bulk_action', 'label' => 'Bulk Action'],
+                    ['value' => 'role_changed', 'label' => 'Role Changed'],
+                ]));
+
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->get('/marlin/activity')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Activity/Index')
+                ->where('actions', [
+                    ['value' => 'created', 'label' => 'Créé'],
+                    ['value' => 'updated', 'label' => 'Mis à jour'],
+                    ['value' => 'deleted', 'label' => 'Supprimé'],
+                    ['value' => 'login', 'label' => 'Connexion'],
+                    ['value' => 'login_failed', 'label' => 'Échec de connexion'],
+                    ['value' => 'exported', 'label' => 'Exporté'],
+                    ['value' => 'imported', 'label' => 'Importé'],
+                    ['value' => 'bulk_action', 'label' => 'Action groupée'],
+                    ['value' => 'role_changed', 'label' => 'Rôle modifié'],
+                ]));
+    }
+
     public function test_the_dashboard_activity_feed_description_renders_in_french(): void
     {
         $agent = $this->makeMember($this->marlin, 'agent@throughput.dev', Permissions::AGENT);

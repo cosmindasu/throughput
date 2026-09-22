@@ -1,0 +1,10 @@
+{
+    "Forbidden": "Forbidden",
+    "Not Found": "Not Found",
+    "Page Expired": "Page Expired",
+    "Payment Required": "Payment Required",
+    "Server Error": "Server Error",
+    "Service Unavailable": "Service Unavailable",
+    "Too Many Requests": "Too Many Requests",
+    "Unauthorized": "Unauthorized"
+}

@@ -17,10 +17,27 @@ use SplFileInfo;
  * ajung complete — o gardă adăugată după ce golurile există e o gardă care nu a apucat
  * să prevină nimic.
  *
- * Verifică SIMETRIC, pe DOUĂ straturi independente, pentru că mesajele backend și
- * etichetele frontend trăiesc pe două rânduri de randare diferite:
- *   - `lang/{en,fr}/*.php` — mesajele Laravel (flash, validare, email, PDF);
+ * Verifică SIMETRIC, pe TREI straturi independente, pentru că textul aplicației trăiește pe
+ * trei rânduri de randare diferite:
+ *   - `lang/{en,fr}/*.php` — mesajele Laravel pe grup+cheie (flash, validare, email, PDF);
+ *   - `lang/{en,fr}.json` — mesajele Laravel în care ȘIRUL ENGLEZ E CHEIA (`__('Not Found')`),
+ *     singura formă pe care o folosesc vederile de eroare ale framework-ului;
  *   - `resources/js/locales/{en,fr}/*.json` — cataloagele `i18next` (etichete UI).
+ *
+ * Al treilea strat a fost adăugat după ce s-a văzut că lipsea: vederile de eroare
+ * (403/404/419/429/500/503) randau opt șiruri engleze pe interfața franceză, iar comanda
+ * asta nu se uita deloc acolo. Un catalog nepăzit e exact ce FR-I18N-02 interzice, deci
+ * gate-ul a fost lărgit ÎNAINTE de a fi populat — nu invers.
+ *
+ * `lang/en.json` e IDENTITATE (`"Not Found": "Not Found"`) și e deliberat, nu redundanță:
+ * pe stratul ăsta cheia E șirul englez, deci fără fișierul sursă comanda n-ar avea cu ce
+ * compara franceza, iar modelul „`en` = sursă de adevăr" s-ar rupe pentru un singur strat.
+ * Laravel se comportă identic cu sau fără el (o cheie negăsită se întoarce pe sine), deci
+ * fișierul nu schimbă nimic la randare — există ca să facă mulțimea de șiruri VERIFICABILĂ.
+ * Alternativa luată în calcul și respinsă: să se extragă șirurile din sursă cu un regex peste
+ * `__('…')`, ca în `HelpTopicCoverageTest`. Ar prinde și șirurile folosite dar netraduse, dar
+ * ar trebui să citească și `vendor/`, unde stau chiar vederile de eroare — prea multă
+ * fragilitate pentru opt șiruri.
  *
  * Simetric înseamnă în ambele sensuri: o cheie în `en` fără pereche în `fr` e o
  * traducere uitată; una în `fr` fără pereche în `en` e o cheie moartă, rămasă după o
@@ -70,6 +87,16 @@ class I18nCoverage extends Command
 
     private const TARGET_LOCALE = 'fr';
 
+    /** Catalog împărțit pe DIRECTOARE per limbă: `<root>/<locale>/<fișiere>`. */
+    private const SHAPE_DIRECTORY = 'directory';
+
+    /** Catalog într-un SINGUR fișier per limbă, numit după limbă: `<root>/<locale>.json`. */
+    private const SHAPE_LOCALE_FILE = 'locale_file';
+
+    private const PARSE_PHP = 'php';
+
+    private const PARSE_JSON = 'json';
+
     /**
      * Categoriile CLDR pe care i18next le cere pentru fiecare limbă, enumerate explicit
      * pentru CELE DOUĂ limbi ale proiectului. PHP nu expune categoriile plurale ale ICU
@@ -93,17 +120,27 @@ class I18nCoverage extends Command
 
     public function handle(): int
     {
-        /** @var array<string, array{root: string, pattern: string, json: bool}> $layers */
+        /** @var array<string, array{shape: string, root: string, pattern?: string, parse: string, cldr: bool}> $layers */
         $layers = [
-            'lang/ (Laravel — flash, validare, email, PDF)' => [
+            'lang/{locale}/ (Laravel — flash, validare, email, PDF)' => [
+                'shape' => self::SHAPE_DIRECTORY,
                 'root' => base_path('lang'),
                 'pattern' => '*.php',
-                'json' => false,
+                'parse' => self::PARSE_PHP,
+                'cldr' => false,
             ],
-            'resources/js/locales/ (i18next — etichete UI)' => [
+            'lang/{locale}.json (Laravel — șiruri care sunt propria lor cheie)' => [
+                'shape' => self::SHAPE_LOCALE_FILE,
+                'root' => base_path('lang'),
+                'parse' => self::PARSE_JSON,
+                'cldr' => false,
+            ],
+            'resources/js/locales/{locale}/ (i18next — etichete UI)' => [
+                'shape' => self::SHAPE_DIRECTORY,
                 'root' => resource_path('js/locales'),
                 'pattern' => '*.json',
-                'json' => true,
+                'parse' => self::PARSE_JSON,
+                'cldr' => true,
             ],
         ];
 
@@ -113,45 +150,40 @@ class I18nCoverage extends Command
         $this->line('Acoperire chei i18n ('.self::SOURCE_LOCALE.' = sursă de adevăr, '.self::TARGET_LOCALE.' verificat simetric):');
 
         foreach ($layers as $layerName => $layer) {
-            $sourceRoot = $layer['root'].'/'.self::SOURCE_LOCALE;
-            $targetRoot = $layer['root'].'/'.self::TARGET_LOCALE;
-
-            if (! is_dir($sourceRoot) && ! is_dir($targetRoot)) {
+            if (! $this->layerExists($layer)) {
                 $this->line("  [{$layerName}] catalog inexistent încă — sărit.");
 
                 continue;
             }
 
-            $relativeFiles = array_unique([
-                ...$this->findRelativeFiles($sourceRoot, $layer['pattern']),
-                ...$this->findRelativeFiles($targetRoot, $layer['pattern']),
-            ]);
-            sort($relativeFiles);
+            $pairs = $this->pairsFor($layer);
 
-            if ($relativeFiles === []) {
-                $this->line("  [{$layerName}] director prezent, dar fără fișiere — nimic de comparat.");
+            if ($pairs === []) {
+                $this->line("  [{$layerName}] prezent, dar fără fișiere — nimic de comparat.");
 
                 continue;
             }
 
             $layerHadDiff = false;
 
-            foreach ($relativeFiles as $relative) {
-                $sourcePath = $sourceRoot.'/'.$relative;
-                $targetPath = $targetRoot.'/'.$relative;
+            foreach ($pairs as $relative => $paths) {
+                [$sourcePath, $targetPath] = [$paths['source'], $paths['target']];
+                $isJson = $layer['parse'] === self::PARSE_JSON;
 
                 // Un fișier prezent doar pe o parte (namespace întreg lipsă pe cealaltă
                 // limbă) nu are nevoie de caz special: toate cheile lui ies ca asimetrie.
-                $sourceKeys = is_file($sourcePath) ? $this->flattenKeys($this->loadCatalog($sourcePath, $layer['json'])) : [];
-                $targetKeys = is_file($targetPath) ? $this->flattenKeys($this->loadCatalog($targetPath, $layer['json'])) : [];
+                $sourceKeys = is_file($sourcePath) ? $this->flattenKeys($this->loadCatalog($sourcePath, $isJson)) : [];
+                $targetKeys = is_file($targetPath) ? $this->flattenKeys($this->loadCatalog($targetPath, $isJson)) : [];
 
                 $totalKeysChecked += count($sourceKeys) + count($targetKeys);
 
-                // Stratul JSON cunoaște categoriile plurale ale fiecărei limbi; stratul
-                // `lang/` se compară direct (vezi nota de clasă — `trans_choice()` nu
-                // folosește sufixe de categorie).
-                $expectedSource = $layer['json'] ? $this->expectedKeysFor(self::SOURCE_LOCALE, $sourceKeys, $targetKeys) : $targetKeys;
-                $expectedTarget = $layer['json'] ? $this->expectedKeysFor(self::TARGET_LOCALE, $sourceKeys, $targetKeys) : $sourceKeys;
+                // Doar stratul i18next cunoaște categoriile plurale ale fiecărei limbi.
+                // Cele DOUĂ straturi Laravel se compară direct, din același motiv:
+                // `trans_choice()` pluralizează prin segmente în interiorul UNEI chei, deci
+                // nu există sufixe de categorie. `cldr`, nu „e JSON": stratul
+                // `lang/{locale}.json` e tot JSON, dar tot Laravel.
+                $expectedSource = $layer['cldr'] ? $this->expectedKeysFor(self::SOURCE_LOCALE, $sourceKeys, $targetKeys) : $targetKeys;
+                $expectedTarget = $layer['cldr'] ? $this->expectedKeysFor(self::TARGET_LOCALE, $sourceKeys, $targetKeys) : $sourceKeys;
 
                 $missingInTarget = array_values(array_diff($expectedTarget, $targetKeys));
                 $missingInSource = array_values(array_diff($expectedSource, $sourceKeys));
@@ -186,7 +218,7 @@ class I18nCoverage extends Command
             }
 
             if (! $layerHadDiff) {
-                $this->line("  [{$layerName}] OK — ".count($relativeFiles).' fișier(e) verificat(e).');
+                $this->line("  [{$layerName}] OK — ".count($pairs).' fișier(e) verificat(e).');
             }
         }
 
@@ -198,7 +230,7 @@ class I18nCoverage extends Command
         }
 
         $this->newLine();
-        $this->components->info("Acoperire chei i18n OK — {$totalKeysChecked} chei verificate pe cele două straturi.");
+        $this->components->info("Acoperire chei i18n OK — {$totalKeysChecked} chei verificate pe cele ".count($layers).' straturi.');
 
         return self::SUCCESS;
     }
@@ -306,6 +338,70 @@ class I18nCoverage extends Command
         }
 
         return $keys;
+    }
+
+    /**
+     * Există vreun catalog de comparat pentru stratul ăsta? Distins DELIBERAT de „există,
+     * dar e gol": un strat absent e sărit grațios (vezi nota de clasă — la Valul 1 niciun
+     * catalog nu exista încă), pe când unul prezent și gol merită spus altfel.
+     *
+     * @param  array<string, mixed>  $layer
+     */
+    private function layerExists(array $layer): bool
+    {
+        if ($layer['shape'] === self::SHAPE_LOCALE_FILE) {
+            return is_file($this->localeFilePath($layer, self::SOURCE_LOCALE))
+                || is_file($this->localeFilePath($layer, self::TARGET_LOCALE));
+        }
+
+        return is_dir($layer['root'].'/'.self::SOURCE_LOCALE)
+            || is_dir($layer['root'].'/'.self::TARGET_LOCALE);
+    }
+
+    /**
+     * Perechile de comparat ale unui strat: etichetă → {sursă, țintă}. Normalizează cele
+     * DOUĂ forme de catalog într-una singură, ca bucla din `handle()` să nu știe care e
+     * care.
+     *
+     * @param  array<string, mixed>  $layer
+     * @return array<string, array{source: string, target: string}>
+     */
+    private function pairsFor(array $layer): array
+    {
+        if ($layer['shape'] === self::SHAPE_LOCALE_FILE) {
+            $label = self::SOURCE_LOCALE.'.json ↔ '.self::TARGET_LOCALE.'.json';
+
+            return [$label => [
+                'source' => $this->localeFilePath($layer, self::SOURCE_LOCALE),
+                'target' => $this->localeFilePath($layer, self::TARGET_LOCALE),
+            ]];
+        }
+
+        $sourceRoot = $layer['root'].'/'.self::SOURCE_LOCALE;
+        $targetRoot = $layer['root'].'/'.self::TARGET_LOCALE;
+
+        $relativeFiles = array_unique([
+            ...$this->findRelativeFiles($sourceRoot, $layer['pattern']),
+            ...$this->findRelativeFiles($targetRoot, $layer['pattern']),
+        ]);
+        sort($relativeFiles);
+
+        $pairs = [];
+
+        foreach ($relativeFiles as $relative) {
+            $pairs[$relative] = [
+                'source' => $sourceRoot.'/'.$relative,
+                'target' => $targetRoot.'/'.$relative,
+            ];
+        }
+
+        return $pairs;
+    }
+
+    /** @param  array<string, mixed>  $layer */
+    private function localeFilePath(array $layer, string $locale): string
+    {
+        return $layer['root'].'/'.$locale.'.json';
     }
 
     /**
