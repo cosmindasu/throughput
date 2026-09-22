@@ -35,10 +35,10 @@ return [
         // ⚠ NATIV: terminologie de facturation — de revizuit de un vorbitor nativ/contabil francofon.
         'bill_to' => 'Facturé à',
         'anonymized_contact' => 'Contact anonymisé',
-        'issue_date' => "Date d'émission",
+        'issue_date' => 'Date d’émission',
         'order' => 'Commande',
         // ⚠ NATIV
-        'due_date' => "Date d'échéance",
+        'due_date' => 'Date d’échéance',
         'line' => 'Ligne',
         'quantity' => 'Quantité',
         'unit_price' => 'Prix unitaire',

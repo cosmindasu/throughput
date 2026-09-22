@@ -98,7 +98,9 @@
         "gotIt": "Got it",
         "whatYouCanDo": "What you can do here",
         "rules": "Rules that apply here",
-        "howItsBuilt": "How it's built"
+        "howItsBuilt": "How it's built",
+        "regionLabel": "Help",
+        "loading": "Loading help…"
     },
     "listUpdate": {
         "updated": "Results updated."

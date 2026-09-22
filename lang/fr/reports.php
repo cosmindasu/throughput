@@ -24,7 +24,7 @@ return [
             'avg_days_in_stage' => 'Jours moyens par étape',
             'deals_reached' => 'Affaires atteintes',
             // ⚠ NATIV
-            'conversion_to_next_stage' => "Taux de conversion vers l'étape suivante",
+            'conversion_to_next_stage' => 'Taux de conversion vers l’étape suivante',
         ],
         'unknown_pipeline' => 'Pipeline inconnu',
     ],

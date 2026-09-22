@@ -1,8 +1,11 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { helpTopicForComponent } from '@/help';
-import type { HelpTopic } from '@/help/types';
+import { helpTopicDefinitionForComponent } from '@/help';
+import { helpCatalogIsLoaded, loadHelpCatalog } from '@/help/catalog';
+import { useHelpTopic } from '@/help/useHelpTopic';
+import { useLocale } from '@/hooks/useLocale';
+import type { AppLocale } from '@/lib/i18n';
 
 /**
  * Cheia indiciului de primă vizită despre PANOUL DE AJUTOR însuși (BR-HELP-02) —
@@ -32,12 +35,22 @@ const INTRO_HINT_KEY = 'help-panel-intro';
  */
 export default function HelpPanel() {
     const { t } = useTranslation('common');
+    const locale = useLocale();
     const page = usePage();
-    const topic = helpTopicForComponent(page.component);
+    // DEFINIȚIA, nu subiectul complet: de ea depinde dacă butonul „?" se randează, iar acea
+    // decizie e sincronă prin construcție (vezi `help/catalog.ts` — textul vine leneș).
+    const topic = helpTopicDefinitionForComponent(page.component);
     const dismissedHints = page.props.auth.user?.dismissedHints ?? [];
     const introHintDismissed = dismissedHints.includes(INTRO_HINT_KEY);
 
     const [open, setOpen] = useState(false);
+    // Limba al cărei catalog de ajutor e încărcat. `null` = niciunul încă. Comparat cu
+    // `locale` (nu un boolean): `LocaleToggle` comută limba fără încărcare completă de
+    // pagină, deci „gata" înseamnă „gata PENTRU LIMBA CURENTĂ", nu „s-a încărcat cândva".
+    const [catalogLocale, setCatalogLocale] = useState<AppLocale | null>(() =>
+        helpCatalogIsLoaded(locale) ? locale : null
+    );
+    const catalogReady = catalogLocale === locale;
     const triggerRef = useRef<HTMLButtonElement>(null);
     const headingRef = useRef<HTMLHeadingElement>(null);
     const panelId = useId();
@@ -88,14 +101,37 @@ export default function HelpPanel() {
         triggerRef.current?.focus();
     };
 
+    // Catalogul limbii active, adus la PRIMA deschidere — nu la montarea layout-ului.
+    // Vezi `help/catalog.ts` pentru cifra care motivează încărcarea leneșă.
+    useEffect(() => {
+        if (!open || catalogReady) {
+            return;
+        }
+
+        let cancelled = false;
+        void loadHelpCatalog(locale).then(() => {
+            if (! cancelled) {
+                setCatalogLocale(locale);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [open, locale, catalogReady]);
+
     // La deschidere, focusul intră în panou (pe titlu, `tabIndex=-1`) — util mai
     // ales pentru cine a deschis cu tastatura. Panoul rămâne NECAPTIV: Tab poate
     // ieși din el înapoi în pagină, pentru că pagina rămâne interactivă.
+    //
+    // Depinde ȘI de `catalogReady`, fiindcă titlul pe care cade focusul se montează abia
+    // odată cu conținutul: la prima deschidere din sesiune, efectul rulează a doua oară,
+    // după commit-ul care a randat titlul, când `headingRef` chiar are pe ce să cadă.
     useEffect(() => {
-        if (open) {
+        if (open && catalogReady) {
             headingRef.current?.focus();
         }
-    }, [open]);
+    }, [open, catalogReady]);
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
@@ -195,19 +231,32 @@ export default function HelpPanel() {
             <aside
                 id={panelId}
                 aria-hidden={!open}
-                aria-label={`Help: ${topic.title}`}
+                // Eticheta regiunii vine din catalog, nu din „Help: " + titlul subiectului
+                // concatenat în cod: a fost singurul șir englez rămas hardcodat în această
+                // componentă după Valul 3, și oricum titlul nu e disponibil până se încarcă
+                // catalogul. Numele subiectului rămâne vizibil pe `<h2>`-ul din interior,
+                // deci nu se pierde nimic pentru cititorul de ecran — doar nu se mai
+                // dublează într-o limbă greșită.
+                aria-label={t('common:helpPanel.regionLabel')}
                 className={`fixed inset-y-0 right-0 z-40 w-[min(28rem,100vw)] transform overflow-y-auto border-l border-border bg-surface shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none ${
                     open ? 'translate-x-0' : 'pointer-events-none translate-x-full'
                 }`}
             >
-                {open && <HelpPanelContent topic={topic} headingRef={headingRef} onClose={close} />}
+                {open &&
+                    (catalogReady ? (
+                        <HelpPanelContent component={page.component} headingRef={headingRef} onClose={close} />
+                    ) : (
+                        <p role="status" className="p-6 text-sm text-text-2">
+                            {t('common:helpPanel.loading')}
+                        </p>
+                    ))}
             </aside>
         </div>
     );
 }
 
 interface HelpPanelContentProps {
-    topic: HelpTopic;
+    component: string;
     headingRef: RefObject<HTMLHeadingElement | null>;
     onClose: () => void;
 }
@@ -217,8 +266,15 @@ interface HelpPanelContentProps {
  * poți face aici → regulile care se aplică → cum e construit (pliat, închis
  * implicit — audiența secundară din specs.md §1.5).
  */
-function HelpPanelContent({ topic, headingRef, onClose }: HelpPanelContentProps) {
+function HelpPanelContent({ component, headingRef, onClose }: HelpPanelContentProps) {
     const { t } = useTranslation('common');
+    const topic = useHelpTopic(component);
+
+    // Imposibil în practică: părintele randează asta doar după ce a găsit o definiție ȘI
+    // a încărcat catalogul. Ramura există pentru că `useHelpTopic` e cinstit în tip.
+    if (!topic) {
+        return null;
+    }
 
     return (
         <div className="flex h-full flex-col gap-5 p-6">

@@ -78,11 +78,16 @@ test('panoul de ajutor — deschis cu "?", cele patru secțiuni, Esc readuce foc
             const trigger = page.getByRole('button', { name: 'Help for this page' });
             await expect(trigger).toBeVisible();
 
-            // Panoul (`<aside aria-label="Help: {titlu}">`) e SINGURUL conținut scopat
-            // pentru asertările de mai jos — ecrane precum `Deals/Show` au propriul `<h2>`
+            // Panoul (`<aside aria-label="Help">`) e SINGURUL conținut scopat pentru
+            // asertările de mai jos — ecrane precum `Deals/Show` au propriul `<h2>`
             // („Stage history"), deci un `getByRole('heading', { level: 2 })` neascopat pe
             // pagină ar fi ambiguu de îndată ce panoul se deschide.
-            const panel = page.locator('aside[aria-label^="Help:"]');
+            //
+            // Eticheta era „Help: {titlu}" până la Valul 4 al Lotului I18N, singurul șir
+            // englez rămas concatenat în cod după Valul 3. Acum vine din catalog
+            // (`common:helpPanel.regionLabel`) și nu mai poartă titlul subiectului — care
+            // oricum nu există până se încarcă leneș catalogul de ajutor.
+            const panel = page.locator('aside[aria-label="Help"]');
 
             // Deschis EXCLUSIV de la tastatură (FR-HELP-01) — focusul curent e pe
             // `<body>`/document imediat după navigare, niciodată într-un câmp de text.

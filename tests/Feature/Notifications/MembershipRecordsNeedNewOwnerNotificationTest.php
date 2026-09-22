@@ -54,7 +54,7 @@ class MembershipRecordsNeedNewOwnerNotificationTest extends TestCase
         // liniile individuale; subiectul combină cele două numărători (total = 1).
         $mail = $this->notify(openDeals: 0, activeOrders: 1);
 
-        $this->assertSame('1 enregistrement a besoin d\'un nouveau propriétaire', $mail->subject);
+        $this->assertSame('1 enregistrement a besoin d’un nouveau propriétaire', $mail->subject);
     }
 
     public function test_english_and_french_pluralize_the_deals_and_orders_lines_independently(): void
@@ -85,7 +85,7 @@ class MembershipRecordsNeedNewOwnerNotificationTest extends TestCase
         App::setLocale('fr');
         // Franceza avea deja `[0,1]` — zero e singular acolo. Aserțiunea o fixează, ca o
         // eventuală „aliniere" a celor două cataloage să nu i-o rescrie pe modelul englez.
-        $this->assertSame('0 enregistrement a besoin d\'un nouveau propriétaire', $this->notify(openDeals: 0, activeOrders: 0)->subject);
+        $this->assertSame('0 enregistrement a besoin d’un nouveau propriétaire', $this->notify(openDeals: 0, activeOrders: 0)->subject);
     }
 
     public function test_subjects_pluralize_correctly_above_one_in_both_locales(): void
@@ -96,6 +96,6 @@ class MembershipRecordsNeedNewOwnerNotificationTest extends TestCase
 
         App::setLocale('fr');
         $fr = $this->notify(openDeals: 2, activeOrders: 3);
-        $this->assertSame('5 enregistrements ont besoin d\'un nouveau propriétaire', $fr->subject);
+        $this->assertSame('5 enregistrements ont besoin d’un nouveau propriétaire', $fr->subject);
     }
 }

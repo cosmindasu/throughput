@@ -89,19 +89,27 @@ class ApiToken extends Model
      */
     public static function abilityCatalog(): array
     {
-        return [
-            self::ABILITY_ACCOUNTS_READ => 'Read accounts',
-            self::ABILITY_CONTACTS_READ => 'Read contacts',
-            self::ABILITY_CONTACTS_WRITE => 'Create contacts',
-            self::ABILITY_DEALS_READ => 'Read deals',
-            self::ABILITY_DEALS_WRITE => 'Create deals',
-            self::ABILITY_ORDERS_READ => 'Read orders',
-            self::ABILITY_ORDERS_WRITE => 'Create orders',
-            self::ABILITY_INVOICES_READ => 'Read invoices',
-            self::ABILITY_INVOICES_WRITE => 'Create invoices',
-            self::ABILITY_INVENTORY_READ => 'Read stock levels and movements',
-            self::ABILITY_INVENTORY_WRITE => 'Record stock movements',
+        $abilities = [
+            self::ABILITY_ACCOUNTS_READ,
+            self::ABILITY_CONTACTS_READ,
+            self::ABILITY_CONTACTS_WRITE,
+            self::ABILITY_DEALS_READ,
+            self::ABILITY_DEALS_WRITE,
+            self::ABILITY_ORDERS_READ,
+            self::ABILITY_ORDERS_WRITE,
+            self::ABILITY_INVOICES_READ,
+            self::ABILITY_INVOICES_WRITE,
+            self::ABILITY_INVENTORY_READ,
+            self::ABILITY_INVENTORY_WRITE,
         ];
+
+        // Descrierile trec prin catalog (`lang/{en,fr}/enums.php`), CHEILE nu: ele se
+        // scriu pe `api_tokens.abilities` și se compară în `EnsureTokenAbility`, deci
+        // sunt identificatori tehnici, nu text. Aceeași separare ca la `order_status`.
+        return array_combine(
+            $abilities,
+            array_map(static fn (string $ability): string => __('enums.api_abilities.'.$ability), $abilities)
+        );
     }
 
     /** @return list<string> */

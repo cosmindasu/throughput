@@ -88,6 +88,14 @@ const NAMESPACES = [
     'auth',
     'dashboard',
     'roles',
+    // Declarat aici, dar ABSENT din `resources` de mai jos — singurul namespace al
+    // proiectului fără import static. Resursele lui ajung prin `addResourceBundle`, la
+    // prima deschidere a panoului de ajutor, pe limba activă; vezi `help/catalog.ts`
+    // pentru cifra măsurată care motivează excepția (110 KB din 131 KB ai chunk-ului
+    // `AppLayout`, pe fiecare ecran, pentru un text pe care îl citește doar cine apasă
+    // „?"). Declararea aici nu e decor: fără ea, `useTranslation('help')` ar cere un
+    // namespace necunoscut instanței.
+    'help',
 ] as const;
 
 /**

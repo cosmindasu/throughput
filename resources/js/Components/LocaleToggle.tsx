@@ -37,8 +37,12 @@ export default function LocaleToggle() {
         // Feedback instant, simetric cu `applyResolvedTheme` din ThemeToggle: schimbă
         // limba activă a instanței i18next ȘI `<html lang>` ÎNAINTE de round-trip-ul de
         // mai jos, ca un screen reader să anunțe corect starea nouă fără să aștepte
-        // răspunsul serverului. Cataloagele sunt deja în bundle (import static în
-        // `lib/i18n.ts`), deci `changeLanguage` nu declanșează niciun fetch.
+        // răspunsul serverului. Cataloagele de interfață sunt deja în bundle (import
+        // static în `lib/i18n.ts`), deci `changeLanguage` nu declanșează niciun fetch.
+        //
+        // Singura excepție, de la Valul 4: namespace-ul `help`, încărcat leneș pe limba
+        // activă (`help/catalog.ts`). Nu se aduce aici, ci la următoarea deschidere a
+        // panoului — cine comută limba fără să deschidă niciodată „?" nu plătește nimic.
         void i18n.changeLanguage(next);
         applyDocumentLocale(next);
 

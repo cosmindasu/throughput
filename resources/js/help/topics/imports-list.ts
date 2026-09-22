@@ -1,4 +1,4 @@
-import type { HelpTopic } from '@/help/types';
+import type { HelpTopicDefinition } from '@/help/types';
 
 /**
  * `Imports/Index` — specs.md §14 (fluxul în 4 pași), §14.2 (tabela `imports`), §7.4 rândul
@@ -12,29 +12,8 @@ import type { HelpTopic } from '@/help/types';
  * NEterminal, inclusiv un import abandonat la „uploaded"), `Permissions::forRoles()` (nici
  * Agent, nici Viewer n-au `imports.view`, deci elementul lipsește și din `NAV_ITEMS`).
  */
-const importsList: HelpTopic = {
+const importsList: HelpTopicDefinition = {
     id: 'imports-list',
-    title: 'Imports',
-    whatIsThis:
-        'Every file this workspace has brought in through the import flow: what it contained, how far it got, and how many of its rows turned out usable. You start a new import from here, and you come back here to re-open an older one.',
-    whatCanYouDo: [
-        'Start a file with "New import" — or "Start your first import" while the list is still empty.',
-        'Read where each file stands from its status: "Uploaded", "Mapped", "Validating…", "Ready to import", "Importing…", "Completed", "Completed with errors" or "Failed".',
-        'Check the "Rows" column for the "N valid / M invalid" split the dry run produced, before deciding whether the file is worth opening at all.',
-        'Open a file name to go back into its four-step flow, or straight to its final report.',
-        'See who brought each file in, and when, under "Uploaded by" and "Uploaded".',
-    ],
-    rules: [
-        'Only Owner and Manager reach this screen. Agent and Viewer have no import rights whatsoever (specs.md §7.4) — "Imports" is missing from their navigation, and the route refuses them as well, so the menu is not the only thing protecting it.',
-        'There is no "my imports" narrowing here, unlike Accounts, Deals or Orders: an Owner or Manager sees every import of the workspace, whoever uploaded it. The permission matrix gives Agent no access at all, so there is no "own" subset to carve out.',
-        'One import can be active per workspace at a time. "Active" is anything that has not reached "Completed", "Completed with errors" or "Failed" — including a file uploaded and then abandoned before mapping. You can clear it yourself with "Cancel import" on that import\'s own page; left alone, a background sweeper closes an abandoned import after 24 hours, and one whose processing died after 15 minutes.',
-        'The list shows the 50 most recent imports and stops there. An import is a deliberate, occasional action, not a stream of rows, so it does not get the cursor paging the big lists use.',
-        'Nothing is deleted from here, and there is no button to try: the history row and the raw content of every failed row are kept, which is exactly what makes the downloadable, re-importable error report possible (BR-IMP-01). The uploaded file itself is not kept forever — a daily job deletes it from disk 7 days after the import finishes, so download the error report before then; the row stays either way.',
-    ],
-    howItsBuilt: {
-        summary:
-            'Each row is an `imports` record whose counters are written by the background jobs, not by this page: every chunk of 500 rows commits `total_rows`/`valid_rows`/`error_rows` in its own short transaction, so the "N valid / M invalid" split here is accurate even while the file is still being processed — it is a running total, not a figure written once at the end. The one-active-import rule is enforced server-side in the upload action, against the set of non-terminal statuses, not by hiding the button: a second upload gets a clear refusal rather than being silently queued behind the first. The list itself deliberately skips the cursor-paging, saved-views and bulk machinery the volume lists share — 50 rows ordered newest-first is the whole query.',
-    },
 };
 
 export default importsList;

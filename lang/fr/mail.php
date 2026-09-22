@@ -44,13 +44,13 @@ return [
 
     'export_ready' => [
         'greeting' => 'Bonjour :name,',
-        'body' => 'L\'export de données demandé pour :workspace est prêt à être téléchargé.',
-        'download' => 'Télécharger l\'archive',
+        'body' => 'L’export de données demandé pour :workspace est prêt à être téléchargé.',
+        'download' => 'Télécharger l’archive',
         // NATIV: phrase longue, registre "légal/contractuel" — la plus exposée à un ton
         // maladroit si un francophone natif ne la relit pas.
-        'retention' => 'Le lien reste valable :days et cessera de fonctionner le :expires ; passé ce délai, le fichier est supprimé. La demande elle-même reste visible dans l\'historique des exports — il en restera donc toujours une trace — et vous pouvez demander un nouvel export à tout moment.',
+        'retention' => 'Le lien reste valable :days et cessera de fonctionner le :expires ; passé ce délai, le fichier est supprimé. La demande elle-même reste visible dans l’historique des exports — il en restera donc toujours une trace — et vous pouvez demander un nouvel export à tout moment.',
         'days' => '[0,1] :count jour|[2,*] :count jours',
-        'contents' => 'L\'archive contient un fichier JSON par entité, un CSV à côté chaque fois que la table est plate, ainsi qu\'un manifeste décrivant ce qu\'elle contient et ce qu\'elle ne contient pas.',
+        'contents' => 'L’archive contient un fichier JSON par entité, un CSV à côté chaque fois que la table est plate, ainsi qu’un manifeste décrivant ce qu’elle contient et ce qu’elle ne contient pas.',
         'signature' => '— Throughput',
     ],
 
@@ -73,11 +73,11 @@ return [
     ],
 
     'subscription_unpaid' => [
-        'subject' => 'Action requise : l\'abonnement :tenant est impayé',
+        'subject' => 'Action requise : l’abonnement :tenant est impayé',
     ],
 
     'membership_records_need_new_owner' => [
-        'subject' => '[0,1] :count enregistrement a besoin d\'un nouveau propriétaire|[2,*] :count enregistrements ont besoin d\'un nouveau propriétaire',
+        'subject' => '[0,1] :count enregistrement a besoin d’un nouveau propriétaire|[2,*] :count enregistrements ont besoin d’un nouveau propriétaire',
         'greeting' => 'Bonjour :name,',
         // NATIV: phrase la plus longue et la plus « métier » du lot — celle qui bénéficie
         // le plus d'une relecture humaine.
@@ -90,7 +90,7 @@ return [
         // genre pour ne rien casser si l'une des deux phrases change de forme.
         'unassigned' => ':deals et :orders sont désormais sans propriétaire.',
         'action' => 'Consulter les dossiers non attribués',
-        'footer' => 'Rien n\'a été perdu — ces dossiers restent visibles par toute personne ayant le rôle :owner ou :manager, jusqu\'à ce que quelqu\'un les réattribue.',
+        'footer' => 'Rien n’a été perdu — ces dossiers restent visibles par toute personne ayant le rôle :owner ou :manager, jusqu’à ce que quelqu’un les réattribue.',
     ],
 
 ];

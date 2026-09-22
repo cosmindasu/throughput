@@ -1,0 +1,746 @@
+{
+    "topics": {
+        "account-detail": {
+            "title": "Détail du compte",
+            "whatIsThis": "Ceci est la fiche complète d’une entreprise — ses coordonnées, ses contacts, ses affaires et une chronologie de ce qui s’est passé avec elle. Créer et modifier un compte se font tous deux sur le même type de formulaire.",
+            "whatCanYouDo": [
+                "Sur « Nouveau compte », renseignez l’entreprise et son « Contact principal » dans le même formulaire — un seul « Créer le compte » enregistre les deux, sans étape séparée pour le premier contact.",
+                "Modifiez les coordonnées, le propriétaire, le statut, les conditions de crédit, les étiquettes et les adresses avec « Modifier », puis « Enregistrer les modifications ».",
+                "Démarrez des enregistrements liés avec « Ajouter un contact » ou « Nouvelle affaire » — chacun ouvre son formulaire avec ce compte déjà renseigné.",
+                "Parcourez les sections « Contacts », « Affaires » et « Activité » — « Activité » mélange les affaires créées, les changements d’étape, les commandes passées et les actions journalisées, les 30 plus récentes en premier.",
+                "Retirez le compte avec « Supprimer »."
+            ],
+            "rules": [
+                "Un compte avec des affaires ou des commandes ne peut pas être supprimé — « Supprimer » s’ouvre quand même, et la boîte de dialogue indique combien d’affaires et de commandes font obstacle, au lieu d’échouer silencieusement.",
+                "Propriétaire et Gestionnaire peuvent modifier et supprimer n’importe quel compte ; un Commercial uniquement les comptes qu’il possède ou a créés — tout le reste de cette page leur reste visible, simplement pas modifiable.",
+                "Si l’adresse e-mail de contact que vous saisissez est déjà liée à un compte, l’enregistrement est bloqué avec un avertissement et un lien vers ce compte — pas silencieusement écrasé. Cocher « Enregistrer quand même » confirme que c’est intentionnel (la même personne peut légitimement travailler avec deux entreprises) et l’enregistrement se poursuit.",
+                "Laisser « Propriétaire » sur « Non attribué » lors de la création d’un compte fait de vous son propriétaire.",
+                "Un seul contact par compte peut être principal — marquer un autre contact comme principal, depuis son propre formulaire, démarque automatiquement le précédent."
+            ],
+            "howItsBuilt": "L’avertissement d’e-mail en double est une erreur de validation que vous pouvez outrepasser : la requête s’arrête et rien n’est écrit tant que vous n’avez pas coché « Enregistrer quand même ». Le lien vers l’autre compte ne voyage pas dans le texte de l’erreur — le serveur ajoute une charge Inertia flash à usage unique (id de compte + nom), qui disparaît à la navigation suivante au lieu de rester attachée au formulaire. La même vérification s’exécute sur le formulaire de contact. Il n’y a pas d’ADR dédié pour cela — c’est une politique de niveau applicatif, couverte directement par des tests de fonctionnalité (`DuplicateContactEmailTest`, `DuplicateContactEmailHttpTest`) plutôt qu’une décision d’architecture."
+        },
+        "accounts-list": {
+            "title": "Comptes",
+            "whatIsThis": "Toutes les entreprises auxquelles votre espace de travail vend ou avec lesquelles il est en contact, dans une seule liste. C’est ici que vous recherchez, filtrez et agissez sur plusieurs comptes à la fois.",
+            "whatCanYouDo": [
+                "Recherchez par nom de compte, filtrez par « Statut » et triez par nom ou par les plus récents.",
+                "Utilisez le filtre « Propriétaire » pour voir « Mes comptes », « Tous les comptes », les comptes « Non attribué » ou les comptes d’un coéquipier.",
+                "Ouvrez « Vues » pour appliquer une vue enregistrée, « Enregistrer la vue » pour conserver les filtres actuels, ou « ☆ Définir par défaut » pour ouvrir la liste sur cette vue.",
+                "Ouvrez « Colonnes » pour afficher, masquer ou réordonner les colonnes optionnelles (Propriétaire, Statut, Créé le) avec des cases à cocher et « Déplacer vers le haut »/« Déplacer vers le bas » — la colonne du nom de compte reste toujours affichée, et une vue enregistrée retient votre choix.",
+                "Téléchargez la liste filtrée avec « Exporter en CSV », même sans droit de modification.",
+                "Créez un compte avec « Nouveau compte », ou modifiez-en un depuis son lien « Modifier ».",
+                "Sélectionnez plusieurs comptes avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et réaffectez-les à un nouveau propriétaire en une seule action, depuis la barre qui apparaît dès que vous en avez choisi au moins un."
+            ],
+            "rules": [
+                "Les Commerciaux démarrent sur « Mes comptes » ; tous les autres démarrent sur tous les comptes. Le filtre change ce que vous voyez, pas ce que vous pouvez modifier — un Commercial n’obtient « Modifier » que sur les comptes qu’il possède ou a créés.",
+                "« Non attribué » signifie sans propriétaire, ou un propriétaire qui n’est plus membre actif — désactiver quelqu’un ne réaffecte jamais silencieusement ses enregistrements.",
+                "« Exporter en CSV » fonctionne pour tous les rôles, y compris Observateur : cela lit chaque ligne correspondant aux filtres actuels — toutes les pages, pas seulement celle à l’écran — et n’écrit rien. Jusqu’à 5 000 lignes sont téléchargées d’un coup ; un export plus volumineux se poursuit sur une page de statut.",
+                "N’importe qui peut enregistrer, renommer et supprimer ses propres vues privées. Seuls Propriétaire et Gestionnaire peuvent enregistrer une vue pour toute l’équipe, ou renommer et supprimer une vue d’équipe ; tous les autres peuvent quand même appliquer les « Vues d’équipe ».",
+                "Une vue par défaut ne s’ouvre que lorsque l’URL ne porte ni filtre ni tri, si bien qu’un lien partagé par un coéquipier s’ouvre toujours avec ses propres filtres.",
+                "Réaffecter des propriétaires en masse est une écriture, ce qui suit donc la même règle que modifier un par un : Observateur ne voit jamais les cases à cocher, et un Commercial ne peut réaffecter que les comptes qu’il possède ou a créés, plafonné à 500 par opération. Une boîte de dialogue de confirmation apparaît au-delà de 125 lignes pour Commercial, 1 000 pour tous les autres qui en ont le droit — voir la page « Opération groupée » pour ce qui se passe après votre confirmation."
+            ],
+            "howItsBuilt": "L’URL de cet écran est `/{workspace-slug}/accounts` — chaque route de module porte l’espace de travail dans le chemin, pas dans un cookie ou une valeur de session cachée, si bien qu’un lien filtré (`?filter[status]=active`) est entièrement partageable entre coéquipiers et se résout quand même vers le bon tenant à l’arrivée. Un `ListQuery` lit les filtres, le tri et le curseur depuis l’URL, et `AccountList` précise ce qu’ils signifient pour les comptes ; l’écran, « Exporter en CSV » et les vues enregistrées passent tous par cette même paire, si bien qu’un export ou une vue enregistrée ne peuvent pas diverger de ce que montre la liste. La pagination se fait par curseur, pas par numéro de page, si bien que la liste reste rapide bien au-delà de quelques milliers de lignes — il n’y a pas de « aller à la page 40 »."
+        },
+        "activity-log": {
+            "title": "Journal d’activité",
+            "whatIsThis": "Un historique à l’échelle de l’espace de travail de qui a changé quoi et quand — chaque création, modification et suppression sur les comptes, contacts, affaires, produits, variantes, commandes et factures, plus les opérations groupées (une ligne par enregistrement touché) et les changements parmi les membres : invitations envoyées, acceptées ou révoquées, rôles modifiés, membres désactivés.",
+            "whatCanYouDo": [
+                "Filtrez par type d’action (« Créé », « Mis à jour », « Supprimé », « Action groupée », « Rôle modifié »…), par « Membre », et par une plage de dates « Du »/« Au ».",
+                "Cliquez sur le nom de l’action d’une ligne pour accéder à l’enregistrement modifié — les variantes font exception, puisqu’elles n’ont pas de page propre ; leur historique se trouve sur le produit.",
+                "Ouvrez le lien « Voir dans le journal d’activité » d’une opération groupée (depuis sa page de progression) pour voir chaque ligne qu’elle a touchée, filtrée sur cette seule opération.",
+                "Voyez quels champs un changement a touchés dans la colonne « Modifications » — les anciennes et nouvelles valeurs elles-mêmes sont affichées côte à côte dans la section « Historique » propre à l’enregistrement, à un clic de distance."
+            ],
+            "rules": [
+                "Propriétaire et Gestionnaire voient chaque action de l’espace de travail. Un Commercial n’y voit que ses propres actions — tout le monde peut néanmoins voir l’historique complet dans l’onglet « Historique » propre à l’enregistrement, quel que soit l’auteur du changement.",
+                "Observateur n’a aucun accès à cet écran (§7.4) — l’onglet « Historique » au niveau de l’enregistrement lui reste visible, puisqu’il fait partie de la consultation de l’enregistrement lui-même.",
+                "Les mots de passe, jetons de connexion persistante et identifiants stockés n’apparaissent jamais ici, même partiellement — un champ modifié portant l’un de ces noms est simplement absent du changement enregistré, pas masqué.",
+                "Les lignes de plus de 36 mois ont leurs anciennes et nouvelles valeurs remplacées par « [anonymisé] » pour les contacts et les utilisateurs — la ligne elle-même, et le champ qui a changé, restent à des fins statistiques ; la valeur, elle, ne reste pas."
+            ],
+            "howItsBuilt": "Les écritures se font de deux façons. Les modifications ordinaires passent par les observateurs de modèle Eloquent qui déclenchent un événement, récupéré par un listener en file d’attente — la requête n’attend jamais l’écriture du journal. Les opérations groupées mettent à jour de nombreuses lignes en une seule instruction SQL, que les observateurs Eloquent ne voient jamais, donc la tâche groupée lit chaque ligne avant et après le changement et écrit une ligne de journal par ligne réellement modifiée, en une seule insertion par lot. Les deux chemins partagent la même liste d’exclusion de champs (ADR-007) et le même diff « uniquement les champs qui ont changé »."
+        },
+        "api-tokens": {
+            "title": "Jetons API",
+            "whatIsThis": "Les clés qui permettent à un système externe — un ERP, un script de tableur, une intégration partenaire — de lire et d’écrire dans cet espace de travail via l’API publique, sans session de navigateur et sans que personne n’ait à partager de mot de passe.",
+            "whatCanYouDo": [
+                "Créez un jeton avec un nom qui indique à quoi il sert, et ne cochez que les portées dont il a réellement besoin.",
+                "Copiez la valeur du jeton la seule fois où elle est affichée, juste après « Créer le jeton ».",
+                "Consultez la dernière utilisation de chaque jeton, pour repérer facilement un jeton que plus personne n’appelle.",
+                "Appuyez sur « Révoquer » sur un jeton pour qu’il cesse de fonctionner immédiatement, sans toucher aux autres jetons.",
+                "Consultez la référence complète des points de terminaison sur /api/documentation, générée à partir du même contrat sur lequel repose l’API."
+            ],
+            "rules": [
+                "La valeur du jeton n’est affichée qu’une seule fois, à la création. Elle n’est jamais stockée sous une forme lisible, si bien que personne — pas même un administrateur ayant accès à la base de données — ne peut la récupérer ensuite. Si vous la perdez, vous en émettez un nouveau.",
+                "Un jeton appartient à un seul espace de travail, et l’API détermine cet espace de travail à partir du jeton lui-même : les adresses de l’API ne contiennent aucun espace de travail. Faire pointer un jeton vers un autre espace de travail est quelque chose que l’URL ne peut pas exprimer.",
+                "Les portées se déclinent en lecture et en écriture séparément, par domaine — sauf les comptes, que l’API ne fait jamais que lire. Un jeton disposant seulement de « Lecture des commandes » qui tente de créer une commande est refusé avec un message nommant la portée qui lui manque, plutôt qu’un échec vague.",
+                "Un jeton ne peut jamais faire plus que la personne qui l’a émis. Un Observateur qui parvient malgré tout à créer un jeton avec une portée en écriture se voit quand même refuser l’accès par les règles de permission ordinaires — la portée se restreint, elle ne s’élargit jamais.",
+                "Seuls un Propriétaire ou un Gestionnaire voient cet écran ou peuvent créer et révoquer des jetons.",
+                "Révoquer conserve la ligne, de sorte que l’historique de qui a émis quoi reste lisible, mais la clé cesse de fonctionner dès la requête suivante.",
+                "Créer une commande, une facture ou un mouvement de stock via l’API nécessite un en-tête « Idempotency-Key ». Envoyer deux fois la même clé renvoie à nouveau le premier résultat au lieu de créer un second enregistrement — un délai réseau dépassé suivi d’une nouvelle tentative ne peut rien dupliquer.",
+                "Chaque jeton est limité à 300 requêtes par minute. Au-delà, l’API répond avec un en-tête « Retry-After » indiquant combien de temps attendre.",
+                "Si le membre qui a émis un jeton est désactivé, tous les jetons qu’il a émis cessent également de fonctionner — l’accès suit la personne, pas la clé."
+            ],
+            "howItsBuilt": "Les jetons reposent sur Laravel Sanctum plutôt que sur un serveur OAuth2 complet : cette application est une SPA first-party doublée d’un accès machine simple, et rien dedans n’a besoin de flux de consentement tiers. Chaque jeton porte son espace de travail directement sur l’enregistrement d’authentification, de sorte que l’espace de travail est résolu côté serveur à partir du jeton vérifié avant qu’une seule requête métier ne s’exécute — le chemin de l’API n’a délibérément aucun segment d’espace de travail, ce qui rend « lire la commande d’un autre espace de travail en devinant son identifiant » structurellement impossible, et pas seulement interdit. Les identifiants sont des ULID, pas des compteurs, donc ils ne peuvent pas être parcourus un par un ; et une requête pour un enregistrement appartenant à un autre espace de travail répond 404, pas 403, car 403 confirmerait que l’enregistrement existe. L’idempotence est appliquée en stockant la clé avec une empreinte du corps de la requête pendant 24 heures, dans la même transaction de base de données que l’effet lui-même : si la requête échoue, la réservation de la clé est annulée avec elle, et si elle réussit, la réponse stockée et l’enregistrement qu’elle décrit sont validés ensemble."
+        },
+        "billing": {
+            "title": "Facturation et abonnement",
+            "whatIsThis": "Là où vit l’abonnement Throughput propre à cet espace de travail — l’offre, le moyen de paiement enregistré, et ce qui se passe en cas d’échec de paiement. Il ne s’agit pas des factures que vous envoyez à vos clients ; c’est un registre entièrement distinct, sur une autre page.",
+            "whatCanYouDo": [
+                "Consultez le statut actuel de l’abonnement et, si une carte est enregistrée, celle utilisée pour le payer.",
+                "Appuyez sur « Gérer la facturation » pour être redirigé vers le Portail client Stripe, où le moyen de paiement et l’historique de facturation sont mis à jour directement auprès de Stripe ; vous revenez directement sur cette page une fois terminé.",
+                "Consultez « Historique des factures » pour chaque paiement facturé par Stripe pour cet espace de travail, et appuyez sur « Voir » sur une ligne pour ouvrir cette facture chez Stripe.",
+                "Si l’abonnement a été résilié, appuyez sur « Réactiver » depuis ce même portail, à tout moment dans les 30 jours suivant la résiliation — nul besoin de reconfigurer l’espace de travail."
+            ],
+            "rules": [
+                "Seul le Propriétaire peut ouvrir cette page ou gérer la facturation, quelle qu’elle soit — pas le Gestionnaire, même si celui-ci dispose d’un accès opérationnel complet partout ailleurs. La carte de cette page n’apparaît même pas dans les Paramètres pour quiconque n’est pas Propriétaire.",
+                "Un paiement échoué ne verrouille rien à lui seul. Stripe relance automatiquement les tentatives, et pendant ce temps (« en retard de paiement ») chaque rôle conserve un accès complet — une bannière se contente de le signaler, sur chaque page, avec un lien de retour ici.",
+                "Ce n’est qu’une fois que Stripe a épuisé ses tentatives et marqué l’abonnement « impayé » que l’accès en écriture s’arrête, pour tous les rôles y compris le Propriétaire : la consultation et l’export des données fonctionnent toujours, mais créer, modifier ou supprimer quoi que ce soit, où que ce soit dans l’espace de travail, est refusé, aussi bien dans l’interface que côté serveur si la requête est malgré tout forcée.",
+                "Un abonnement résilié bloque tout l’espace de travail à l’exception de cette seule page : tous les autres écrans redirigent automatiquement ici, car réactiver est la seule chose qu’il reste à faire — et les données restent exportables pendant 30 jours à compter de la résiliation, avant d’être programmées pour suppression.",
+                "Le Propriétaire reçoit un e-mail à chaque fois que Stripe signale une tentative de paiement échouée pendant que les nouvelles tentatives se poursuivent, avec le numéro de la tentative, afin que le problème soit visible bien avant que l’espace de travail ne perde réellement l’accès."
+            ],
+            "howItsBuilt": "L’abonnement vit sur l’espace de travail lui-même, pas sur un utilisateur individuel — Cashier traite le tenant comme l’entité facturable, de sorte que l’offre survit à quiconque a initialement saisi la carte. Une politique unique lit directement le statut brut de Stripe (et non l’assistant de plus haut niveau « abonné », qui est incapable de distinguer « encore en cours de relance » de « a abandonné ») et le transforme en l’un de trois niveaux d’accès, vérifié par un middleware unique placé devant chaque route d’écriture de l’espace de travail, et relu par la bannière affichée sur chaque page, de sorte que le serveur et l’interface ne peuvent jamais être en désaccord sur l’état de l’espace de travail. Stripe livre les événements webhook au moins une fois, jamais exactement une fois, donc chaque événement est enregistré avant d’être traité, indexé sur son propre id — une livraison en double est reconnue immédiatement et n’est jamais appliquée deux fois, qu’il s’agisse de la synchronisation ordinaire du statut d’abonnement ou de l’avis d’échec de paiement, ce qui n’est pas quelque chose que la bibliothèque de Stripe gère d’elle-même et a dû être ajouté délibérément."
+        },
+        "bulk-group-operation": {
+            "title": "Statut d’une opération groupée (réattribution de plusieurs types d’enregistrements)",
+            "whatIsThis": "Cette page suit une réattribution qui touche plus d’un type d’enregistrement à la fois — par exemple, tout ce que possédait un membre désactivé : ses comptes, ses affaires ouvertes et ses commandes actives, ensemble.",
+            "whatCanYouDo": [
+                "Observez une barre de progression distincte pour chaque type d’enregistrement — comptes, affaires, commandes — et un statut global au-dessus.",
+                "Appuyez sur « Annuler » pour arrêter tous les types à la fois — les lignes déjà réattribuées gardent leur nouveau propriétaire, le reste demeure inchangé."
+            ],
+            "rules": [
+                "Le statut global reste « En cours » tant que tous les types ne sont pas terminés — un seul type encore en attente maintient toute la page en affichage de progression, même si les autres sont déjà terminés.",
+                "Seule la personne qui a démarré l’opération peut ouvrir cette page ou l’annuler, la même règle que pour une opération groupée à un seul type."
+            ],
+            "howItsBuilt": "Chaque type d’enregistrement est sa propre ligne dans `bulk_operations` et son propre pipeline de tâches en file d’attente — réattribuer trois types représente trois opérations indépendantes, pas une seule tâche qui touche trois tables. Ils ne partagent rien d’autre qu’une colonne `group_id`, si bien que cette page n’est qu’une fine agrégation de trois lectures `BulkOperationResource` ordinaires : elle additionne leurs totaux pour l’en-tête et réutilise la même ressource par opération pour chaque barre de progression. Si la réattribution des comptes échoue, les affaires et les commandes continuent et peuvent être retentées indépendamment."
+        },
+        "bulk-operation": {
+            "title": "Opération groupée",
+            "whatIsThis": "Cette page suit une modification que vous avez appliquée à de nombreuses lignes à la fois — par exemple réattribuer le propriétaire de centaines de comptes, annuler un lot de commandes brouillon, ou changer le prix d’un lot de produits en une seule action. Elle s’exécute en arrière-plan pour que votre navigateur ne se bloque jamais ; vous arrivez automatiquement ici après avoir confirmé.",
+            "whatCanYouDo": [
+                "Observez le statut passer de « En attente » à « En cours » puis à « Terminée » — la page se met à jour automatiquement toutes les 2 secondes jusqu’à la fin.",
+                "Suivez la ligne et la barre de progression — elles indiquent approximativement où en est l’opération, calculées à partir du nombre de lots de 500 lignes terminés plutôt que d’un compteur ligne par ligne : le chiffre est donc exact au début et à la fin, et une estimation entre les deux.",
+                "Appuyez sur « Annuler » pendant qu’elle est en cours — les lignes déjà modifiées conservent leur nouvelle valeur, le reste reste exactement tel quel.",
+                "Revenez plus tard via le même lien — dans la démo publique, jusqu’à la réinitialisation nocturne des données."
+            ],
+            "rules": [
+                "Avant d’arriver ici, une boîte de dialogue de confirmation apparaît dès que la modification toucherait plus qu’un nombre de lignes déterminé par le rôle : 125 pour le Commercial, 1 000 pour le Propriétaire et le Gestionnaire — un nombre plus petit pour le Commercial car tout son rôle est plafonné à 500 lignes par opération, donc la vérification doit compter pour lui aussi.",
+                "Cocher la case à cocher dans l’en-tête du tableau ne sélectionne que les lignes de la page en cours. Un lien distinct, « Tout sélectionner : N pour ce filtre », apparaît juste à côté et sélectionne toutes les lignes correspondant à vos filtres, sur toutes les pages — l’un n’est jamais supposé à partir de l’autre.",
+                "Un échec n’arrête jamais le reste. Le travail est réparti en lots de 500 lignes, et l’échec d’un lot n’annule pas les autres — la page vous indique combien de lots ont échoué, le cas échéant. Les lignes individuelles ne sont pas suivies une par une : une ligne qui ne correspond plus au moment où son lot s’exécute (quelqu’un l’a supprimée, ou une commande brouillon a été confirmée entre-temps) est simplement laissée intacte, et n’est pas comptée comme un échec.",
+                "En tant que Commercial, une modification groupée ne touche jamais que vos propres enregistrements, même si votre filtre actuel en affiche davantage : les comptes que vous possédez ou avez créés, et les affaires ou commandes que vous possédez. C’est la même règle que pour les modifier un par un, appliquée de nouveau à l’ensemble du lot — et au niveau de la requête elle-même, de sorte que le nombre que vous avez confirmé en tient déjà compte.",
+                "L’annulation groupée des commandes brouillon ne touche jamais que les brouillons de votre sélection — le nombre de lignes, le lien « Tout sélectionner : N » et le seuil de confirmation de cette action reflètent tous uniquement les brouillons, jamais le filtre ou la sélection bruts.",
+                "Seule la personne qui a démarré une opération peut ouvrir cette page ou l’annuler — même un Propriétaire ne peut pas annuler celle d’un coéquipier.",
+                "Dans la démo publique, une opération touchant plus de 60 000 lignes est refusée avant même de démarrer."
+            ],
+            "howItsBuilt": "La requête ne résout jamais elle-même une liste d’ID — elle enregistre le filtre (ou, pour une sélection limitée à la page, les ID exacts cochés) dans une ligne `bulk_operations` et met en file d’attente une tâche de planification. Cette tâche réexécute la même requête que celle utilisée par l’écran de liste, par pages de 500 lignes ordonnées par ID, de sorte qu’une opération de 60 000 lignes ne charge jamais plus d’une page en mémoire, et regroupe une tâche par page dans un `Bus::batch()` qui autorise des échecs individuels sans arrêter le reste. Chacune de ces tâches écrit un seul `UPDATE` conditionnel, de sorte que réexécuter la même page après une nouvelle tentative ne change rien la seconde fois — pour une réattribution, c’est `WHERE owner_user_id != :new_owner` ; pour l’annulation de brouillons, c’est `WHERE status = 'draft'`. Un changement de prix ne peut pas du tout s’écrire ainsi, puisque le nouveau prix est calculé à partir de l’ancien ; un bloc redélivré est donc arrêté un niveau plus haut : chaque bloc s’enregistre lui-même dans une ligne `bulk_operation_chunks` au sein de la même transaction que son travail, et un bloc qui trouve sa ligne déjà présente ne fait rien. L’annulation appelle `$batch->cancel()` ; chaque tâche vérifie elle-même cet indicateur avant d’écrire quoi que ce soit, car Laravel ne tue pas les tâches déjà mises en file d’attente. Pas d’ADR dédié — voir specs.md §13.1/§13.2 pour le mécanisme complet."
+        },
+        "carrier-settings": {
+            "title": "Paramètres de transporteur",
+            "whatIsThis": "Quel transporteur cet espace de travail utilise pour générer les étiquettes, et les identifiants qu’il utilise pour communiquer avec lui. Un seul transporteur est actif à la fois.",
+            "whatCanYouDo": [
+                "Consultez les deux transporteurs disponibles — Demo (aucun appel externe) et Shippo (une véritable intégration sandbox) — et lequel est actif en ce moment.",
+                "Ajoutez ou renouvelez la clé API Shippo pour cet espace de travail.",
+                "Appuyez sur « Activer » (ou « Enregistrer et activer ») sur un transporteur pour en faire celui utilisé pour toute nouvelle étiquette d’expédition à partir de maintenant."
+            ],
+            "rules": [
+                "Au plus un transporteur est actif par espace de travail — en activer un désactive automatiquement celui qui était actif auparavant, dans le même instant. Un espace de travail qui n’en a jamais choisi affiche les deux comme « Inactif » et obtient quand même des étiquettes, via Demo : il n’y a jamais d’expédition sans propriétaire clair pour l’étiquette.",
+                "Shippo ne peut pas être activé sans clé API enregistrée ; le formulaire en demande une avant de vous laisser enregistrer.",
+                "Laisser le champ de clé API vide sur un transporteur déjà configuré conserve la clé existante — le champ n’affiche jamais une clé réelle en retour, seulement si une clé est enregistrée et ses derniers caractères, si bien qu’un nouvel enregistrement ne l’efface jamais accidentellement.",
+                "La clé elle-même n’apparaît plus jamais nulle part une fois enregistrée : ni sur cet écran, ni dans le journal d’activité, ni dans aucun fichier exporté. Seuls « configuré » et ses derniers caractères sont jamais réaffichés.",
+                "Seul un Propriétaire voit cet écran, un point c’est tout — ni Gestionnaire, ni Commercial, ni Observateur. Les identifiants du transporteur et la facturation sont les deux seules choses auxquelles un Gestionnaire n’a absolument aucun accès, pas même en lecture seule, alors qu’il a un accès opérationnel complet partout ailleurs.",
+                "Ce déploiement n’utilise jamais que des clés sandbox/test Shippo, jamais une clé de production — aucune expédition réelle n’est jamais réellement créée ou facturée."
+            ],
+            "howItsBuilt": "Les deux transporteurs implémentent la même interface `ShippingCarrier` (`createLabel`, `void`, `trackingUrl`), passent par la même suite de tests de contrat, et sont sélectionnés par tenant à partir d’une ligne `tenant_carrier_settings` plutôt que d’un réglage global — deux espaces de travail peuvent donc utiliser le même transporteur avec des identifiants entièrement séparés. La règle « un seul actif » est appliquée dans la transaction de base de données qui active un transporteur, pas seulement dans le formulaire : elle verrouille la propre ligne du tenant avec `FOR NO KEY UPDATE` (sérialisant deux activations simultanées sans bloquer les écritures non liées ailleurs dans l’espace de travail) avant de désactiver l’ancienne ligne active et d’activer la nouvelle. Les identifiants sont stockés avec le cast `encrypted:array` de Laravel — illisibles au repos, même avec un accès direct à la base de données — et cet écran ne reçoit jamais du serveur qu’un booléen et un aperçu tronqué, jamais la valeur déchiffrée."
+        },
+        "contact-detail": {
+            "title": "Détail du contact",
+            "whatIsThis": "Il s’agit de la fiche d’une seule personne — ses coordonnées, le compte auquel elle appartient, si elle en est le contact principal, et les affaires qui la désignent comme contact principal.",
+            "whatCanYouDo": [
+                "Modifiez le nom, « Fonction », l’e-mail et le téléphone avec « Modifier », puis « Enregistrer les modifications » (« Créer le contact » pour un nouveau).",
+                "Liez, déplacez ou déliez l’entreprise dans « Compte » : recherchez par nom et choisissez-en une, ou « Effacer » pour un prospect sans entreprise. « Ajouter un contact » depuis une page de compte le renseigne automatiquement pour vous.",
+                "Cochez « Contact principal de ce compte » pour faire de cette personne le contact principal du compte.",
+                "Cochez « Désinscrit des communications marketing » — la page affiche alors « Désinscrit » sous « Marketing ».",
+                "Supprimez le contact avec « Supprimer »."
+            ],
+            "rules": [
+                "Un seul contact par compte peut être principal — enregistrer celui-ci comme principal retire automatiquement ce statut à celui qui l’occupait auparavant.",
+                "Un contact principal doit appartenir à un compte : la case à cocher reste désactivée tant qu’aucun compte n’est choisi, et effacer le compte la décoche.",
+                "Si l’e-mail appartient déjà à un autre contact lié à un compte, l’enregistrement est bloqué, avec un avertissement et un lien vers ce compte, plutôt que de passer silencieusement — cochez « Enregistrer quand même » si c’est intentionnel.",
+                "La suppression est autorisée même lorsque des affaires ou des commandes référencent ce contact, et elle est irréversible : s’il n’y en a aucune, la ligne est supprimée ; s’il y en a, le nom, l’e-mail, le téléphone et la fonction du contact sont anonymisés à la place et la ligne reste, afin que l’historique des affaires et des commandes conserve son lien. La désinscription, en revanche, laisse le contact inchangé.",
+                "Un contact anonymisé n’a plus de page : ses liens de détail, de modification et de suppression cessent de fonctionner, et il disparaît des listes, de la recherche et des options « Contact principal » sur les affaires.",
+                "Un Commercial ne peut modifier ou supprimer que les contacts qu’il a créés, ou les contacts des comptes qu’il possède."
+            ],
+            "howItsBuilt": "La règle du « un seul contact principal par compte » est appliquée au moment de l’enregistrement, côté serveur, pas seulement dans le formulaire : l’enregistrement verrouille la ligne du compte, rétrograde l’ancien contact principal et enregistre le nouveau dans la même transaction, de sorte que deux enregistrements concurrents ne peuvent jamais laisser deux contacts principaux. Un index unique partiel sur `contacts` (une seule ligne principale par compte) constitue un second filet de sécurité, dans la base de données elle-même. Pas d’ADR dédié — c’est une règle métier simple (FR-CRM-02), pas une décision d’architecture."
+        },
+        "contacts-list": {
+            "title": "Contacts",
+            "whatIsThis": "Toutes les personnes avec qui vous êtes en relation dans vos comptes — pas les entreprises elles-mêmes, les personnes. Un contact peut exister avant même d’être lié à une entreprise.",
+            "whatCanYouDo": [
+                "Recherchez par prénom, nom ou e-mail — un seul à la fois, donc taper « Jane Doe » ensemble ne trouve rien — puis appuyez sur « Appliquer ».",
+                "Triez par « Nom (A–Z) », « Plus récents d’abord » ou « Plus anciens d’abord ».",
+                "Téléchargez la liste actuelle avec « Exporter en CSV ».",
+                "Ajoutez quelqu’un avec « Nouveau contact » — lié à un compte ou de façon autonome — ou modifiez un contact depuis son lien « Modifier »."
+            ],
+            "rules": [
+                "Il n’existe pas de vue par défaut « Mes contacts » : chaque rôle voit tous les contacts de l’espace de travail. Ce qui change selon le rôle, c’est qui peut modifier.",
+                "Un Commercial ne peut modifier ou supprimer que les contacts qu’il a créés, ou les contacts des comptes qu’il possède ; les autres lignes n’ont pas de lien « Modifier ».",
+                "« Exporter en CSV » est aussi disponible pour les Observateurs — l’export lit chaque ligne correspondant à la recherche actuelle, sur toutes les pages, et n’écrit rien. Le fichier inclut une colonne « Refus marketing ».",
+                "Supprimer un contact n’est pas bloqué par les affaires ou commandes qui le référencent : s’il n’y en a aucune, la ligne est supprimée ; s’il y en a, les données personnelles du contact (nom, e-mail, téléphone, fonction) sont anonymisées à la place et la ligne reste, afin que l’historique des affaires et des commandes conserve son lien. Les contacts anonymisés n’apparaissent plus ici.",
+                "Les Contacts n’ont pas encore de vues enregistrées — « Vues » existe pour Comptes, Affaires, Commandes et Produits."
+            ],
+            "howItsBuilt": "Cette liste réutilise la même base `ListQuery` à pagination par curseur que Comptes (`ContactList` sur le `ResourceList` partagé), ce qui lui permet de rester rapide à la même échelle sans implémentation séparée, et « Exporter en CSV » réexécute exactement cette même requête. Il n’y a pas d’ADR dédié pour cet écran — l’approche de pagination et de filtrage est une exigence fonctionnelle (FR-CRM-03), pas une décision d’architecture."
+        },
+        "dashboard": {
+            "title": "Tableau de bord",
+            "whatIsThis": "C’est le premier écran sur lequel vous arrivez après avoir ouvert un espace de travail — un instantané de la santé de l’activité à l’instant présent. Il ne permet de rien modifier ; c’est le point de départ avant de vous diriger vers un module.",
+            "whatCanYouDo": [
+                "Parcourez les quatre tuiles d’indicateurs clés : « Valeur du pipeline ouvert », « Commandes ce mois-ci », « Factures en retard » et « Alertes de stock bas ».",
+                "Consultez « Activité récente » : les 10 entrées les plus récentes du journal d’activité de l’espace de travail que votre rôle peut lire.",
+                "Passez à un autre espace de travail depuis le sélecteur affichant le nom de l’espace de travail actuel, à côté de « Throughput » dans la barre supérieure.",
+                "Appuyez sur Cmd+K ou Ctrl+K — ou cliquez sur « Recherche » dans la barre supérieure — pour accéder à un compte, un contact ou une affaire, ou pour lancer « Créer le compte », « Créer le contact » ou « Créer l’affaire ».",
+                "Appuyez sur ? n’importe où en dehors d’un champ de texte pour ouvrir ce panneau d’aide ; Esc le ferme."
+            ],
+            "rules": [
+                "Chaque chiffre de cette page appartient à l’espace de travail dans lequel vous êtes actuellement — changez d’espace de travail et les quatre tuiles changent, rien ne se reporte du précédent.",
+                "« Valeur du pipeline ouvert » additionne uniquement la valeur des affaires ouvertes ; les affaires gagnées et perdues sont exclues, tout comme les affaires ouvertes sans valeur pour l’instant.",
+                "« Alertes de stock bas » compte les niveaux de stock — une variante à un emplacement — où le stock en main moins le stock réservé est égal ou inférieur à 5 unités, si bien qu’une variante en stock bas à deux emplacements compte deux fois.",
+                "« Factures en retard » indique le nombre de factures en retard ; le montant sous ce nombre est le solde encore dû sur ces factures, pas leur total d’origine.",
+                "Les tuiles d’indicateurs clés sont les mêmes pour chaque rôle. « Activité récente » suit qui peut lire le journal d’activité : Propriétaires et Gestionnaires voient les actions de tout le monde, Commerciaux uniquement les leurs, et Observateurs n’ont pas du tout accès au fil."
+            ],
+            "howItsBuilt": "Les quatre indicateurs sont de simples agrégats SQL (SUM/COUNT), calculés à chaque requête — il n’y a pas d’instantané mis en cache susceptible de devenir périmé. À noter que le contrôleur n’écrit jamais `where tenant_id` : la portée globale du tenant et la sécurité au niveau des lignes de PostgreSQL s’appliquent automatiquement à chaque requête sur chaque modèle, si bien que l’isolation n’est pas quelque chose que chaque écran doit penser à faire lui-même."
+        },
+        "data-export": {
+            "title": "Exporter les données",
+            "whatIsThis": "Une copie complète et exploitable par machine de tout ce que cet espace de travail contient — comptes, contacts, affaires, commandes, factures, paiements et journal d’activité — regroupée dans une archive unique que vous pouvez remettre à quiconque demande quelles données vous détenez sur lui. Elle est construite en arrière-plan, car un espace de travail de cette taille ne peut pas être assemblé pendant qu’une page attend.",
+            "whatCanYouDo": [
+                "Appuyez sur « Demander l’export » pour en lancer un. Il apparaît immédiatement dans la liste comme « En file d’attente », et vous pouvez quitter la page — le travail continue sans vous.",
+                "Regardez une demande passer de « En file d’attente » à « Préparation » puis à « Prêt à télécharger ». La page s’actualise elle-même, il n’y a donc rien à recharger.",
+                "Appuyez sur « Télécharger le ZIP » sur une demande terminée pour obtenir l’archive.",
+                "Consultez l’historique : les 50 demandes les plus récentes, qui a fait chacune d’elles, quand elle s’est terminée, et combien de temps son fichier reste disponible."
+            ],
+            "rules": [
+                "Seul un Propriétaire peut demander un export. Un Gestionnaire voit cet historique et peut vous dire exactement ce qui a été exporté et quand, mais ne peut pas en démarrer un nouveau — remettre une copie de tout un espace de travail est une décision de niveau propriétaire.",
+                "Le lien de téléchargement appartient à la personne qui l’a demandé. Un autre Propriétaire ne peut pas ouvrir l’archive de quelqu’un d’autre ; il demande la sienne, ce qui laisse aussi son nom dans l’historique.",
+                "Un seul export à la fois par espace de travail. Une seconde demande alors qu’un export est encore en cours est refusée, car un export touche toutes les grandes tables à la fois et un seul worker en arrière-plan dessert toute l’application.",
+                "Une archive terminée peut être téléchargée pendant 7 jours. Passé ce délai, le fichier est supprimé et le lien cesse de fonctionner — mais la demande reste dans cette liste, avec son statut inchangé, afin qu’il existe une trace permanente que l’export a été fait et honoré.",
+                "Demander un export ne modifie, ne déplace ni ne supprime jamais rien. Exporter et effacer sont des droits distincts et des actions distinctes : cet écran ne fait jamais que lire.",
+                "L’archive contient un fichier JSON par entité, avec les relations intactes, plus un CSV des mêmes lignes partout où la table est suffisamment plate pour un tableur, plus un manifeste décrivant son contenu. Il n’y a pas de PDF : un PDF est une image de données, pas des données, et ne compte pas comme un format portable.",
+                "Le manifeste liste aussi ce qui est délibérément absent de l’archive — identifiants de connexion, détails d’abonnement et de moyen de paiement détenus par le prestataire de paiement, identifiants du transporteur, et fichiers qui ne sont que des représentations de lignes déjà incluses.",
+                "Les affaires supprimées figurent dans l’export, chacune portant la date de sa suppression : l’enregistrement existe toujours, donc l’en priver serait une réponse incomplète. Les contacts anonymisés n’y figurent pas, car leurs champs identifiants ont déjà été effacés.",
+                "Seul cet espace de travail se trouve jamais dans l’archive. Changer d’espace de travail et exporter à nouveau vous donne une archive différente ; aucune demande ne porte sur deux à la fois."
+            ],
+            "howItsBuilt": "Demander un export écrit une ligne et met en file un job — rien d’autre ne se passe dans la requête web, car celle-ci maintient une transaction de base de données ouverte pendant toute sa durée, et une transaction longue immobiliserait une connexion dont le reste de l’application a besoin. Le travail en arrière-plan est découpé en un job par entité, regroupés en un batch, exactement le mécanisme qu’utilisent les opérations groupées : chaque job tient sa propre transaction courte, transmet ses lignes en pages de 500 en s’appuyant sur la clé primaire, et les écrit sur disque au fur et à mesure plutôt que de construire tout le fichier en mémoire — le même plafond de mémoire qui limite les exports PDF s’applique ici, et l’espace de travail de démonstration à lui seul contient des dizaines de milliers de commandes. Contrairement à une opération groupée, un élément en échec n’est pas toléré : une archive privée de ses factures serait une mauvaise réponse à une demande de portabilité plutôt qu’une réponse partielle, donc le premier échec annule le batch et rien n’est livré. Un dernier job écrit le manifeste, compresse les parties par chemin (jamais en les chargeant), puis enregistre le fichier et son expiration, et ce n’est qu’ensuite qu’il envoie l’e-mail de notification — hors de toute transaction, puisqu’il s’agit d’un appel externe. L’archive ne contient que cet espace de travail, et aucune ligne du code d’export ne le précise : l’isolation vient des deux mêmes couches qui délimitent toute autre requête, et un filtre supplémentaire ici aurait masqué une fuite au lieu d’en empêcher une. Un job quotidien supprime ensuite le fichier à expiration et laisse la ligne."
+        },
+        "deal-detail": {
+            "title": "Détail de l’affaire",
+            "whatIsThis": "Il s’agit de la fiche complète d’une affaire — sa valeur, son compte, son propriétaire, son étape actuelle, et l’historique complet de son parcours. La création et la modification d’une affaire utilisent les mêmes champs.",
+            "whatCanYouDo": [
+                "Sur « Nouvelle affaire », choisissez le « Compte » en recherchant son nom, renseignez le titre et, si vous la connaissez déjà, la valeur, puis « Créer l’affaire ».",
+                "Modifiez le titre, la valeur, la date de clôture prévue, le compte et le contact principal avec « Modifier » — ainsi que le propriétaire, pour le Propriétaire et le Gestionnaire — puis « Enregistrer les modifications ».",
+                "Déplacez l’affaire vers une autre étape depuis « Déplacer vers l’étape… », le même menu que celui utilisé sur le tableau.",
+                "Consultez « Historique des étapes » : chaque changement d’étape, qui l’a effectué, quand, et combien de temps l’affaire a passé sur l’étape précédente.",
+                "Supprimez l’affaire avec « Supprimer » — elle disparaît des listes, du tableau, de la recherche et des rapports, mais son historique des étapes est conservé, afin que les indicateurs de vélocité des étapes restent corrects."
+            ],
+            "rules": [
+                "Démarrer depuis « Nouvelle affaire » sur une page de compte préremplit « Compte » ; sinon, le champ démarre vide. Le contact principal doit être l’un des contacts de ce compte, donc changer de compte efface un contact qui ne lui appartient pas.",
+                "Changer de compte laisse l’étape, le propriétaire et l’historique des étapes exactement tels quels — et l’étape ne change jamais depuis ce formulaire, uniquement depuis « Déplacer vers l’étape… » ou le tableau.",
+                "Une nouvelle affaire démarre à la première étape du pipeline, possédée par la personne qui la crée, sauf si un Propriétaire ou un Gestionnaire choisit quelqu’un d’autre.",
+                "Une affaire ne peut pas passer à Gagné sans qu’une valeur soit définie — même règle que sur le tableau, appliquée côté serveur dans tous les cas. La marquer comme Perdu exige un motif choisi dans une liste fixe : Prix, Concurrence, Calendrier ou Autre.",
+                "Un Commercial ne peut modifier, déplacer ou supprimer que les affaires qu’il possède, et seuls le Propriétaire et le Gestionnaire peuvent changer le propriétaire d’une affaire."
+            ],
+            "howItsBuilt": "Chaque ligne de « Historique des étapes » est une entrée `deal_stage_events`, insérée une seule fois et jamais mise à jour — y compris le temps passé dans l’étape précédente, qui est calculé au moment du déplacement puis stocké, non recalculé plus tard. C’est ce qui rend possible, ne serait-ce que sur le principe, le reporting de vélocité des étapes. Pas d’ADR dédié — voir la rubrique Kanban pour l’argumentaire complet."
+        },
+        "deals-kanban": {
+            "title": "Affaires — Kanban",
+            "whatIsThis": "Votre pipeline commercial sous forme de tableau : une colonne par étape, une carte par affaire. Faites glisser une carte pour la déplacer — ou utilisez le clavier, voir ci-dessous.",
+            "whatCanYouDo": [
+                "Faites glisser une carte d’une étape à une autre.",
+                "Utilisez « Déplacer vers l’étape… » sur une carte pour faire la même chose sans souris.",
+                "Basculez entre « Mes affaires » et « Toutes les affaires », ou vers « Liste » pour le tableau.",
+                "Ouvrez une affaire depuis le titre de sa carte, ou suivez « Voir les N » sous une colonne qui contient plus d’affaires qu’elle n’en affiche.",
+                "Allez dans « Gérer le pipeline » pour modifier les étapes (Propriétaire et Gestionnaire uniquement)."
+            ],
+            "rules": [
+                "Une affaire ne peut pas passer à Gagné sans valeur — le déplacement est rejeté avec « Définissez une valeur pour l’affaire avant de la marquer comme Gagnée » et la carte revient à sa place, que vous l’ayez glissée ou utilisé le menu. Définissez d’abord la valeur depuis « Modifier » sur l’affaire.",
+                "Le glisser-déposer n’est pas le seul moyen de changer d’étape — « Déplacer vers l’étape… » est entièrement utilisable au clavier : Tabulation jusqu’au bouton « Déplacer vers l’étape… » de la carte, Entrée, Espace ou ↓ pour l’ouvrir, ↑/↓ pour choisir une étape, Entrée ou Espace pour déplacer, Échap pour fermer. Ce n’est pas un simple confort : le glisser-déposer seul échouerait aux critères d’accessibilité WCAG 2.2 pour quiconque ne peut pas utiliser de souris.",
+                "Déplacer une affaire vers l’étape Perdu ouvre d’abord « Marquer l’affaire comme perdue » : choisissez un motif — Prix, Concurrence, Calendrier ou Autre — puis « Marquer comme perdue ». La ressortir de Perdu efface à nouveau le motif.",
+                "Les Observateurs voient le tableau en lecture seule : pas de glisser-déposer, pas de menu « Déplacer vers l’étape… ». Les Commerciaux démarrent sur « Mes affaires » et ne peuvent déplacer que les affaires qu’ils possèdent.",
+                "Chaque colonne affiche ses 50 affaires créées le plus récemment ; le nombre dans l’en-tête de colonne est le total complet. Il n’y a pas de bouton de création sur le tableau — une nouvelle affaire démarre toujours à la première étape."
+            ],
+            "howItsBuilt": "Déplacer une carte n’écrase jamais rien — cela insère une nouvelle ligne dans `deal_stage_events` (étape de départ, étape d’arrivée, qui, quand, et combien de temps l’affaire est restée sur l’étape précédente) et ce n’est qu’ensuite que le pointeur d’étape courante de l’affaire est mis à jour, dans une seule transaction avec la ligne de l’affaire verrouillée. Les lignes d’historique ne sont jamais modifiées ni supprimées par la suite : supprimer une affaire se contente de la masquer (une suppression douce), si bien que ses déplacements comptent toujours dans les rapports d’étapes. C’est la seule façon de répondre plus tard à des questions comme « combien de temps les affaires restent-elles dans Qualified » ou « quel commercial déplace les affaires le plus vite » — une seule colonne mutable `stage_id` n’aurait jamais pu y répondre, elle sait seulement où en est une affaire maintenant, pas le chemin qu’elle a pris pour y arriver. Pas d’ADR dédié — le même raisonnement, formulé à l’origine pour l’inventaire (ADR-004), s’applique ici par analogie directe (specs.md §9.1)."
+        },
+        "deals-list": {
+            "title": "Affaires — liste",
+            "whatIsThis": "Les mêmes affaires que le tableau Kanban, sous forme de tableau triable et filtrable — utile quand vous voulez trier par valeur ou par date de clôture plutôt que de parcourir des colonnes.",
+            "whatCanYouDo": [
+                "Recherchez par titre (appuyez sur Entrée ou quittez le champ) et filtrez par « Statut » : « Ouverte », « Gagnée » ou « Perdue ».",
+                "Basculez entre « Mes affaires » et « Toutes les affaires ».",
+                "Triez en cliquant sur l’en-tête « Titre », « Valeur », « Clôture prévue » ou « Créé le » — cliquez à nouveau pour inverser.",
+                "Ouvrez « Vues » pour appliquer une vue enregistrée, « Enregistrer la vue » pour conserver les filtres actuels, ou « ☆ Définir par défaut ».",
+                "Ouvrez « Colonnes » pour afficher, masquer ou réordonner les colonnes optionnelles (Valeur, Clôture prévue, Créé le, Compte, Propriétaire, Étape) avec des cases à cocher et « Déplacer vers le haut »/« Déplacer vers le bas » — la colonne du titre de l’affaire reste toujours affichée, et une vue enregistrée retient votre choix.",
+                "Basculez vers « Tableau » pour l’affichage Kanban, ou ouvrez une affaire depuis son titre ou son lien « Modifier ».",
+                "En tant que Propriétaire ou Gestionnaire, sélectionnez plusieurs affaires avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et réaffectez-les à un nouveau propriétaire en une seule action."
+            ],
+            "rules": [
+                "Les Commerciaux démarrent sur « Mes affaires » ; tous les autres sur toutes les affaires. Une vue enregistrée par défaut, si vous en définissez une, l’emporte chaque fois que l’URL n’a ni filtre ni tri.",
+                "Il n’y a pas de bouton « Nouvelle affaire » sur cette liste : démarrez une affaire depuis « Nouvelle affaire » sur une page de compte, ou depuis « Créer l’affaire » dans la recherche (Cmd+K / Ctrl+K), où vous choisissez le compte.",
+                "Les affaires n’ont pas encore d’export CSV — « Exporter en CSV » existe sur Comptes, Contacts, Commandes et Factures.",
+                "Trier et filtrer ici ne change jamais l’étape d’une affaire — le changement d’étape ne se fait que depuis le tableau ou depuis la page de l’affaire elle-même.",
+                "Seuls Propriétaire et Gestionnaire peuvent enregistrer une vue d’équipe, ou en renommer et en supprimer une ; tous les rôles peuvent conserver des vues privées.",
+                "Réaffecter des propriétaires en masse est réservé à Propriétaire/Gestionnaire — un Commercial peut se réaffecter une affaire à lui-même, une par une, au moment où il la crée, mais ne peut ensuite changer le propriétaire d’aucune affaire, ni seul ni en masse, si bien que les cases à cocher et la barre de réaffectation n’apparaissent jamais pour ce rôle. Une boîte de dialogue de confirmation apparaît au-delà de 1 000 affaires sélectionnées."
+            ],
+            "howItsBuilt": "Même fondation `ListQuery` paginée par curseur que pour Comptes et Contacts, avec une particularité : la valeur et la date de clôture prévue d’une affaire peuvent toutes deux être vides, et la pagination par curseur compare sur la colonne de tri, si bien que chacun de ces tris s’exécute sur une colonne générée, jamais vide — `value_sort` (une valeur vide compte pour -1) et `expected_close_date_sort` (une date manquante compte comme la plus éloignée, 9999-12-31). Trier sur les colonnes brutes ferait disparaître des pages suivantes les affaires sans valeur ou sans date, au lieu de simplement les trier vers une extrémité. Voir « Comment c’est construit » du sujet Kanban pour comprendre pourquoi l’historique des étapes d’une affaire est lui-même stocké de cette façon (ajout uniquement, pas une colonne modifiable)."
+        },
+        "exports": {
+            "title": "Statut de l’export",
+            "whatIsThis": "Cette page suit un export trop volumineux pour être téléchargé immédiatement — ou, pour les formats PDF et zip, un export de n’importe quelle taille. Vous y arrivez automatiquement après « Exporter en CSV », « Exporter en PDF » ou « Exporter les PDF (zip) » sur une longue liste de comptes, contacts, commandes ou factures. C’est une page de statut, pas un endroit où l’on navigue directement.",
+            "whatCanYouDo": [
+                "Observez le statut passer de « En attente » à « En cours » puis à « Prêt à télécharger » — la page se met à jour toutes les 2 secondes jusqu’à la fin de l’export.",
+                "Téléchargez le fichier avec « Télécharger CSV », « Télécharger PDF » ou « Télécharger ZIP » une fois prêt — le bouton indique le format que vous avez demandé.",
+                "S’il indique « Échec », retournez à la liste et relancez l’export.",
+                "Revenez plus tard via le même lien — dans la démo publique, jusqu’à la réinitialisation nocturne des données."
+            ],
+            "rules": [
+                "Un export CSV allant jusqu’à 5 000 lignes se télécharge directement depuis la liste, sans écran d’attente. Un export plus volumineux, ou tout export PDF, s’exécute comme une tâche en arrière-plan pour que la requête ne reste pas bloquée — vous atterrissez ici pour en suivre la fin à la place.",
+                "Un export PDF est plafonné à 250 lignes — tout comme un zip de PDF de factures. Les deux s’exécutent toujours en arrière-plan, même pour une seule ligne : générer un PDF coûte réellement du temps CPU et de la mémoire, et construire une archive lit un fichier par ligne — ni l’un ni l’autre n’a sa place dans la requête qui a servi la page. Pour tout ce qui est plus volumineux, utilisez le CSV.",
+                "Le fichier contient toutes les lignes correspondant aux filtres et au tri que vous aviez au moment de cliquer sur « Exporter en CSV »/« Exporter en PDF » — toutes les pages, pas seulement celle affichée à l’écran — y compris un filtre par défaut comme « Mes comptes ».",
+                "Seule la personne qui a lancé un export peut ouvrir cette page ou télécharger le fichier — même un Propriétaire ne peut pas ouvrir l’export d’un coéquipier.",
+                "Tout rôle pouvant voir la liste peut l’exporter, y compris Observateur — exporter ce qui vous est déjà visible est une lecture, pas une écriture.",
+                "Dans la démo publique, un export de plus de 60 000 lignes est refusé avant même de démarrer.",
+                "Un export terminé reste téléchargeable pendant 7 jours. Passé ce délai, le lien expire — cette page affiche alors la date d’expiration à la place du bouton de téléchargement — même si la ligne elle-même reste dans l’historique."
+            ],
+            "howItsBuilt": "Le seuil de 5 000 lignes décide entre synchrone et mise en file d’attente pour le CSV uniquement — en dessous, le CSV est construit à l’intérieur de la requête et retourné directement ; au-delà, ou pour tout PDF, le filtre, le tri et le format choisi sont enregistrés sur une ligne `bulk_operations` et rejoués par une tâche en file d’attente. La tâche marque l’export « En cours » dans sa propre transaction courte avant de faire le travail, sinon le statut sauterait directement de « En attente » à la fin. Les lignes CSV sont diffusées par un exporteur qui préfixe d’une apostrophe toute cellule commençant par =, +, -, @, une tabulation ou un retour chariot, pour qu’un tableur ne l’exécute jamais comme une formule ; les lignes PDF sont rendues via un tableau Blade fixe (mêmes colonnes que le CSV, pilote DomPDF choisi explicitement, aucune ressource distante) dans un fichier A4 paysage. Une tâche système quotidienne purge ensuite les exports terminés au-delà de leur rétention de 7 jours : elle supprime le fichier et efface le chemin stocké, en conservant la ligne. Le rendu de ces PDF avec DomPDF en cours de processus, plutôt qu’en pilotant un Chromium headless, est une décision à part entière ; voir specs.md §13.2 et §20.5 (FR-GDPR-01, même rétention) pour le reste du mécanisme."
+        },
+        "import-detail": {
+            "title": "Import — les quatre étapes",
+            "whatIsThis": "Un seul écran pour tout l’import : associez les colonnes, lancez la simulation sur le fichier, importez les lignes qui l’ont passée, puis lisez le rapport. Le titre indique à laquelle des quatre étapes vous êtes, et la page continue de vous porter en avant à mesure que le traitement en arrière-plan se termine.",
+            "whatCanYouDo": [
+                "Étape 2 — vérifiez la correspondance que nous avons devinée, modifiez ce que vous voulez sous « Correspond à » (y compris « Ne pas importer cette colonne »), puis appuyez sur « Enregistrer la correspondance et continuer ». Chaque estimation porte un badge « Confiance élevée », « Confiance moyenne », « Confiance faible » ou « Aucune correspondance », pour savoir lesquelles regarder de plus près.",
+                "Étape 3 — appuyez sur « Lancer la simulation ». Chaque ligne du fichier est vérifiée avant qu’un seul enregistrement ne soit écrit, et la ligne de progression compte les lignes au fur et à mesure ; la page se rafraîchit toutes les 2 secondes pendant l’exécution.",
+                "Étape 4 — appuyez sur « Importer N lignes valides ». Le bouton affiche le nombre réel, pour que vous validiez en sachant exactement combien de lignes vont être importées.",
+                "Emportez les échecs avec vous à chacune de ces étapes : « Télécharger les N lignes en erreur au format CSV » après la simulation, « Télécharger les N lignes ignorées au format CSV — corrigez-les puis réimportez » après la validation.",
+                "Lisez les 500 premières lignes en erreur directement sous « Lignes nécessitant une attention » — chacune avec son numéro de ligne dans le fichier d’origine et le champ et le message exacts, comme « price : le Prix doit être un nombre ».",
+                "Abandonnez un fichier bloqué ou erroné avec « Annuler l’import » — proposé sur tout import qui n’est pas encore terminé. Les lignes déjà importées gardent leur changement, et vous démarrez un nouvel import ensuite.",
+                "Poursuivez avec « Démarrer un autre import », ou revenez à la liste avec « Retour aux imports »."
+            ],
+            "rules": [
+                "La simulation n’écrit rien dans votre espace de travail. Elle se contente de valider et d’enregistrer ce qu’elle a trouvé, ce qui explique pourquoi « Importer N lignes valides » n’apparaît qu’après, et non avant.",
+                "Une validation est partielle par conception, jamais tout-ou-rien : les lignes valides sont importées, les lignes invalides sont ignorées et signalées. Même une ligne qui échoue au moment de l’écriture — un SKU qu’une autre personne vient de créer une seconde plus tôt, par exemple — est annulée individuellement et marquée invalide ; les lignes déjà validées à ses côtés restent validées.",
+                "Les doublons sont détectés dans deux directions : par rapport aux enregistrements déjà présents dans votre espace de travail, et par rapport aux lignes précédentes du même fichier. Au sein d’un fichier, c’est la première occurrence qui est importée et chaque occurrence suivante est rejetée — donc un fichier qui répète un SKU trois fois crée une seule variante, pas trois, et vous informe des deux autres.",
+                "La clé de doublon est l’adresse e-mail pour les contacts et le SKU pour les variantes (FR-IMP-01). Les comptes utilisent le domaine quand la ligne en a un — normalisé au préalable, si bien que « https://www.Acme.com/ » et « acme.com » comptent comme la même entreprise — et sinon le nom de l’entreprise, comparé sans tenir compte de la casse. Les produits utilisent leur nom de la même façon. Les SKU sont la seule exception : ils sont comparés exactement tels quels, casse comprise, parce que c’est ainsi que fonctionne la règle d’unicité dans la base de données.",
+                "Une ligne de contact sans e-mail ne peut être vérifiée pour aucun doublon, elle est donc importée telle quelle — il n’y a pas de clé sur laquelle la comparer, et en deviner une serait pire que de l’importer.",
+                "Le rapport d’erreurs est ré-importable exactement tel qu’il a été téléchargé : les colonnes d’origine, dans leur ordre d’origine, plus une colonne « erreur ». Cette colonne est délibérément ignorée quand vous renvoyez le fichier, et les lignes déjà importées n’y figurent pas — donc corriger puis renvoyer le fichier ne duplique jamais celles qui sont déjà passées.",
+                "Enregistrer à nouveau la correspondance après une simulation jette cette simulation : ses lignes ont été jugées avec une correspondance qui ne s’applique plus, elles sont donc effacées et vous recommencez la validation. Pendant que la validation ou l’import est réellement en cours, la correspondance est verrouillée et un changement est refusé plutôt qu’appliqué à mi-chemin.",
+                "Le contenu brut de chaque ligne en échec est conservé, même après la fin de l’import — c’est à partir de cela qu’est construit le rapport téléchargeable (BR-IMP-01). Le fichier téléversé derrière n’est pas conservé indéfiniment : une tâche quotidienne le supprime du disque 7 jours après la fin de l’import, et l’ordre des colonnes du rapport est relu depuis ce fichier — téléchargez donc le rapport d’erreurs avant cette échéance.",
+                "Seuls Propriétaire et Gestionnaire accèdent à tout cela. Commercial et Observateur n’ont aucun droit d’import (specs.md §7.4)."
+            ],
+            "howItsBuilt": "La simulation comme la validation sont toutes deux des chaînes de petites tâches plutôt qu’une seule longue tâche : chaque exécution traite 500 lignes puis se replace elle-même en file d’attente. Ce n’est pas un choix de style — le superviseur de la file d’attente tue une tâche à 60 secondes et ne la relance pas, donc une seule tâche lisant et validant un fichier de 50 000 lignes serait tuée à mi-parcours et laisserait l’import bloqué pour toujours sur « Validation… ». Chaque bloc valide ses propres compteurs dans sa propre transaction courte, ce qui explique pourquoi la ligne de progression avance vraiment entre les rafraîchissements au lieu de sauter de 0 à terminé. Les doublons internes au fichier ne peuvent pas être détectés bloc par bloc (un bloc ne peut pas voir ce que les blocs précédents ont écrit sans une requête supplémentaire, et son propre ensemble « déjà vus » en mémoire ne survivrait pas à la sérialisation entre les tâches), ils font donc l’objet d’une unique passe finale sur les lignes déjà écrites en base — indépendante de l’ordre par construction. La validation n’a besoin d’aucun curseur pour reprendre : chaque exécution demande « les 500 prochaines lignes encore marquées valides », et une ligne traitée quitte cet ensemble en changeant de statut. Chaque écriture de ligne est enveloppée dans son propre savepoint, parce que dans PostgreSQL un seul échec d’insertion annule toute la transaction englobante — sans cela, un seul SKU en double ferait échouer le reste du lot ainsi que l’écriture qui enregistre l’erreur, transformant l’« import partiel » à nouveau en tout-ou-rien. Le rapport d’erreurs relit l’ordre des en-têtes depuis le fichier stocké plutôt que depuis la correspondance enregistrée, parce que la base de données ne préserve pas l’ordre des clés d’un objet JSON."
+        },
+        "import-upload": {
+            "title": "Nouvel import",
+            "whatIsThis": "Étape 1 sur 4. Vous indiquez quel type d’enregistrements contient le fichier, puis vous le transmettez. Rien n’est encore lu dans votre espace de travail — l’écran suivant vous montre les colonnes trouvées et vous permet de les associer.",
+            "whatCanYouDo": [
+                "Choisissez la cible sous « Que souhaitez-vous importer ? » : Comptes, Contacts, Produits, ou Produits/Variantes.",
+                "Prenez de l’avance avec « Télécharger un modèle CSV pour cette ressource » — sa ligne d’en-tête porte déjà les noms de champs exacts attendus par cet import.",
+                "Choisissez votre fichier sous « Fichier (CSV ou XLSX) » et appuyez sur « Importer ». Vous arrivez directement sur l’étape de correspondance."
+            ],
+            "rules": [
+                "Un fichier peut faire au maximum 20 MB et contenir au maximum 50 000 lignes de données. Les deux sont vérifiés séparément, et l’un n’implique pas l’autre — un fichier de 20 MB composé de lignes courtes peut largement dépasser 50 000 lignes, et un fichier de 5 000 lignes avec de longs champs de texte peut dépasser 20 MB. Dépassez l’une ou l’autre limite et le téléversement est refusé avec le nombre réel dans le message, pour que vous sachiez laquelle vous avez atteinte ; scindez le fichier et importez les parties une par une.",
+                "La première ligne est l’en-tête et n’est jamais importée — la limite de lignes ne compte que les lignes de données.",
+                ".csv, .txt et .xlsx sont acceptés. Le .txt n’est pas un troisième format : Excel et Google Sheets exportent des CSV que certaines plateformes étiquettent comme texte brut, et rejeter ces fichiers reviendrait à rejeter un CSV valide à cause d’une étiquette. Tout ce qui n’est pas .xlsx est lu comme du CSV.",
+                "Un seul import peut être actif par espace de travail. Si un autre est encore ouvert — même un ancien resté à « Téléversé » — ce téléversement est refusé ici, avant que le fichier ne soit stocké, plutôt que mis en file d’attente invisiblement derrière lui. Terminez cet import, attendez-le, ou ouvrez-le et appuyez sur « Annuler l’import » pour dégager la voie.",
+                "Seuls Comptes, Contacts, Produits et Produits/Variantes peuvent être importés. Affaires et Commandes sont délibérément hors périmètre : ils dépendent de trop d’autres enregistrements pour être importés sans risque depuis un fichier plat (FR-IMP-03).",
+                "Seuls Propriétaire et Gestionnaire accèdent ici — la matrice des permissions n’accorde aucun droit d’import à Commercial et Observateur (specs.md §7.4)."
+            ],
+            "howItsBuilt": "La requête ne fait presque rien : elle valide, écrit une ligne `imports` et stocke le fichier. Elle ne parse jamais le fichier. Le nombre de lignes qui applique la limite de 50 000 est mesuré à moindre coût — un comptage de lignes pour le CSV, et pour XLSX les dimensions déclarées de la feuille, lues via un filtre qui rejette chaque cellule, si bien que le classeur n’est jamais matérialisé. Les en-têtes de colonnes ne sont pas non plus stockés sur l’enregistrement ; ils sont relus depuis le fichier sauvegardé à la demande, à l’étape de correspondance, ce qui fait du fichier la seule source de vérité et garantit qu’une nouvelle correspondance voit toujours l’en-tête actuel plutôt qu’une copie périmée. Tout ce qui est plus lourd que cela — valider les lignes, écrire les entités — relève de tâches en file d’attente, parce que le mécanisme d’isolation des tenants maintient une transaction de base de données ouverte pendant toute la durée de la requête web."
+        },
+        "imports-list": {
+            "title": "Importations",
+            "whatIsThis": "Chaque fichier que cet espace de travail a fait entrer via le flux d’import : ce qu’il contenait, jusqu’où il est allé, et combien de ses lignes se sont révélées exploitables. Vous démarrez un nouvel import depuis ici, et vous revenez ici pour rouvrir un import plus ancien.",
+            "whatCanYouDo": [
+                "Démarrez un fichier avec « Nouvel import » — ou « Démarrer votre premier import » tant que la liste est encore vide.",
+                "Lisez où en est chaque fichier grâce à son statut : « Téléversé », « Associé », « Validation… », « Prêt à importer », « Import en cours… », « Terminé », « Terminé avec erreurs » ou « Échec ».",
+                "Consultez la colonne « Lignes » pour la répartition « {{valid}} valide / {{invalid}} invalide » produite par la simulation, avant de décider si le fichier mérite même d’être ouvert.",
+                "Ouvrez le nom d’un fichier pour revenir dans son flux en quatre étapes, ou directement vers son rapport final.",
+                "Consultez qui a apporté chaque fichier, et quand, sous « Importé par » et « Téléversé »."
+            ],
+            "rules": [
+                "Seuls le Propriétaire et le Gestionnaire accèdent à cet écran. Le Commercial et l’Observateur n’ont absolument aucun droit d’import (specs.md §7.4) — « Importations » est absent de leur navigation, et la route les refuse elle aussi, si bien que le menu n’est pas la seule protection.",
+                "Il n’existe pas ici de filtre « mes imports » restreint, contrairement aux Comptes, Affaires ou Commandes : un Propriétaire ou un Gestionnaire voit tous les imports de l’espace de travail, quel que soit qui les a téléversés. La matrice de permissions ne donne aucun accès au Commercial, donc il n’existe pas de sous-ensemble « propre » à isoler.",
+                "Un seul import peut être actif par espace de travail à la fois. « Actif » désigne tout ce qui n’a pas encore atteint « Terminé », « Terminé avec erreurs » ou « Échec » — y compris un fichier téléversé puis abandonné avant l’association. Vous pouvez le libérer vous-même avec « Annuler l’import » sur la page de cet import ; livré à lui-même, un nettoyeur en arrière-plan clôture un import abandonné après 24 heures, ainsi qu’un import dont le traitement s’est interrompu, après 15 minutes.",
+                "La liste affiche les 50 imports les plus récents, puis s’arrête là. Un import est une action délibérée et occasionnelle, pas un flux continu de lignes, donc elle ne bénéficie pas de la pagination par curseur qu’utilisent les grandes listes.",
+                "Rien n’est supprimé ici, et il n’y a aucun bouton à essayer : la ligne d’historique et le contenu brut de chaque ligne en échec sont conservés, ce qui rend précisément possible le rapport d’erreurs téléchargeable et réimportable (BR-IMP-01). Le fichier téléversé lui-même n’est pas conservé indéfiniment — une tâche quotidienne le supprime du disque 7 jours après la fin de l’import, donc téléchargez le rapport d’erreurs avant cela ; la ligne, elle, reste dans tous les cas."
+            ],
+            "howItsBuilt": "Chaque ligne est un enregistrement `imports` dont les compteurs sont écrits par les tâches en arrière-plan, pas par cette page : chaque bloc de 500 lignes valide `total_rows`/`valid_rows`/`error_rows` dans sa propre transaction courte, si bien que la répartition « {{valid}} valide / {{invalid}} invalide » affichée ici est exacte même pendant que le fichier est encore en cours de traitement — c’est un total courant, pas un chiffre écrit une seule fois à la fin. La règle du import-actif-unique est appliquée côté serveur dans l’action de téléversement, contre l’ensemble des statuts non terminaux, pas en masquant le bouton : un second téléversement reçoit un refus clair plutôt que d’être mis en file silencieusement derrière le premier. La liste elle-même se passe délibérément de la pagination par curseur, des vues enregistrées et de la mécanique d’opérations groupées que partagent les grandes listes — 50 lignes triées de la plus récente à la plus ancienne, c’est toute la requête."
+        },
+        "invoice-detail": {
+            "title": "Détail de la facture",
+            "whatIsThis": "Voici le dossier complet d’une facture — son statut, ses dates d’émission et d’échéance, ses totaux, chaque paiement enregistré sur elle, et le PDF généré à partir d’elle. Elle remonte toujours à exactement une seule commande.",
+            "whatCanYouDo": [
+                "Sur la page de la commande source, « Créer la facture » une fois qu’elle est confirmée ou honorée — c’est le seul moyen d’atteindre cette page pour une nouvelle facture.",
+                "« Marquer comme envoyée » une fois que la facture est correcte — cela fixe la date d’échéance à partir des conditions de crédit du compte.",
+                "Enregistrez un paiement (montant, méthode, et date de réception) sur une facture envoyée ou en retard — un paiement complet la marque automatiquement « Payée ».",
+                "« Annuler la facture » depuis n’importe quel statut sauf si elle est déjà annulée, avec un motif obligatoire — quiconque l’ouvre plus tard voit exactement pourquoi.",
+                "Téléchargez le PDF une fois qu’il indique « prêt », ou « Réessayer » s’il indique avoir échoué à se générer."
+            ],
+            "rules": [
+                "Une facture ne peut être créée qu’à partir d’une commande confirmée ou honorée, et seulement si elle n’en a pas déjà une — annuler une facture libère la commande pour une nouvelle, mais la facture annulée reste au dossier avec son propre historique de paiements.",
+                "Une fois qu’une facture quitte le statut « brouillon », elle ne peut plus être modifiée — la seule voie possible est d’annuler puis de créer une nouvelle facture, jamais une correction silencieuse (BR-BILL-01).",
+                "Un paiement ne peut jamais faire passer le solde sous zéro : il est plafonné à ce qui reste dû au moment où vous le soumettez, et revérifié côté serveur au cas où un autre paiement serait arrivé entre-temps.",
+                "Un paiement ne peut être enregistré que sur une facture envoyée ou en retard — jamais sur un brouillon (rien n’a encore été facturé), ni sur une facture déjà payée ou annulée.",
+                "Une facture passe au statut « En retard » toute seule, une fois par jour, la première fois que sa date d’échéance est dépassée avec un solde encore dû — personne ne fixe ce statut à la main.",
+                "Le numéro de facture est unique par espace de travail et n’est attribué qu’à la création de la facture — le même schéma de verrouillage que pour le numéro de commande, si bien que deux factures créées au même instant ne peuvent jamais entrer en collision.",
+                "Le PDF n’est jamais généré pendant que vous attendez : la facture commence par « Génération du PDF… », et la page se met à jour automatiquement jusqu’à indiquer « prêt » (avec un lien de téléchargement) ou « échoué » (avec une raison et un bouton pour réessayer).",
+                "Un Commercial peut consulter les factures des commandes dont il est propriétaire, mais ne peut jamais les envoyer, les annuler, relancer un PDF ou enregistrer un paiement — cela reste réservé au Propriétaire et au Gestionnaire, sur chaque facture, pas seulement les siennes."
+            ],
+            "howItsBuilt": "Le numéro de facture est généré en verrouillant la ligne de l’espace de travail lui-même le temps de la création — exactement le même schéma déjà utilisé pour le numéro de commande (`App\\Actions\\Orders\\ConfirmOrderAction`), réutilisé délibérément plutôt que réinventé, jusqu’au verrou `for no key update` et à la raison pour laquelle c’est celui-là qu’il faut, et non `for update`. Enregistrer un paiement verrouille en revanche la ligne de la facture elle-même (c’est elle qui est réellement modifiée, pas un parent partagé), si bien que deux paiements en concurrence sur la même facture sont sérialisés sans bloquer quoi que ce soit d’autre. Le PDF est rendu par DomPDF, dans le même worker en arrière-plan que tous les autres PDF de ce projet, choisi explicitement à chaque appel plutôt que via le comportement par défaut du paquet — l’image de production n’a pas de Chromium vers lequel se replier."
+        },
+        "invoices-list": {
+            "title": "Factures — liste",
+            "whatIsThis": "Toutes les factures que cet espace de travail a émises sur une commande confirmée ou honorée — son numéro, son statut, son compte, son total, son solde dû et sa date d’échéance. Ouvrez-en une pour accéder à la commande dont elle provient.",
+            "whatCanYouDo": [
+                "Recherchez par numéro de facture.",
+                "Filtrez par « Statut » (Brouillon, Envoyée, Payée, En retard, Annulée).",
+                "Affinez la période avec « Du »/« Au » sur la date de création de la facture.",
+                "Ouvrez n’importe quelle ligne pour voir son détail complet, ses paiements et son PDF.",
+                "Appuyez sur « Exporter en CSV » pour un résumé exactement des factures à l’écran, ou « Exporter les PDF (zip) » pour une archive de leurs fichiers PDF — l’archive liste toute facture dont le PDF n’est pas encore prêt."
+            ],
+            "rules": [
+                "Un Commercial ne voit que les factures des commandes qu’il possède — tous les autres (Propriétaire, Gestionnaire, Observateur) voient les factures de tout l’espace de travail (specs.md §7.4).",
+                "Seuls Propriétaire et Gestionnaire peuvent créer, envoyer ou annuler une facture, ou enregistrer un paiement ; Commercial et Observateur sont en lecture seule ici, même sur leurs propres commandes.",
+                "L’export est autorisé pour tous les rôles, y compris Observateur : c’est une lecture des lignes déjà à l’écran, livrée sous forme de fichier. Ce qui le limite, c’est le plafond de 3 opérations groupées en cours à la fois par personne, le même pour tout le monde."
+            ],
+            "howItsBuilt": "Même fondation `ListQuery` paginée par curseur que pour les commandes (`App\\Support\\Lists\\InvoiceList`), délimitée via la commande source plutôt que par une colonne propre — une facture n’a pas de colonne propriétaire ; la restriction d’un Commercial est appliquée avec un `whereHas('order', …)` sur le même `owner_user_id` qui délimite ses commandes."
+        },
+        "members": {
+            "title": "Membres et invitations",
+            "whatIsThis": "Toutes les personnes ayant accès à cet espace de travail — leur rôle, la date à laquelle elles l’ont rejoint, et si elles ont encore accès. C’est ici qu’un Propriétaire ou un Gestionnaire invite un collègue, change le rôle de quelqu’un, et révoque l’accès d’une personne qui part.",
+            "whatCanYouDo": [
+                "Invitez un collègue par adresse e-mail et choisissez le rôle qui lui est attribué. Il a 7 jours pour accepter ; rien ne change ici tant qu’il ne l’a pas fait.",
+                "Renvoyez un lien d’invitation, ou révoquez-en un envoyé par erreur — dans les deux cas, l’ancien lien cesse de fonctionner.",
+                "Changez le rôle d’un membre. Cela prend effet dès sa toute prochaine requête, pas à sa prochaine connexion.",
+                "Consultez le rôle, le statut et la date d’arrivée de chaque membre, ainsi que qui a désactivé un ancien membre et quand.",
+                "Appuyez sur « Désactiver le membre » pour révoquer immédiatement l’accès de quelqu’un.",
+                "S’ils sont propriétaires d’affaires ouvertes ou de commandes actives, choisissez « Réaffecter et désactiver » et sélectionnez un nouveau propriétaire, ou « Désactiver quand même » et réglez cela plus tard depuis « Non attribué »."
+            ],
+            "rules": [
+                "Seul un Propriétaire ou un Gestionnaire peut inviter. Un Gestionnaire peut inviter et gérer des Commerciaux et des Observateurs, mais ne peut ni inviter un Propriétaire, ni promouvoir quiconque au rang de Propriétaire, ni toucher à un Propriétaire existant — dans un sens comme dans l’autre.",
+                "Un espace de travail conserve toujours au moins un Propriétaire actif. Le dernier ne peut être ni rétrogradé ni désactivé, et aucun bouton ne permet de le forcer : transférez d’abord la propriété.",
+                "Vous ne pouvez ni changer votre propre rôle ni vous désactiver vous-même depuis cet écran — demandez à un autre Propriétaire ou Gestionnaire.",
+                "Désactiver quelqu’un n’est jamais bloqué par ce qu’il possède — la révocation de l’accès passe toujours en premier.",
+                "Désactiver n’est pas supprimer : la ligne du membre reste, avec son rôle et sa date d’arrivée, pour un historique vérifiable — son nom continue d’apparaître sur tout ce qu’il a créé, avec la mention « (désactivé) » à côté. Révoquer une invitation jamais acceptée, en revanche, la supprime réellement : il n’y a encore aucun historique à conserver.",
+                "Un membre désactivé disparaît du sélecteur d’espaces de travail et de toutes les listes « attribuer à… » — il ne peut plus recevoir de nouveau travail, mais rien de ce qu’il a déjà fait n’est réécrit. Si vous l’invitez à nouveau, la même ligne est réutilisée.",
+                "Dans la démo publique, « Désactiver le membre » et « Changer le rôle » sont tous deux entièrement masqués : les comptes de démo sont des identifiants partagés que chaque visiteur utilise pour se connecter en tant que Propriétaire, Gestionnaire, Commercial ou Observateur, donc rétrograder ou désactiver l’un d’eux casserait la session du visiteur suivant jusqu’à la réinitialisation nocturne. Inviter, renvoyer et révoquer une invitation continuent de fonctionner normalement."
+            ],
+            "howItsBuilt": "Une invitation n’est pas une table séparée — c’est une ligne d’adhésion avec le statut « en attente » et un jeton d’acceptation haché, sur des colonnes présentes dans le schéma depuis la première semaine. Seul le hachage est stocké : le lien dans l’e-mail est le seul endroit où le vrai jeton existe jamais, et le journal « E-mails envoyés » de la démo le masque, exactement comme un lien de réinitialisation de mot de passe. Cet e-mail est aussi le seul flux de toute l’application qui envoie à une adresse tapée par un visiteur, ce qui explique pourquoi l’intercepteur d’e-mails de la démo a été construit une phase avant cet écran. L’accès est révoqué (et accordé) dès la toute prochaine requête, pas à la prochaine connexion : la requête unique qui résout « dans quels espaces de travail suis-je ? » ne retourne jamais que les lignes de statut « actif », si bien qu’une adhésion en attente ou désactivée cesse simplement de se résoudre, aussi bien pour le sélecteur d’espaces de travail que pour la requête qui fixe le tenant, ou pour les jetons API. Rien à invalider côté session, rien à révoquer côté jeton. Choisir « Réaffecter et désactiver » exécute le même mécanisme d’opération groupée que toute autre réaffectation en masse, trois fois en une seule requête — comptes, affaires ouvertes, commandes actives — reliées par un seul identifiant de groupe pour se lire comme une seule opération."
+        },
+        "order-detail": {
+            "title": "Détail de la commande",
+            "whatIsThis": "Ceci est le dossier complet d’une commande — son compte, ses lignes, ses totaux courants, son statut (brouillon, confirmée, partiellement honorée, honorée ou annulée), et chaque expédition sortie pour elle. La création et la modification d’un brouillon utilisent les mêmes champs.",
+            "whatCanYouDo": [
+                "Sur « Nouvelle commande », choisissez le « Compte » en recherchant son nom, puis ajoutez des lignes en recherchant une variante par SKU ou par nom de produit, et une quantité.",
+                "Modifiez le compte, le contact, les notes et les lignes avec « Modifier » tant que la commande est encore un brouillon, puis « Enregistrer les modifications ».",
+                "« Confirmer la commande » une fois que la commande a au moins une ligne — cela fige un numéro de commande et réserve le stock de chaque ligne.",
+                "Une fois la commande confirmée, « Créer l’expédition » : choisissez une quantité pour chaque ligne que vous pouvez envoyer maintenant — envoyer moins que la totalité de la commande est possible, le reste demeure ouvert pour une expédition ultérieure.",
+                "Sur une expédition dont l’étiquette a échoué, « Réessayer l’étiquette » pour mettre en file une nouvelle tentative, ou « Abandonner » pour libérer ses lignes en vue d’une nouvelle expédition.",
+                "Sur une expédition dont l’étiquette est prête, « Marquer comme expédiée » une fois qu’elle a effectivement quitté l’entrepôt — c’est ce qui déplace le stock et met à jour « {{fulfilled}} expédiée(s) sur {{total}} » sur chaque ligne.",
+                "« Annuler la commande » sur un brouillon à tout moment, ou sur une commande confirmée tant qu’aucune expédition n’existe encore."
+            ],
+            "rules": [
+                "Une commande n’a pas de numéro tant qu’elle est un brouillon — elle en reçoit un, séquentiel pour cet espace de travail, seulement à la confirmation, afin que les brouillons abandonnés ne laissent jamais de trou dans la numérotation (BR-ORD-02).",
+                "Confirmer valide au moins une ligne et réserve cette quantité pour chaque ligne ; cela ne touche jamais le stock physique, puisque rien n’a encore physiquement quitté l’entrepôt — seul le « réservé » change.",
+                "Si une ligne demande plus que ce qui est disponible, la confirmation n’est ni bloquée silencieusement ni autorisée silencieusement : vous devez reconnaître explicitement que la commande sera expédiée en rupture de stock (BR-STOCK-04), et c’est le serveur qui vérifie cette reconnaissance, pas seulement le bouton.",
+                "La modification des lignes ne fonctionne que sur un brouillon — une fois la commande confirmée, ses lignes sont verrouillées (même règle qu’une facture émise), et la seule voie possible est d’annuler la commande.",
+                "Une expédition ne touche jamais le stock par elle-même — sa création réserve seulement ses lignes pour éviter qu’une autre expédition ne les réclame en même temps. Le stock ne quitte l’entrepôt, et le « réservé » ne diminue, qu’au moment de « Marquer comme expédiée ».",
+                "La quantité d’une nouvelle expédition ne peut jamais dépasser ce qu’il reste réellement à expédier sur cette ligne — la quantité déjà expédiée et toute autre expédition encore ouverte (étiquette en attente, étiquette en échec, ou étiquette prête mais pas encore expédiée) sont d’abord soustraites l’une comme l’autre.",
+                "Une étiquette d’expédition n’est jamais récupérée pendant que vous attendez : l’expédition est créée avec le statut « Génération de l’étiquette… » et la page se met à jour automatiquement jusqu’à ce que le transporteur réponde — avec un numéro de suivi et une étiquette téléchargeable en cas de succès, ou le motif d’échec propre au transporteur (jamais un « quelque chose s’est mal passé » générique) en cas d’échec.",
+                "S’il n’y a pas assez de stock disponible pour couvrir une expédition au moment où vous la marquez comme expédiée (une rupture de stock jamais arrivée), la tentative est refusée d’emblée et rien n’est enregistré — pas même une expédition partielle.",
+                "La commande passe à « Partiellement honorée » la première fois qu’une expédition part sans couvrir toutes les lignes, et à « Honorée » seulement une fois que toutes les lignes sont entièrement expédiées ; une expédition partielle ultérieure sur une commande déjà partiellement honorée l’y laisse simplement.",
+                "Une commande confirmée peut encore être annulée tant qu’aucune expédition n’existe ; cela libère le stock réservé de chaque ligne. Dès qu’une expédition a été créée — même une dont l’étiquette est encore en attente ou a échoué — annuler la commande est refusé d’emblée (BR-ORD-01) ; abandonner cette expédition en échec la supprime et rend à nouveau la commande annulable.",
+                "Un Commercial peut voir toutes les commandes de l’espace de travail, mais ne peut modifier, confirmer, annuler, ni créer, réessayer et abandonner des expéditions que sur celles qu’il possède ; le Propriétaire et le Gestionnaire peuvent tout faire sur n’importe quelle commande."
+            ],
+            "howItsBuilt": "Chaque transition légale (draft → confirmed, draft/confirmed → cancelled, confirmed → partially_fulfilled → fulfilled) vit à exactement un seul endroit, `App\\Enums\\OrderStatus::canTransitionTo()` — ainsi, marquer une expédition comme expédiée ne fait jamais que recalculer le statut de la commande via cette même règle, jamais en écrivant directement la valeur de l’énumération. Le numéro de commande est généré en verrouillant la ligne propre à l’espace de travail pendant toute la durée de la confirmation, le même schéma déjà utilisé pour maintenir un seul « contact principal » par compte et un ordonnancement unique des étapes du pipeline. Marquer une expédition comme expédiée suit la même discipline un niveau plus bas : elle verrouille d’abord la ligne de la commande, puis chaque niveau de stock concerné en une seule requête triée et groupée — ainsi, deux expéditions qui tentent d’expédier des variantes qui se chevauchent attendent proprement l’une après l’autre, ou ne se percutent jamais du tout, et une expédition dont le stock disponible est insuffisant est refusée avant que quoi que ce soit ne soit écrit, pas en cours de route. L’appel au transporteur lui-même ne se produit jamais à l’intérieur d’une requête web : une expédition est enregistrée comme « étiquette en attente » et une tâche en arrière-plan appelle le transporteur puis écrit le résultat dans sa propre étape courte, ensuite — la même raison pour laquelle d’autres opérations de l’application signalent leur progression plutôt que de vous faire attendre sur place. L’interface du transporteur (`ShippingCarrier`) et son implémentation `DemoShippingCarrier`, qui n’effectue aucun appel externe, ont été construites comme un adaptateur permanent dès le premier jour, et non comme un simple espace réservé, afin qu’un véritable transporteur puisse être ajouté plus tard sans rien changer d’autre."
+        },
+        "orders-list": {
+            "title": "Commandes — liste",
+            "whatIsThis": "Chaque commande que cet espace de travail a mise en brouillon, confirmée, honorée ou annulée, dans un seul tableau filtrable et triable.",
+            "whatCanYouDo": [
+                "Recherchez par numéro de commande et filtrez par « Statut ».",
+                "Basculez entre « Mes commandes » et « Toutes les commandes ».",
+                "Triez en cliquant sur l’en-tête « Numéro de commande », « Total », « Passée le » ou « Créée le » — cliquez à nouveau pour inverser l’ordre.",
+                "Ouvrez « Vues » pour appliquer une vue enregistrée, « Enregistrer la vue » pour conserver les filtres et colonnes actuels, ou « ☆ Définir par défaut » pour ouvrir la liste sur cette vue.",
+                "Ouvrez « Colonnes » pour afficher, masquer ou réorganiser les colonnes optionnelles (Total, Passée le, Créée le, Statut, Compte, Propriétaire) avec des cases à cocher et « Déplacer vers le haut »/« Déplacer vers le bas » — la colonne du numéro de commande reste toujours affichée, et une vue enregistrée mémorise votre choix.",
+                "Ouvrez « Nouvelle commande » pour démarrer un brouillon, ou ouvrez n’importe quelle ligne pour voir son détail complet.",
+                "Téléchargez la liste filtrée avec « Exporter en CSV » ou « Exporter en PDF », même sans droits de modification.",
+                "Sélectionnez plusieurs commandes avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et réattribuez-les à un nouveau propriétaire, ou annulez celles qui sont en brouillon, en une seule action, depuis la barre qui apparaît dès que vous en avez sélectionné au moins une."
+            ],
+            "rules": [
+                "Les Commerciaux démarrent sur « Mes commandes » ; tous les autres rôles sur toutes les commandes — même convention que pour Comptes et Affaires.",
+                "Un brouillon n’a pas encore de numéro de commande : il n’en reçoit un qu’à la confirmation, si bien que les brouillons abandonnés ne laissent jamais de trous dans la numérotation (BR-ORD-02).",
+                "L’Observateur peut voir toutes les commandes et exporter le filtre actuel en CSV ou en PDF, mais n’a pas de bouton « Nouvelle commande » ni aucune action d’écriture sur une ligne.",
+                "Un Commercial peut ouvrir n’importe quelle commande de l’espace de travail, mais ne peut modifier ou annuler que celles qu’il possède ; réattribuer un propriétaire est réservé au Propriétaire et au Gestionnaire (comme pour les Affaires, contrairement aux Comptes).",
+                "L’annulation groupée ne touche jamais que les commandes brouillon de votre sélection — une commande confirmée ou déjà expédiée n’est jamais affectée, même si elle faisait partie de « Tout sélectionner pour ce filtre ». Le nombre affiché (et le seuil de confirmation auquel il est comparé) est toujours le nombre de brouillons, jamais le nombre brut du filtre.",
+                "Un export PDF s’exécute toujours en arrière-plan, même pour une poignée de lignes, et il est plafonné bien en dessous de la limite du CSV — pour une longue liste, utilisez le CSV."
+            ],
+            "howItsBuilt": "Repose sur la même base `ListQuery` à pagination par curseur que Comptes et Affaires (`App\\Support\\Lists\\OrderList`). Le filtre de statut est validé par rapport à l’ensemble fermé de valeurs de `App\\Enums\\OrderStatus`, l’unique endroit qui détermine aussi quel statut peut passer à quel autre — voir la rubrique Détail de la commande pour comprendre pourquoi cela compte. L’annulation groupée restreint sa propre requête à `status = draft` avant de compter ou de planifier (`App\\Support\\Bulk\\BulkChunkActions::narrowQuery()`), de sorte que le nombre de lignes qui alimente « Tout sélectionner : N » et la boîte de dialogue de confirmation n’est jamais le filtre brut — voir la rubrique « Opération groupée » pour le mécanisme partagé."
+        },
+        "pipeline": {
+            "title": "Configuration du pipeline",
+            "whatIsThis": "C’est d’ici que viennent les étapes du tableau des affaires — leurs noms, leur ordre, leur probabilité de gain, et lesquelles comptent comme Gagné ou Perdu. C’est de la configuration, pas de la vente au quotidien.",
+            "whatCanYouDo": [
+                "Ajoutez une étape via « Ajouter une étape » : un nom, une « Probabilité % » facultative de 0 à 100, et « Gagné » ou « Perdu » si elle met fin à une affaire.",
+                "Réordonnez les étapes en faisant glisser une ligne, ou avec ses boutons ↑ et ↓ depuis le clavier.",
+                "Renommez une étape, changez sa probabilité ou marquez-la Gagné ou Perdu avec « Modifier », puis « Enregistrer ».",
+                "Retirez une étape qui n’est plus utilisée avec « Supprimer »."
+            ],
+            "rules": [
+                "Seuls le Propriétaire et le Gestionnaire peuvent modifier les étapes. Les Observateurs peuvent ouvrir cette page en lecture seule — pas de réordonnancement, pas de « Modifier », « Supprimer » ou « Ajouter une étape » — et les Commerciaux ne peuvent pas l’ouvrir du tout.",
+                "Une étape contenant des affaires ne peut pas être supprimée, qu’elle soit Gagné ou Perdu ou non — la boîte de dialogue indique combien d’affaires déplacer d’abord. Une étape par laquelle des affaires sont déjà passées est refusée elle aussi, car leur historique d’étapes pointe encore vers elle.",
+                "Un pipeline a au plus une étape Gagné et une étape Perdu, une étape ne peut pas être les deux à la fois, et les noms d’étapes sont uniques au sein du pipeline.",
+                "Les nouvelles étapes sont ajoutées à la fin de l’ordre.",
+                "Ce MVP prend en charge un seul pipeline par espace de travail — plusieurs pipelines sont un ajout futur, pas encore construit."
+            ],
+            "howItsBuilt": "Supprimer une étape déclenche deux garde-fous. L’écran vérifie à la fois les affaires actuellement sur l’étape et si une affaire y est déjà passée, et explique le blocage avant que vous confirmiez. En dessous, chaque mouvement passé dans `deal_stage_events` pointe vers son étape par id via une clé étrangère restrictive, donc la base de données refuse elle aussi de retirer une étape par laquelle une affaire est déjà passée — le registre d’historique ne peut pas se retrouver à pointer vers rien, pour la même raison que l’historique des affaires est en ajout seul (voir le sujet Affaires — Kanban). Le réordonnancement envoie le nouvel ordre complet, et le serveur le rejette à moins qu’il ne liste chaque étape exactement une fois. Pas d’ADR dédié spécifiquement à cet écran ; cela découle directement de la conception en ajout seul argumentée dans specs.md §9.1."
+        },
+        "preferences": {
+            "title": "Préférences",
+            "whatIsThis": "C’est ici que vous contrôlez l’apparence et la langue de l’application pour vous, personnellement — l’écran de personne d’autre ne change quand vous changez le vôtre.",
+            "whatCanYouDo": [
+                "Choisissez « Système », « Clair » ou « Sombre » sous « Thème » — le changement s’applique immédiatement.",
+                "Basculez l’interface entre « EN » et « FR » sous « Langue » — le changement s’applique lui aussi immédiatement, sans recharger la page.",
+                "Utilisez le même bouton de thème dans la barre supérieure, sur chaque écran, sans revenir ici. Le sélecteur de langue, lui, n’existe que sur cette page."
+            ],
+            "rules": [
+                "Votre choix de thème vous suit, pas votre espace de travail — changer d’espace de travail conserve le même thème.",
+                "Votre choix de langue vous suit de la même manière, et il n’est jamais deviné depuis votre navigateur : un compte qui n’a jamais touché au sélecteur s’affiche en anglais, quelles que soient les langues demandées par le navigateur.",
+                "Si vous n’avez jamais choisi de thème, vous obtenez « Sombre ».",
+                "« Système » suit le réglage clair ou sombre de votre appareil, et continue de le suivre tant que l’onglet reste ouvert ; un appareil sans préférence de luminosité obtient le thème sombre.",
+                "Seul ce que l’application rédige change de langue. Ce que vous avez saisi vous-même — noms de vues enregistrées, noms de rapports, noms d’entreprises et de contacts importés — reste dans la langue où vous l’avez écrit, et basculer l’interface ne le réécrit jamais.",
+                "Les deux réglages sont disponibles pour tous les rôles, y compris Observateur, et aucun n’est jamais désactivé dans la démo publique — ce ne sont pas des actions métier, juste des préférences d’affichage."
+            ],
+            "howItsBuilt": "Les deux préférences fonctionnent de la même façon, délibérément : le choix est enregistré sur votre ligne utilisateur (`users.theme`, `users.locale`) et recopié dans un cookie, et le serveur le résout avant que le moindre JavaScript ne s’exécute — la classe `dark` et l’attribut `lang` sont tous deux écrits sur `<html>` dès la toute première réponse. L’ordre est le même pour chacune : d’abord votre choix enregistré, puis le cookie, puis la valeur par défaut. Il n’y a donc ni flash du mauvais thème, ni moment où un lecteur d’écran annonce la mauvaise langue, pendant le démarrage de la page. Une version qui corrigerait l’une ou l’autre après l’hydratation, dans un `useEffect`, scintillerait — c’est explicitement traité ici comme un défaut, pas un détail cosmétique. L’en-tête `Accept-Language` du navigateur n’est volontairement pas consulté : l’anglais est la valeur par défaut voulue, et une démo qui s’ouvrirait dans une langue différente selon qui a cliqué sur le lien serait plus difficile à évaluer, pas plus accueillante."
+        },
+        "product-detail": {
+            "title": "Produit",
+            "whatIsThis": "Un produit et chacune des variantes vendues sous celui-ci — une variante est un SKU précis (une taille, un format de conditionnement, une finition) avec son propre prix, coût et stock.",
+            "whatCanYouDo": [
+                "Modifiez le nom, la catégorie et l’unité de mesure du produit depuis « Modifier ».",
+                "Ajoutez un nouveau SKU avec « Ajouter une variante ».",
+                "Ouvrez le lien « Stock » d’une variante pour réceptionner, ajuster ou transférer son stock, ou « Historique » pour voir tous les mouvements passés.",
+                "Supprimez le produit une fois qu’aucune de ses variantes n’a d’historique de stock ni de commande associée."
+            ],
+            "rules": [
+                "Seuls Propriétaire et Gestionnaire peuvent créer, modifier ou supprimer des produits et des variantes — Commercial et Observateur voient le même écran en lecture seule, sans « Modifier », « Ajouter une variante » ni « Supprimer ».",
+                "Le coût d’une variante (et donc sa marge) n’est jamais envoyé aux comptes Commercial ou Observateur — non pas seulement masqué dans la mise en page, mais retiré des données reçues par la page.",
+                "La suppression d’un produit ou d’une variante est refusée, avec une explication en langage clair, dès lors qu’il a des mouvements de stock enregistrés ou qu’il a été utilisé sur une commande — cet historique n’est jamais abandonné silencieusement.",
+                "Un badge « Stock faible » apparaît à côté d’une variante active dès que sa quantité disponible passe sous le seuil défini pour elle (voir « Variante ») — une variante sans seuil, ou marquée inactive, ne l’affiche jamais."
+            ],
+            "howItsBuilt": "Les quantités en stock, réservées et disponibles d’une variante sont lues directement depuis `inventory_levels`, la même projection matérialisée que tient le grand livre de stock — jamais recalculées en sommant le grand livre à chaque affichage de page."
+        },
+        "products-list": {
+            "title": "Produits",
+            "whatIsThis": "Tout ce que votre espace de travail vend, regroupé par produit. Chaque produit peut avoir plusieurs variantes — les SKU que vous stockez et vendez réellement — affichées dès que vous l’ouvrez.",
+            "whatCanYouDo": [
+                "Recherchez par nom de produit, filtrez par « Tous les statuts » / Actif / Inactif, et triez par nom ou par date la plus récente.",
+                "Ouvrez « Vues » pour appliquer une vue enregistrée, « Enregistrer la vue » pour conserver les filtres et colonnes actuels, ou « ☆ Définir par défaut ».",
+                "Ouvrez « Colonnes » pour afficher, masquer ou réordonner les colonnes optionnelles (Catégorie, Variantes, Statut, Stock faible, Créé le) avec des cases à cocher et « Déplacer vers le haut »/« Déplacer vers le bas » — la colonne nom du produit reste toujours affichée. « Stock faible » (le nombre de variantes sous leur seuil de réapprovisionnement) est affichée par défaut, pour que l’alerte n’ait pas besoin d’être recherchée.",
+                "Ouvrez un produit pour voir ses variantes, leur stock et leur prix.",
+                "Créez un nouveau produit avec « Nouveau produit » (Propriétaire et Gestionnaire uniquement).",
+                "Modifiez un produit depuis son lien « Modifier », ou ajoutez une variante depuis l’intérieur.",
+                "Sélectionnez plusieurs produits avec les cases à cocher — ou « Tout sélectionner : N pour ce filtre » — et changez le prix de chacune de leurs variantes d’un pourcentage ou d’un montant fixe, ou activez/désactivez-les, en une seule action (Propriétaire et Gestionnaire uniquement)."
+            ],
+            "rules": [
+                "Propriétaire et Gestionnaire ont un accès complet en lecture/écriture ; Commercial et Observateur ne peuvent que consulter — aucun « Nouveau produit », « Modifier », « Supprimer » ni action groupée n’apparaît pour eux.",
+                "Un produit ne peut pas être supprimé tant qu’une de ses variantes a un historique de stock ou a été utilisée sur une commande — le bouton de suppression reste visible, mais explique pourquoi il est bloqué plutôt que d’échouer avec une erreur serveur.",
+                "Un changement de prix groupé s’applique en une fois à chaque variante de chaque produit sélectionné — jamais en dessous de zéro, arrondi à 2 décimales.",
+                "Relancer le même changement de prix (une nouvelle tentative de la même étape en arrière-plan) ne le double jamais — il est appliqué exactement une fois par opération groupée, peu importe le nombre de fois où cette étape est retentée."
+            ],
+            "howItsBuilt": "Même mécanique de liste que Comptes et Affaires : un `ListQuery` lit les filtres, le tri et le curseur depuis l’URL, `ProductList` leur donne leur sens pour les produits, et la pagination se fait par curseur pour que le catalogue reste rapide au-delà de quelques milliers de SKU. Le changement de prix groupé est idempotent par bloc, pas par ligne : un pourcentage ne peut pas être redérivé de « le prix diffère-t-il », puisque le nouveau prix dépend toujours de l’ancien — la tâche enregistre donc un marqueur par (opération, bloc) dans la même transaction et n’applique jamais un bloc deux fois. Le SQL lui-même arrondit à 2 décimales, plafonne à zéro et limite au maximum de la colonne, le tout en une seule expression. Voir le sujet « Opération groupée » pour le mécanisme de file d’attente partagé."
+        },
+        "report-detail": {
+            "title": "Détail du rapport",
+            "whatIsThis": "Un rapport : sa planification et ses destinataires, le résultat en direct s’il s’agit d’un rapport prédéfini, un bouton pour l’exécuter sur-le-champ, et toutes les exécutions qu’il a jamais eues, avec le fichier produit par chacune.",
+            "whatCanYouDo": [
+                "Appuyez sur « Exécuter maintenant » pour mettre une exécution en file d’attente immédiatement au lieu d’attendre la planification — la zone de statut ci-dessous vous indique où elle en est, et se rafraîchit automatiquement toutes les 3 secondes jusqu’à la fin de l’exécution.",
+                "Consultez « Résultat actuel » pour un rapport prédéfini : les chiffres tels qu’ils sont à l’instant, recalculés à chaque visite, et non un instantané du dernier fichier.",
+                "Téléchargez n’importe quelle exécution réussie depuis « Historique des exécutions » avec « Télécharger » — c’est exactement le fichier qui a été envoyé par e-mail, octet pour octet.",
+                "Découvrez pourquoi une exécution a échoué : une ligne en échec porte le message d’erreur réel sous son statut, pour que vous n’ayez pas à deviner pourquoi aucun e-mail n’est arrivé.",
+                "Ouvrez « Modifier » pour changer la planification, le format ou les destinataires, ou « Supprimer » pour retirer définitivement le rapport."
+            ],
+            "rules": [
+                "Une exécution en échec n’envoie jamais d’e-mail. Le fichier est d’abord généré, et seule une génération réussie met la livraison en file d’attente — un fichier vide ou corrompu ne peut donc jamais partir vers vos destinataires (specs.md §16.2 pt. 5).",
+                "L’inverse est vrai aussi : si le fichier a été généré mais que l’e-mail lui-même n’a pas pu partir, l’exécution reste « Réussi » et le fichier reste téléchargeable ici. Un problème de livraison ne réécrit pas l’historique de la génération, et relancer l’e-mail ne régénère pas le rapport.",
+                "« Exécuter maintenant » est réservé au Propriétaire et au Gestionnaire, même si un Commercial qui figure parmi les destinataires peut ouvrir cette page. Exécuter un rapport consomme du temps de file d’attente et crée une nouvelle exécution — c’est une écriture, et la matrice des permissions n’accorde au Commercial qu’un accès en lecture. Ce même Commercial peut tout de même télécharger les fichiers depuis l’historique.",
+                "Une exécution PDF est plafonnée à 250 lignes, et une exécution XLSX à 5 000. Au-delà, l’exécution échoue en indiquant exactement cette raison et en suggérant d’utiliser le CSV — ces deux formats construisent tout le document en mémoire avant de l’écrire, et le worker de la file d’attente a un plafond de mémoire strict. Le CSV, lui, est diffusé en flux et n’a pas cette limite.",
+                "« Résultat actuel » n’apparaît que pour les deux rapports prédéfinis ; un rapport basé sur une vue enregistrée n’a pas d’aperçu dans la page, seulement des fichiers. « Vitesse des affaires par étape » indique, par pipeline et par étape, le nombre moyen de jours que les affaires passent dans cette étape, combien d’affaires l’ont atteinte, et le taux de conversion vers l’étape suivante. « Valorisation des stocks » indique les unités en stock et la valeur totale (en stock × coût) par emplacement et par catégorie.",
+                "Une étape dont rien ne sort jamais — typiquement « Gagné » et « Perdu » — n’a pas de durée moyenne dans l’étape. Ce chiffre se mesure quand une affaire sort d’une étape, et une étape terminale ne connaît pas cette sortie : la cellule est donc vide plutôt qu’à zéro.",
+                "Pour « Valorisation des stocks », le résultat affiché dans la page est masqué à quiconque ne peut pas voir le coût du stock : un destinataire Commercial reçoit une explication à la place du tableau, car le coût et la marge sont partout ailleurs dans l’application des chiffres réservés au Propriétaire et au Gestionnaire. Le fichier lui-même n’est pas filtré — il y a un seul fichier par exécution, envoyé identique à chaque adresse — c’est donc la liste des destinataires qui constitue le vrai contrôle.",
+                "La suppression est définitive et arrête immédiatement la livraison planifiée. La boîte de dialogue vous le rappelle avant que vous confirmiez."
+            ],
+            "howItsBuilt": "Une exécution traverse « En file d’attente » → « En cours » → « Réussi »/« Échoué » en deux courtes transactions délibérément distinctes : si toute la tâche s’exécutait dans une seule transaction, « En cours » ne serait jamais validé pour lui-même, et cette page passerait directement de l’attente à la fin, sans rien à interroger entre les deux. La livraison est une seconde tâche, déclenchée uniquement en cas de succès — c’est ainsi que « pas d’e-mail en cas d’échec » est garanti par la structure elle-même, plutôt que par un contrôle qu’il faudrait se souvenir de faire. La planification s’exécute toutes les heures et est protégée deux fois contre les doubles déclenchements : un verrou d’unicité au niveau de la file d’attente rejette un second déclenchement dans la même heure, et la vérification « ce rapport s’est-il déjà exécuté dans cette fenêtre ? » pose un verrou de ligne sur la définition du rapport elle-même — une simple lecture-puis-insertion, sous deux exécutions concurrentes, laisserait les deux lire « non » et insérer toutes les deux. L’heure comparée à la planification est celle capturée au moment où le planificateur s’est déclenché, pas celle lue au moment où la tâche s’exécute enfin : avec un seul worker de file d’attente, une tâche qui attend derrière d’autres regarderait sinon la mauvaise heure et sauterait silencieusement un rapport dû. Les résultats prédéfinis de cette page sont des agrégats bornés par votre configuration — les étapes par pipeline, les emplacements par catégorie — jamais par le volume de transactions, ce qui est justement ce qui les rend assez peu coûteux pour être calculés à l’intérieur même de la requête de page."
+        },
+        "report-form": {
+            "title": "Rapport",
+            "whatIsThis": "La définition d’un rapport : à partir de quoi il est construit, quel type de fichier il produit, quand il s’exécute de lui-même, et qui le reçoit. Le même formulaire crée un nouveau rapport et modifie un rapport existant.",
+            "whatCanYouDo": [
+                "Donnez-lui un « Nom du rapport » et choisissez un « Format » — CSV, XLSX ou PDF.",
+                "Choisissez la « Source » : « Export d’une vue enregistrée » accompagné d’une de vos vues enregistrées ou d’une vue de votre équipe, ou l’un des rapports intégrés — « Vitesse des affaires par étape » ou « Valorisation des stocks ».",
+                "Réglez la « Fréquence » sur « Manuel uniquement », « Quotidienne », « Hebdomadaire » ou « Mensuelle », puis l’« Heure (UTC) » et, le cas échéant, le « Jour de la semaine » ou le « Jour du mois ».",
+                "Listez les « Destinataires » — une adresse e-mail par ligne, ou séparées par des virgules.",
+                "Cochez ou décochez « Actif », puis appuyez sur « Créer le rapport » ou « Enregistrer les modifications »."
+            ],
+            "rules": [
+                "La source est fixée à la création du rapport. Le formulaire de modification vous montre laquelle c’est, mais ne vous laisse pas la changer : un rapport dont on change l’objet est un autre rapport, alors créez-en un nouveau et supprimez l’ancien si vous n’en voulez plus.",
+                "Les horaires planifiés sont en UTC, pas votre heure locale ni celle de l’espace de travail. Il n’existe nulle part de fuseau horaire par espace de travail dans le produit, si bien que « 07:00 » est sans ambiguïté plutôt que discrètement faux — et le reste du travail planifié, comme la réinitialisation nocturne de la démo, est déjà ancré de la même façon.",
+                "La planification n’a qu’une résolution à l’heure. Le planificateur se réveille une fois par heure et compare l’heure, si bien que 07:00 et 07:45 se comportent de manière identique — un rapport ne s’exécute jamais à une minute précise.",
+                "Un jour mensuel au-delà de la fin d’un mois court s’exécute le dernier jour de ce mois au lieu d’être sauté. Un rapport réglé sur le 31 part quand même en février ; l’alternative serait un rapport qui ne s’exécute silencieusement jamais pendant la moitié des mois de l’année.",
+                "Au moins un destinataire est requis, et chaque adresse est vérifiée individuellement — avec trois adresses et une faute de frappe, l’erreur vous indique laquelle, au lieu de rejeter tout le champ.",
+                "Seules les vues enregistrées sur les comptes ou les commandes peuvent être source d’un rapport : ce sont aujourd’hui les deux seules listes à la fois restituables dans un fichier par le mécanisme d’export et disponibles comme vue enregistrée. Une vue enregistrée sur autre chose est refusée avec cette raison précise plutôt qu’ignorée silencieusement.",
+                "« Valorisation des stocks » inclut le coût du stock et la marge qui en découle — des chiffres que les Commerciaux et les Observateurs ne voient jamais ailleurs dans l’application. Chaque destinataire reçoit le même fichier quel que soit son rôle, car il y a un seul fichier par exécution et il est envoyé tel quel à toutes les adresses. Le formulaire vous avertit quand vous choisissez ce rapport ; il ne vous en empêche pas, car le choix des destinataires est le contrôle.",
+                "Seuls Propriétaire et Gestionnaire accèdent à ce formulaire. Un Commercial qui est destinataire peut lire un rapport et télécharger ses fichiers, mais jamais en créer, en modifier ou en supprimer un (specs.md §7.4)."
+            ],
+            "howItsBuilt": "Un rapport sur vue enregistrée n’est pas une copie des lignes : il stocke une référence à la vue, et chaque exécution réapplique les filtres et le tri de cette vue en passant exactement par le même chemin de code d’export de liste qu’utilise le bouton « Exporter en CSV », si bien qu’un rapport et un export manuel de la même vue ne peuvent jamais diverger. Cela soulève une question à laquelle l’interface ne peut pas répondre — un filtre comme « le propriétaire est moi » n’a pas d’utilisateur courant à 7h un lundi matin — donc une exécution planifiée résout « moi » comme la personne qui a créé la définition du rapport, le seul rôle qui puisse en créer une. Les destinataires sont normalisés à l’entrée puis à nouveau à la sortie, ce qui est ce qui maintient honnête la règle de visibilité du Commercial. La cohérence entre les champs est aussi appliquée côté serveur, pas seulement en masquant des champs de saisie : un rapport intégré a sa vue enregistrée vidée, et un rapport dont la fréquence n’en utilise pas a son jour de la semaine/jour du mois vidé, si bien qu’une définition incohérente ne peut pas être postée en contournant le formulaire."
+        },
+        "reports-list": {
+            "title": "Rapports",
+            "whatIsThis": "Tous les rapports que cet espace de travail a définis : à partir de quoi chacun est construit, quel type de fichier il produit, à quelle fréquence il part, et comment s’est passée sa dernière exécution. Un rapport est une définition enregistrée, pas un export ponctuel.",
+            "whatCanYouDo": [
+                "Définissez-en un nouveau avec « Nouveau rapport » — ou « Créer votre premier rapport » tant que la liste est vide.",
+                "Consultez la « Source » de chaque rapport (une vue enregistrée, ou l’un des deux rapports prédéfinis), son « Format » (CSV, XLSX ou PDF), et sa « Fréquence » : « Manuel uniquement », « Quotidienne », « Hebdomadaire » ou « Mensuelle ».",
+                "Vérifiez le « Statut » pour savoir si la planification est « Actif » ou « Inactif », et la « Dernière exécution » pour voir « En file d’attente », « En cours », « Réussi », « Échoué » — ou « Jamais exécuté » pour un rapport qui n’est pas encore parti.",
+                "Ouvrez le nom d’un rapport pour accéder à sa propre page : « Exécuter maintenant », le résultat actuel, l’historique complet des exécutions et les fichiers téléchargeables."
+            ],
+            "rules": [
+                "Le Propriétaire et le Gestionnaire voient et gèrent tous les rapports ici. Un Commercial ne voit que les rapports où sa propre adresse e-mail figure parmi les destinataires — et il ne fait que les voir : pas de « Nouveau rapport », pas de modification, pas de suppression, pas de « Exécuter maintenant ». Un Observateur n’a aucun accès aux rapports, pas même en lecture seule (specs.md §7.4).",
+                "Cette restriction porte sur l’adresse e-mail, comparée sans tenir compte de la casse — pas sur l’appartenance à l’espace de travail, ni sur qui a créé le rapport. Les destinataires sont de simples adresses, si bien qu’un rapport peut tout à fait partir vers quelqu’un sans compte dans cet espace de travail, et un Commercial dont l’adresse n’a jamais été ajoutée ne voit même pas que le rapport existe.",
+                "« Inactif » ne fait que désactiver la planification. La définition reste, son historique reste, et il peut toujours être exécuté à la main depuis sa propre page — désactiver un rapport hebdomadaire trop bavard n’équivaut donc pas à le supprimer.",
+                "La liste n’est pas paginée et n’a ni filtres, ni sélecteur de colonnes, ni vues enregistrées : un espace de travail compte en réalité une poignée de définitions de rapports, pas des milliers, donc elles sont toutes là en même temps, triées par nom.",
+                "Supprimer un rapport est définitif et arrête immédiatement sa livraison planifiée — et cela se fait depuis la page du rapport lui-même, pas depuis cette liste, pour que cela ne puisse pas arriver en cliquant par erreur sur une ligne."
+            ],
+            "howItsBuilt": "La restriction appliquée à un Commercial se fait sur la requête base de données qui construit cette liste, pas sur l’affichage : la requête filtre le tableau JSON `recipients` sur la propre adresse de la personne avant que quoi que ce soit n’atteigne le navigateur, si bien qu’un rapport dont elle ne fait pas partie n’est jamais envoyé à sa page. La même liste d’adresses est normalisée — espaces retirés, mise en minuscules, dédupliquée — à la fois lors de l’enregistrement et lors de la relecture pour cette vérification, afin que les deux ne puissent pas dériver silencieusement l’une de l’autre et laisser un Commercial exclu d’un rapport qui lui est adressé mais écrit avec une casse différente. Le badge de dernière exécution provient d’une relation chargée à l’avance plutôt que d’une requête par ligne."
+        },
+        "sent-emails": {
+            "title": "E-mails envoyés",
+            "whatIsThis": "Chaque e-mail transactionnel que cet espace de travail a tenté d’envoyer tant que les garde-fous de la démo publique sont actifs — invitations de membres, envois programmés de rapports, notifications d’export de données et d’abonnement — avec le message complet et si, oui ou non, il est réellement parti.",
+            "whatCanYouDo": [
+                "Affinez le journal avec « Statut » : « Livré », « Intercepté », « Partiellement livré », « Échec », ou laissez-le sur « Tous les statuts ».",
+                "Appuyez sur « Voir » sur une ligne pour l’ouvrir sur place : l’expéditeur, chaque adresse à/cc/cci avec son propre badge « livré » ou « intercepté », et le corps du message. « Masquer » la referme.",
+                "Lisez le corps du message exactement tel qu’il a été rédigé, pour vérifier ce qu’un destinataire aurait vu sans avoir à être ce destinataire.",
+                "Naviguez en arrière et en avant parmi les entrées plus anciennes, en bas du tableau."
+            ],
+            "rules": [
+                "Ce journal n’existe que tant que les garde-fous de la démo publique sont actifs. Désactivez-les et le courrier part directement, sans rien enregistrer — un journal conservant le texte intégral de chaque message deviendrait lui-même un nouveau risque dès que les destinataires sont de vraies personnes, pas une fonctionnalité.",
+                "Seuls le Propriétaire et le Gestionnaire peuvent l’ouvrir, et c’est une permission à part entière : pouvoir ouvrir les Paramètres ne suffit pas, car le Commercial et l’Observateur le peuvent aussi, et cet écran contient des corps de message entiers plutôt qu’un résumé de qui a changé quoi.",
+                "« Livré » signifie que tous les destinataires figuraient sur la liste blanche configurée et que l’envoi a réussi. « Intercepté » signifie qu’aucun ne l’était, donc rien n’a été envoyé du tout. « Partiellement livré » signifie que le message est parti uniquement vers les adresses autorisées — les autres sont retirées de À, Cc et Cci avant l’envoi, de sorte qu’un message mixte ne divulgue jamais son contenu à une adresse non validée. « Échec » est différent par nature : la partie autorisée a bien été tentée, et le fournisseur de messagerie l’a refusée.",
+                "Une liste blanche vide intercepte tout. Cela ne signifie jamais « livrer à tout le monde » — la vérification cherche une correspondance, et sans rien à faire correspondre, rien n’est autorisé.",
+                "Les liens susceptibles de prendre le contrôle d’un compte sont retirés avant l’écriture de la ligne : le jeton d’un lien de réinitialisation de mot de passe et d’un lien d’invitation de membre est remplacé par « [redacted-token] » et la ligne est marquée « Lien masqué », de même que tout jeton, toute signature ou tout paramètre d’expiration dans n’importe quel autre lien. Le jeton que vous voyez ici est inutilisable — ce qui compte, car celui d’un véritable e-mail aurait été identique. Cela signifie aussi qu’un lien d’invitation n’est pas cliquable depuis ce journal : pour parcourir l’acceptation d’une invitation, invitez une adresse figurant sur la liste blanche, qui recevra le véritable e-mail.",
+                "Les lignes sont conservées 7 jours puis purgées — la même rétention que les fichiers d’export, et pour la même raison. Dans la démo publique, la réinitialisation nocturne vide de toute façon la table ; la purge planifiée est le filet de sécurité pour une nuit où cette réinitialisation échouerait.",
+                "Une réinitialisation de mot de passe est envoyée avant que quiconque n’ait choisi d’espace de travail, donc sa ligne n’appartient à aucun espace de travail — elle est enregistrée et masquée, mais n’apparaît dans cette liste, ni dans cet espace de travail ni dans aucun autre."
+            ],
+            "howItsBuilt": "L’interception est une enveloppe autour du transport de courrier configuré, quel qu’il soit, enregistrée une seule fois au niveau du gestionnaire de mail, si bien que chaque message est couvert sans qu’un seul Mailable ou une seule Notification n’ait besoin de savoir qu’elle existe — y compris ceux qui n’ont pas encore été écrits. La décision est prise par destinataire, sur l’adresse exacte et sur le domaine, sans tenir compte de la casse ; le sous-ensemble autorisé est envoyé comme une copie du message dont les listes de destinataires ne contiennent que ces adresses. L’écriture de l’entrée de journal est isolée dans son propre savepoint et son échec est absorbé silencieusement : un échec d’écriture du journal ne doit jamais transformer une réinitialisation de mot de passe en erreur 500, car la réponse à une demande de réinitialisation est censée être identique, que le compte existe ou non. Attribuer une ligne à un espace de travail est plus difficile qu’il n’y paraît, car un e-mail mis en file d’attente est en réalité livré depuis une tâche interne du framework qui ne porte aucun contexte de tenant ; l’expéditeur appose donc un en-tête interne au moment de la construction, tant que le contexte existe encore, et le transport le retire avant l’envoi réel. La table elle-même porte une politique de sécurité au niveau des lignes écrite à la main plutôt que la politique standard, avec une seconde branche pour les lignes qui n’appartiennent à aucun espace de travail — sans elle, ces lignes ne pourraient même pas être insérées, encore moins supprimées au moment de la purge."
+        },
+        "settings": {
+            "title": "Paramètres",
+            "whatIsThis": "C’est le centre pour tout ce qui concerne la configuration de votre espace de travail et de votre compte — pas les données clients, juste les réglages.",
+            "whatCanYouDo": [
+                "Ouvrez « Préférences » pour changer de thème (Système, Clair ou Sombre).",
+                "Ouvrez « Pipeline » pour voir les étapes utilisées par le tableau des affaires — et les modifier, si vous êtes Propriétaire ou Gestionnaire.",
+                "Ouvrez « Membres » pour inviter quelqu’un, changer un rôle, ou désactiver une personne qui est partie, si vous êtes Propriétaire ou Gestionnaire.",
+                "Ouvrez « Exporter les données » pour demander une copie exploitable par machine de tout ce que cet espace de travail contient.",
+                "Consultez les sections de l’espace de travail auxquelles votre rôle a accès — chaque carte ici mène à un véritable écran."
+            ],
+            "rules": [
+                "Tous les rôles voient « Préférences ». « Pipeline » s’affiche pour le Propriétaire, le Gestionnaire et l’Observateur ; « Membres », « Jetons API », « E-mails envoyés » et « Exporter les données » pour le Propriétaire et le Gestionnaire ; « Facturation et abonnement », « Paramètres de transporteur » et « État des webhooks » seulement pour le Propriétaire — donc un Commercial ne voit que « Préférences ».",
+                "« E-mails envoyés » n’apparaît que lorsque les garde-fous de la démo publique sont actifs — une fois désactivés, plus rien n’est jamais enregistré, donc l’écran est masqué plutôt que d’être affiché en permanence vide.",
+                "Le Gestionnaire a un accès opérationnel complet partout ailleurs, mais pas à la facturation : la carte « Facturation et abonnement » n’apparaît jamais pour lui.",
+                "Ce que vous voyez sur cette page est calculé à partir des permissions réelles de votre rôle côté serveur, pas masqué avec du CSS — une section que vous ne pouvez pas utiliser n’apparaît pas du tout, plutôt que d’apparaître puis de vous refuser l’accès.",
+                "« Exporter les données » est visible par le Propriétaire et le Gestionnaire, mais seul un Propriétaire peut démarrer un export — un Gestionnaire voit l’historique sans le bouton.",
+                "« État des webhooks » est réservé au Propriétaire. Il montre ce que Stripe a envoyé à ce déploiement, y compris les événements qui n’appartiennent à aucun espace de travail ici ; ceux-ci sont marqués « ignoré », ce qui n’est pas une erreur."
+            ],
+            "howItsBuilt": "Le fait que « Facturation et abonnement » apparaisse ici ou non est décidé côté serveur, à partir de la même matrice de permissions utilisée pour toute autre vérification de rôle dans l’application (`app/Support/Permissions.php`) — pas une règle séparée pour ce seul menu. Cette matrice a déjà détecté une véritable contradiction avant sa mise en production : une version antérieure donnait accidentellement au Gestionnaire un accès en lecture à la facturation, et un test fonctionnel écrit directement à partir de la spécification (pas à partir du code) a échoué jusqu’à ce que la matrice soit corrigée. Pas d’ADR dédié — c’est une règle établie dans specs.md §7.4, pas une décision d’architecture."
+        },
+        "stock": {
+            "title": "Stock",
+            "whatIsThis": "La quantité que vous avez d’une variante, dans chacun de vos emplacements, en ce moment — et la part réellement libre à la vente.",
+            "whatCanYouDo": [
+                "Consultez « En stock » (physiquement présent dans l’emplacement), « Réservé » (alloué à des commandes confirmées) et « Disponible » (en stock moins réservé) par emplacement.",
+                "Utilisez « Réceptionner du stock » pour enregistrer l’inventaire entrant, avec une note de référence facultative (un numéro de bon de commande, par exemple).",
+                "Utilisez « Ajuster » pour corriger un comptage après un inventaire physique — un motif est obligatoire, afin que la correction reste explicable plus tard.",
+                "Utilisez « Transférer » pour déplacer du stock d’un emplacement à un autre.",
+                "Ouvrez « Voir l’historique » pour consulter tous les mouvements passés de cette variante."
+            ],
+            "rules": [
+                "Seuls le Propriétaire et le Gestionnaire peuvent réceptionner, ajuster ou transférer du stock — le Commercial et l’Observateur voient les mêmes chiffres en lecture seule, sans aucun des trois boutons.",
+                "Un ajustement nécessite toujours une note expliquant la correction — il n’existe aucun moyen de changer une quantité sans dire pourquoi.",
+                "Un transfert est rejeté si l’emplacement source n’a pas assez de stock disponible — déplacer un stock qui n’est pas physiquement là n’est pas autorisé, contrairement à une commande, qui peut sciemment dépasser la quantité disponible en rupture de stock.",
+                "« Disponible » est ce qui compte lors de la construction d’une commande — jamais « En stock » seul, qui ignore ce que d’autres commandes ont déjà réclamé.",
+                "Un badge « Stock faible » apparaît en haut de cette page dès que la quantité disponible totale d’une variante active, tous emplacements confondus, passe sous son seuil configuré (défini sur la variante elle-même, pas ici) — une variante inactive ne l’affiche jamais."
+            ],
+            "howItsBuilt": "Chaque bouton de cette page écrit dans le registre de stock en ajout seul (`stock_movements`) et met à jour la projection du stock disponible (`inventory_levels`) dans la toute même transaction de base de données — jamais en deux étapes séparées. Un transfert correspond en réalité à deux écritures de registre liées (une sortie, une entrée) partageant un identifiant de référence, écrites ensemble. Rien ici n’exécute jamais un UPDATE ou un DELETE sur un mouvement passé : une correction est toujours une nouvelle écriture, si bien que l’historique complet reste intact et explicable — le même raisonnement qui empêche de toucher une ligne de facture client après son émission, appliqué ici au stock."
+        },
+        "stock-history": {
+            "title": "Stock — Historique",
+            "whatIsThis": "Tous les mouvements de stock jamais enregistrés pour cette variante, du plus récent au plus ancien, et rien n’est jamais modifié après coup : ce qui a changé, de combien, pourquoi, qui l’a fait et quand.",
+            "whatCanYouDo": [
+                "Filtrez par « Motif » (réception, vente, ajustement, retour ou transfert), ou affinez la période avec « Du »/« Au ».",
+                "Consultez la note attachée à un mouvement — obligatoire pour chaque ajustement, facultative pour le reste.",
+                "Suivez les deux lignes liées d’un transfert (un emplacement qui perd du stock, l’autre qui gagne la même quantité au même instant)."
+            ],
+            "rules": [
+                "Accessible à tout rôle pouvant voir le stock, y compris l’Observateur — cet écran est en lecture seule par nature, il n’y a rien ici à restreindre au-delà de `stock.view`.",
+                "Rien sur cette liste ne peut être modifié ni supprimé, par personne, quel que soit le rôle : corriger une erreur signifie enregistrer un nouvel ajustement, pas changer ce qui s’est déjà passé."
+            ],
+            "howItsBuilt": "Cette liste lit directement `stock_movements`, le registre en ajout seul — jamais une table récapitulative qui pourrait s’en écarter. La pagination se fait par curseur, pas par numéro de page, pour que l’historique reste rapide même pour une variante avec des années de réceptions et de ventes derrière elle. `stock:reconcile` (exécuté chaque semaine, et à la demande) recalcule les quantités en stock directement à partir de ce registre et signale tout écart avec les chiffres de stock en direct — le registre est traité comme l’unique source de vérité, et non le nombre affiché sur l’écran de stock."
+        },
+        "unassigned": {
+            "title": "Non attribué",
+            "whatIsThis": "Les affaires ouvertes et commandes actives laissées derrière lorsqu’un membre a été désactivé sans réaffectation préalable. Rien sur cette page n’a été perdu — il faut juste un nouveau propriétaire.",
+            "whatCanYouDo": [
+                "Consultez chaque affaire ouverte et commande active appartenant à un membre qui n’a plus accès, regroupées par type.",
+                "Choisissez un nouveau propriétaire et appuyez sur « Tout réaffecter » pour lui transférer tout ce qui figure sur cette page en une seule action.",
+                "Surveillez le nombre à côté de « Non attribué » dans la navigation principale — il ne s’affiche que tant que cette page contient quelque chose."
+            ],
+            "rules": [
+                "Seules les affaires ouvertes et commandes actives apparaissent ici — une commande livrée ou une affaire gagnée/perdue garde son propriétaire d’origine, marqué « (désactivé) », car réécrire un historique clos n’est pas le but.",
+                "Les comptes ne font pas partie de cette vue : les comptes d’un membre désactivé restent attribués à celui-ci, visibles avec la mention « (désactivé) », plutôt que d’apparaître ici — seul son travail inachevé y figure.",
+                "Visible uniquement du Propriétaire et du Gestionnaire — les deux mêmes rôles qui peuvent désactiver un membre en premier lieu.",
+                "La réaffectation ici utilise le même mécanisme en file d’attente et par lots que toute autre opération groupée — vous arrivez sur une page de statut, et le compteur « Non attribué » diminue une fois l’opération terminée."
+            ],
+            "howItsBuilt": "Cette page n’est qu’un filtre de plus sur les mêmes requêtes `DealList`/`OrderList` que toute autre liste de l’application utilise déjà (`owner=unassigned`, plus le statut ouvert/actif) — il n’existe pas de table séparée d’« enregistrements orphelins » à garder synchronisée. Le compteur de navigation exécute les deux mêmes requêtes, sans la pagination, une fois par requête, et uniquement pour le Propriétaire et le Gestionnaire."
+        },
+        "variant-form": {
+            "title": "Variante",
+            "whatIsThis": "Un seul SKU : exactement ce qu’un client commande, avec son propre code SKU, son prix, son coût et (en option) un poids et un seuil de stock faible.",
+            "whatCanYouDo": [
+                "Définissez le « SKU » — il doit être unique dans tout votre espace de travail, pas seulement pour ce produit.",
+                "Définissez le « Prix » catalogue que paient les clients et le « Coût » que vous payez — la différence est la marge.",
+                "Définissez un « Poids », utilisé ensuite pour les calculs d’expédition.",
+                "Définissez un « Seuil de stock faible » pour obtenir un indicateur « Stock faible » sur cette variante dès que sa quantité disponible passe sous ce nombre — laissez-le vide pour n’avoir aucune alerte.",
+                "Marquez la variante comme inactive au lieu de la supprimer, si vous arrêtez de la vendre mais gardez son historique."
+            ],
+            "rules": [
+                "Seuls le Propriétaire et le Gestionnaire accèdent à ce formulaire — le Commercial et l’Observateur ne voient jamais « Ajouter une variante » ni « Modifier » sur une variante.",
+                "« Coût » est enregistré comme n’importe quel autre champ ici, mais il n’apparaît jamais sur cette variante nulle part où le Commercial ou l’Observateur peuvent regarder — la marge ne concerne que le Propriétaire et le Gestionnaire (specs.md §7.4).",
+                "Un SKU en double est rejeté avant l’enregistrement, avec l’erreur juste à côté du champ — pas un échec générique.",
+                "« Seuil de stock faible » est facultatif et propre à chaque variante — une variante qui n’en a pas n’affiche jamais l’alerte, quel que soit le niveau de son stock, et une variante que vous avez marquée inactive non plus."
+            ],
+            "howItsBuilt": "La vérification d’unicité du SKU ne porte que sur les variantes propres à l’espace de travail : la règle de base de données sous-jacente est contournée par les raccourcis de validation à moins que l’espace de travail ne soit filtré explicitement, si bien qu’un SKU déjà utilisé par un autre espace de travail ne bloque jamais le vôtre."
+        },
+        "webhook-health": {
+            "title": "État des webhooks",
+            "whatIsThis": "La vue opérationnelle de tout ce que Stripe a communiqué à ce déploiement : une ligne par événement, avec ce qui lui est arrivé. Elle existe pour qu’un problème de paiement soit visible ici, en mots simples, plutôt que seulement dans un fichier de log que personne ne lit.",
+            "whatCanYouDo": [
+                "Consultez les cinq compteurs en haut de page — combien d’événements ont été reçus, sont en cours de traitement, ont été traités, ont échoué, ou ont été ignorés.",
+                "Filtrez la liste par statut, pour ne voir que les échecs.",
+                "Consultez la colonne de détail, qui explique en mots pourquoi un événement a fini là où il a fini."
+            ],
+            "rules": [
+                "Seul le Propriétaire peut ouvrir cette page — c’est le même droit que pour la page Facturation et abonnement, car ce sont les mêmes événements Stripe vus de l’autre côté.",
+                "« Échec » est le seul statut qui nécessite une intervention humaine. Il signifie que la signature était valide, que l’événement était bien le nôtre, et que son application n’a pas fonctionné après trois tentatives.",
+                "« Ignoré (pas le nôtre) » n’est pas un échec. Ce déploiement partage son bac à sable Stripe avec un autre projet, donc les événements appartenant à ce projet arrivent ici avec une signature parfaitement valide. Rien ne les fait correspondre à un espace de travail, rien n’est appliqué, et la ligne l’indique.",
+                "Stripe livre chaque événement au moins une fois, jamais exactement une fois. Une livraison répétée d’un événement déjà enregistré reçoit une réponse immédiate et n’est jamais appliquée une seconde fois, si bien qu’un doublon n’apparaît jamais comme une seconde ligne.",
+                "La liste affiche les 100 événements les plus récents, tandis que les compteurs au-dessus portent sur tous les événements jamais reçus — un compteur peut donc afficher un nombre bien plus élevé que le nombre de lignes en dessous.",
+                "Le contenu (payload) de l’événement n’est jamais affiché sur cette page. La table elle-même appartient au déploiement plutôt qu’à un espace de travail en particulier, donc seuls les métadonnées et le message rédigé par cette application sont affichés."
+            ],
+            "howItsBuilt": "Le point de terminaison des webhooks est public — Stripe n’a ni session ni espace de travail — il vérifie donc la signature localement, enregistre l’événement en l’indexant sur son propre id, et confie le travail réel à une tâche mise en file d’attente. Cette séparation est délibérée : le gestionnaire fourni avec le framework fait des appels synchrones vers Stripe, ce qui maintiendrait une transaction de base de données ouverte pendant tout l’aller-retour, sur un conteneur au pool de connexions restreint. Le fait qu’un événement appartienne ou non à ce déploiement se décide en recherchant l’id client qu’il porte parmi les espaces de travail de ce déploiement ; si rien ne correspond, la ligne est marquée comme ignorée plutôt qu’en échec, et aucune tâche n’est mise en file d’attente du tout. Cette distinction est ce qui garde un sens au compteur d’échecs — un écran d’exploitation plein de rouge qui ne vous concerne pas fait perdre tout son sens au rouge."
+        }
+    }
+}

@@ -1,0 +1,746 @@
+{
+    "topics": {
+        "account-detail": {
+            "title": "Account detail",
+            "whatIsThis": "This is one company's full record — its details, its contacts, its deals and a timeline of what happened with it. Creating and editing an account both happen on the same kind of form.",
+            "whatCanYouDo": [
+                "On \"New account\", fill in the company and its \"Primary contact\" in the same form — one \"Create account\" saves both, no separate step for the first contact.",
+                "Change details, owner, status, credit terms, tags and addresses with \"Edit\", then \"Save changes\".",
+                "Start related records with \"Add contact\" or \"New deal\" — each opens its form with this account already filled in.",
+                "Scan the \"Contacts\", \"Deals\" and \"Activity\" sections — \"Activity\" mixes deals created, stage moves, orders placed and logged actions, the 30 most recent first.",
+                "Remove the account with \"Delete\"."
+            ],
+            "rules": [
+                "An account with deals or orders can't be deleted — \"Delete\" still opens, and the dialog says how many deals and orders are in the way instead of silently failing.",
+                "Owner and Manager can edit and delete any account; an Agent only accounts they own or created — everything else on this page stays visible to them, just not editable.",
+                "If the contact email you enter is already linked to an account, saving is blocked with a warning and a link to that account — not silently overwritten. Ticking \"Save anyway\" confirms it's intentional (the same person can legitimately work with two companies) and saving proceeds.",
+                "Leaving \"Owner\" on \"Unassigned\" when you create an account makes you its owner.",
+                "Only one contact per account can be primary — marking another contact primary, from its own form, automatically un-marks the previous one."
+            ],
+            "howItsBuilt": "The duplicate-email warning is a validation error you can override: the request stops and nothing is written until you tick \"Save anyway\". The link to the other account doesn't travel inside the error text — the server adds a one-time Inertia flash payload (account id + name), which disappears on the next navigation instead of sticking to the form. The same check runs on the contact form. There's no dedicated ADR for this — it's an application-level policy, covered directly by feature tests (`DuplicateContactEmailTest`, `DuplicateContactEmailHttpTest`) rather than an architecture decision."
+        },
+        "accounts-list": {
+            "title": "Accounts",
+            "whatIsThis": "Every company your workspace sells to or is talking to, in one list. This is where you search, filter and act on more than one account at a time.",
+            "whatCanYouDo": [
+                "Search by account name, filter by \"Status\" and sort by name or newest.",
+                "Use the \"Owner\" filter to see \"My accounts\", \"All accounts\", \"Unassigned\" accounts or one teammate's accounts.",
+                "Open \"Views\" to apply a saved view, \"Save view\" to keep the current filters, or \"☆ Set default\" to open the list on that view.",
+                "Open \"Columns\" to show, hide or reorder the optional columns (Owner, Status, Created) with checkboxes and \"Move up\"/\"Move down\" — the account name column always stays, and a saved view remembers your choice.",
+                "Download the filtered list with \"Export CSV\", even without edit rights.",
+                "Create an account with \"New account\", or change one from its \"Edit\" link.",
+                "Select several accounts with the checkboxes — or \"Select all N matching this filter\" — and reassign them to a new owner in one action, from the bar that appears once you've picked at least one."
+            ],
+            "rules": [
+                "Agents start on \"My accounts\"; everyone else starts on all accounts. The filter changes what you see, not what you can edit — an Agent only gets \"Edit\" on accounts they own or created.",
+                "\"Unassigned\" means no owner, or an owner who is no longer an active member — deactivating someone never silently reassigns their records.",
+                "\"Export CSV\" works for every role, including Viewer: it reads every row matching the current filters — all pages, not just the one on screen — and writes nothing. Up to 5,000 rows download at once; a bigger export continues on a status page.",
+                "Anyone can save, rename and delete their own private views. Only Owner and Manager can save a view for the whole team or rename and delete a team view; everyone else can still apply \"Team views\".",
+                "A default view opens only when the URL carries no filter or sort, so a link a teammate shares always opens with its own filters.",
+                "Reassigning owners in bulk is a write, so it follows the same rule as editing one at a time: Viewer never sees the checkboxes, and an Agent can only reassign accounts they own or created, capped at 500 per operation. A confirmation dialog appears above 125 rows for Agent, 1,000 for everyone else who can do it — see the \"Bulk operation status\" page for what happens after you confirm."
+            ],
+            "howItsBuilt": "The URL for this screen is `/{workspace-slug}/accounts` — every module route carries the workspace in the path, not in a cookie or a hidden session value, so a filtered link (`?filter[status]=active`) is fully shareable between teammates and still resolves to the right tenant on the other end. One `ListQuery` reads filters, sort and cursor from the URL and `AccountList` says what they mean for accounts; the screen, \"Export CSV\" and saved views all go through that same pair, so an export or a saved view can't drift from what the list shows. Paging is by cursor, not by page number, so the list stays fast well past a few thousand rows — there is no \"jump to page 40\"."
+        },
+        "activity-log": {
+            "title": "Activity log",
+            "whatIsThis": "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants, orders and invoices, plus bulk operations (one row per record touched) and membership changes: invitations sent, accepted or revoked, roles changed, members deactivated.",
+            "whatCanYouDo": [
+                "Filter by action type (\"Created\", \"Updated\", \"Deleted\", \"Bulk Action\", \"Role Changed\"...), by \"Member\", and by a \"From\"/\"To\" date range.",
+                "Click the action name on a row to jump to the record it changed — variants are the exception, since they have no page of their own; their history is on the product.",
+                "Open a bulk operation's \"View in Activity Log\" link (from its progress page) to see every row it touched, filtered to just that operation.",
+                "See which fields a change touched in the \"Changes\" column — the old and new values themselves are shown side by side on the record's own \"History\" section, one click away."
+            ],
+            "rules": [
+                "Owner and Manager see every action in the tenant. An Agent sees only their own actions here — everyone can still see the full history on a record's own \"History\" tab, regardless of who made the change.",
+                "Viewer has no access to this screen at all (§7.4) — the record-level \"History\" tab stays visible to them, since it's part of viewing the record itself.",
+                "Passwords, remember-me tokens and stored credentials never appear here, even partially — a changed field with one of those names is simply absent from the recorded change, not masked.",
+                "Rows older than 36 months have their old/new values replaced with \"[anonymized]\" for contacts and users — the row itself, and which field changed, stays for statistics; the value doesn't."
+            ],
+            "howItsBuilt": "Writes happen two ways. Ordinary edits go through Eloquent model observers that fire an event, picked up by a queued listener — the request never waits on the log write. Bulk operations update many rows in one SQL statement, which Eloquent observers never see, so the bulk job reads each row before and after the change and writes one log row per row actually changed, in a single batch insert. Both paths share the same field-exclusion list (ADR-007) and the same \"only the fields that changed\" diff."
+        },
+        "api-tokens": {
+            "title": "API tokens",
+            "whatIsThis": "The keys that let an outside system — an ERP, a spreadsheet script, a partner integration — read and write this workspace through the public API, without a browser session and without anyone sharing a password.",
+            "whatCanYouDo": [
+                "Create a token with a name that says what it is for, and tick only the scopes it actually needs.",
+                "Copy the token value the one time it is shown, straight after \"Create token\".",
+                "See when each token was last used, so a token nobody calls any more is easy to spot.",
+                "Press \"Revoke\" on a token to stop it working immediately, without touching the other tokens.",
+                "Read the full endpoint reference at /api/documentation, which is generated from the same contract the API is built against."
+            ],
+            "rules": [
+                "The token value is shown exactly once, at creation. It is never stored in readable form, so nobody — including an administrator with database access — can recover it later. Lose it and you issue a new one.",
+                "A token belongs to one workspace, and the API works out which workspace from the token itself: API addresses carry no workspace in them. Pointing a token at another workspace is not something the URL can express.",
+                "Scopes are read and write separately, per area — except accounts, which the API only ever reads. A token with only \"Read orders\" that tries to create an order is refused with a message naming the scope it is missing, rather than a vague failure.",
+                "A token can never do more than the person who issued it. A Viewer who somehow creates a write-scoped token still gets refused by the ordinary permission rules — the scope narrows, it never widens.",
+                "Only an Owner or a Manager sees this screen or can create and revoke tokens.",
+                "Revoking keeps the row, so the history of who issued what stays readable, but the key stops working on the very next request.",
+                "Creating an order, an invoice or a stock movement through the API requires an \"Idempotency-Key\" header. Sending the same key twice returns the first result again instead of creating a second record — a network timeout and a retry cannot duplicate anything.",
+                "Each token is limited to 300 requests per minute. Past that, the API answers with a \"Retry-After\" header saying how long to wait.",
+                "If the member who issued a token is deactivated, every token they issued stops working too — access follows the person, not the key."
+            ],
+            "howItsBuilt": "Tokens sit on top of Laravel Sanctum rather than a full OAuth2 server: this application is a first-party SPA plus simple machine access, and nothing in it needs third-party consent flows. Each token carries its workspace on the authentication record itself, so the workspace is resolved server-side from the verified token before a single business query runs — the API path deliberately has no workspace segment, which is what makes \"read another tenant's order by guessing its id\" structurally impossible rather than merely forbidden. Identifiers are ULIDs, not counters, so they cannot be walked; and a request for a record belonging to another workspace answers 404, not 403, because 403 would confirm that the record exists. Idempotency is enforced by storing the key together with a fingerprint of the request body for 24 hours, inside the same database transaction as the effect itself: if the request fails the claim rolls back with it, and if it succeeds the stored response and the record it describes are committed together."
+        },
+        "billing": {
+            "title": "Billing & Subscription",
+            "whatIsThis": "Where this workspace's own Throughput subscription lives — the plan, the payment method on file, and what happens when a payment fails. This is not the invoices you send to your customers; that is a completely separate ledger, on a different page.",
+            "whatCanYouDo": [
+                "See the current subscription status and, if one is on file, the card used to pay for it.",
+                "Press \"Manage billing\" to hand off to the Stripe Customer Portal, where the payment method and billing history are updated directly with Stripe; you come straight back to this page when you are done.",
+                "Read \"Invoice history\" for every charge Stripe has issued for this workspace, and press \"View\" on a row to open that invoice at Stripe.",
+                "If the subscription was canceled, press \"Reactivate\" from the same portal, any time within 30 days of cancellation — no need to set the workspace up again."
+            ],
+            "rules": [
+                "Only Owner can open this page or manage billing at all — not Manager, even though Manager has full operational access everywhere else. The card for this page does not even appear in Settings for anyone but Owner.",
+                "A failed payment does not lock anything by itself. Stripe retries automatically, and while that is happening (\"past due\") every role keeps full access — a banner just says so, on every page, with a link back here.",
+                "Only once Stripe has exhausted its retries and marked the subscription \"unpaid\" does write access stop, for every role including Owner: viewing and exporting data still work, but creating, editing or deleting anything anywhere in the workspace is refused, both in the interface and on the server if the request is somehow forced through.",
+                "A canceled subscription blocks the entire workspace except this one page: every other screen redirects here automatically, because reactivating is the only thing left to do — and data stays exportable for 30 days from cancellation before it would be scheduled for removal.",
+                "The Owner gets an email every time Stripe reports a failed payment attempt while retries are still happening, with the attempt number, so the problem is visible long before the workspace actually loses access."
+            ],
+            "howItsBuilt": "The subscription lives on the workspace itself, not on any individual user — Cashier treats the tenant as the billable entity, so the plan survives whoever originally entered the card. A single policy reads the raw Stripe status directly (not the higher-level \"subscribed\" helper, which cannot tell \"still retrying\" apart from \"given up\") and turns it into one of three access levels, checked by one piece of middleware in front of every write route in the workspace and read again by the banner shown on every page, so the server and the interface can never disagree about which state the workspace is in. Stripe delivers webhook events at least once, never exactly once, so every event is recorded before it is acted on, keyed on its own id — a repeat delivery is recognized immediately and never applied twice, whether it is the ordinary subscription-status sync or the payment-failure notice, which is not something Stripe's own library handles on its own and had to be added deliberately."
+        },
+        "bulk-group-operation": {
+            "title": "Bulk operation status (reassigning multiple record types)",
+            "whatIsThis": "This page follows a reassignment that touches more than one type of record at once — for example, everything a deactivated member owned: their accounts, open deals and active orders together.",
+            "whatCanYouDo": [
+                "Watch a separate progress bar for each record type — accounts, deals, orders — and an overall status above them.",
+                "Press \"Cancel\" to stop every type at once — rows already reassigned keep their new owner, the rest are left unchanged."
+            ],
+            "rules": [
+                "The overall status stays \"Running\" until every type is done — one still-queued type keeps the whole page showing progress, even if the others already finished.",
+                "Only the person who started the operation can open this page or cancel it, the same rule as a single-type bulk operation."
+            ],
+            "howItsBuilt": "Each record type is its own row in `bulk_operations` and its own queued job pipeline — reassigning three types is three independent operations, not one job that touches three tables. They share nothing but a `group_id` column, so this page is a thin aggregation over three ordinary `BulkOperationResource` reads: it sums their totals for the header and reuses the same per-operation resource for each progress bar. If accounts fail to reassign, deals and orders keep going and can be retried independently."
+        },
+        "bulk-operation": {
+            "title": "Bulk operation status",
+            "whatIsThis": "This page follows a change you made to many rows at once — like reassigning the owner of hundreds of accounts, cancelling a batch of draft orders, or changing the price of a batch of products in one action. It runs in the background so your browser never hangs; you land here automatically after confirming.",
+            "whatCanYouDo": [
+                "Watch the status go from \"Queued\" to \"Running\" to \"Done\" — the page updates itself every 2 seconds until it finishes.",
+                "Follow the progress line and bar — they show roughly how far along the operation is, worked out from how many batches of 500 rows have finished rather than from a per-row counter, so the figure is exact at the start and at the end and an estimate in between.",
+                "Press \"Cancel\" while it's running — rows already changed keep their new value, the rest are left exactly as they were.",
+                "Come back later through the same link, in the public demo until the nightly data reset."
+            ],
+            "rules": [
+                "Before you get here, a confirmation dialog appears whenever the change would touch more than a role-based number of rows: 125 for Agent, 1,000 for Owner and Manager — a smaller number for Agent because their whole role is capped at 500 rows per operation, so the check has to matter for them too.",
+                "Selecting the checkbox in the table header picks only the rows on the current page. A separate link, \"Select all N matching this filter\", appears next to it and picks every row that matches your filters, across all pages — one is never assumed from the other.",
+                "A failure never stops the rest. The work is split into batches of 500 rows and one batch failing doesn't cancel the others — the page tells you how many batches failed, if any. Individual rows are not tracked one by one: a row that no longer matches when its batch runs (someone deleted it, or a draft order was confirmed in the meantime) is simply left untouched, and is not counted as a failure.",
+                "As an Agent, a bulk change only ever touches records that are yours, even if your current filter shows more: accounts you own or created, and deals or orders you own. It's the same rule as editing them one at a time, enforced again on the whole batch — and at query level, so the count you confirmed already reflects it.",
+                "Bulk cancelling draft orders only ever touches the drafts in your selection — the row count, the \"Select all N\" link and the confirmation threshold for that action all reflect the drafts only, never the raw filter or selection.",
+                "Only the person who started an operation can open this page or cancel it — not even an Owner can cancel a teammate's.",
+                "In the public demo, an operation touching more than 60,000 rows is refused before it starts."
+            ],
+            "howItsBuilt": "The request never resolves a list of IDs itself — it saves the filter (or, for a page-only selection, the exact IDs checked) on a `bulk_operations` row and queues a planner job. That job re-runs the same query used by the list screen, in ID-ordered pages of 500 rows at a time so a 60,000-row operation never loads more than one page into memory, and groups one job per page into a `Bus::batch()` that allows individual failures without stopping the rest. Each of those jobs writes a single conditional `UPDATE`, so re-running the same page after a retry changes nothing the second time — for reassignment that's `WHERE owner_user_id != :new_owner`; for cancelling drafts it's `WHERE status = 'draft'`. A price change can't be written that way at all, since the new price is computed from the old one, so a redelivered chunk is stopped one level up instead: each chunk records itself in a `bulk_operation_chunks` row inside the same transaction as its work, and a chunk that finds its row already there does nothing. Cancelling calls `$batch->cancel()`; each job checks that flag for itself before writing anything, since Laravel doesn't kill jobs already queued. No dedicated ADR — see specs.md §13.1/§13.2 for the full mechanism."
+        },
+        "carrier-settings": {
+            "title": "Carrier settings",
+            "whatIsThis": "Which shipping carrier this workspace uses to generate labels, and the credentials it uses to talk to it. Only one carrier is active at a time.",
+            "whatCanYouDo": [
+                "See both available carriers — Demo (no external calls) and Shippo (a real sandbox integration) — and which one is active right now.",
+                "Add or rotate the Shippo API key for this workspace.",
+                "Press \"Activate\" (or \"Save & activate\") on a carrier to make it the one used for every new shipping label from now on."
+            ],
+            "rules": [
+                "At most one carrier is active per workspace — activating one automatically deactivates whichever was active before, in the same instant. A workspace that has never chosen one shows both as \"Not active\" and still gets labels, from Demo: there is never a shipment without a clear owner for the label.",
+                "Shippo cannot be activated without an API key on file; the form asks for one before it lets you save.",
+                "Leaving the API key field blank on an already-configured carrier keeps the existing key — the field never shows a real key back, only whether one is on file and the last few characters, so re-saving never accidentally erases it.",
+                "The key itself never appears anywhere once saved: not in this screen, not in the activity log, not in any exported file. Only \"configured\" and its last few characters are ever shown again.",
+                "Only an Owner sees this screen at all — not Manager, Agent or Viewer. Carrier credentials and billing are the two things a Manager has no access to whatsoever, not even read-only, while having full operational access everywhere else.",
+                "This deployment only ever uses Shippo sandbox/test keys, never a live key — a real shipment is never actually created or billed."
+            ],
+            "howItsBuilt": "Both carriers implement the same `ShippingCarrier` interface (`createLabel`, `void`, `trackingUrl`), run through the identical contract test suite, and are selected per tenant from a `tenant_carrier_settings` row rather than a global setting — so two workspaces can use the same carrier with entirely separate credentials. The \"exactly one active\" rule is enforced in the database transaction that activates a carrier, not just in the form: it locks the tenant's own row with `FOR NO KEY UPDATE` (serializing two concurrent activations without blocking unrelated writes elsewhere in the workspace) before flipping the old active row off and the new one on. Credentials are stored with Laravel's `encrypted:array` cast — unreadable at rest even with direct database access — and this screen only ever receives a boolean and a truncated preview back from the server, never the decrypted value."
+        },
+        "contact-detail": {
+            "title": "Contact detail",
+            "whatIsThis": "This is one person's record — their details, which account they belong to, whether they're the primary contact there, and the deals that name them as primary contact.",
+            "whatCanYouDo": [
+                "Change name, \"Job title\", email and phone with \"Edit\", then \"Save changes\" (\"Create contact\" on a new one).",
+                "Link, move or unlink the company in \"Account\": search by name and pick one, or \"Clear\" it for a lead without a company. \"Add contact\" on an account page fills it in for you.",
+                "Tick \"Primary contact for this account\" to make this person the account's primary contact.",
+                "Tick \"Opted out of marketing communications\" — the page then shows \"Opted out\" under \"Marketing\".",
+                "Remove the contact with \"Delete\"."
+            ],
+            "rules": [
+                "Only one contact per account can be primary — saving this one as primary automatically un-marks whichever contact held that spot before.",
+                "A primary contact must belong to an account: the checkbox stays disabled until an account is chosen, and clearing the account un-ticks it.",
+                "If the email already belongs to another contact linked to an account, saving is blocked with a warning and a link to that account instead of silently going through — tick \"Save anyway\" if it's intentional.",
+                "Deleting is allowed even when deals or orders reference this contact, and it can't be undone: with none, the row is deleted; with any, the contact's name, email, phone and title are anonymized instead and the row stays, so deal and order history keeps its link. Opting out, by contrast, keeps the contact as-is.",
+                "An anonymized contact no longer has a page: its detail, edit and delete links stop working, and it drops out of lists, search and the \"Primary contact\" options on deals.",
+                "An Agent can edit or delete only contacts they created, or contacts at accounts they own."
+            ],
+            "howItsBuilt": "The \"single primary contact per account\" rule is enforced at save time on the server, not just in the form: the save locks the account row, demotes the previous primary and stores the new one in the same transaction, so two concurrent saves can never leave two primaries. A partial unique index on `contacts` (one primary row per account) is a second safety net in the database itself. No dedicated ADR — it's a straightforward business rule (FR-CRM-02), not an architecture decision."
+        },
+        "contacts-list": {
+            "title": "Contacts",
+            "whatIsThis": "Every person you deal with at your accounts — not the companies themselves, the people. A contact can exist before you've linked it to a company yet.",
+            "whatCanYouDo": [
+                "Search by first name, last name or email — one at a time, so \"Jane Doe\" typed together finds nothing — then press \"Apply\".",
+                "Sort by \"Last name (A–Z)\", \"Newest first\" or \"Oldest first\".",
+                "Download the current list with \"Export CSV\".",
+                "Add someone with \"New contact\" — linked to an account or on their own — or change a contact from its \"Edit\" link."
+            ],
+            "rules": [
+                "There's no \"My contacts\" default: every role sees every contact in the workspace. What changes by role is who can edit.",
+                "An Agent can edit or delete only contacts they created, or contacts at accounts they own; the other rows have no \"Edit\" link.",
+                "\"Export CSV\" is available to Viewers too — it reads every row matching the current search, all pages of it, and writes nothing. The file includes a \"Marketing opt-out\" column.",
+                "Deleting a contact isn't blocked by deals or orders that reference it: with none, the row is deleted; with any, the contact's personal data (name, email, phone, title) is anonymized instead and the row stays, so deal and order history keeps its link. Anonymized contacts no longer show up here.",
+                "Contacts have no saved views yet — \"Views\" exists on Accounts, Deals, Orders and Products."
+            ],
+            "howItsBuilt": "This list reuses the same cursor-paginated `ListQuery` foundation as Accounts (`ContactList` on the shared `ResourceList`), so it stays fast at the same scale without a separate implementation, and \"Export CSV\" re-runs exactly this query. There is no dedicated ADR for this screen — the pagination and filtering approach is a functional requirement (FR-CRM-03), not an architecture-level decision."
+        },
+        "dashboard": {
+            "title": "Dashboard",
+            "whatIsThis": "This is the first screen you land on after opening a workspace — a snapshot of how the business is doing right now. It doesn't let you edit anything; it's where you start before heading into a module.",
+            "whatCanYouDo": [
+                "Scan the four KPI tiles: \"Open pipeline value\", \"Orders this month\", \"Overdue invoices\" and \"Low stock alerts\".",
+                "Review \"Recent activity\": the 10 most recent entries of the workspace activity log that your role can read.",
+                "Switch to another workspace from the switcher showing the current workspace name, next to \"Throughput\" in the top bar.",
+                "Press Cmd+K or Ctrl+K — or click \"Search\" in the top bar — to jump to an account, contact or deal, or to start \"Create account\", \"Create contact\" or \"Create deal\".",
+                "Press ? anywhere outside a text field to open this help panel; Esc closes it."
+            ],
+            "rules": [
+                "Every number on this page belongs to the workspace you're currently in — switch workspaces and all four tiles change, nothing carries over from the previous one.",
+                "\"Open pipeline value\" adds up the value of open deals only; won and lost deals are left out, and so are open deals with no value yet.",
+                "\"Low stock alerts\" counts stock levels — one variant at one location — where on hand minus reserved is 5 units or fewer, so a variant running low at two locations counts twice.",
+                "\"Overdue invoices\" shows how many invoices are overdue; the amount under the number is the balance still owed on them, not their original total.",
+                "The KPI tiles are the same for every role. \"Recent activity\" follows who may read the activity log: Owners and Managers see everyone's actions, Agents only their own, and Viewers don't get the feed at all."
+            ],
+            "howItsBuilt": "The four KPIs are plain SQL aggregates (SUM/COUNT), computed on every request — there's no cached snapshot to go stale. Notably, the controller never writes `where tenant_id`: the tenant global scope and PostgreSQL row-level security apply automatically to every query on every model, so isolation isn't something each screen has to remember to do."
+        },
+        "data-export": {
+            "title": "Export data",
+            "whatIsThis": "A complete, machine-readable copy of everything this workspace holds — accounts, contacts, deals, orders, invoices, payments and the activity log — packaged as a single archive you can hand to someone who asks what data you keep about them. It is built in the background, because a workspace this size cannot be assembled while a page is waiting.",
+            "whatCanYouDo": [
+                "Press \"Request export\" to start one. It appears in the list immediately as \"Queued\", and you can leave the page — the work carries on without you.",
+                "Watch a request move from \"Queued\" to \"Preparing\" to \"Ready to download\". The page refreshes itself, so there is nothing to reload.",
+                "Press \"Download ZIP\" on a finished request to get the archive.",
+                "Read the history: the 50 most recent requests, who made each one, when it finished, and how long its file stays available."
+            ],
+            "rules": [
+                "Only an Owner can request an export. A Manager sees this history and can tell you exactly what was exported and when, but cannot start a new one — handing over a copy of an entire workspace is an owner-level decision.",
+                "The download link belongs to the person who requested it. Another Owner cannot open someone else's archive; they request their own, which also leaves their name in the history.",
+                "One export at a time per workspace. A second request while one is still running is refused, because an export touches every large table at once and a single background worker serves the whole application.",
+                "A finished archive can be downloaded for 7 days. After that the file is deleted and the link stops working — but the request stays in this list, with its status unchanged, so there is a permanent record that the export was made and honoured.",
+                "Requesting an export never changes, moves or deletes anything. Exporting and erasing are separate rights and separate actions: this screen only ever reads.",
+                "The archive holds one JSON file per entity, with the relationships intact, plus a CSV of the same rows wherever the table is flat enough for a spreadsheet, plus a manifest describing what is inside. There is no PDF: a PDF is a picture of data, not data, and does not count as a portable format.",
+                "The manifest also lists what is deliberately not in the archive — sign-in credentials, subscription and payment-method details held by the payment processor, carrier credentials, and files that are only renderings of rows already included.",
+                "Deleted deals are in the export, each carrying the date it was deleted: the record still exists, so withholding it would be an incomplete answer. Contacts that were anonymised are not, because their identifying fields were already erased.",
+                "Only this workspace is ever in the archive. Switching workspaces and exporting again gives you a different archive; there is no request that spans two."
+            ],
+            "howItsBuilt": "Requesting an export writes one row and queues one job — nothing else happens inside the web request, because the request holds a database transaction open for its whole life and a long one would tie up a connection the rest of the application needs. The background work is split into one job per entity, grouped as a batch, exactly the mechanism the bulk operations use: each job holds its own short transaction, streams its rows out in pages of 500 keyed on the primary key, and writes them to disk as it goes rather than building the whole file in memory — the same memory ceiling that caps PDF exports applies here, and the showcase workspace alone holds tens of thousands of orders. Unlike a bulk operation, a failed piece is not tolerated: an archive missing its invoices would be a wrong answer to a portability request rather than a partial one, so the first failure cancels the batch and nothing is delivered. A final job writes the manifest, zips the parts by path (never by loading them), then records the file and its expiry, and only afterwards sends the notification email — outside any transaction, since that is an external call. The archive contains this workspace and nothing else, and no line of the export code says so: isolation comes from the same two layers that scope every other query, and an extra filter here would have hidden a leak instead of preventing one. A daily job then clears the file at expiry and leaves the row."
+        },
+        "deal-detail": {
+            "title": "Deal detail",
+            "whatIsThis": "This is one deal's full record — its value, its account, its owner, its current stage, and the complete history of how it got there. Creating and editing a deal use the same fields.",
+            "whatCanYouDo": [
+                "On \"New deal\", pick the \"Account\" by searching its name, fill in the title and, if you already know it, the value, then \"Create deal\".",
+                "Change the title, value, expected close date, account and primary contact with \"Edit\" — plus the owner, for Owner and Manager — then \"Save changes\".",
+                "Move the deal to a different stage from \"Move to stage…\", the same menu used on the board.",
+                "Review \"Stage history\": every stage change, who made it, when, and how long the deal spent on the stage before.",
+                "Remove the deal with \"Delete\" — it disappears from lists, the board, search and reports, but its stage history is kept, so stage-velocity numbers stay correct."
+            ],
+            "rules": [
+                "Starting from \"New deal\" on an account page fills in \"Account\"; otherwise the field starts empty. The primary contact has to be one of that account's contacts, so switching to another account clears a contact that doesn't belong to it.",
+                "Changing the account leaves the stage, the owner and the stage history exactly as they were — and the stage never changes from this form, only from \"Move to stage…\" or the board.",
+                "A new deal starts on the first stage of the pipeline, owned by whoever creates it unless an Owner or Manager picks someone else.",
+                "A deal can't move to Won without a value set — same rule as on the board, enforced on the server either way. Marking it Lost requires a reason from a fixed list: Price, Competition, Timing or Other.",
+                "An Agent can edit, move or delete only deals they own, and only Owner and Manager can change a deal's owner."
+            ],
+            "howItsBuilt": "Each row in \"Stage history\" is a `deal_stage_events` entry, inserted once and never updated — including the time spent in the previous stage, which is calculated at the moment of the move and stored, not recomputed later. That's what makes stage-velocity reporting possible at all. No dedicated ADR — see the Kanban topic for the full argument."
+        },
+        "deals-kanban": {
+            "title": "Deals — Kanban",
+            "whatIsThis": "Your sales pipeline as a board: one column per stage, one card per deal. Drag a card to move it — or use the keyboard, see below.",
+            "whatCanYouDo": [
+                "Drag a card from one stage to another.",
+                "Use \"Move to stage…\" on a card to do the same thing without a mouse.",
+                "Switch between \"My deals\" and \"All deals\", or to \"List\" for the table.",
+                "Open a deal from its card title, or follow \"View all\" under a column that holds more deals than it shows.",
+                "Go to \"Manage pipeline\" to change the stages (Owner and Manager only)."
+            ],
+            "rules": [
+                "A deal can't move to Won without a value — the move is rejected with \"Set a deal value before marking as Won\" and the card goes back where it was, whether you dragged it or used the menu. Set the value from the deal's \"Edit\" first.",
+                "Dragging isn't the only way to change stage — \"Move to stage…\" is fully operable from the keyboard: Tab to the card's \"Move to stage…\" button, Enter, Space or ↓ to open it, ↑/↓ to pick a stage, Enter or Space to move, Esc to close. This isn't a nice-to-have: drag-and-drop alone would fail WCAG 2.2 accessibility for anyone who can't use a mouse.",
+                "Moving a deal to the Lost stage first opens \"Mark deal as Lost\": pick a reason — Price, Competition, Timing or Other — then \"Mark as Lost\". Moving it out of Lost again clears the reason.",
+                "Viewers see the board read-only: no dragging, no \"Move to stage…\" menu. Agents start on \"My deals\" and can move only deals they own.",
+                "Each column shows its 50 most recently created deals; the number in the column header is the full count. There's no create button on the board — a new deal always starts on the first stage."
+            ],
+            "howItsBuilt": "Moving a card never overwrites anything — it inserts a new row into `deal_stage_events` (from stage, to stage, who, when, and how long the deal sat on the previous stage) and only then updates the deal's current-stage pointer, in one transaction with the deal row locked. History rows are never edited or removed afterwards: deleting a deal only hides it (a soft delete), so its moves still count in stage reports. That's the only way to later answer questions like \"how long do deals sit in Qualified\" or \"which agent moves deals fastest\" — a single mutable `stage_id` column could never have answered them, it only knows where a deal is now, not the path it took to get there. No dedicated ADR — the same argument, made originally for inventory (ADR-004), applies here by direct analogy (specs.md §9.1)."
+        },
+        "deals-list": {
+            "title": "Deals — list",
+            "whatIsThis": "The same deals as the Kanban board, as a sortable, filterable table — useful when you want to sort by value or close date rather than scan columns.",
+            "whatCanYouDo": [
+                "Search by title (press Enter or leave the field) and filter by \"Status\": \"Open\", \"Won\" or \"Lost\".",
+                "Switch between \"My deals\" and \"All deals\".",
+                "Sort by clicking the \"Title\", \"Value\", \"Expected close\" or \"Created\" header — click again to reverse.",
+                "Open \"Views\" to apply a saved view, \"Save view\" to keep the current filters, or \"☆ Set default\".",
+                "Open \"Columns\" to show, hide or reorder the optional columns (Value, Expected close, Created, Account, Owner, Stage) with checkboxes and \"Move up\"/\"Move down\" — the deal title column always stays, and a saved view remembers your choice.",
+                "Switch to \"Board\" for the Kanban layout, or open a deal from its title or its \"Edit\" link.",
+                "As Owner or Manager, select several deals with the checkboxes — or \"Select all N matching this filter\" — and reassign them to a new owner in one action."
+            ],
+            "rules": [
+                "Agents start on \"My deals\"; everyone else on all deals. A default saved view, if you set one, wins whenever the URL has no filter or sort.",
+                "There is no \"New deal\" button on this list: start a deal from \"New deal\" on an account page, or from \"Create deal\" in search (Cmd+K / Ctrl+K), where you pick the account.",
+                "Deals have no CSV export yet — \"Export CSV\" exists on Accounts, Contacts, Orders and Invoices.",
+                "Sorting and filtering here never change a deal's stage — moving stage only happens from the board or from the deal's own page.",
+                "Only Owner and Manager can save a team view or rename and delete one; every role can keep private views.",
+                "Bulk-reassigning owners is Owner/Manager only — an Agent can reassign a deal to themself one at a time when they create it, but not change any deal's owner afterwards, alone or in bulk, so the checkboxes and the reassign bar never appear for that role. A confirmation dialog appears above 1,000 selected deals."
+            ],
+            "howItsBuilt": "Same cursor-paginated `ListQuery` foundation as Accounts and Contacts, with one twist: a deal's value and expected close date can both be empty, and cursor paging compares on the sort column, so each of those sorts runs on a generated, never-empty column — `value_sort` (an empty value counts as -1) and `expected_close_date_sort` (a missing date counts as the farthest one, 9999-12-31). Sorting on the raw columns would make deals without a value or date drop out of later pages instead of just sorting to one end. See the Kanban topic's \"How it's built\" for why deal-stage history itself is stored the way it is (append-only, not a mutable column)."
+        },
+        "exports": {
+            "title": "Export status",
+            "whatIsThis": "This page follows an export too big to download on the spot — or, for the PDF and zip formats, any size at all. You land here automatically after \"Export CSV\", \"Export PDF\" or \"Export PDFs (zip)\" on a large Accounts, Contacts, Orders or Invoices list. It's a status page, not a place you navigate to directly.",
+            "whatCanYouDo": [
+                "Watch the status go from \"Queued\" to \"Running\" to \"Ready to download\" — the page updates itself every 2 seconds until the export finishes.",
+                "Download the file with \"Download CSV\", \"Download PDF\" or \"Download ZIP\" once it's ready — the button names the format you asked for.",
+                "If it says \"Failed\", go back to the list and start the export again.",
+                "Come back later through the same link — in the public demo, until the nightly data reset."
+            ],
+            "rules": [
+                "A CSV export of up to 5,000 rows downloads straight from the list, no waiting screen. A larger one, or any PDF export, runs as a background job so the request doesn't hang — you land here to watch it finish instead.",
+                "A PDF export is capped at 250 rows — and so is a zip of invoice PDFs. Both always run in the background, even for a single row: rendering a PDF costs real CPU time and memory, and building an archive reads one file per row, and neither belongs inside the request that served the page. For anything bigger, use CSV.",
+                "The file contains every row matching the filters and sort you had when you clicked \"Export CSV\"/\"Export PDF\" — all pages, not just the one on screen — including a default such as \"My accounts\".",
+                "Only the person who started an export can open this page or download the file — not even an Owner can open a teammate's export.",
+                "Every role that can view the list can export it, including Viewer — exporting what's already visible to you is a read, not a write.",
+                "In the public demo, an export of more than 60,000 rows is refused before it starts.",
+                "A completed export stays downloadable for 7 days. After that the link expires — this page shows when it expired instead of the download button — though the row itself stays in history."
+            ],
+            "howItsBuilt": "The 5,000-row threshold decides synchronous vs. queued for CSV only — under it, the CSV is built inside the request and returned directly; over it, or for any PDF, the filter, sort and chosen format are saved on a `bulk_operations` row and re-run by a queued job. The job marks the export \"Running\" in its own short transaction before doing the work, otherwise the status would jump straight from \"Queued\" to the end. CSV rows are streamed through an exporter that prefixes any cell starting with =, +, -, @, a tab or a carriage return with an apostrophe, so a spreadsheet never runs it as a formula; PDF rows are rendered through a fixed Blade table (same columns as the CSV, DomPDF driver chosen explicitly, no remote resources) into an A4 landscape file. A daily system job then prunes completed exports past their 7-day retention: it deletes the file and clears the stored path, keeping the row. Rendering those PDFs with DomPDF in-process, rather than driving a headless Chromium, is a decision of its own; see specs.md §13.2 and §20.5 (FR-GDPR-01, same retention) for the rest of the mechanism."
+        },
+        "import-detail": {
+            "title": "Import — the four steps",
+            "whatIsThis": "One screen for the whole import: map the columns, dry-run the file, commit the rows that passed, read the report. The heading tells you which of the four steps you're on, and the page carries you forward as the background work finishes.",
+            "whatCanYouDo": [
+                "Step 2 — check the mapping we guessed, change anything under \"Maps to\" (including \"Don't import this column\"), then press \"Save mapping and continue\". Each guess carries a \"High confidence\", \"Medium confidence\", \"Low confidence\" or \"No match\" badge, so you know which ones to look at.",
+                "Step 3 — press \"Run dry-run validation\". Every row in the file is checked before a single record is written, and the progress line counts rows as they go by; the page refreshes itself every 2 seconds while it runs.",
+                "Step 4 — press \"Import N valid rows\". The button says the actual number, so you commit knowing exactly how much is going in.",
+                "Take the failures away with you at either step: \"Download the N failed rows as CSV\" after the dry run, \"Download the N skipped rows as CSV — correct them and re-import\" after the commit.",
+                "Read the first 500 bad rows inline under \"Rows that need attention\" — each with its row number from the original file and the exact field and message, like \"price: The Price must be a number\".",
+                "Give up on a stuck or wrong file with \"Cancel import\" — offered on any import that hasn't finished yet. Rows already imported keep their change, and you start a new import afterwards.",
+                "Move on with \"Start another import\", or step back to the list with \"Back to imports\"."
+            ],
+            "rules": [
+                "The dry run writes nothing into your workspace. It only validates and records what it found, which is why \"Import N valid rows\" appears afterwards and not before.",
+                "A commit is partial by design, never all-or-nothing: valid rows go in, invalid ones are skipped and reported. Even a row that fails while being written — a SKU someone else created a second earlier, say — is rolled back on its own and marked invalid; the rows already committed alongside it stay committed.",
+                "Duplicates are caught in two directions: against records already in your workspace, and against earlier rows in the same file. Within a file, the first occurrence is the one that imports and every later one is rejected — so a file that repeats a SKU three times creates one variant, not three, and tells you about the other two.",
+                "The duplicate key is the email address for contacts and the SKU for variants (FR-IMP-01). Accounts use the domain when the row has one — normalised first, so \"https://www.Acme.com/\" and \"acme.com\" count as the same company — and otherwise the company name, compared without case. Products use their name the same way. SKUs are the one exception: they are compared exactly as written, case included, because that is how the uniqueness rule in the database works.",
+                "A contact row with no email can't be checked for duplicates at all, so it is imported as it stands — there is no key to match it on, and guessing one would be worse than importing it.",
+                "The error report is re-importable exactly as downloaded: the original columns, in their original order, plus one \"error\" column. That column is deliberately ignored when you upload the file again, and the rows that already imported aren't in it — so correcting and re-uploading never duplicates the ones that already went in.",
+                "Saving the mapping again after a dry run throws that dry run away: its rows were judged against a mapping that no longer applies, so they are cleared and you start the validation over. While validation or the import is actually running, the mapping is locked and a change is refused rather than applied half-way through.",
+                "The raw content of every failed row is kept, even after the import finishes — that is what the downloadable report is built from (BR-IMP-01). The uploaded file behind it is not kept forever: a daily job deletes it from disk 7 days after the import finishes, and the report's column order is read back from that file — so download the error report before then.",
+                "Only Owner and Manager reach any of this. Agent and Viewer have no import rights at all (specs.md §7.4)."
+            ],
+            "howItsBuilt": "Both the dry run and the commit are chains of small jobs rather than one long one: each invocation handles 500 rows and then re-queues itself. That is not a style choice — the queue supervisor kills a job at 60 seconds and does not retry it, so a single job reading and validating a 50,000-row file would be killed halfway and leave the import stuck at \"Validating…\" forever. Each chunk commits its own counters in its own short transaction, which is why the progress line really moves between refreshes instead of jumping from 0 to done. In-file duplicates can't be caught chunk-by-chunk (a chunk cannot see what earlier chunks wrote without an extra query, and its own in-memory \"already seen\" set would not survive being serialised between jobs), so they are a single final pass over the rows already written to the database — order-independent by construction. The commit needs no cursor to resume: each run asks for \"the next 500 rows still marked valid\", and a processed row leaves that set by changing status. Every single row write is wrapped in its own savepoint, because in PostgreSQL one failed insert aborts the whole surrounding transaction — without it, a single duplicate SKU would take down the rest of the batch and the error-recording write with it, turning \"partial import\" back into all-or-nothing. The error report re-reads the header order from the stored file rather than from the saved mapping, because the database does not preserve the key order of a JSON object."
+        },
+        "import-upload": {
+            "title": "New import",
+            "whatIsThis": "Step 1 of 4. You say what kind of records the file holds and hand the file over. Nothing is read into the workspace yet — the next screen shows you the columns it found and lets you map them.",
+            "whatCanYouDo": [
+                "Pick the target under \"What are you importing?\": Accounts, Contacts, Products, or Products/Variants.",
+                "Grab a head start with \"Download a CSV template for this resource\" — its header row already carries the exact field names this import expects.",
+                "Choose your file under \"File (CSV or XLSX)\" and press \"Upload\". You land straight on the mapping step."
+            ],
+            "rules": [
+                "A file can be at most 20 MB and at most 50,000 data rows. The two are checked separately, and neither implies the other — a 20 MB file of short rows can be far past 50,000 rows, and a 5,000-row file of long text fields can be past 20 MB. Go over either one and the upload is refused with the real number in the message, so you know which limit you hit; split the file and import the parts one at a time.",
+                "The first row is the header and is never imported — the row limit counts the data rows only.",
+                ".csv, .txt and .xlsx are accepted. The .txt is not a third format: Excel and Google Sheets export CSVs that some platforms label as plain text, and rejecting those would be rejecting a valid CSV over a label. Anything that is not .xlsx is read as CSV.",
+                "One import can be active per workspace. If another one is still open — even an old one left sitting at \"Uploaded\" — this upload is refused here, before the file is stored, rather than queued invisibly behind it. Finish that one, wait for it, or open it and press \"Cancel import\" to clear the way.",
+                "Only Accounts, Contacts, Products and Products/Variants can be imported. Deals and Orders are deliberately out of scope: they hang off too many other records to import safely from a flat file (FR-IMP-03).",
+                "Only Owner and Manager get here at all — the permission matrix gives Agent and Viewer no import rights (specs.md §7.4)."
+            ],
+            "howItsBuilt": "The request does almost nothing: it validates, writes one `imports` row and stores the file. It never parses the file. The row count that enforces the 50,000 limit is measured cheaply — a line count for CSV, and for XLSX the sheet's declared dimensions read through a filter that rejects every single cell, so the spreadsheet is never materialised. The column headers are not stored on the record either; they are re-read from the saved file on demand at the mapping step, which keeps the file the single source of truth and means a re-map always sees the current header rather than a stale copy. Everything heavier than that — validating rows, writing entities — belongs to queued jobs, because the tenant isolation mechanism holds a database transaction open for the whole web request."
+        },
+        "imports-list": {
+            "title": "Imports",
+            "whatIsThis": "Every file this workspace has brought in through the import flow: what it contained, how far it got, and how many of its rows turned out usable. You start a new import from here, and you come back here to re-open an older one.",
+            "whatCanYouDo": [
+                "Start a file with \"New import\" — or \"Start your first import\" while the list is still empty.",
+                "Read where each file stands from its status: \"Uploaded\", \"Mapped\", \"Validating…\", \"Ready to import\", \"Importing…\", \"Completed\", \"Completed with errors\" or \"Failed\".",
+                "Check the \"Rows\" column for the \"N valid / M invalid\" split the dry run produced, before deciding whether the file is worth opening at all.",
+                "Open a file name to go back into its four-step flow, or straight to its final report.",
+                "See who brought each file in, and when, under \"Uploaded by\" and \"Uploaded\"."
+            ],
+            "rules": [
+                "Only Owner and Manager reach this screen. Agent and Viewer have no import rights whatsoever (specs.md §7.4) — \"Imports\" is missing from their navigation, and the route refuses them as well, so the menu is not the only thing protecting it.",
+                "There is no \"my imports\" narrowing here, unlike Accounts, Deals or Orders: an Owner or Manager sees every import of the workspace, whoever uploaded it. The permission matrix gives Agent no access at all, so there is no \"own\" subset to carve out.",
+                "One import can be active per workspace at a time. \"Active\" is anything that has not reached \"Completed\", \"Completed with errors\" or \"Failed\" — including a file uploaded and then abandoned before mapping. You can clear it yourself with \"Cancel import\" on that import's own page; left alone, a background sweeper closes an abandoned import after 24 hours, and one whose processing died after 15 minutes.",
+                "The list shows the 50 most recent imports and stops there. An import is a deliberate, occasional action, not a stream of rows, so it does not get the cursor paging the big lists use.",
+                "Nothing is deleted from here, and there is no button to try: the history row and the raw content of every failed row are kept, which is exactly what makes the downloadable, re-importable error report possible (BR-IMP-01). The uploaded file itself is not kept forever — a daily job deletes it from disk 7 days after the import finishes, so download the error report before then; the row stays either way."
+            ],
+            "howItsBuilt": "Each row is an `imports` record whose counters are written by the background jobs, not by this page: every chunk of 500 rows commits `total_rows`/`valid_rows`/`error_rows` in its own short transaction, so the \"N valid / M invalid\" split here is accurate even while the file is still being processed — it is a running total, not a figure written once at the end. The one-active-import rule is enforced server-side in the upload action, against the set of non-terminal statuses, not by hiding the button: a second upload gets a clear refusal rather than being silently queued behind the first. The list itself deliberately skips the cursor-paging, saved-views and bulk machinery the volume lists share — 50 rows ordered newest-first is the whole query."
+        },
+        "invoice-detail": {
+            "title": "Invoice detail",
+            "whatIsThis": "This is one invoice's full record — its status, issue and due dates, totals, every payment recorded against it, and the PDF generated from it. It always traces back to exactly one order.",
+            "whatCanYouDo": [
+                "On the source order's page, \"Create Invoice\" once it's confirmed or fulfilled — this is the only way to reach this page for a new invoice.",
+                "\"Mark as sent\" once the invoice looks right — this locks in the due date from the account's credit terms.",
+                "Record a payment (amount, method, and the date it was received) against a sent or overdue invoice — a full payment marks it \"Paid\" automatically.",
+                "\"Void\" an invoice from any status except one that is already void, with a required reason — anyone who opens it later sees exactly why.",
+                "Download the PDF once it says \"ready\", or \"Retry\" if it says it failed to generate."
+            ],
+            "rules": [
+                "An invoice can only be created from an order that is confirmed or fulfilled, and only if it doesn't already have one — voiding an invoice frees the order for a new one, but the voided one stays on record with its own payment history.",
+                "Once an invoice leaves \"draft\" it can no longer be edited — the only way forward is Void and a fresh invoice, never a silent correction (BR-BILL-01).",
+                "A payment can never push the balance below zero: it's capped at what's still owed at the moment you submit it, checked again on the server in case another payment landed first.",
+                "A payment can only be recorded on a sent or overdue invoice — never on a draft (nothing has been billed yet) or an already-paid or voided one.",
+                "An invoice moves to \"Overdue\" on its own, once a day, the first time its due date has passed with a balance still owed — nobody sets that status by hand.",
+                "The invoice number is unique per workspace and assigned only when the invoice is created — the same locking pattern as the order number, so two invoices created at the same moment never collide.",
+                "The PDF is never generated while you wait: the invoice starts as \"Generating PDF…\" and the page updates itself automatically until it says \"ready\" (with a download link) or \"failed\" (with a reason and a retry button).",
+                "An Agent can view the invoices of the orders they own, but can never send, void, retry a PDF or record a payment — that stays with Owner and Manager on every invoice, not just their own."
+            ],
+            "howItsBuilt": "The invoice number is generated by locking the workspace's own row for the duration of creation — the exact same pattern already used for the order number (`App\\Actions\\Orders\\ConfirmOrderAction`), reused deliberately rather than reinvented, down to the `for no key update` lock and why it has to be that one, not `for update`. Recording a payment locks the invoice row itself instead (it's the row actually being changed, not a shared parent), so two payments racing on the same invoice are serialized without blocking anything else. The PDF is rendered by DomPDF, in the same background worker as every other PDF in this project, chosen explicitly per call rather than through the package's own default — the production image has no Chromium to fall back on."
+        },
+        "invoices-list": {
+            "title": "Invoices — list",
+            "whatIsThis": "Every invoice this workspace has raised against a confirmed or fulfilled order — its number, status, account, total, balance due and due date. Open one to reach the order it came from.",
+            "whatCanYouDo": [
+                "Search by invoice number.",
+                "Filter by \"Status\" (Draft, Sent, Paid, Overdue, Void).",
+                "Narrow the date range with \"From\"/\"To\" on when the invoice was created.",
+                "Open any row to see its full detail, payments and PDF.",
+                "Press \"Export CSV\" for a summary of exactly the invoices on screen, or \"Export PDFs (zip)\" for an archive of their PDF files — the archive lists any invoice whose PDF is not ready yet."
+            ],
+            "rules": [
+                "An Agent only sees the invoices of the orders they own — everyone else (Owner, Manager, Viewer) sees the whole workspace's invoices (specs.md §7.4).",
+                "Only Owner and Manager can create, send or void an invoice, or record a payment; Agent and Viewer are read-only here, even on their own orders.",
+                "Exporting is allowed for every role, including Viewer: it is a read of the rows already on screen, delivered as a file. What limits it is the cap of 3 bulk operations running at once per person, the same for everyone."
+            ],
+            "howItsBuilt": "Same cursor-paginated `ListQuery` foundation as Orders (`App\\Support\\Lists\\InvoiceList`), scoped through the source order rather than a column of its own — an invoice has no owner column; an Agent's restriction is applied with a `whereHas('order', …)` on the same `owner_user_id` that scopes their orders."
+        },
+        "members": {
+            "title": "Members & invitations",
+            "whatIsThis": "Everyone with access to this workspace — their role, when they joined, and whether they still have access. This is where an Owner or Manager invites a colleague, changes someone's role, and revokes access for someone who leaves.",
+            "whatCanYouDo": [
+                "Invite a colleague by email address and pick the role they get. They have 7 days to accept; nothing changes here until they do.",
+                "Resend an invitation link, or revoke one that was sent by mistake — the old link stops working either way.",
+                "Change a member's role. It takes effect on their very next request, not on their next login.",
+                "See every member's role, status and join date, and who deactivated a former member and when.",
+                "Press \"Deactivate member\" to revoke someone's access immediately.",
+                "When they own open deals or active orders, choose \"Reassign and deactivate\" and pick a new owner, or \"Deactivate anyway\" and sort it out later from \"Unassigned\"."
+            ],
+            "rules": [
+                "Only an Owner or a Manager can invite. A Manager can invite and manage Agents and Viewers, but cannot invite an Owner, promote anyone to Owner, or touch an existing Owner — in either direction.",
+                "A workspace always keeps at least one active Owner. The last one cannot be demoted or deactivated, and there is no button to force it: transfer ownership first.",
+                "You cannot change your own role or deactivate yourself from this screen — ask another Owner or Manager.",
+                "Deactivating someone is never blocked by what they own — revoking access comes first, always.",
+                "Deactivating is not a delete: the member row stays, with their role and join date, for an auditable history — their name keeps showing on everything they created, with a \"(deactivated)\" mark next to it. Revoking an invitation that was never accepted does delete it: there is no history to keep yet.",
+                "A deactivated member disappears from the workspace switcher and from every \"assign to…\" list — they can't receive new work, but nothing they already did is rewritten. Invite them back and the same row is reused.",
+                "In the public demo, both \"Deactivate member\" and \"Change role\" are hidden entirely: the demo accounts are shared logins every visitor uses to log in as Owner, Manager, Agent or Viewer, so demoting or deactivating one would break the next visitor's session until the nightly reset. Inviting, resending and revoking an invitation all still work."
+            ],
+            "howItsBuilt": "An invitation is not a separate table — it is a membership row with status \"pending\" and a hashed acceptance token, on columns that have been in the schema since week one. Only the hash is stored: the link in the email is the single place the real token ever exists, and the demo's \"Sent Emails\" journal redacts it, exactly like a password-reset link. That email is also the one flow in the whole product that sends to an address a visitor typed, which is why the demo email interceptor was built a phase earlier than this screen. Access is revoked (and granted) on the very next request, not on next login: the one query that resolves \"which workspaces am I in\" only ever returns rows with status \"active\", so a pending or deactivated membership simply stops resolving for the workspace switcher, for the request that sets the tenant, and for API tokens alike — no session to invalidate, no token to revoke. Choosing \"Reassign and deactivate\" runs the same bulk-operation mechanism as any other bulk reassignment, three times in one request — accounts, open deals, active orders — tied together by one group id so it reads as a single operation."
+        },
+        "order-detail": {
+            "title": "Order detail",
+            "whatIsThis": "This is one order's full record — its account, its lines, its running totals, where it stands (draft, confirmed, partially fulfilled, fulfilled, or cancelled), and every shipment that has gone out against it. Creating and editing a draft use the same fields.",
+            "whatCanYouDo": [
+                "On \"New order\", pick the \"Account\" by searching its name, then add lines by searching a variant by SKU or product name and a quantity.",
+                "Change the account, contact, notes and lines with \"Edit\" while the order is still a draft, then \"Save changes\".",
+                "\"Confirm order\" once the order has at least one line — this locks in an order number and reserves the stock for every line.",
+                "Once confirmed, \"Create shipment\": pick a quantity for each line you can send now — sending less than the full order is fine, the rest stays open for a later shipment.",
+                "On a shipment whose label failed, \"Retry label\" to queue a new attempt, or \"Discard\" it to free its lines for a new shipment instead.",
+                "On a shipment whose label is ready, \"Mark as shipped\" once it has actually left the warehouse — this is what moves the stock and updates \"Shipped X of Y\" on each line.",
+                "\"Cancel order\" on a draft at any time, or on a confirmed order as long as no shipment exists yet."
+            ],
+            "rules": [
+                "An order has no order number while it's a draft — it gets one, sequential for this workspace, only at confirmation, so abandoned drafts never leave a gap in the numbering (BR-ORD-02).",
+                "Confirming validates at least one line and reserves that quantity per line; it never touches on-hand stock, since nothing has physically left the warehouse yet — only \"reserved\" changes.",
+                "If a line asks for more than what's available, confirming is not silently blocked nor silently allowed: you have to explicitly acknowledge the order will ship as a backorder (BR-STOCK-04), and the server checks that acknowledgement itself, not just the button.",
+                "Editing lines only works on a draft — once an order is confirmed, its lines are locked (same rule as an issued invoice), and the only way forward is Cancel.",
+                "A shipment never touches stock by itself — creating one only reserves its lines against being claimed by another shipment at the same time. The stock actually leaves the warehouse, and \"reserved\" only then goes down, at \"Mark as shipped\".",
+                "A quantity on a new shipment can never exceed what's actually left to ship on that line — already-shipped quantity and every other still-open shipment (pending label, failed label, or label ready but not yet shipped) are both subtracted first.",
+                "A shipment label is never fetched while you wait: the shipment is created as \"Generating label…\" and the page updates itself automatically until the carrier responds — with a tracking number and a downloadable label on success, or the carrier's own failure reason (never a generic \"something went wrong\") if it fails.",
+                "If there isn't enough stock on hand to cover a shipment when you mark it shipped (a backorder that never arrived), the attempt is refused outright and nothing is recorded — not a partial shipment.",
+                "The order moves to \"partially fulfilled\" the first time any shipment ships without covering every line, and to \"fulfilled\" only once every line is fully shipped; a later partial shipment on an already partially-fulfilled order simply leaves it there.",
+                "A confirmed order can still be cancelled as long as no shipment exists at all; that releases the reserved stock on every line. Once a shipment has been created — even one whose label is still pending or has failed — cancelling the order is refused outright (BR-ORD-01); discarding that failed shipment removes it and makes the order cancellable again.",
+                "An Agent can view every order in the workspace, but only edits, confirms, cancels, or creates, retries and discards shipments on the ones they own; Owner and Manager can do all of it on any order."
+            ],
+            "howItsBuilt": "Every legal transition (draft → confirmed, draft/confirmed → cancelled, confirmed → partially_fulfilled → fulfilled) lives in exactly one place, `App\\Enums\\OrderStatus::canTransitionTo()` — so marking a shipment as shipped only ever recomputes the order's status through that same rule, never by writing the enum value directly. The order number is generated by locking the workspace's own row for the duration of the confirmation, the same pattern already used to keep a single \"primary contact\" per account and a single ordering of pipeline stages. Marking a shipment as shipped follows the same discipline one level deeper: it locks the order row first, then every affected stock level in one sorted, all-at-once query — so two shipments racing to ship overlapping variants either wait cleanly on each other or never collide in the first place, and a shipment with too little stock on hand is refused before anything is written, not partway through. The carrier call itself never happens inside a web request: a shipment is saved as \"label pending\" and a background job calls the carrier and writes the result back in its own short step afterwards — the same reason operations elsewhere in the app report their progress instead of making you wait on the spot. The shipping carrier interface (`ShippingCarrier`) and its no-external-call `DemoShippingCarrier` implementation were built as a permanent adapter from day one, not a placeholder, so a real carrier can be added later without changing anything else."
+        },
+        "orders-list": {
+            "title": "Orders — list",
+            "whatIsThis": "Every order this workspace has drafted, confirmed, fulfilled or cancelled, in one filterable, sortable table.",
+            "whatCanYouDo": [
+                "Search by order number and filter by \"Status\".",
+                "Switch between \"My orders\" and \"All orders\".",
+                "Sort by clicking the \"Order number\", \"Grand total\", \"Placed at\" or \"Created\" header — click again to reverse.",
+                "Open \"Views\" to apply a saved view, \"Save view\" to keep the current filters and columns, or \"☆ Set default\" to open the list on that view.",
+                "Open \"Columns\" to show, hide or reorder the optional columns (Grand total, Placed at, Created, Status, Account, Owner) with checkboxes and \"Move up\"/\"Move down\" — the order number column always stays, and a saved view remembers your choice.",
+                "Open \"New order\" to start a draft, or open any row to see its full detail.",
+                "Download the filtered list with \"Export CSV\" or \"Export PDF\", even without edit rights.",
+                "Select several orders with the checkboxes — or \"Select all N matching this filter\" — and reassign them to a new owner, or cancel the draft ones, in one action, from the bar that appears once you've picked at least one."
+            ],
+            "rules": [
+                "Agents start on \"My orders\"; everyone else on all orders — same convention as Accounts and Deals.",
+                "A draft has no order number yet: it only gets one at confirmation, so abandoned drafts never leave gaps in the numbering (BR-ORD-02).",
+                "Viewer can see every order and export the current filter to CSV or PDF, but has no \"New order\" button and no write action on any row.",
+                "An Agent can open any order in the workspace, but only edits or cancels the ones they own; reassigning an owner is Owner/Manager only (same as Deals, unlike Accounts).",
+                "Bulk cancel only ever touches the draft orders in your selection — a confirmed or already-shipped order is never affected, even if it was part of \"Select all matching this filter\". The count shown (and the confirmation threshold it's checked against) is always the number of drafts, not the raw filter count.",
+                "A PDF export always runs as a background job, even for a handful of rows, and is capped well below the CSV limit — for a large list, use CSV."
+            ],
+            "howItsBuilt": "Same cursor-paginated `ListQuery` foundation as Accounts and Deals (`App\\Support\\Lists\\OrderList`). The status filter is validated against the closed set of values in `App\\Enums\\OrderStatus`, the single place that also owns which status can move to which — see the Order detail topic for why that matters. Bulk cancel narrows its own query to `status = draft` before counting or planning (`App\\Support\\Bulk\\BulkChunkActions::narrowQuery()`), so the row count driving \"Select all N\" and the confirmation dialog is never the raw filter — see the \"Bulk operation status\" topic for the shared mechanism."
+        },
+        "pipeline": {
+            "title": "Pipeline configuration",
+            "whatIsThis": "This is where the stages on the Deals board come from — their names, their order, their win probability, and which ones count as Won or Lost. It's setup, not day-to-day selling.",
+            "whatCanYouDo": [
+                "Add a stage under \"Add stage\": a name, an optional \"Probability %\" from 0 to 100, and \"Won\" or \"Lost\" if it ends a deal.",
+                "Reorder stages by dragging a row, or with its ↑ and ↓ buttons from the keyboard.",
+                "Rename a stage, change its probability or mark it Won or Lost with \"Edit\", then \"Save\".",
+                "Remove a stage that's no longer used with \"Delete\"."
+            ],
+            "rules": [
+                "Only Owner and Manager can change stages. Viewers can open this page read-only — no reordering, \"Edit\", \"Delete\" or \"Add stage\" — and Agents can't open it at all.",
+                "A stage with deals on it can't be deleted, whether or not it's Won or Lost — the dialog says how many deals to move first. A stage that deals have passed through before is refused as well, because their stage history still points at it.",
+                "A pipeline has at most one Won stage and one Lost stage, a stage can't be both, and stage names are unique within the pipeline.",
+                "New stages are added at the end of the order.",
+                "This MVP supports one pipeline per workspace — multiple pipelines are a later addition, not built yet."
+            ],
+            "howItsBuilt": "Deleting a stage has two guards. The screen checks both the deals currently on the stage and whether any deal has ever passed through it, and explains the block before you confirm. Underneath, every past move in `deal_stage_events` points at its stage by id through a restrictive foreign key, so the database also refuses to remove a stage any deal has ever entered — the history ledger can't be left pointing at nothing, for the same reason deal history is append-only (see the Deals — Kanban topic). Reordering sends the complete new order, and the server rejects it unless it lists every stage exactly once. No dedicated ADR for this screen specifically; it follows directly from the append-only design argued in specs.md §9.1."
+        },
+        "preferences": {
+            "title": "Preferences",
+            "whatIsThis": "This is where you control how the app looks and reads to you, personally — nobody else's screen changes when you change yours.",
+            "whatCanYouDo": [
+                "Pick \"System\", \"Light\" or \"Dark\" under \"Theme\" — the change applies immediately.",
+                "Switch the interface between \"EN\" and \"FR\" under \"Language\" — the change applies immediately too, without reloading the page.",
+                "Use the same theme switch in the top bar, on every screen, without coming back here. The language switch lives only on this page."
+            ],
+            "rules": [
+                "Your theme choice follows you, not your workspace — switching workspaces keeps the same theme.",
+                "Your language choice follows you the same way, and it is never guessed from your browser: an account that has never touched the switch reads English, whatever languages the browser asks for.",
+                "If you have never picked a theme, you get \"Dark\".",
+                "\"System\" follows your device's light or dark setting, and keeps following it while the tab stays open; a device with no light preference gets the dark theme.",
+                "Only what the application writes changes language. What you typed yourself — saved view names, report names, imported company and contact names — stays in the language you wrote it in, and switching the interface never rewrites it.",
+                "Both settings are available to every role, including Viewer, and neither is ever disabled in the public demo — they're not business actions, just display preferences."
+            ],
+            "howItsBuilt": "Both preferences work the same way, on purpose: the choice is saved on your user row (`users.theme`, `users.locale`) and mirrored into a cookie, and the server resolves it before any JavaScript runs — the `dark` class and the `lang` attribute are both written onto `<html>` in the very first response. The order is the same for each: your saved choice first, then the cookie, then the default. So there's no flash of the wrong theme, and no moment where a screen reader announces the wrong language, while the page boots. A version that corrected either one after hydration, in a `useEffect`, would flicker — that's explicitly treated as a defect here, not a cosmetic detail. The browser's `Accept-Language` header is deliberately not consulted: English is the intended default, and a demo that opened in a different language depending on who clicked the link would be harder to evaluate, not friendlier."
+        },
+        "product-detail": {
+            "title": "Product",
+            "whatIsThis": "One product and every variant sold under it — a variant is a specific SKU (a size, a pack size, a finish) with its own price, cost and stock.",
+            "whatCanYouDo": [
+                "Change the product's name, category and unit of measure from \"Edit\".",
+                "Add a new SKU with \"Add variant\".",
+                "Open a variant's \"Stock\" link to receive, adjust or transfer its stock, or \"History\" to see every past movement.",
+                "Delete the product once none of its variants have stock history or orders against them."
+            ],
+            "rules": [
+                "Only Owner and Manager can create, edit or delete products and variants — Agent and Viewer see the same screen read-only, with no \"Edit\", \"Add variant\" or \"Delete\".",
+                "A variant's cost (and therefore its margin) is never sent to Agent or Viewer accounts — not just hidden in the layout, removed from the data the page receives.",
+                "Deleting a product or a variant is refused, with a plain-language reason, once it has recorded stock movements or has been used on an order — that history is never silently dropped.",
+                "A \"Low stock\" badge appears next to an active variant once its available quantity drops below the threshold set on it (see \"Variant\") — a variant without a threshold, or one marked inactive, never shows it."
+            ],
+            "howItsBuilt": "A variant's on-hand, reserved and available quantities are read straight off `inventory_levels`, the same materialized projection the stock ledger keeps — never recomputed by summing the ledger on every page view."
+        },
+        "products-list": {
+            "title": "Products",
+            "whatIsThis": "Everything your workspace sells, grouped by product. Each product can have several variants — the actual SKUs you stock and sell — shown once you open it.",
+            "whatCanYouDo": [
+                "Search by product name, filter by \"Any status\" / Active / Inactive, and sort by name or newest.",
+                "Open \"Views\" to apply a saved view, \"Save view\" to keep the current filters and columns, or \"☆ Set default\".",
+                "Open \"Columns\" to show, hide or reorder the optional columns (Category, Variants, Status, Low stock, Created) with checkboxes and \"Move up\"/\"Move down\" — the product name column always stays. \"Low stock\" (how many variants are below their reorder threshold) is shown by default, so the alert doesn't need to be searched for.",
+                "Open a product to see its variants, their stock and their price.",
+                "Create a new product with \"New product\" (Owner and Manager only).",
+                "Edit a product from its \"Edit\" link, or add a variant from inside it.",
+                "Select several products with the checkboxes — or \"Select all N matching this filter\" — and change the price of every one of their variants by a percentage or a fixed amount, or activate/deactivate them, in one action (Owner and Manager only)."
+            ],
+            "rules": [
+                "Owner and Manager have full read/write access; Agent and Viewer can only look — no \"New product\", \"Edit\", \"Delete\" or bulk actions appear for them.",
+                "A product can't be deleted while any of its variants has stock history or has been used on an order — the delete button stays visible, but explains why it's blocked rather than failing with a server error.",
+                "A bulk price change applies to every variant of every selected product at once — never below zero, rounded to 2 decimals.",
+                "Re-running the same price change (a retry of the same background step) never doubles up — it's applied exactly once per bulk operation, no matter how many times that step is retried."
+            ],
+            "howItsBuilt": "Same list mechanics as Accounts and Deals: one `ListQuery` reads filters, sort and cursor from the URL, `ProductList` says what they mean for products, and paging is by cursor so the catalog stays fast past a few thousand SKUs. The bulk price change is idempotent per chunk, not per row: a percentage can't be re-derived from \"does the price differ\", since the new price always depends on the old one — so the job records a marker per (operation, chunk) inside the same transaction and never applies a chunk twice. The SQL itself rounds to 2 decimals, floors at zero and caps at the column maximum, all in one expression. See the \"Bulk operation status\" topic for the shared queue mechanism."
+        },
+        "report-detail": {
+            "title": "Report detail",
+            "whatIsThis": "One report: its schedule and recipients, the live result if it is a built-in, a button to run it on the spot, and every run it has ever had, with the file each one produced.",
+            "whatCanYouDo": [
+                "Press \"Run now\" to queue a run immediately instead of waiting for the schedule — the status region below tells you where it is, and refreshes itself every 3 seconds until the run finishes.",
+                "Read \"Current result\" for a built-in report: the numbers as they are right now, recomputed on every visit, not a snapshot of the last file.",
+                "Download any successful run from \"Run history\" with \"Download\" — the file is the one that was emailed, byte for byte.",
+                "See why a run went wrong: a failed row carries the actual error message under its status, so you are not left guessing why no email arrived.",
+                "Open \"Edit\" to change the schedule, format or recipients, or \"Delete\" to remove the report for good."
+            ],
+            "rules": [
+                "A failed run never sends an email. The file is generated first, and only a successful generation queues the delivery — so an empty or broken file cannot go out to your recipients (specs.md §16.2 pt. 5).",
+                "The reverse holds too: if the file was generated but the email itself failed to leave, the run stays \"Success\" and the file stays downloadable here. A delivery problem doesn't rewrite the history of the generation, and retrying the email doesn't regenerate the report.",
+                "\"Run now\" is Owner and Manager only, even though an Agent who is a recipient can open this page. Running a report spends queue time and creates a new run — that is a write, and the permission matrix gives Agent read only. The same Agent can still download the files from the history.",
+                "A PDF run is capped at 250 rows and an XLSX run at 5,000. Past that, the run fails with exactly that reason and a suggestion to use CSV — both formats build the whole document in memory before writing it, and the queue worker has a hard memory ceiling. CSV is streamed and has no such cap.",
+                "\"Current result\" only appears for the two built-in reports; a saved-view report has no in-page preview, only files. \"Deal Velocity by Stage\" shows, per pipeline and stage, the average days deals spend in that stage, how many deals ever reached it, and the conversion rate into the next stage. \"Inventory Valuation\" shows units on hand and total value (on hand × cost) per location and category.",
+                "A stage nothing ever leaves — typically \"Won\" and \"Lost\" — has no average time in stage. That number is measured when a deal moves out of a stage, and a terminal stage has no such move, so the cell is empty rather than zero.",
+                "For \"Inventory Valuation\", the in-page result is hidden from anyone who can't see stock cost: an Agent recipient gets an explanation instead of the table, because cost and margin are Owner/Manager figures everywhere else in the app. The file itself is not filtered — there is one file per run, sent identically to every address — so who you put in the recipients list is the real control.",
+                "Deleting is permanent and stops scheduled delivery immediately. The dialog says so before you confirm."
+            ],
+            "howItsBuilt": "A run moves through \"Queued\" → \"Running\" → \"Success\"/\"Failed\" in two deliberately separate short transactions: if the whole job ran inside one transaction, \"Running\" would never be committed on its own and this page would jump straight from queued to finished, with nothing to poll. Delivery is a second job, dispatched only on success, which is how \"no email on failure\" is guaranteed structurally rather than by remembering to check. Scheduling runs hourly and is protected against double-firing twice over: a queue-level uniqueness lock rejects a second dispatch inside the same hour, and the check for \"has this report already run in this window?\" holds a row lock on the report definition itself — a plain read-then-insert under two concurrent runs would let both read \"no\" and both insert. The hour compared against the schedule is the one captured when the scheduler ticked, not the one read when the job finally executes: with a single queue worker, a job that waits behind others would otherwise look at the wrong hour and silently skip a due report. The built-in results on this page are aggregates bounded by your configuration — stages per pipeline, locations per category — never by transaction volume, which is what makes them cheap enough to compute inside the page request at all."
+        },
+        "report-form": {
+            "title": "Report",
+            "whatIsThis": "The definition of a report: what it is built from, what kind of file it produces, when it runs on its own, and who receives it. The same form creates a new report and edits an existing one.",
+            "whatCanYouDo": [
+                "Give it a \"Report name\" and choose a \"Format\" — CSV, XLSX or PDF.",
+                "Choose the \"Source\": \"Saved view export\" together with one of your own or your team's saved views, or one of the built-ins — \"Deal Velocity by Stage\" or \"Inventory Valuation\".",
+                "Set \"Frequency\" to \"Manual only\", \"Daily\", \"Weekly\" or \"Monthly\", then the \"Time (UTC)\" and, where it applies, the \"Day of week\" or \"Day of month\".",
+                "List the \"Recipients\" — one email address per line, or comma-separated.",
+                "Tick or untick \"Active\", then press \"Create report\" or \"Save changes\"."
+            ],
+            "rules": [
+                "The source is settled when you create the report. The edit form shows you what it is but won't let you change it: a report that changes what it reports on is a different report, so create a new one and delete the old one if you no longer want it.",
+                "Scheduled times are UTC, not your local time and not the workspace's. There is no per-workspace time zone anywhere in the product, so \"07:00\" is unambiguous rather than quietly wrong — and the rest of the scheduled work, like the nightly demo reset, is already anchored the same way.",
+                "The schedule only has hour resolution. The scheduler wakes up once an hour and compares the hour, so 07:00 and 07:45 behave identically — a report never runs at a specific minute.",
+                "A monthly day past the end of a short month runs on that month's last day instead of being skipped. A report set to the 31st still goes out in February; the alternative would be a report that silently never runs in half the months of the year.",
+                "At least one recipient is required, and every address is checked on its own — with three addresses and one typo, the error tells you which one, instead of rejecting the whole box.",
+                "Only saved views on Accounts or Orders can be a report source: those are the only two lists that are both renderable to a file by the export mechanism and available as a saved view today. A saved view on anything else is refused with that exact reason rather than silently ignored.",
+                "\"Inventory Valuation\" includes stock cost and the margin derived from it — figures Agents and Viewers never see anywhere else in the app. Every recipient gets the same file whatever their role, because there is one file per run and it is sent to all the addresses as it is. The form warns you when you pick that report; it does not stop you, because choosing the recipients is the control.",
+                "Only Owner and Manager reach this form. An Agent who is a recipient can read a report and download its files, but never create, edit or delete one (specs.md §7.4)."
+            ],
+            "howItsBuilt": "A saved-view report is not a copy of the rows: it stores a reference to the view, and each run re-applies that view's filters and sort through exactly the same list-export code path the \"Export CSV\" button uses, so a report and a manual export of the same view can never drift apart. That raises a question the interface can't answer — a filter like \"owner is me\" has no current user at 7am on a Monday — so a scheduled run resolves \"me\" as the person who created the report definition, the only role that can create one at all. Recipients are normalised on the way in and again on the way out, which is what keeps the Agent visibility rule honest. Consistency between the fields is enforced server-side too, not just by hiding inputs: a built-in report has its saved view cleared, and a report whose frequency doesn't use one has its day-of-week/day-of-month cleared, so an inconsistent definition can't be posted around the form."
+        },
+        "reports-list": {
+            "title": "Reports",
+            "whatIsThis": "Every report this workspace has defined: what each one is built from, what kind of file it produces, how often it goes out, and how its last run went. A report is a saved definition, not a one-off export.",
+            "whatCanYouDo": [
+                "Define a new one with \"New report\" — or \"Create your first report\" while the list is empty.",
+                "Read each report's \"Source\" (a saved view, or one of the two built-in reports), its \"Format\" (CSV, XLSX or PDF), and its \"Frequency\": \"Manual only\", \"Daily\", \"Weekly\" or \"Monthly\".",
+                "Check \"Status\" for whether the schedule is \"Active\" or \"Inactive\", and \"Last run\" for \"Queued\", \"Running\", \"Success\", \"Failed\" — or \"Never run\" for one that has not gone out yet.",
+                "Open any report name for its own page: \"Run now\", the current result, the full run history and the downloadable files."
+            ],
+            "rules": [
+                "Owner and Manager see and manage every report here. An Agent sees only the reports where their own email address is one of the recipients — and only sees them: no \"New report\", no edit, no delete, no \"Run now\". A Viewer has no access to reports at all, not even read-only (specs.md §7.4).",
+                "That narrowing is on the email address, matched without case — not on membership and not on who created the report. Recipients are plain addresses, so a report can perfectly well go to someone with no account in this workspace, and an Agent whose address was never added simply doesn't see the report exists.",
+                "\"Inactive\" only switches off the schedule. The definition stays, its history stays, and it can still be run by hand from its own page — so switching a noisy weekly report off is not the same as deleting it.",
+                "The list is not paged and has no filters, columns picker or saved views: a workspace realistically has a handful of report definitions, not thousands, so they are all here at once, sorted by name.",
+                "Deleting a report is permanent and stops its scheduled delivery immediately — and it is done from the report's own page, not from this list, so it can't happen by mis-clicking a row."
+            ],
+            "howItsBuilt": "An Agent's narrowing is applied to the database query that builds this list, not to the rendering: the query filters the `recipients` JSON array for the viewer's own address before anything reaches the browser, so a report they are not on is never sent to their page in the first place. The same address list is normalised — trimmed, lower-cased, de-duplicated — both when it is saved and when it is read back for this check, so the two halves cannot silently drift apart and leave an Agent locked out of a report addressed to them in different capitalisation. The last-run badge comes from an eager-loaded relation rather than a query per row."
+        },
+        "sent-emails": {
+            "title": "Sent emails",
+            "whatIsThis": "Every transactional email this workspace has tried to send while the public demo guardrails are on — member invitations, scheduled report deliveries, data-export and subscription notices — with the full message and whether it actually left the building.",
+            "whatCanYouDo": [
+                "Narrow the log with \"Status\": \"Delivered\", \"Intercepted\", \"Partially delivered\", \"Failed\", or leave it on \"Any status\".",
+                "Press \"View\" on a row to open it in place: who it came from, every to/cc/bcc address with its own \"delivered\" or \"intercepted\" badge, and the message body. \"Hide\" closes it again.",
+                "Read the body exactly as it was composed, so you can check what a recipient would have seen without having to be that recipient.",
+                "Page back and forward through older entries at the bottom of the table."
+            ],
+            "rules": [
+                "This log only exists while the public demo guardrails are on. Switch them off and mail goes straight out with nothing recorded — a log holding the complete text of every message would be a new risk of its own once the recipients are real people, not a feature.",
+                "Only Owner and Manager can open it, and that is a permission in its own right: being able to open Settings isn't enough, because Agent and Viewer can do that too and this screen holds whole message bodies rather than a summary of who changed what.",
+                "\"Delivered\" means every recipient was on the configured allowlist and the send succeeded. \"Intercepted\" means none of them were, so nothing was sent at all. \"Partially delivered\" means the message went out to the allowed addresses only — the others are stripped from To, Cc and Bcc before sending, so a mixed message never leaks its contents to an address that was not cleared. \"Failed\" is different in kind: the allowed part really was attempted and the mail provider refused it.",
+                "An empty allowlist intercepts everything. It never means \"deliver to everyone\" — the check looks for a match, and with nothing to match, nothing is allowed.",
+                "Links that could take over an account are stripped before the row is written: the token in a password-reset link and in a member invitation link is replaced with \"[redacted-token]\" and the row is marked \"Link redacted\", as is any token, signature or expiry parameter in any other link. The token you see here cannot be used — which matters, because the one in a real email would have been identical. It also means an invitation link is not clickable from this log: to walk through accepting one, invite an address that is on the allowlist and gets the real email.",
+                "Rows are kept for 7 days and then purged, the same retention as export files and for the same reason. In the public demo the nightly reset empties the table anyway; the scheduled purge is the safety net for a night when that reset fails.",
+                "A password reset is sent before anyone has picked a workspace, so its row belongs to no workspace — it is recorded and redacted, but it does not appear in this list, in this workspace or any other."
+            ],
+            "howItsBuilt": "The interception is a wrapper around whatever mail transport is configured, registered once at the mail manager, so every message is covered without a single Mailable or Notification knowing it exists — including the ones that have not been written yet. The decision is made per recipient, on the exact address and on the domain, ignoring case; the allowed subset is sent as a copy of the message whose recipient lists contain only those addresses. Writing the log entry is isolated in its own savepoint and its failure is swallowed: a broken log write must never turn a password reset into a 500, because the response to a reset request is supposed to look identical whether or not the account exists. Attributing a row to a workspace is harder than it looks, since a queued email is actually delivered from an internal framework job carrying no tenant context, so the sender stamps an internal header at construction time, while the context still exists, and the transport removes it before the real send. The table itself carries a hand-written row-level-security policy rather than the standard one, with a second branch for the rows that have no workspace at all — without it, those rows could not even be inserted, let alone deleted at retention time."
+        },
+        "settings": {
+            "title": "Settings",
+            "whatIsThis": "This is the hub for everything about how your workspace and your account are configured — not customer data, just setup.",
+            "whatCanYouDo": [
+                "Open \"Preferences\" to change your theme (System, Light or Dark).",
+                "Open \"Pipeline\" to see the stages used by the deals board — and change them, if you are an Owner or Manager.",
+                "Open \"Members\" to invite someone, change a role, or deactivate someone who left, if you are an Owner or Manager.",
+                "Open \"Export data\" to request a machine-readable copy of everything this workspace holds.",
+                "See which workspace sections your role has — every card here leads to a real screen."
+            ],
+            "rules": [
+                "Every role sees \"Preferences\". \"Pipeline\" shows for Owner, Manager and Viewer; \"Members\", \"API Tokens\", \"Sent Emails\" and \"Export data\" for Owner and Manager; \"Billing & Subscription\", \"Carrier settings\" and \"Webhook health\" only for Owner — so an Agent sees just \"Preferences\".",
+                "\"Sent Emails\" only appears while the public demo guardrails are on — with them off nothing is ever recorded, so the screen is hidden rather than shown permanently empty.",
+                "Manager has full operational access everywhere else, but not to billing: the \"Billing & Subscription\" card never appears for them.",
+                "What you see on this page is computed from your role's actual permissions on the server, not hidden with CSS — a section you can't use doesn't appear at all, rather than appearing and then refusing you.",
+                "\"Export data\" is visible to Owner and Manager, but only an Owner can start an export — a Manager sees the history without the button.",
+                "\"Webhook health\" is Owner-only. It shows what Stripe sent to this deployment, including events that belong to no workspace here; those are marked \"ignored\", which is not an error."
+            ],
+            "howItsBuilt": "Whether \"Billing & Subscription\" shows up here is decided server-side, from the same permission matrix used for every other role check in the app (`app/Support/Permissions.php`) — not a separate rule for this one menu. That matrix has already caught one real contradiction before it shipped: an earlier draft accidentally gave Manager read access to billing, and a feature test written directly against the specification (not against the code) failed until the matrix was corrected. No dedicated ADR — this is a settled rule in specs.md §7.4, not an architecture decision."
+        },
+        "stock": {
+            "title": "Stock",
+            "whatIsThis": "How much of one variant you have, at each of your locations, right now — and how much of it is actually free to sell.",
+            "whatCanYouDo": [
+                "See \"On hand\" (physically in the location), \"Reserved\" (allocated to confirmed orders) and \"Available\" (on hand minus reserved) per location.",
+                "Use \"Receive stock\" to record incoming inventory, with an optional reference note (a PO number, for example).",
+                "Use \"Adjust\" to correct a count after a physical audit — a reason is required, so the correction stays explainable later.",
+                "Use \"Transfer\" to move stock from one location to another.",
+                "Open \"View history\" to see every past movement for this variant."
+            ],
+            "rules": [
+                "Only Owner and Manager can receive, adjust or transfer stock — Agent and Viewer see the same numbers read-only, with none of the three buttons.",
+                "An adjustment always requires a note explaining the correction — there is no way to change a quantity without saying why.",
+                "A transfer is rejected if the source location doesn't have enough on hand — moving stock that isn't physically there isn't allowed, unlike an order, which can knowingly go over the available quantity as a backorder.",
+                "\"Available\" is what matters when building an order — never \"On hand\" alone, which ignores what other orders already claimed.",
+                "A \"Low stock\" badge appears at the top of this page once an active variant's total available quantity, across every location, drops below its configured threshold (set on the variant itself, not here) — an inactive variant never shows it."
+            ],
+            "howItsBuilt": "Every button on this page writes to the append-only stock ledger (`stock_movements`) and updates the on-hand projection (`inventory_levels`) in the very same database transaction — never as two separate steps. A transfer is really two linked ledger entries (one out, one in) sharing a reference id, written together. Nothing here ever runs an UPDATE or a DELETE on a past movement: a correction is always a new entry, so the full history stays intact and explainable — the same reasoning behind never touching a customer invoice line after it's issued, applied here to inventory."
+        },
+        "stock-history": {
+            "title": "Stock — History",
+            "whatIsThis": "Every stock movement ever recorded for this variant, newest first and nothing ever edited away: what changed, by how much, why, who did it and when.",
+            "whatCanYouDo": [
+                "Filter by \"Reason\" (receipt, sale, adjustment, return or transfer), or narrow the date range with \"From\"/\"To\".",
+                "See the note attached to a movement — required for every adjustment, optional for the rest.",
+                "Follow a transfer's two linked rows (one location losing stock, the other gaining the same quantity at the same moment)."
+            ],
+            "rules": [
+                "Available to every role that can see stock at all, including Viewer — this screen is read-only by nature, there is nothing here to restrict beyond `stock.view`.",
+                "Nothing on this list can be edited or removed, by anyone, at any role: correcting a mistake means recording a new adjustment, not changing what already happened."
+            ],
+            "howItsBuilt": "This list reads directly off `stock_movements`, the append-only ledger — never a summary table that could drift from it. Paging is by cursor, not by page number, so the history stays fast for a variant with years of receipts and sales behind it. `stock:reconcile` (run weekly, and on demand) recalculates on-hand straight from this ledger and reports any mismatch with the live stock numbers — the ledger is treated as the one source of truth, not the number displayed on the stock screen."
+        },
+        "unassigned": {
+            "title": "Unassigned",
+            "whatIsThis": "Open deals and active orders left behind when a member was deactivated without reassigning them first. Nothing on this page was lost — it just needs a new owner.",
+            "whatCanYouDo": [
+                "See every open deal and active order that belongs to a member who no longer has access, grouped by type.",
+                "Pick a new owner and press \"Reassign all\" to move everything on this page to them in one action.",
+                "Watch the number next to \"Unassigned\" in the main navigation — it only shows while this page has something in it."
+            ],
+            "rules": [
+                "Only open deals and active orders show up here — a delivered order or a won/lost deal keeps its original owner, marked \"(deactivated)\", because rewriting closed history isn't the point.",
+                "Accounts are not part of this view: a deactivated member's accounts stay assigned to them, visible with the \"(deactivated)\" mark, rather than appearing here — only their unfinished work does.",
+                "Visible to Owner and Manager only — the same two roles that can deactivate a member in the first place.",
+                "Reassigning here uses the same queued, chunked mechanism as any other bulk operation — you land on a status page and the \"Unassigned\" count drops once it finishes."
+            ],
+            "howItsBuilt": "This page is one more filter on the same `DealList`/`OrderList` queries every other list in the app already uses (`owner=unassigned`, plus the open/active status) — there is no separate \"orphaned records\" table to keep in sync. The navigation count runs the same two queries, without the pagination, once per request for Owner and Manager only."
+        },
+        "variant-form": {
+            "title": "Variant",
+            "whatIsThis": "A single SKU: the exact thing a customer orders, with its own SKU code, price, cost and (optionally) a weight and a low stock threshold.",
+            "whatCanYouDo": [
+                "Set the \"SKU\" — it must be unique across your whole workspace, not just this product.",
+                "Set the list \"Price\" customers pay and the \"Cost\" you pay — the difference is the margin.",
+                "Set a \"Weight\", used later for shipping calculations.",
+                "Set a \"Low stock threshold\" to get a \"Low stock\" indicator on this variant once its available quantity drops below that number — leave it empty for no alert.",
+                "Mark the variant inactive instead of deleting it, if you stop selling it but keep its history."
+            ],
+            "rules": [
+                "Only Owner and Manager reach this form at all — Agent and Viewer never see \"Add variant\" or \"Edit\" on a variant.",
+                "\"Cost\" is saved like any other field here, but it never appears on this variant anywhere Agent or Viewer can look — margin is an Owner/Manager concern only (specs.md §7.4).",
+                "A duplicate SKU is rejected before saving, with the error next to the field — not a generic failure.",
+                "\"Low stock threshold\" is optional and per variant — a variant without one never shows the alert, no matter how low its stock gets, and neither does a variant you have marked inactive."
+            ],
+            "howItsBuilt": "The SKU uniqueness check runs against the workspace's own variants only: the underlying database rule is bypassed by validation shortcuts unless the tenant is filtered in explicitly, so a SKU already used by a different workspace never blocks yours."
+        },
+        "webhook-health": {
+            "title": "Webhook health",
+            "whatIsThis": "The operational view of everything Stripe has told this deployment: one row per event, with what happened to it. It exists so that a payment problem is visible here, in plain words, instead of only in a log file nobody reads.",
+            "whatCanYouDo": [
+                "See the five counters at the top — how many events were received, are being processed, were processed, failed, or were ignored.",
+                "Filter the list by status, to look at just the failures.",
+                "Read the detail column, which says in words why an event ended where it did."
+            ],
+            "rules": [
+                "Only Owner can open this page — it is the same right as the Billing & Subscription page, because these are the same Stripe events seen from the other side.",
+                "\"Failed\" is the only status that needs a human. It means the signature was valid, the event was ours, and applying it did not work after three attempts.",
+                "\"Ignored\" is not a failure. This deployment shares its Stripe sandbox with another project, so events belonging to that project arrive here with a perfectly valid signature. Nothing maps them to a workspace, nothing is applied, and the row says so.",
+                "Stripe delivers each event at least once, never exactly once. A repeated delivery of an event already recorded is answered immediately and never applied a second time, so a duplicate never shows up as a second row.",
+                "The list shows the 100 most recent events, while the counters above it cover every event ever received — so a counter can read far higher than the number of rows below it.",
+                "The event payload is never shown on this page. The table itself belongs to the deployment rather than to any one workspace, so only the metadata and the message written by this application are displayed."
+            ],
+            "howItsBuilt": "The webhook endpoint is public — Stripe has no session and no workspace — so it verifies the signature locally, records the event keyed on its own id, and hands the actual work to a queued job. That split is deliberate: the handler shipped with the framework makes synchronous calls back to Stripe, which would hold a database transaction open for the whole round trip on a container with a small connection pool. Whether an event belongs here is decided by looking up the customer id it carries against the workspaces of this deployment; when nothing matches, the row is marked ignored rather than failed, and no job is queued at all. The distinction is what keeps the failure counter meaningful — an operations screen full of red that is not yours makes red mean nothing."
+        }
+    }
+}

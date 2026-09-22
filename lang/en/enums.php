@@ -19,4 +19,31 @@ return [
         'cancelled' => 'Cancelled',
     ],
 
+    /**
+     * Descrierile scope-urilor de jeton API (US-API-01), afisate ca text sub codul
+     * scope-ului pe `Settings/ApiTokens/Index`. Cheia stocata pe `api_tokens.abilities`
+     * ramane identificatorul tehnic (`orders:read`) — neschimbat de locale, exact ca
+     * valorile de `order_status` de mai sus: apare in `EnsureTokenAbility`, in payload-ul
+     * jetonului si in testele de API.
+     *
+     * Gasite abia la Valul 4 al Lotului I18N, scrise direct in
+     * `ApiToken::abilityCatalog()`: 11 siruri engleze randate pe o interfata altfel
+     * franceza. Val 2 se uitase la mesajele flash si la validari, nu la un catalog
+     * static de pe un model — iar niciun test nu putea vedea diferenta, fiindca nimic
+     * nu cerea acelui catalog sa treaca prin `trans()`.
+     */
+    'api_abilities' => [
+        'accounts:read' => 'Read accounts',
+        'contacts:read' => 'Read contacts',
+        'contacts:write' => 'Create contacts',
+        'deals:read' => 'Read deals',
+        'deals:write' => 'Create deals',
+        'orders:read' => 'Read orders',
+        'orders:write' => 'Create orders',
+        'invoices:read' => 'Read invoices',
+        'invoices:write' => 'Create invoices',
+        'inventory:read' => 'Read stock levels and movements',
+        'inventory:write' => 'Record stock movements',
+    ],
+
 ];

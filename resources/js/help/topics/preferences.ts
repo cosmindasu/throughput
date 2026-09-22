@@ -1,30 +1,28 @@
-import type { HelpTopic } from '@/help/types';
+import { adrUrl } from '@/help/adr';
+import type { HelpTopicDefinition } from '@/help/types';
 
 /**
- * `Settings/Preferences` — specs.md §15.6 (FR-PREF-01…03, BR-PREF-01…03).
+ * `Settings/Preferences` — specs.md §15.6 (FR-PREF-01…03, BR-PREF-01…03) și §15.8
+ * (FR-I18N-01, granița din FR-I18N-06).
  *
  * Reconciliat cu codul la 2026-09-13: `Pages/Settings/Preferences.tsx`, `ThemeToggle.tsx`
  * (montat și în bara de sus, `AppLayout.tsx`), `ThemeController`, `App\Support\ThemePreference`
  * (ordinea de rezoluție: alegerea explicită → cookie → dark) și migrația care face `dark`
  * implicitul coloanei `users.theme`.
+ *
+ * Re-reconciliat la Valul 4 al Lotului I18N: Valul 1 a adăugat pe ACEST ecran un al doilea
+ * rând, `LocaleToggle` + `settings:language.*`, iar subiectul descria în continuare numai
+ * tema — un gol de conținut produs chiar de lotul ăsta, nu unul moștenit. În plus, blocul
+ * „How it's built" afirma „No dedicated ADR", afirmație devenită falsă în momentul în care
+ * ADR-022 a fost acceptat: e decizia dedicată exact mecanismului de pe acest ecran, iar
+ * acum e linkată ca atare.
  */
-const preferences: HelpTopic = {
+const preferences: HelpTopicDefinition = {
     id: 'preferences',
-    title: 'Preferences',
-    whatIsThis: "This is where you control how the app looks to you, personally — nobody else's screen changes when you change yours.",
-    whatCanYouDo: [
-        'Pick "System", "Light" or "Dark" under "Theme" — the change applies immediately.',
-        'Use the same switch in the top bar, on every screen, without coming back here.',
-    ],
-    rules: [
-        'Your theme choice follows you, not your workspace — switching workspaces keeps the same theme.',
-        'If you have never picked a theme, you get "Dark".',
-        '"System" follows your device\'s light or dark setting, and keeps following it while the tab stays open; a device with no light preference gets the dark theme.',
-        'This is available to every role, including Viewer, and it is never disabled in the public demo — it\'s not a business action, just a display preference.',
-    ],
-    howItsBuilt: {
-        summary:
-            "Changing this saves your choice on `users.theme` and writes a `theme` cookie holding the resolved value (light or dark). On every full page load the server decides the `dark` class on `<html>` before any JavaScript runs: your saved Light or Dark first, then the cookie — which is how \"System\" gets it right — then dark. So there's no flash of the wrong theme while the page boots. A version that applied the theme after hydration, in a `useEffect`, would flicker — that's explicitly treated as a defect here, not a cosmetic detail. No dedicated ADR; the no-flicker requirement is specs.md §15.6 (FR-PREF-03).",
+    adr: {
+        id: 'ADR-022',
+        title: 'The interface becomes bilingual (EN default + FR) — language is a per-user preference, not a URL segment',
+        url: adrUrl('ADR-022', 'locale-en-fr-per-utilizator-nu-in-url'),
     },
 };
 

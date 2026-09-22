@@ -61,8 +61,12 @@ class InvoicePdfTranslationTest extends TestCase
         // `Invoice::STATUS_SENT` = 'sent' → catalog `pdf.invoice.status.sent` = 'Envoyée'.
         $this->assertStringContainsString('ENVOYÉE', $html);
         $this->assertStringContainsString('Facturé à', $html);
-        // Apostroful iese HTML-escaped din `{{ }}` Blade (`&#039;`), nu literal.
-        $this->assertStringContainsString('Date d&#039;émission', $html);
+        // Apostroful e cel TIPOGRAFIC (U+2019), nu ASCII — cataloagele franceze au fost
+        // uniformizate la Valul 4 al Lotului I18N, după ce verificarea citatelor din panoul
+        // de ajutor a găsit 45 de apostrofuri ASCII rămase din Valul 2. Diferența e vizibilă
+        // exact aici: `htmlspecialchars` escapa apostroful ASCII în `&#039;`, deci aserțiunea
+        // de dinainte îl căuta escapat; U+2019 nu e escapat de `{{ }}` și apare literal.
+        $this->assertStringContainsString('Date d’émission', $html);
         $this->assertStringContainsString('Quantité', $html);
         $this->assertStringContainsString('Sous-total', $html);
         $this->assertStringContainsString('Solde dû', $html);

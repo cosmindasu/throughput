@@ -36,12 +36,17 @@ import stockHistory from '@/help/topics/stock-history';
 import unassigned from '@/help/topics/unassigned';
 import variantForm from '@/help/topics/variant-form';
 import webhookHealth from '@/help/topics/webhook-health';
-import type { HelpTopic } from '@/help/types';
+import type { HelpTopicDefinition } from '@/help/types';
 
 /**
- * Harta COMPONENTĂ INERTIA → SUBIECT (FR-HELP-03/04). Cheile sunt exact numele
- * returnate de `Inertia::render('Nume/Componentă', ...)`, adică exact ce
- * întoarce `usePage().component` în React — nu nume de rută, nu segmente de URL.
+ * Harta COMPONENTĂ INERTIA → DEFINIȚIE DE SUBIECT (FR-HELP-03/04). De la Valul 4 al
+ * Lotului I18N valorile sunt `HelpTopicDefinition` (id + blocul `adr`), nu subiecte
+ * complete: textul vine din catalogul limbii active, compus de `useHelpTopic()`.
+ * Harta rămâne SINCRONĂ și independentă de catalog — de ea depinde dacă butonul „?"
+ * se randează deloc, iar acea decizie nu are voie să aștepte o încărcare.
+ *
+ * Cheile sunt exact numele returnate de `Inertia::render('Nume/Componentă', ...)`, adică
+ * exact ce întoarce `usePage().component` în React — nu nume de rută, nu segmente de URL.
  *
  * Mai multe componente pot împărți un subiect (ex. `Accounts/Create` și
  * `Accounts/Edit` — un formular aproape identic nu merită două texte separate).
@@ -50,7 +55,7 @@ import type { HelpTopic } from '@/help/types';
  * regex (Pest rulează în PHP, nu poate importa acest modul TS direct) — dacă
  * schimbi formatul obiectului literal de mai jos, verifică și acel test.
  */
-export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
+export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopicDefinition> = {
     // Chei mereu între ghilimele simple, deși `Dashboard` ar fi un identificator
     // JS valid și fără ele — uniform, ca regexul din testul de acoperire
     // (HelpTopicCoverageTest, Pest rulează în PHP, nu importă acest modul) să
@@ -132,6 +137,6 @@ export const HELP_TOPICS_BY_COMPONENT: Record<string, HelpTopic> = {
  * plus Dashboard; pentru restul (module încă neconstruite), absența butonului
  * e comportamentul corect, nu unul degradat.
  */
-export function helpTopicForComponent(component: string): HelpTopic | null {
+export function helpTopicDefinitionForComponent(component: string): HelpTopicDefinition | null {
     return HELP_TOPICS_BY_COMPONENT[component] ?? null;
 }

@@ -1,5 +1,5 @@
 import { adrUrl } from '@/help/adr';
-import type { HelpTopic } from '@/help/types';
+import type { HelpTopicDefinition } from '@/help/types';
 
 /**
  * `Settings/SentEmails/Index` — BR-DEMO-02, specs.md §22.3 (interceptarea email-ului de
@@ -28,34 +28,12 @@ import type { HelpTopic } from '@/help/types';
  *     INDIFERENT de `DEMO_MODE` (`SettingsController` verifică doar permisiunea), dar cu
  *     `DEMO_MODE=false` tabela nu mai primește niciun rând — ecranul rămâne permanent gol.
  */
-const sentEmails: HelpTopic = {
+const sentEmails: HelpTopicDefinition = {
     id: 'sent-emails',
-    title: 'Sent emails',
-    whatIsThis:
-        "Every transactional email this workspace has tried to send while the public demo guardrails are on — member invitations, scheduled report deliveries, data-export and subscription notices — with the full message and whether it actually left the building.",
-    whatCanYouDo: [
-        'Narrow the log with "Status": "Delivered", "Intercepted", "Partially delivered", "Failed", or leave it on "Any status".',
-        'Press "View" on a row to open it in place: who it came from, every to/cc/bcc address with its own "delivered" or "intercepted" badge, and the message body. "Hide" closes it again.',
-        'Read the body exactly as it was composed, so you can check what a recipient would have seen without having to be that recipient.',
-        'Page back and forward through older entries at the bottom of the table.',
-    ],
-    rules: [
-        'This log only exists while the public demo guardrails are on. Switch them off and mail goes straight out with nothing recorded — a log holding the complete text of every message would be a new risk of its own once the recipients are real people, not a feature.',
-        "Only Owner and Manager can open it, and that is a permission in its own right: being able to open Settings isn't enough, because Agent and Viewer can do that too and this screen holds whole message bodies rather than a summary of who changed what.",
-        '"Delivered" means every recipient was on the configured allowlist and the send succeeded. "Intercepted" means none of them were, so nothing was sent at all. "Partially delivered" means the message went out to the allowed addresses only — the others are stripped from To, Cc and Bcc before sending, so a mixed message never leaks its contents to an address that was not cleared. "Failed" is different in kind: the allowed part really was attempted and the mail provider refused it.',
-        'An empty allowlist intercepts everything. It never means "deliver to everyone" — the check looks for a match, and with nothing to match, nothing is allowed.',
-        'Links that could take over an account are stripped before the row is written: the token in a password-reset link and in a member invitation link is replaced with "[redacted-token]" and the row is marked "Link redacted", as is any token, signature or expiry parameter in any other link. The token you see here cannot be used — which matters, because the one in a real email would have been identical. It also means an invitation link is not clickable from this log: to walk through accepting one, invite an address that is on the allowlist and gets the real email.',
-        'Rows are kept for 7 days and then purged, the same retention as export files and for the same reason. In the public demo the nightly reset empties the table anyway; the scheduled purge is the safety net for a night when that reset fails.',
-        "A password reset is sent before anyone has picked a workspace, so its row belongs to no workspace — it is recorded and redacted, but it does not appear in this list, in this workspace or any other.",
-    ],
-    howItsBuilt: {
-        summary:
-            "The interception is a wrapper around whatever mail transport is configured, registered once at the mail manager, so every message is covered without a single Mailable or Notification knowing it exists — including the ones that have not been written yet. The decision is made per recipient, on the exact address and on the domain, ignoring case; the allowed subset is sent as a copy of the message whose recipient lists contain only those addresses. Writing the log entry is isolated in its own savepoint and its failure is swallowed: a broken log write must never turn a password reset into a 500, because the response to a reset request is supposed to look identical whether or not the account exists. Attributing a row to a workspace is harder than it looks, since a queued email is actually delivered from an internal framework job carrying no tenant context, so the sender stamps an internal header at construction time, while the context still exists, and the transport removes it before the real send. The table itself carries a hand-written row-level-security policy rather than the standard one, with a second branch for the rows that have no workspace at all — without it, those rows could not even be inserted, let alone deleted at retention time.",
-        adr: {
-            id: 'ADR-020',
-            title: 'A dedicated RLS policy for the email log, with an optional tenant',
-            url: adrUrl('ADR-020', 'politica-rls-proprie-pentru-jurnalul-de-email'),
-        },
+    adr: {
+        id: 'ADR-020',
+        title: 'A dedicated RLS policy for the email log, with an optional tenant',
+        url: adrUrl('ADR-020', 'politica-rls-proprie-pentru-jurnalul-de-email'),
     },
 };
 

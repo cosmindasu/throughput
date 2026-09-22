@@ -68,7 +68,9 @@ final class AccountsAndContactsSeeder
             // aleatoare l-ar lăsa ocazional fără niciunul — un demo gol și un test instabil.
             $accountOwner = $i <= 5 && $staff['demo_agent_id'] !== null ? $staff['demo_agent_id'] : $pickOwner();
             $createdAt = DemoClock::historicalDate(24);
-            $name = DemoNames::company($config['vertical']);
+            // Numele ȘI industria vin împreună: pool-ul francez (FR-I18N-07) le schimbă pe
+            // amândouă odată, altfel ar ieși firme cu nume francez și industrie engleză.
+            ['name' => $name, 'industry' => $industry] = DemoNames::account($config['vertical'], $config['industry']);
             $domain = DemoNames::domain($name, $i);
 
             $row = $accountFactory->definition();
@@ -76,7 +78,7 @@ final class AccountsAndContactsSeeder
             $row['tenant_id'] = $tenant->id;
             $row['name'] = $name;
             $row['domain'] = $domain;
-            $row['industry'] = $config['industry'];
+            $row['industry'] = $industry;
             $row['billing_address'] = json_encode($row['billing_address']);
             $row['shipping_address'] = json_encode($row['shipping_address']);
             $row['tags'] = json_encode([]);
