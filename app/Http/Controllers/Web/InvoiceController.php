@@ -151,10 +151,13 @@ final class InvoiceController extends Controller
     {
         Gate::authorize('view', $order);
 
-        $invoice = Invoice::query()
-            ->where('order_id', $order->getKey())
-            ->latest('created_at')
-            ->first();
+        // TEST-01 (audit 2026-09-23) — folosea o interogare manuală cu `->latest('created_at')`,
+        // fără tiebreaker pe `id`: exact bugul deja reparat o dată în `Order::invoice()`
+        // (`.ai/rules/tenancy.md`, „created_at are precizie 0"). O anulare + reemitere în
+        // aceeași secundă putea întoarce factura ANULATĂ pe acest endpoint, care alimentează
+        // `BillingSection` de pe `Orders/Show.tsx`. `$order->invoice` e relația deja corectă
+        // (`latestOfMany(['created_at', 'id'])`) — nu o duplica aici.
+        $invoice = $order->invoice;
 
         return response()->json([
             'can' => [
