@@ -98,7 +98,7 @@ ENTRYPOINT ["entrypoint.sh"]
 # În dezvoltare, assets-urile sunt servite de containerul `vite` separat
 # (docker-compose.yml, `npm run dev`) — nu de această imagine.
 ########################################
-FROM node:22-alpine AS assets
+FROM node:25-alpine AS assets
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
