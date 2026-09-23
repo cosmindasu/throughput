@@ -55,6 +55,10 @@ class ContactOptOutFilterGuardTest extends TestCase
             'app/Http/Resources/Api/V1/ContactResource.php',
             'app/Http/Requests/Contacts/StoreContactRequest.php',
             'app/Http/Requests/Contacts/UpdateContactRequest.php',
+            // GDPR-04, §13.5 (Art. 21) — opt-out ÎN MASĂ: același `UPDATE` condiționat pe
+            // coloană, doar aplicat pe un chunk de id-uri în loc de un singur contact.
+            // Gestiunea contactului, nu o cale tranzacțională — vezi docblock-ul clasei.
+            'app/Support/Bulk/Actions/ContactOptOutAction.php',
         ];
     }
 

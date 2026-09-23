@@ -52,6 +52,30 @@ class ContactPolicy
         return $user->can('contacts.view') && $user->can('bulk.export');
     }
 
+    /**
+     * GDPR-04, §13.4/§13.5 (Art. 21) — opt-out în masă (Pachetul C, valul „bulk"). Legată
+     * de `contacts.edit`, ca `update()`: Agent trece Policy-ul (are `contacts.edit`), dar
+     * rămâne restrâns la subsetul propriu la nivel de INTEROGARE
+     * (`App\Support\Bulk\Resources\ContactBulkResource::scopeToOwnRecords()`), simetric cu
+     * `AccountPolicy::bulkReassignOwner()` — un Policy răspunde la „poate omul ăsta
+     * declanșa ACȚIUNEA", nu la „pe ce rânduri anume". Viewer n-are `contacts.edit` →
+     * refuzat (BR-BULK-03).
+     */
+    public function bulkOptOut(User $user): bool
+    {
+        return $user->can('contacts.edit') && $user->can('bulk.write');
+    }
+
+    /**
+     * GDPR-04, §13.4/§13.5 (Art. 17, RTBF) — ștergere/anonimizare în masă. Legată de
+     * `contacts.delete`, ca `delete()` de mai sus; îngustarea la subsetul propriu al
+     * Agentului e tot la nivel de interogare, nu aici.
+     */
+    public function bulkDelete(User $user): bool
+    {
+        return $user->can('contacts.delete') && $user->can('bulk.write');
+    }
+
     private function isWithinOwnRecords(User $user, Contact $contact): bool
     {
         if (! Permissions::restrictedToOwnRecords($user)) {

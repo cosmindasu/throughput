@@ -3,6 +3,7 @@
 namespace App\Support\Bulk;
 
 use App\Support\Bulk\Resources\AccountBulkResource;
+use App\Support\Bulk\Resources\ContactBulkResource;
 use App\Support\Bulk\Resources\DealBulkResource;
 use App\Support\Bulk\Resources\OrderBulkResource;
 use App\Support\Bulk\Resources\ProductBulkResource;
@@ -22,6 +23,8 @@ final class BulkWritableResources
     {
         return [
             'accounts' => AccountBulkResource::class,
+            // GDPR-04, §13.5 — opt-out în masă și ștergere/anonimizare RTBF.
+            'contacts' => ContactBulkResource::class,
             'deals' => DealBulkResource::class,
             'orders' => OrderBulkResource::class,
             'products' => ProductBulkResource::class,

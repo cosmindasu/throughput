@@ -7,6 +7,8 @@ use App\Actions\Bulk\ReassignOwnerAction;
 use App\Actions\Bulk\SetProductActiveAction;
 use App\Actions\Bulk\UpdatePriceAction;
 use App\Enums\OrderStatus;
+use App\Support\Bulk\Actions\ContactBulkDeleteAction;
+use App\Support\Bulk\Actions\ContactOptOutAction;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 
@@ -25,6 +27,17 @@ final class BulkChunkActions
 
     public const SET_ACTIVE = 'set_active';
 
+    // GDPR-04, §13.5 (Contacte) — prefixate cu resursa, spre deosebire de restul
+    // constantelor de mai sus: harta `map()` e FLATĂ (`action` → executor, fără
+    // `resource_type`), iar §13.5 cere „ștergere" și pe Accounts (MVP, neconstruit încă,
+    // acțiuni specifice unei resurse) — un `DELETE` generic ar coliza cu semantica lui pe
+    // Contacts (anonimizare-sau-ștergere, via `ContactErasure`), diferită de un eventual
+    // refuz dur pe Accounts cu deals/orders. Numele lung previne coliziunea, nu doar o
+    // evită azi.
+    public const CONTACTS_MARK_OPTED_OUT = 'contacts_mark_opted_out';
+
+    public const CONTACTS_DELETE = 'contacts_delete';
+
     /** @return array<string, class-string<BulkChunkAction>> */
     public static function map(): array
     {
@@ -33,6 +46,8 @@ final class BulkChunkActions
             self::CANCEL_DRAFT_ORDERS => CancelDraftOrdersAction::class,
             self::UPDATE_PRICE => UpdatePriceAction::class,
             self::SET_ACTIVE => SetProductActiveAction::class,
+            self::CONTACTS_MARK_OPTED_OUT => ContactOptOutAction::class,
+            self::CONTACTS_DELETE => ContactBulkDeleteAction::class,
         ];
     }
 
