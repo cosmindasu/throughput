@@ -71,9 +71,20 @@ final class ImportDryRunChunkProcessor
             $signature = $entry['signature'];
 
             if ($errors === [] && $signature !== null && isset($existingByField[$signature['field']][$signature['value']])) {
+                // I18N-07, FR-I18N-04 — mutat din literal englez direct într-o cheie
+                // (`lang/{en,fr}/imports.php`). ATENȚIE la locale: acest cod rulează în
+                // `RunDryRunValidationJob` (job de tenant, `ApplyTenantContextToJob`), care
+                // NU apelează `App::setLocale()` — spre deosebire de tiparul stabilit în
+                // `App\Jobs\Reports\DeliverReportJob`/`ExportTenantEntityJob` (ADR-022,
+                // FR-I18N-05, `.ai/rules/tenancy.md:123-138`). Mesajul de-aici moștenește deci
+                // limba pe care `App::currentLocale()` o are ÎNTÂMPLĂTOR pe worker-ul de
+                // coadă în momentul rulării jobului, nu neapărat limba utilizatorului care a
+                // pornit importul — același risc de scurgere între joburi documentat în
+                // `tests/Feature/I18n/JobLocaleLeakTest.php`, dar nereparat aici (nu face
+                // parte din felia asta; jobul nu a fost atins).
                 $errors[] = [
                     'field' => $signature['field'],
-                    'message' => 'Already exists — an existing record uses this value.',
+                    'message' => __('imports.validation.duplicate_value'),
                 ];
             }
 

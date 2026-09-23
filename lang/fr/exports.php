@@ -66,4 +66,11 @@ return [
         'amount_paid' => 'Montant réglé',
         'balance_due' => 'Solde dû',
     ],
+
+    // I18N-08 — perechea franceză a lui `lang/en/exports.php`. Ghilimele DREPTE păstrate
+    // deliberat în jurul lui `:format` (vezi comentariul din `ExportFormat::fromRequest()`
+    // — valoare de utilizator, FR-I18N-06, nu etichetă a aplicației).
+    'errors' => [
+        'unknown_format' => 'Format d’export inconnu ":format". Utilisez csv, pdf ou zip.',
+    ],
 ];

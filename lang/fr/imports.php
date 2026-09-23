@@ -91,5 +91,9 @@ return [
      */
     'validation' => [
         'required_field_unmapped' => 'Le champ « :field » est obligatoire pour :resource et doit être associé à une colonne.',
+
+        // I18N-07 — perechea franceză a lui `lang/en/imports.php`. Fără interpolare, deci
+        // fără capcana ghilimelelor/genului de acolo.
+        'duplicate_value' => 'Existe déjà — un enregistrement existant utilise cette valeur.',
     ],
 ];

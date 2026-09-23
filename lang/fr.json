@@ -1,10 +1,17 @@
 {
+    "Back to home": "Retour à l’accueil",
     "Forbidden": "Accès refusé",
     "Not Found": "Page introuvable",
     "Page Expired": "Page expirée",
     "Payment Required": "Paiement requis",
     "Server Error": "Erreur serveur",
     "Service Unavailable": "Service indisponible",
+    "Something went wrong on our end. Please try again in a few minutes.": "Une erreur s’est produite de notre côté. Veuillez réessayer dans quelques minutes.",
+    "The page you are looking for could not be found or may have been moved.": "La page que vous recherchez est introuvable ou a peut-être été déplacée.",
+    "The site is temporarily unavailable for maintenance. Please check back soon.": "Le site est temporairement indisponible pour cause de maintenance. Veuillez revenir bientôt.",
     "Too Many Requests": "Trop de requêtes",
-    "Unauthorized": "Non autorisé"
+    "Unauthorized": "Non autorisé",
+    "You don't have permission to access this page.": "Vous n’avez pas la permission d’accéder à cette page.",
+    "You have made too many requests. Please wait a moment and try again.": "Vous avez effectué trop de requêtes. Veuillez patienter un instant et réessayer.",
+    "Your session has expired. Please refresh the page and try again.": "Votre session a expiré. Veuillez actualiser la page et réessayer."
 }

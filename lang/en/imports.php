@@ -76,5 +76,13 @@ return [
      */
     'validation' => [
         'required_field_unmapped' => '":field" is required for :resource and must be mapped to a column.',
+
+        /*
+         * I18N-07 — mutat din `ImportDryRunChunkProcessor::process()` (era literal englez
+         * direct în array-ul de erori scris în `import_rows.errors`, vizibil în review-ul
+         * probei uscate ȘI în CSV-ul de erori `ImportErrorReportBuilder`). Textul englez e
+         * IDENTIC, caracter cu caracter, cu literalul dinainte de extragere.
+         */
+        'duplicate_value' => 'Already exists — an existing record uses this value.',
     ],
 ];

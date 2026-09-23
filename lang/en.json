@@ -1,10 +1,17 @@
 {
+    "Back to home": "Back to home",
     "Forbidden": "Forbidden",
     "Not Found": "Not Found",
     "Page Expired": "Page Expired",
     "Payment Required": "Payment Required",
     "Server Error": "Server Error",
     "Service Unavailable": "Service Unavailable",
+    "Something went wrong on our end. Please try again in a few minutes.": "Something went wrong on our end. Please try again in a few minutes.",
+    "The page you are looking for could not be found or may have been moved.": "The page you are looking for could not be found or may have been moved.",
+    "The site is temporarily unavailable for maintenance. Please check back soon.": "The site is temporarily unavailable for maintenance. Please check back soon.",
     "Too Many Requests": "Too Many Requests",
-    "Unauthorized": "Unauthorized"
+    "Unauthorized": "Unauthorized",
+    "You don't have permission to access this page.": "You don't have permission to access this page.",
+    "You have made too many requests. Please wait a moment and try again.": "You have made too many requests. Please wait a moment and try again.",
+    "Your session has expired. Please refresh the page and try again.": "Your session has expired. Please refresh the page and try again."
 }

@@ -48,6 +48,11 @@ enum ExportFormat: string
         }
 
         return self::tryFrom($raw)
-            ?? throw new HttpException(422, "Unknown export format \"{$raw}\". Use csv, pdf or zip.");
+            // I18N-08, FR-I18N-04 — mutat din literal englez direct în excepție. `:format`
+            // e valoarea BRUTĂ a query string-ului (`$raw`, conținut de utilizator, nu o
+            // etichetă a aplicației) — ghilimelele rămân drepte (" ") în ambele limbi,
+            // deliberat, nu « » franceze: FR-I18N-06, aceeași distincție documentată în
+            // `lang/fr/imports.php` (ghilimele franceze doar pe etichete DECISE de aplicație).
+            ?? throw new HttpException(422, __('exports.errors.unknown_format', ['format' => $raw]));
     }
 }
