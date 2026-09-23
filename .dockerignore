@@ -10,3 +10,12 @@ storage/logs
 docs/
 tests/
 e2e/
+# OPS-14 (audit infra 2026-09-23): fără impact funcțional — stage-ul `assets` suprascrie
+# oricum `public/build` la `npm run build`, iar `.github/`/`*.md` nu intră în nicio
+# instrucțiune `COPY` a Dockerfile-urilor — doar context de build mai mare trimis la
+# daemon la fiecare `docker build`. `/*.md` ANCORAT la rădăcină (README/CONTRIBUTING/
+# AGENTS/CLAUDE.md), nu `*.md` simplu: neancorat ar fi exclus și `.ai/rules/*.md`, în
+# afara a ce s-a cerut aici.
+public/build/
+.github/
+/*.md

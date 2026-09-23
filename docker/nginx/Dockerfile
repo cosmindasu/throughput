@@ -17,7 +17,13 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine AS production
+# OPS-15 (audit infra 2026-09-23): pinuit la major.minor, ca toate celelalte imagini de
+# bază din proiect (`php:8.3-fpm-alpine`, `node:22-alpine`, `postgres:16-alpine`,
+# `redis:7-alpine`). Cu `nginx:alpine` simplu, un `docker build` fără cache la un deploy
+# viitor putea trage o versiune majoră diferită, fără avertisment. Verificat local
+# 2026-09-23: `nginx:alpine` și `nginx:1.31-alpine` rezolvă la ACELAȘI digest
+# (`nginx/1.31.6`) — actualizează manual când versiunea stabilă avansează.
+FROM nginx:1.31-alpine AS production
 
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
