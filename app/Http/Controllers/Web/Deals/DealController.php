@@ -314,8 +314,10 @@ class DealController extends Controller
         $ownerFilter = $request->query('owner', $restricted ? 'me' : 'all');
         $ownerFilter = in_array($ownerFilter, ['me', 'all'], true) ? $ownerFilter : ($restricted ? 'me' : 'all');
 
+        // Tiebreaker pe `id` (DOM-05, audit 2026-09-23) — `.ai/rules/tenancy.md`:
+        // `created_at` are precizie 0, deci „cel mai vechi" nu e determinist singur.
         $pipeline = Pipeline::query()->where('is_default', true)->first()
-            ?? Pipeline::query()->oldest('created_at')->first();
+            ?? Pipeline::query()->oldest('created_at')->oldest('id')->first();
 
         abort_if($pipeline === null, 404);
 

@@ -31,8 +31,10 @@ final class CreateDealAction
             // multiple sunt Faza 2+ (FR-DEAL-04). Fallback pe cel mai vechi dacă
             // niciunul nu e marcat implicit (nu ar trebui să se întâmple după seed,
             // dar un tenant de test poate crea un singur pipeline fără steag).
+            // Tiebreaker pe `id` (DOM-05, audit 2026-09-23) — `.ai/rules/tenancy.md`:
+            // `created_at` are precizie 0, deci „cel mai vechi" nu e determinist singur.
             $pipeline = Pipeline::query()->where('is_default', true)->first()
-                ?? Pipeline::query()->oldest('created_at')->firstOrFail();
+                ?? Pipeline::query()->oldest('created_at')->oldest('id')->firstOrFail();
 
             $firstStage = Stage::query()
                 ->where('pipeline_id', $pipeline->getKey())

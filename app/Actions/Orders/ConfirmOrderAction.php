@@ -55,8 +55,10 @@ final class ConfirmOrderAction
                 ]);
             }
 
+            // Tiebreaker pe `id` (DOM-05, audit 2026-09-23) — `.ai/rules/tenancy.md`:
+            // `created_at` are precizie 0, deci „cel mai vechi" nu e determinist singur.
             $location = Location::query()->where('is_default', true)->first()
-                ?? Location::query()->oldest('created_at')->firstOrFail();
+                ?? Location::query()->oldest('created_at')->oldest('id')->firstOrFail();
 
             $variantIds = $lines->pluck('variant_id')->unique()->values();
 

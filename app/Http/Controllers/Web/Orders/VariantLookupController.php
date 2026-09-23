@@ -31,8 +31,10 @@ final class VariantLookupController extends Controller
         $raw = $request->query('q');
         $q = is_string($raw) ? mb_substr(trim($raw), 0, 100) : '';
 
+        // Tiebreaker pe `id` (DOM-05, audit 2026-09-23) — `.ai/rules/tenancy.md`:
+        // `created_at` are precizie 0, deci „cel mai vechi" nu e determinist singur.
         $location = Location::query()->where('is_default', true)->first()
-            ?? Location::query()->oldest('created_at')->first();
+            ?? Location::query()->oldest('created_at')->oldest('id')->first();
 
         $variants = Variant::query()
             ->select(['id', 'sku', 'product_id', 'price'])
