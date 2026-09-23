@@ -1,0 +1,152 @@
+# tests/Performance/docker-compose.peak.yml
+#
+# Stack IZOLAT pentru măsurătoarea OPS-07 (audit infra 2026-09-23, §3 „Buget de memorie" —
+# docs/reviews/2026-09-23_audit/07-infra-deploy.md). Întrebarea la care răspunde: 4 cereri
+# php-fpm simultane, sincrone, pe cel mai greu endpoint din aplicație, pe imaginea de
+# PRODUCȚIE, cu EXACT plafoanele reale (`mem_limit`=`memswap_limit`) din
+# `docker-compose.coolify.yml` — se atinge OOM-kill pe containerul `app`?
+#
+# NU e docker-compose.yml (dev) și NU e docker-compose.coolify.yml — rulează într-un
+# PROIECT COMPOSE SEPARAT (`-p throughput-peak`), cu propriile `postgres`/`redis`, fără să
+# atingă containerele `throughputdbgro-*` deja pornite. Fără `horizon`/`scheduler`: scenariul
+# de măsurat (export CSV sincron, cale php-fpm) nu trece prin coadă — vezi
+# `tests/Performance/fpm-peak.js` pentru de ce endpoint-ul ales e sincron, nu în coadă.
+#
+# Porturi: DOAR `nginx` publică un port pe host (implicit 8099 — NU 8000, ca să nu se
+# suprapună peste `throughputdbgro-app-1`), și DOAR fiindcă k6 rulează pe host, în afara
+# rețelei Docker. `postgres`/`redis` rămân neexpuse (`expose`, nu `ports`), ca în
+# docker-compose.coolify.yml.
+#
+# Reproducere:
+#   docker build --target production -f docker/app/Dockerfile -t throughput:peak .
+#   docker build -f docker/nginx/Dockerfile -t throughput-nginx:peak .
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml \
+#       --env-file tests/Performance/peak.env up -d postgres redis
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml \
+#       --env-file tests/Performance/peak.env up -d app
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml \
+#       --env-file tests/Performance/peak.env exec app php artisan migrate --force --database=pgsql_migrations
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml \
+#       --env-file tests/Performance/peak.env exec app php artisan demo:seed-volume
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml \
+#       --env-file tests/Performance/peak.env up -d nginx
+#
+# Curățare:
+#   docker compose -p throughput-peak -f tests/Performance/docker-compose.peak.yml down -v
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  nginx:
+    image: throughput-nginx:peak
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 64m
+    memswap_limit: 64m
+    ports: ["${PEAK_NGINX_PORT:-8099}:80"]
+    depends_on:
+      app: { condition: service_healthy }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Plafonul sub test — vezi OPS-07: EXACT 256m/256m, ca în docker-compose.coolify.yml,
+  # pe imaginea de producție reală (OPcache agresiv, `memory_limit` implicit 128M,
+  # `pm.max_children=4`, neatinse aici — dacă rezultatul cere o schimbare, ea se face în
+  # `docker/app/php-fpm-pool.conf`, nu în acest fișier).
+  app:
+    image: throughput:peak
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment:
+      APP_NAME: "Throughput (peak test)"
+      APP_ENV: production
+      APP_KEY: "${APP_KEY}"
+      APP_DEBUG: "false"
+      APP_URL: "http://127.0.0.1:${PEAK_NGINX_PORT:-8099}"
+      APP_LOCALE: en
+      DEMO_MODE: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: "${DB_DATABASE:-throughput}"
+      DB_USERNAME: "${DB_USERNAME:-throughput_app}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_MIGRATIONS_CONNECTION: pgsql_migrations
+      DB_MIGRATIONS_USERNAME: "${DB_MIGRATIONS_USERNAME:-throughput_migrator}"
+      DB_MIGRATIONS_PASSWORD: "${DB_MIGRATIONS_PASSWORD}"
+      SESSION_DRIVER: redis
+      SESSION_SECURE_COOKIE: "false" # k6 vorbește HTTP simplu cu nginx, fără TLS local
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      HORIZON_PREFIX: "throughput_horizon_peak:"
+      MAIL_MAILER: log
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: warning
+      # Migrația/seed-ul rulează manual (`docker compose exec`), nu la boot — vezi
+      # docblock-ul de mai sus. Rămân `false` ca în producție.
+      APP_RUN_MIGRATIONS: "false"
+      APP_RUN_SEEDERS: "false"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 320m
+    memswap_limit: 320m
+    command: >
+      postgres -c shared_buffers=64MB -c max_connections=30
+               -c work_mem=4MB -c maintenance_work_mem=32MB
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-throughput}"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_BOOTSTRAP_PASSWORD}"
+      APP_DB_PASSWORD: "${DB_PASSWORD}"
+      MIGRATOR_DB_PASSWORD: "${DB_MIGRATIONS_PASSWORD}"
+    volumes:
+      - ../../docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_MIGRATIONS_USERNAME:-throughput_migrator} -d ${DB_DATABASE:-throughput}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 160m
+    memswap_limit: 160m
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD}
+                   --maxmemory 96mb --maxmemory-policy noeviction
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  internal: { driver: bridge }
