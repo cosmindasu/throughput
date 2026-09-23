@@ -10,7 +10,13 @@
      `<strong>` din jurul numelui de workspace se compune manual, cu `e()`, la fel ca la
      numele raportului în `reports/mail/delivery.blade.php` — `$workspaceName` e
      configurat de tenant, nu text de sistem, deci trece prin aceeași precauție XSS
-     înainte de randarea RAW (`{!! !!}`). --}}
+     înainte de randarea RAW (`{!! !!}`).
+
+     A11Y-07 — `@extends('mail.layout')`: scheletul `<html lang>`/`<meta charset>`/`<title>`
+     trăiește în `resources/views/mail/layout.blade.php`, comun celor 6 Mailable-uri. --}}
+@extends('mail.layout')
+
+@section('content')
 <p>{{ __('mail.export_ready.greeting', ['name' => $requestedByName]) }}</p>
 
 <p>
@@ -31,3 +37,4 @@
 <p>{{ __('mail.export_ready.contents') }}</p>
 
 <p>{{ __('mail.export_ready.signature') }}</p>
+@endsection

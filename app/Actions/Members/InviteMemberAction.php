@@ -8,6 +8,7 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Support\Permissions;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -163,10 +164,22 @@ final class InviteMemberAction
      * în `InterceptingMailManager` — nimic de cerut, nimic de configurat aici: ACESTA e
      * fluxul pentru care interceptarea s-a construit în Faza 4 (§22.3, „o adresă arbitrară,
      * tastată de vizitator, devine destinatar").
+     *
+     * ADR-022, specs.md §15.8 FR-I18N-05, I18N-06 — `App::getLocale()` se citește AICI,
+     * încă în contextul cererii HTTP (limba sesiunii care trimite invitația — destinatarul
+     * n-are cont, deci n-are `users.locale`), și se transmite EXPLICIT lui
+     * `MemberInvitationMail`. `Mail::to($email)->queue(...)` primește un STRING de adresă,
+     * nu un model `HasLocalePreference`, deci `PendingMail::to()` nu are din ce citi
+     * `preferredLocale()` — fără parametrul explicit, `SendQueuedMailable` ar randa
+     * template-ul în worker, cu limba ambientală a ACELUI proces la momentul rulării
+     * jobului (poate diferită de limba cererii care a trimis invitația), exact scurgerea
+     * interzisă de ADR-022. Aceeași formă ca `App\Jobs\Reports\DeliverReportJob` (`locale`
+     * scalar de constructor), doar că aici sursa e cererea curentă, nu un job de sistem.
      */
     private function send(Membership $membership, string $email, string $role, string $plainToken, User $actor): void
     {
         $tenant = app('tenant');
+        $locale = App::getLocale();
 
         Mail::to($email)->queue(new MemberInvitationMail(
             workspaceName: $tenant->name,
@@ -175,6 +188,7 @@ final class InviteMemberAction
             roleName: $role !== '' ? $role : Permissions::VIEWER,
             acceptUrl: url("/invitations/{$tenant->slug}/{$plainToken}"),
             expiresInDays: InvitationToken::VALID_FOR_DAYS,
+            locale: $locale,
         ));
     }
 }

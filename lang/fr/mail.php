@@ -77,16 +77,35 @@ return [
         'signature' => '— Throughput',
     ],
 
+    // Corps complet depuis I18N-02 (le sujet seul passait déjà par le catalogue ; le corps
+    // était resté 100 % littéral, en anglais, malgré la présence des trois groupes
+    // ci-dessous). Même technique que `dunning_payment_failed`/`subscription_canceled` en
+    // anglais : `:tenant` porte `<strong>` composé côté vue (contenu utilisateur), tandis
+    // que le statut Stripe (« impayé ») est un mot STATIQUE, laissé littéral avec sa balise
+    // dans le catalogue.
     'dunning_payment_failed' => [
         'subject' => 'Échec du paiement pour votre abonnement :tenant (tentative :attempt)',
+        'greeting' => 'Bonjour,',
+        // NATIV: ton professionnel standard — à valider, comme le reste du lot.
+        'body' => 'Une tentative de paiement pour l’abonnement :tenant a échoué (tentative :attempt). Stripe continuera de réessayer automatiquement — votre espace de travail conserve un accès complet pendant ce temps.',
+        'billing_cta' => 'Pour éviter toute interruption, mettez à jour le moyen de paiement depuis la page de facturation :',
+        'signature' => '— Throughput',
     ],
 
     'subscription_canceled' => [
         'subject' => 'Abonnement :tenant annulé',
+        'greeting' => 'Bonjour,',
+        'body' => 'L’abonnement :tenant a été annulé. L’espace de travail est désormais verrouillé pour tout le monde, à l’exception de la page de facturation — les données restent intactes et exportables pendant 30 jours, et vous pouvez réactiver l’abonnement à tout moment durant cette période sans devoir tout reconfigurer.',
+        'billing_cta' => 'Réactivez l’abonnement depuis la page de facturation :',
+        'signature' => '— Throughput',
     ],
 
     'subscription_unpaid' => [
         'subject' => 'Action requise : l’abonnement :tenant est impayé',
+        'greeting' => 'Bonjour,',
+        'body' => 'Stripe a épuisé ses tentatives automatiques de prélèvement pour l’abonnement :tenant, désormais marqué <strong>impayé</strong>. Tout le monde dans l’espace de travail peut encore consulter et exporter les données, mais la création, la modification ou la suppression de tout élément est bloquée jusqu’à la mise à jour du moyen de paiement — y compris pour vous, le propriétaire.',
+        'billing_cta' => 'Mettez à jour le moyen de paiement depuis la page de facturation :',
+        'signature' => '— Throughput',
     ],
 
     'membership_records_need_new_owner' => [

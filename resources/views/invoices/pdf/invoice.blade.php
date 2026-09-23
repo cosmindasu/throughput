@@ -164,13 +164,13 @@
                 @endif
             </td>
             <td class="label">{{ __('pdf.invoice.issue_date') }}</td>
-            <td>{{ $invoice->issue_date?->toFormattedDateString() ?? '—' }}</td>
+            <td>{{ \App\Support\LocaleFormat::date($invoice->issue_date) ?? '—' }}</td>
         </tr>
         <tr>
             <td class="label">{{ __('pdf.invoice.order') }}</td>
             <td>{{ $invoice->order?->order_number ?? '—' }}</td>
             <td class="label">{{ __('pdf.invoice.due_date') }}</td>
-            <td>{{ $invoice->due_date?->toFormattedDateString() ?? '—' }}</td>
+            <td>{{ \App\Support\LocaleFormat::date($invoice->due_date) ?? '—' }}</td>
         </tr>
     </table>
 

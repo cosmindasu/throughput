@@ -40,6 +40,10 @@ final class SubscriptionCanceledMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'billing.mail.canceled');
+        // A11Y-07 — `$this->subject` e deja hidratat din `envelope()` la acest punct
+        // (`Illuminate\Mail\Mailable::ensureEnvelopeIsHydrated()` rulează înaintea lui
+        // `ensureContentIsHydrated()`); vederea îl folosește doar pentru `<title>`, prin
+        // layout-ul comun `resources/views/mail/layout.blade.php`.
+        return new Content(view: 'billing.mail.canceled', with: ['subject' => $this->subject]);
     }
 }

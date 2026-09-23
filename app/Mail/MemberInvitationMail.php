@@ -38,12 +38,20 @@ final class MemberInvitationMail extends Mailable
         public readonly string $acceptUrl,
         public readonly int $expiresInDays,
         // ADR-022, specs.md §15.8 FR-I18N-05 — destinatarul NU are încă un cont
-        // (invitație), deci nu are `users.locale`: specificația cere limba-cookie a
-        // sesiunii care a trimis invitația, ca aproximare rezonabilă, fallback `en`.
-        // NEcablat încă la apelantul real (`App\Actions\Members\InviteMemberAction`,
-        // în afara perimetrului acestui lot — vezi raportul de livrare); `null` păstrează
-        // comportamentul actual (fallback pe locale-ul ambiental) până atunci.
-        ?string $locale = null,
+        // (invitație), deci nu are `users.locale`: specificația cere limba sesiunii care a
+        // trimis invitația, ca aproximare rezonabilă. I18N-06 — CABLAT la apelantul real
+        // (`App\Actions\Members\InviteMemberAction::send()`), care captează
+        // `App::getLocale()` cât încă rulează în contextul cererii HTTP (înainte de
+        // `Mail::to($email)->queue(...)`) și îl transmite aici explicit. Parametrul e
+        // OBLIGATORIU (fără `= null`) — un apelant nou care omite `locale:` trebuie să pice
+        // la analiza statică, nu să scurgă tăcut limba ambientală a worker-ului (exact
+        // bug-ul pe care `.ai/rules/tenancy.md` îl documentează pentru orice altă valoare
+        // memoizată pe un worker de viață lungă). Rămâne nullable ca TIP (nu ca implicit):
+        // `Mailable::locale(null)` cade pe fallback-ul ambiental prin
+        // `Illuminate\Support\Traits\Localizable::withLocale()`, comportament pe care
+        // `App::getLocale()` — mereu un string — nu-l va declanșa niciodată în practică, dar
+        // pe care testele îl exersează explicit (`renderInvitation(null)`).
+        ?string $locale,
     ) {
         // Ultima linie a constructorului, obligatoriu — vezi docblock-ul trait-ului.
         $this->attributeSentEmailToCurrentTenant();
@@ -62,6 +70,7 @@ final class MemberInvitationMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'members.mail.invitation');
+        // A11Y-07 — vezi nota din `App\Mail\SubscriptionCanceledMail::content()`.
+        return new Content(view: 'members.mail.invitation', with: ['subject' => $this->subject]);
     }
 }

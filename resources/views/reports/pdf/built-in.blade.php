@@ -74,7 +74,7 @@
 <body>
     <h1>{{ $workspaceName }} — {{ $title }}</h1>
     <div class="meta">
-        {{ __('pdf.meta.generated', ['date' => $generatedAt->toDayDateTimeString()]) }}
+        {{ __('pdf.meta.generated', ['date' => \App\Support\LocaleFormat::dateTime($generatedAt)]) }}
         {{-- `trans_choice()`, nu `Str::plural()` — vezi comentariul din
              exports/pdf/list.blade.php (capcana 0 = singular în franceză). --}}
         &middot; {{ trans_choice('pdf.meta.row_count', count($rows), ['count' => count($rows)]) }}

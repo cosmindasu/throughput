@@ -42,6 +42,7 @@ final class SubscriptionUnpaidMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'billing.mail.unpaid');
+        // A11Y-07 — vezi nota din `SubscriptionCanceledMail::content()`.
+        return new Content(view: 'billing.mail.unpaid', with: ['subject' => $this->subject]);
     }
 }

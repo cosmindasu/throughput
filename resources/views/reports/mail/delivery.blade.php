@@ -12,7 +12,13 @@
      interpolarea în `__()` — `$reportName` e conținut introdus de UTILIZATOR
      (`report_definitions.name`, FR-I18N-06: NU se traduce), iar rezultatul se randează
      apoi RAW (`{!! !!}`), ca traducerea să poată păstra tag-ul fără să redeschidă o
-     gaură XSS pe un nume de raport ostil ("<script>..."). --}}
+     gaură XSS pe un nume de raport ostil ("<script>...").
+
+     A11Y-07 — `@extends('mail.layout')`: scheletul `<html lang>`/`<meta charset>`/`<title>`
+     trăiește în `resources/views/mail/layout.blade.php`, comun celor 6 Mailable-uri. --}}
+@extends('mail.layout')
+
+@section('content')
 <p>{{ __('mail.report_delivery.greeting') }}</p>
 
 <p>
@@ -26,3 +32,4 @@
 <p>{{ __('mail.report_delivery.attached') }}</p>
 
 <p>{{ __('mail.report_delivery.signature') }}</p>
+@endsection

@@ -7,13 +7,6 @@
     (`$headers`/`$rows`, din `ExportableList::exportHeaders()`/`exportRow()`), cifrele
     aliniate la dreapta.
 
-    I18N (FR-I18N-04, ADR-022, lot dedicat) — `$headers` vine NETRADUS din
-    `ExportableList::exportHeaders()` (`app/Support/Lists/*.php`, în afara perimetrului
-    acestui lot: fișierele astea nu sunt pe lista „FIȘIERELE TALE"); doar textul FIX al
-    șablonului (titlu, „Generated", „Filters:", numărul de rânduri, mesajul de listă goală)
-    trece prin catalog aici. Semnalat separat în raportul lotului — antetele de coloană
-    rămân engleze indiferent de `locale`, până când alt val traduce `app/Support/Lists/`.
-
     `<html lang>` citește `app()->getLocale()` direct, NU o variabilă pasată de apelant:
     `PdfExporter::save()` (afara perimetrului, dincolo de headerele de coloană) rulează
     mereu în coada `ExportListJob`, care trebuie să fi fixat deja `App::setLocale()` la
@@ -79,7 +72,7 @@
 <body>
     <h1>{{ $workspaceName }} — {{ __('pdf.export.heading_suffix') }}</h1>
     <div class="meta">
-        {{ __('pdf.meta.generated', ['date' => $generatedAt->toDayDateTimeString()]) }}
+        {{ __('pdf.meta.generated', ['date' => \App\Support\LocaleFormat::dateTime($generatedAt)]) }}
         @if ($filters !== [])
             {{-- Cheile filtrului ($key) vin din `PdfExporter::humanizeFilters()`, în afara
                  perimetrului acestui lot (nu e header de coloană) — rămân engleze. --}}

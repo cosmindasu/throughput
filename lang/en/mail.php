@@ -12,11 +12,13 @@
  *
  * Cheile de mai jos acoperă:
  *   - subiectul FIECĂRUIA din cele 6 `Mailable`-uri din `app/Mail/` (§16.2, §12.2, §20.5,
- *     §6.4) — corpul e randat prin catalogul ăsta pentru CELE TREI vederi Blade deținute
- *     de acest lot (`reports/mail/delivery`, `gdpr/mail/export-ready`,
- *     `members/mail/invitation`, aceasta din urmă completată la a doua trecere a
- *     Valului 5); corpul celor trei rămase (`billing/mail/*`) aparține altor
- *     agenți/valuri, neatins aici;
+ *     §6.4) — corpul e randat prin catalogul ăsta pentru TOATE CELE ȘASE vederi Blade:
+ *     `reports/mail/delivery`, `gdpr/mail/export-ready`, `members/mail/invitation`
+ *     (completate la Valul 5 al Lotului I18N), plus
+ *     `billing/mail/{canceled,unpaid,payment-failed}` (I18N-02 — golul semnalat, dar
+ *     neatins, la Valul 5: subiectul trecea deja prin `trans()`, corpul rămăsese 100%
+ *     literal, în engleză, deși `subscription_canceled`/`subscription_unpaid`/
+ *     `dunning_payment_failed` existau ca grupuri doar pentru `subject`);
  *   - conținutul integral al `App\Notifications\MembershipRecordsNeedNewOwnerNotification`
  *     (BR-TEN-06) — singura notificare din `app/Notifications/`.
  *
@@ -92,25 +94,45 @@ return [
         'signature' => '— Throughput',
     ],
 
-    // App\Mail\DunningPaymentFailedMail (FR-BILL-04, §12.2) — subiect DOAR; corpul
-    // (`billing/mail/payment-failed.blade.php`) nu e al acestui lot. Destinatarii sunt
-    // Owner-ii ACTIVI ai tenantului (conturi reale, `users.locale`) — firul de apel real
+    // App\Mail\DunningPaymentFailedMail (FR-BILL-04, §12.2) — subiect + corp
+    // (`billing/mail/payment-failed.blade.php`, I18N-02). Destinatarii sunt Owner-ii
+    // ACTIVI ai tenantului (conturi reale, `users.locale`) — firul de apel real
     // (`App\Listeners\Billing\SendPaymentFailedDunningEmail`) e cablat per destinatar din
     // Lot I18N Val 5 (`Mail::to($owner)`, un `Mailable` per Owner, fiecare în limba lui).
+    // `body` conține numele de tenant, conținut introdus de UTILIZATOR, deci vederea îl
+    // compune manual cu `<strong>`+`e()` înainte de interpolare și randează rezultatul RAW
+    // (`{!! !!}`) — exact tehnica din `report_delivery`/`member_invitation` mai sus.
     'dunning_payment_failed' => [
         'subject' => 'Payment failed for your :tenant subscription (attempt :attempt)',
+        'greeting' => 'Hi,',
+        'body' => 'A payment attempt for the :tenant subscription failed (attempt :attempt). Stripe will keep retrying automatically — your workspace still has full access while this happens.',
+        'billing_cta' => 'To avoid any interruption, update the payment method from the billing page:',
+        'signature' => '— Throughput',
     ],
 
-    // App\Mail\SubscriptionCanceledMail (§12.2/§20.5) — subiect DOAR, aceeași notă ca mai
-    // sus (`App\Listeners\Billing\SendSubscriptionCanceledEmail`, cablat din Lot I18N Val 5).
+    // App\Mail\SubscriptionCanceledMail (§12.2/§20.5) — subiect + corp
+    // (`billing/mail/canceled.blade.php`, I18N-02), aceeași notă ca mai sus
+    // (`App\Listeners\Billing\SendSubscriptionCanceledEmail`, cablat din Lot I18N Val 5).
     'subscription_canceled' => [
         'subject' => ':tenant subscription canceled',
+        'greeting' => 'Hi,',
+        'body' => 'The :tenant subscription was canceled. The workspace is now locked for everyone except the billing page — data stays intact and exportable for 30 days, and you can reactivate at any time during that window without redoing setup.',
+        'billing_cta' => 'Reactivate from the billing page:',
+        'signature' => '— Throughput',
     ],
 
-    // App\Mail\SubscriptionUnpaidMail (§12.2) — subiect DOAR, aceeași notă
+    // App\Mail\SubscriptionUnpaidMail (§12.2) — subiect + corp
+    // (`billing/mail/unpaid.blade.php`, I18N-02), aceeași notă
     // (`App\Listeners\Billing\SendSubscriptionUnpaidEmail`, cablat din Lot I18N Val 5).
+    // „unpaid" în `body` e STATIC (starea Stripe a abonamentului, nu conținut de
+    // utilizator), deci rămâne literal `<strong>` în catalog — spre deosebire de `:tenant`,
+    // care poartă `<strong>` din vedere, cu `e()`, ca la `dunning_payment_failed` de mai sus.
     'subscription_unpaid' => [
         'subject' => 'Action needed: :tenant subscription is unpaid',
+        'greeting' => 'Hi,',
+        'body' => 'Stripe has exhausted its automatic retries for the :tenant subscription, and it is now marked <strong>unpaid</strong>. Everyone in the workspace can still view and export data, but creating, editing or deleting anything is blocked until the payment method is fixed — including for you, the Owner.',
+        'billing_cta' => 'Update the payment method from the billing page:',
+        'signature' => '— Throughput',
     ],
 
     // App\Notifications\MembershipRecordsNeedNewOwnerNotification (BR-TEN-06,

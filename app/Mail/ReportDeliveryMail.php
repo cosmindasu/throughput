@@ -68,7 +68,8 @@ final class ReportDeliveryMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'reports.mail.delivery');
+        // A11Y-07 — vezi nota din `App\Mail\SubscriptionCanceledMail::content()`.
+        return new Content(view: 'reports.mail.delivery', with: ['subject' => $this->subject]);
     }
 
     /** @return list<Attachment> */

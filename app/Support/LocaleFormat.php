@@ -2,13 +2,21 @@
 
 namespace App\Support;
 
+use Carbon\CarbonInterface;
+use DateTimeInterface;
 use Illuminate\Support\Facades\App;
+use IntlDateFormatter;
 use NumberFormatter;
 
 /**
- * Formatarea locale-aware a numerelor și sumelor, SERVER-SIDE — perechea lui `resources/js/lib/money.ts`
- * (ADR-022, specs.md §15.8 FR-I18N-03: „niciodată concatenare manuală de simbol și cifre",
- * „`Intl` în frontend, echivalentul locale-aware în backend").
+ * Formatarea locale-aware a numerelor, sumelor ȘI DATELOR, SERVER-SIDE — perechea lui
+ * `resources/js/lib/money.ts` (numere/sume) și `resources/js/lib/format.ts` (date), ADR-022,
+ * specs.md §15.8 FR-I18N-03: „niciodată concatenare manuală de simbol și cifre", „`Intl` în
+ * frontend, echivalentul locale-aware în backend". `date()`/`dateTime()` (I18N-05) sunt
+ * perechea server-side EXACTĂ a lui `formatDate()`/`formatDateTime()` din `format.ts`: aceleași
+ * stiluri (`DATE_MEDIUM`/`DATE_TIME_MEDIUM`), pe `IntlDateFormatter` în loc de
+ * `Intl.DateTimeFormat` — motivul identic celui de mai jos pentru sume: `Carbon::toFormattedDateString()`/
+ * `toDayDateTimeString()` sunt **fixate pe engleză**, indiferent de `App::getLocale()`.
  *
  * **Criteriul de acceptare nu e „arată bine", ci „identic cu frontendul".** Aceeași factură
  * se vede pe ecran (React, `Intl.NumberFormat`) și în PDF (DomPDF, această clasă). Dacă cele
@@ -61,6 +69,12 @@ final class LocaleFormat
 
     /** @var array<string, NumberFormatter> */
     private static array $integerFormatters = [];
+
+    /** @var array<string, IntlDateFormatter> */
+    private static array $dateFormatters = [];
+
+    /** @var array<string, IntlDateFormatter> */
+    private static array $dateTimeFormatters = [];
 
     /**
      * Sumă cu simbol de monedă: `$1,234.56` (en) · `1 234,56 $` (fr, cu U+202F la mii și
@@ -123,5 +137,77 @@ final class LocaleFormat
         }
 
         return self::$integerFormatters[$locale]->format($value);
+    }
+
+    /**
+     * Dată FĂRĂ oră, stil MEDIUM: „Sep 23, 2026" (en) · „23 sept. 2026" (fr, verificat pe
+     * ICU-ul din container — vezi `LocaleFormatDateTest`). Perechea server-side a lui
+     * `formatDate()`/`DATE_MEDIUM` din `resources/js/lib/format.ts` (§15.8 FR-I18N-03).
+     * Înlocuiește `toFormattedDateString()` (`Carbon`), care e **fixat pe engleză**
+     * indiferent de `App::getLocale()`.
+     *
+     * `null` intră, `null` iese — apelanții păstrează exact tiparul dinainte,
+     * `$invoice->issue_date?->... ?? '—'` devine `LocaleFormat::date($invoice->issue_date)
+     * ?? '—'`, fără un `?->` suplimentar de verificat aici.
+     */
+    public static function date(CarbonInterface|DateTimeInterface|null $value, ?string $locale = null): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $locale ??= App::getLocale();
+        $key = self::formatterKey($locale, $value);
+
+        if (! isset(self::$dateFormatters[$key])) {
+            self::$dateFormatters[$key] = new IntlDateFormatter(
+                $locale,
+                IntlDateFormatter::MEDIUM,
+                IntlDateFormatter::NONE,
+                $value->getTimezone(),
+            );
+        }
+
+        return self::$dateFormatters[$key]->format($value) ?: null;
+    }
+
+    /**
+     * Dată + oră, stil MEDIUM pentru dată și SHORT pentru oră: „Sep 23, 2026, 5:09 PM" (en) ·
+     * „23 sept. 2026, 17:09" (fr). Perechea server-side a lui
+     * `formatDateTime()`/`DATE_TIME_MEDIUM` din `resources/js/lib/format.ts`. Înlocuiește
+     * `toDayDateTimeString()`, la fel de fixat pe engleză.
+     */
+    public static function dateTime(CarbonInterface|DateTimeInterface|null $value, ?string $locale = null): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $locale ??= App::getLocale();
+        $key = self::formatterKey($locale, $value);
+
+        if (! isset(self::$dateTimeFormatters[$key])) {
+            self::$dateTimeFormatters[$key] = new IntlDateFormatter(
+                $locale,
+                IntlDateFormatter::MEDIUM,
+                IntlDateFormatter::SHORT,
+                $value->getTimezone(),
+            );
+        }
+
+        return self::$dateTimeFormatters[$key]->format($value) ?: null;
+    }
+
+    /**
+     * Cheie de cache pentru `$dateFormatters`/`$dateTimeFormatters`, cu FUSUL ORAR inclus,
+     * nu doar locale-ul — aceeași precauție ca la `$currencyFormatters`
+     * („Cache-ul include locale-ul în cheie, obligatoriu", docblock-ul clasei): un
+     * `IntlDateFormatter` se construiește cu fusul legat la instanță, deci un formator
+     * cheiat DOAR pe locale ar întoarce tăcut fusul primei valori formatate unei valori
+     * ulterioare cu alt fus, pe același worker de viață lungă.
+     */
+    private static function formatterKey(string $locale, CarbonInterface|DateTimeInterface $value): string
+    {
+        return $locale.':'.$value->getTimezone()->getName();
     }
 }

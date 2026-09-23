@@ -58,6 +58,7 @@ final class DataExportReadyMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'gdpr.mail.export-ready');
+        // A11Y-07 — vezi nota din `App\Mail\SubscriptionCanceledMail::content()`.
+        return new Content(view: 'gdpr.mail.export-ready', with: ['subject' => $this->subject]);
     }
 }

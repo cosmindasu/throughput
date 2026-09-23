@@ -28,7 +28,13 @@
      `{{ }}` ar fi escapat apostroful din „weren't" (`&#039;`), deși literalul dinainte nu
      trecea prin nicio escapare — o diferență de bit față de engleza dinainte de mutare,
      invizibilă la ochi (browserul randează identic), dar exact ce interzice cerința de
-     regresie zero. --}}
+     regresie zero.
+
+     A11Y-07 — `@extends('mail.layout')`: scheletul `<html lang>`/`<meta charset>`/`<title>`
+     trăiește în `resources/views/mail/layout.blade.php`, comun celor 6 Mailable-uri. --}}
+@extends('mail.layout')
+
+@section('content')
 <p>{{ __('mail.member_invitation.greeting') }}</p>
 
 <p>
@@ -53,3 +59,4 @@
 <p>{!! __('mail.member_invitation.unsolicited') !!}</p>
 
 <p>{{ __('mail.member_invitation.signature') }}</p>
+@endsection

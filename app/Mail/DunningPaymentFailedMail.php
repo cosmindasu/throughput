@@ -55,6 +55,7 @@ final class DunningPaymentFailedMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'billing.mail.payment-failed');
+        // A11Y-07 — vezi nota din `SubscriptionCanceledMail::content()`.
+        return new Content(view: 'billing.mail.payment-failed', with: ['subject' => $this->subject]);
     }
 }
