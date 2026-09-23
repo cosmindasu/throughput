@@ -10,7 +10,7 @@
 # identic pasul de build din stage-ul `assets` al docker/app/Dockerfile, ca să obțină
 # `public/build` independent de ordinea de build a serviciilor — vezi raportul final.
 
-FROM node:22-alpine AS assets
+FROM node:25-alpine AS assets
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
