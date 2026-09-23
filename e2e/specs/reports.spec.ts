@@ -97,8 +97,10 @@ test('creează un raport built-in prin FORMULARUL real, îl rulează manual pe p
     // montează acum și `ListUpdateAnnouncer` (`role="status"`, `sr-only`, PERMANENT, goală —
     // SC 4.1.3). Ancora e `tabindex="-1"`, atributul care face din acest `div` ȚINTA de focus
     // a lui `statusRef` (`Reports/Show.tsx`) — adică exact ce verifică `toBeFocused()` mai
-    // jos, nu o clasă de stil.
-    const runStatusRegion = page.locator('div[role="status"][tabindex="-1"]');
+    // jos, nu o clasă de stil. Din 2026-09-23, și bannerul flash din `AppLayout`
+    // (`#flash-status`) are `tabindex="-1"` — e ținta de focus de după revocarea jetoanelor
+    // API (FE-06) — deci e exclus explicit, altfel locatorul redevine ambiguu.
+    const runStatusRegion = page.locator('div[role="status"][tabindex="-1"]:not(#flash-status)');
 
     await page.getByRole('button', { name: 'Run now' }).click();
 

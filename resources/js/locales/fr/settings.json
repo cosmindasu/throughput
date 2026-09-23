@@ -170,7 +170,7 @@
             "revoked": "révoqué"
         },
         "revokeButton": "Révoquer",
-        "revokeAriaLabel": "Révoquer le jeton {{name}}",
+        "revokeSrLabel": "le jeton {{name}}",
         "empty": "Pas encore de jeton API. Créez-en un pour permettre à un système externe de communiquer avec cet espace de travail.",
         "revokeDialog": {
             "title": "Révoquer ce jeton ?",

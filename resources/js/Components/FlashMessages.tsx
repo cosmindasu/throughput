@@ -61,7 +61,28 @@ export default function FlashMessages() {
         // ar scoate regiunea din arborele de accesibilitate exact cât timp cititorul de ecran
         // ar trebui s-o înregistreze, adică ÎNAINTE de primul mesaj.
         <div className={`flex flex-col ${hasMessage ? 'mb-4 gap-2' : ''}`}>
-            <div role="status" aria-live="polite" aria-atomic="true" className="flex flex-col gap-2">
+            {/*
+                `id="flash-status"` + `tabIndex={-1}` — ancoră de focus REFOLOSIBILĂ de orice
+                pagină ale cărei acțiuni fac să dispară propriul declanșator (a treia formă a
+                capcanei din `.ai/rules/frontend.md`, „Focusul nu se pierde niciodată pe
+                `<body>`"). Prima folosire: `Settings/ApiTokens/Index.tsx`, după revocare —
+                acolo pagina avea propriul `<div role="status" className="sr-only">` cu
+                ACELAȘI text, invizibil pentru un utilizator de tastatură fără cititor de
+                ecran (SC 2.4.7). Randând mesajul o SINGURĂ dată, aici, și mutând focusul spre
+                EL, evităm atât duplicarea vizibilă cât și un al doilea anunț `aria-live`
+                pentru conținut identic. Inelul de focus e explicit (nu `focus:outline-none`,
+                ca la `Settings/Members/Index.tsx`/`Reports/Show.tsx`): elementul e PERSISTENT
+                (nu apare/dispare o dată cu mesajul), deci apariția lui singură nu mai e un
+                indiciu suficient de „aici a ajuns focusul".
+            */}
+            <div
+                id="flash-status"
+                tabIndex={-1}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="flex flex-col gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
                 {shown.success && (
                     <p className="rounded-md bg-success-tint px-3 py-2 text-sm text-success">{shown.success}</p>
                 )}

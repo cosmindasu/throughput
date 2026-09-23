@@ -219,9 +219,7 @@ export default function ApiTokensIndex() {
     // A treia formă a capcanei din `.ai/rules/frontend.md`: declanșatorul unei revocări
     // (butonul de rând, sau „Revoke all" din `PageHeader`) DISPARE din pagină după succes —
     // `token.status !== 'revoked'` / `revocableCount > 0` devin false — și `<dialog>` nu mai
-    // are declanșatorul unde să întoarcă focusul la închidere. `revocationStatusRef` de mai
-    // jos e ținta EXPLICITĂ, pentru ambele dialoguri deodată (vezi comentariul de pe elementul
-    // însuși pentru motivul alegerii unui singur punct de focus).
+    // are declanșatorul unde să întoarcă focusul la închidere.
     //
     // DERIVAT din props, NU stare locală scrisă dintr-un `onSuccess`: niciun apel
     // `delete()`/`post()` de mai jos folosește `preserveState`, deci pagina se remontează
@@ -232,12 +230,22 @@ export default function ApiTokensIndex() {
     // `plainTextToken` exclude explicit fluxul de CREARE (`NewTokenNotice` își are propriul
     // focus, cu alt conținut): fără verificarea asta, cele două ținte s-ar disputa focusul la
     // fiecare creare de jeton, fiindcă ambele ar vedea același `flash.success`.
+    //
+    // ȚINTA de focus (completare FE-06, audit 2026-09-23) NU mai e un `<div>` propriu al
+    // paginii: era `role="status"` + `sr-only`, deci un utilizator de tastatură FĂRĂ cititor
+    // de ecran avea focusul mutat pe ceva invizibil (SC 2.4.7 — Focus Visible). Soluția nu e
+    // să-l facem vizibil AICI: `FlashMessages` (montat în `AppLayout`, deasupra acestei
+    // pagini, în `<main>`) arată deja EXACT același `flash.success`, vizibil — un al doilea
+    // bloc cu același text ar fi duplicare vizibilă ȘI un al doilea anunț `aria-live` pentru
+    // conținut identic. În loc, focusul se mută DIRECT pe regiunea din `FlashMessages`
+    // (`id="flash-status"`, vezi comentariul din acel fișier) — o SINGURĂ copie a mesajului,
+    // acum și vizibilă, și țintă de focus, pentru ambele dialoguri (revocare individuală și
+    // „Revoke all").
     const revocationMessage = plainTextToken ? null : flash.success;
-    const revocationStatusRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (revocationMessage) {
-            revocationStatusRef.current?.focus();
+            document.getElementById('flash-status')?.focus();
         }
     }, [revocationMessage]);
 
@@ -261,30 +269,6 @@ export default function ApiTokensIndex() {
                         ) : undefined
                     }
                 />
-
-                {/*
-                    STABIL — spre deosebire de `NewTokenNotice` de mai jos (montată/demontată
-                    o dată cu `plainTextToken`), elementul ăsta stă PERMANENT în DOM, inclusiv
-                    cât timp `tokens` e gol: e ținta de focus de mai sus, iar un declanșator
-                    care dispare trebuie să găsească mereu unde să trimită focusul, nu doar
-                    cât timp există ceva de arătat.
-
-                    `sr-only`, intenționat: `FlashMessages` din `AppLayout` (deasupra acestei
-                    pagini) arată deja ACELAȘI `flash.success` într-un banner vizibil — un al
-                    doilea bloc identic, vizibil, chiar sub titlu, ar fi duplicare, nu
-                    informație nouă. Elementul de-aici există doar ca ANCORĂ de focus, cu
-                    text pentru cititorul de ecran (citit la primirea focusului, indiferent de
-                    `aria-live`).
-
-                    UN SINGUR punct de focus pentru revocare individuală ȘI „Revoke all":
-                    serverul pune mereu rezultatul pe același `flash.success`
-                    (`flash.api_tokens.revoked` / `revoked_all` / `revoked_all_none` /
-                    `already_revoked`) — un al doilea element identic, per dialog, ar fi cod
-                    duplicat fără niciun beneficiu de accesibilitate în plus.
-                */}
-                <div ref={revocationStatusRef} tabIndex={-1} role="status" className="sr-only">
-                    {revocationMessage}
-                </div>
 
                 {plainTextToken && <NewTokenNotice token={plainTextToken} />}
 
@@ -335,12 +319,17 @@ export default function ApiTokensIndex() {
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {can.revoke && token.status !== 'revoked' && (
-                                                <Button
-                                                    variant="danger"
-                                                    aria-label={t('settings:apiTokens.revokeAriaLabel', { name: token.name })}
-                                                    onClick={() => setPendingRevoke(token)}
-                                                >
+                                                // Audit de accesibilitate (SC 2.5.3, Label in Name) — `aria-label`
+                                                // ÎNLOCUIA textul vizibil în loc să-l prefixeze. Tiparul corect
+                                                // (`.ai/rules/frontend.md`, „Focusul nu se pierde niciodată pe
+                                                // `<body>`"): textul vizibil rămâne primul, discriminatorul e un
+                                                // sufix `sr-only`.
+                                                <Button variant="danger" onClick={() => setPendingRevoke(token)}>
                                                     {t('settings:apiTokens.revokeButton')}
+                                                    <span className="sr-only">
+                                                        {' '}
+                                                        {t('settings:apiTokens.revokeSrLabel', { name: token.name })}
+                                                    </span>
                                                 </Button>
                                             )}
                                         </td>

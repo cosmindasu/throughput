@@ -270,6 +270,35 @@ const MANAGER_TARGETS: AxeTarget[] = [
             await page.getByRole('heading', { level: 1 }).waitFor();
         },
     },
+    {
+        // Completare FE-06 (audit 2026-09-23) — starea de DUPĂ revocare, nu doar ecranul de
+        // bază: declanșatorul de rând dispare (`token.status !== 'revoked'` devine `false`)
+        // și focusul se mută pe regiunea de status din `FlashMessages`
+        // (`Pages/Settings/ApiTokens/Index.tsx`, `id="flash-status"`) — acum VIZIBILĂ, nu
+        // `sr-only`. Creează un jeton propriu (nume unic per rulare) în loc să se bazeze pe
+        // un fixture: niciun seeder nu populează `api_tokens` (verificat, la fel ca golul
+        // documentat mai jos pentru „Settings — Data export").
+        label: 'Settings — API tokens — after revoke',
+        goto: async (page) => {
+            await page.goto(`${BASE}/settings/api-tokens`);
+            await page.getByRole('heading', { level: 1 }).waitFor();
+
+            const name = `E2E axe revoke ${Date.now()}`;
+            await page.getByLabel('Name').fill(name);
+            await page.getByRole('checkbox').first().check();
+            await page.getByRole('button', { name: 'Create token' }).click();
+
+            const row = page.getByRole('row').filter({ hasText: name });
+            await row.waitFor();
+            await row.getByRole('button', { name: 'Revoke' }).click();
+
+            const dialog = page.getByRole('dialog', { name: 'Revoke this token?' });
+            await dialog.waitFor();
+            await dialog.getByRole('button', { name: 'Revoke', exact: true }).click();
+
+            await page.getByText('API token revoked. Any integration using it stops working immediately.').waitFor();
+        },
+    },
 
     // --- TEST-10, Orders/Invoices/Products/Deals — listă + Show -------------------------
     {

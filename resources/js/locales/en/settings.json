@@ -165,7 +165,7 @@
             "revoked": "revoked"
         },
         "revokeButton": "Revoke",
-        "revokeAriaLabel": "Revoke token {{name}}",
+        "revokeSrLabel": "token {{name}}",
         "empty": "No API tokens yet. Create one to let an outside system talk to this workspace.",
         "revokeDialog": {
             "title": "Revoke this token?",
