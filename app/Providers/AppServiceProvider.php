@@ -11,6 +11,7 @@ use App\Support\Billing\Events\StripeInvoicePaymentFailed;
 use App\Support\Billing\Events\SubscriptionBecameUnpaid;
 use App\Support\Billing\Events\SubscriptionCanceled;
 use App\Support\Members\DeactivatedMemberIds;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -114,5 +115,16 @@ class AppServiceProvider extends ServiceProvider
         // Când API-ul public din §18 va avea nevoie de un înveliș, acesta se declară
         // explicit acolo (`public static $wrap`), pe resursele lui — nu global, pe toate.
         JsonResource::withoutWrapping();
+
+        // PERF-03 (audit 2026-09-23) — plasa sistemică împotriva N+1. Până aici, garanția
+        // stătea în cinci teste punctuale de `count(DB::getQueryLog())`; un `->with()` scos la
+        // un refactor pe orice altă pagină declanșa interogări lazy tăcute, invizibile pentru
+        // suită. Acum aruncă `LazyLoadingViolationException` în dev, CI și teste — deci orice
+        // test Pest care atinge pagina pică la primul `->with()` uitat.
+        //
+        // În producție rămâne OPRIT, intenționat: un N+1 scăpat costă interogări, o excepție
+        // costă pagina utilizatorului. Laravel îl aplică doar modelelor încărcate în colecții
+        // de peste un rând, deci `find()` urmat de o relație rămâne legitim.
+        Model::preventLazyLoading(! $this->app->isProduction());
     }
 }

@@ -55,6 +55,13 @@ class ResolveWorkspace
 
         TenantContext::setTenant($tenant->getKey());
 
+        // Abonamentul se citește pe FIECARE cerere (`EnsureSubscriptionAccess`, bannerul din
+        // `HandleInertiaRequests`). Tenantul vine din colecția de membership-uri, deci cu
+        // `preventLazyLoading` (PERF-03) un `$tenant->subscription()` ar arunca pentru orice
+        // utilizator cu două workspace-uri. Aceeași interogare ca lazy load-ul de dinainte,
+        // doar explicită și DUPĂ `setTenant()`, adică în același context de tenant.
+        $tenant->loadMissing('subscriptions');
+
         // Pasul din documentația spatie/laravel-permission ușor de omis: fără el, orice
         // verificare de rol interoghează tenantul greșit — sau niciunul.
         app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->getKey());
