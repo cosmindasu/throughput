@@ -121,12 +121,15 @@ class GenerateReportJob implements ShouldQueue
                     // reprezentări separate ale aceluiași eșec: `getMessage()`, engleză,
                     // pentru `report()`/Sentry, și `encodedColumnValue`, cheia codificată
                     // pentru coloană — vezi docblock-ul excepției. Orice altă `Throwable`
-                    // rămâne pe calea veche (`getMessage()` brut): nu e în lista celor ~12
-                    // literale ale acestui lot, iar un mesaj de excepție intern arbitrar
-                    // nu se poate cataloga static oricum.
+                    // (P2, lot i18n — FOSTĂ pe calea veche, `getMessage()` brut) primește
+                    // acum aceeași tratare: cheie generică (`job_errors.report.unexpected`),
+                    // tradusă abia la randare (`ReportRunResource`) — un mesaj de excepție
+                    // intern arbitrar poate purta SQL/căi interne și nu se poate cataloga
+                    // static, dar tot nu are voie pe coloana afișată utilizatorului; textul
+                    // original rămâne doar pentru `report()`, mai jos.
                     'error_message' => $e instanceof ReportRowCapExceededException
                         ? $e->encodedColumnValue
-                        : $e->getMessage(),
+                        : JobErrorMessage::encode('job_errors.report.unexpected'),
                 ]);
 
                 report($e);

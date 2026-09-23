@@ -110,7 +110,8 @@ class GenerateShippingLabelJobTest extends TestCase
     /**
      * US-ORD-03 / code review P2 — `ShippingLabelFailed` e SINGURA excepție al cărei
      * mesaj ajunge intact pe `shipments.error_message`: motivul SPECIFIC raportat de
-     * furnizor (nu „Something went wrong").
+     * furnizor (nu „Something went wrong"). I18N-03 — intact ca parametru, cuvânt cu
+     * cuvânt, într-un cadru tradus în limba cererii care randează, nu a workerului.
      */
     public function test_a_carrier_reported_failure_stores_its_specific_message(): void
     {
@@ -125,7 +126,18 @@ class GenerateShippingLabelJobTest extends TestCase
 
             $this->assertSame(Shipment::STATUS_LABEL_FAILED, $shipment->status);
             $this->assertNull($shipment->tracking_number);
-            $this->assertSame(CarrierThatFailsWithAReportedReason::MESSAGE, $shipment->error_message);
+
+            app()->setLocale('en');
+            $this->assertSame(
+                'The carrier rejected the label: '.CarrierThatFailsWithAReportedReason::MESSAGE,
+                JobErrorMessage::render($shipment->error_message),
+            );
+
+            app()->setLocale('fr');
+            $this->assertSame(
+                "Le transporteur a refusé l’étiquette\u{202F}: ".CarrierThatFailsWithAReportedReason::MESSAGE,
+                JobErrorMessage::render($shipment->error_message),
+            );
         });
     }
 

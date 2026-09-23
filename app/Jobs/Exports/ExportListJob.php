@@ -151,7 +151,12 @@ class ExportListJob implements ShouldQueue
             } catch (Throwable $e) {
                 $operation->update([
                     'status' => BulkOperation::STATUS_FAILED,
-                    'error_message' => $e->getMessage(),
+                    // I18N-03 (P2, lot i18n) — excepție NEAȘTEPTATĂ (distinctă de plafoanele
+                    // deja catalogate mai sus): `getMessage()` poate purta SQL/căi interne și
+                    // ajunge, brut, pe o interfață franceză — cheie generică tradusă abia la
+                    // randare (`BulkOperationResource`); textul original rămâne doar pentru
+                    // `report()`, mai jos.
+                    'error_message' => JobErrorMessage::encode('job_errors.export.unexpected'),
                 ]);
 
                 report($e);

@@ -6,6 +6,7 @@ use App\Actions\Orders\ConfirmOrderAction;
 use App\Actions\Shipments\CreateShipmentAction;
 use App\Enums\OrderStatus;
 use App\Jobs\Bulk\PlanBulkOperationJob;
+use App\Jobs\Reports\GenerateReportJob;
 use App\Jobs\Shipping\GenerateShippingLabelJob;
 use App\Jobs\System\FailStuckBulkOperationsJob;
 use App\Models\Account;
@@ -23,9 +24,12 @@ use App\Services\Tenancy\TenantContext;
 use App\Support\Bulk\BulkChunkActions;
 use App\Support\JobErrorMessage;
 use App\Support\Permissions;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Inertia\Testing\AssertableInertia;
+use InvalidArgumentException;
 use Tests\Concerns\CreatesOrders;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * I18N-03 — pentru fiecare din cele patru `Resource`-uri care serializează `error_message`
@@ -39,6 +43,15 @@ use Tests\TestCase;
  * `App\Jobs\Bulk\PlanBulkOperationJob`, `App\Jobs\System\FailStuckBulkOperationsJob`,
  * `App\Jobs\Shipping\GenerateShippingLabelJob` — verifică ȘI capătul de scriere (jobul
  * codifică, nu scrie text), nu doar capătul de citire (Resource-ul traduce).
+ *
+ * P2 (lot i18n, „error_message brut în catch-all-uri") — mai jos, DOUĂ teste suplimentare
+ * pentru ramurile GENERICE (`catch (Throwable $e)`, excepție NEAȘTEPTATĂ, nu una din cele
+ * deja catalogate mai sus) ale `PlanBulkOperationJob::handle()` și `GenerateReportJob::handle()`:
+ * nici acelea nu mai scriu `getMessage()` brut pe coloană. Perechea pentru
+ * `App\Jobs\Exports\ExportListJob` trăiește în `tests/Feature/Exports/OrderExportTest.php`
+ * (job REAL, dar `App\Http\Resources\Exports\ExportResource` nu expune deloc `errorMessage`
+ * — un gol preexistent, în afara feliei acestui lot — deci acolo verificarea se oprește la
+ * `JobErrorMessage::render()`, nu la o pagină reală).
  */
 class JobErrorMessagesTest extends TestCase
 {
@@ -236,6 +249,179 @@ class JobErrorMessagesTest extends TestCase
                 ->component('Bulk/Show')
                 ->where('operation.status', BulkOperation::STATUS_FAILED)
                 ->where('operation.errorMessage', 'The member who started this operation is no longer available.'));
+    }
+
+    /**
+     * P2 (lot i18n, „error_message brut în catch-all-uri") — ramura GENERICĂ
+     * (`catch (Throwable $e)`) din `PlanBulkOperationJob::handle()`, distinctă de
+     * `initiator_gone` de mai sus: aici, un `resource_type` FĂRĂ operație de SCRIERE
+     * înregistrată (`BulkWritableResources::resolve()` aruncă `InvalidArgumentException`
+     * ÎNAINTEA verificării actorului). Coloana nu mai poartă `getMessage()` brut (poate purta
+     * SQL/căi interne) — verifică cheia codificată, randarea REALĂ în ambele limbi (un Owner
+     * poate vedea orice operație a propriei lui persoane — vezi `BulkOperationPolicy::view()`,
+     * de-asta operația își schimbă `user_id` între cele două cereri) și că excepția
+     * originală tot ajunge la `report()`.
+     */
+    public function test_an_unexpected_plan_bulk_operation_job_failure_is_encoded_and_renders_in_both_locales(): void
+    {
+        $reported = [];
+        $this->app->instance(ExceptionHandler::class, new class($reported) implements ExceptionHandler
+        {
+            private array $reported;
+
+            public function __construct(array &$reported)
+            {
+                $this->reported = &$reported;
+            }
+
+            public function report(Throwable $e)
+            {
+                $this->reported[] = $e;
+            }
+
+            public function shouldReport(Throwable $e)
+            {
+                return true;
+            }
+
+            public function render($request, Throwable $e) {}
+
+            public function renderForConsole($output, Throwable $e) {}
+        });
+
+        $enOwner = $this->makeMember($this->marlin, 'en-owner-unexpected@throughput.dev', Permissions::OWNER);
+        $this->clearDatabaseTenantContext();
+
+        $operation = TenantContext::run($this->marlin, fn () => BulkOperation::query()->create([
+            'user_id' => $enOwner->getKey(),
+            // Fără operație de SCRIERE înregistrată (`BulkWritableResources::map()`) —
+            // `resolve()` aruncă ÎNAINTE de orice altceva din `plan()`.
+            'resource_type' => 'invoices',
+            'action' => BulkChunkActions::REASSIGN_OWNER,
+            'filter_snapshot' => ['filter' => []],
+            'total_rows' => 3,
+            'status' => BulkOperation::STATUS_PENDING,
+        ]));
+        $this->clearDatabaseTenantContext();
+
+        (new PlanBulkOperationJob($this->marlin->getKey(), $operation->getKey()))->handle();
+
+        $fresh = TenantContext::run($this->marlin, fn () => $operation->fresh());
+        $this->clearDatabaseTenantContext();
+
+        $this->assertSame(BulkOperation::STATUS_FAILED, $fresh->status);
+        $this->assertSame(
+            JobErrorMessage::encode('job_errors.bulk.unexpected'),
+            $fresh->error_message,
+            'Coloana trebuia să poarte cheia codificată, nu getMessage() brut al InvalidArgumentException.',
+        );
+
+        $this->actingAs($enOwner)->get("/marlin/bulk/{$operation->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Bulk/Show')
+                ->where('operation.errorMessage', 'This operation failed due to an unexpected error. Try again or contact support if it keeps happening.'));
+
+        $frOwner = $this->frenchOwner('fr-owner-unexpected@throughput.dev');
+        TenantContext::run($this->marlin, fn () => BulkOperation::query()->whereKey($operation->getKey())->update(['user_id' => $frOwner->getKey()]));
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($frOwner)->get("/marlin/bulk/{$operation->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Bulk/Show')
+                ->where('operation.errorMessage', 'Cette opération groupée a échoué en raison d’une erreur inattendue. Réessayez ou contactez le support si le problème persiste.'));
+
+        $this->assertCount(1, $reported, 'Excepția neașteptată trebuia raportată prin report(), nu doar scrisă pe coloană.');
+        $this->assertInstanceOf(InvalidArgumentException::class, $reported[0]);
+    }
+
+    /**
+     * P2 (lot i18n, „error_message brut în catch-all-uri") — ramura „orice altă Throwable"
+     * a ternarului din `GenerateReportJob::handle()` (aici, `saved_view_export` fără
+     * `saved_view_id` valid — `RuntimeException` PROPRIE a jobului, distinctă de
+     * `ReportRowCapExceededException`, care păstrează cheia ei specifică). Un Owner poate
+     * vedea ORICE raport al tenantului (`ReportDefinitionPolicy::view()` nu verifică
+     * `created_by`), deci ACELAȘI rând se verifică pentru amândoi, fără o a doua rulare.
+     */
+    public function test_an_unexpected_generate_report_job_failure_is_encoded_and_renders_in_both_locales(): void
+    {
+        $reported = [];
+        $this->app->instance(ExceptionHandler::class, new class($reported) implements ExceptionHandler
+        {
+            private array $reported;
+
+            public function __construct(array &$reported)
+            {
+                $this->reported = &$reported;
+            }
+
+            public function report(Throwable $e)
+            {
+                $this->reported[] = $e;
+            }
+
+            public function shouldReport(Throwable $e)
+            {
+                return true;
+            }
+
+            public function render($request, Throwable $e) {}
+
+            public function renderForConsole($output, Throwable $e) {}
+        });
+
+        $enOwner = $this->makeMember($this->marlin, 'en-owner-report-unexpected@throughput.dev', Permissions::OWNER);
+        $frOwner = $this->frenchOwner('fr-owner-report-unexpected@throughput.dev');
+        $this->clearDatabaseTenantContext();
+
+        // Sursă `saved_view_export` fără o vedere validă — vezi `GenerateReportJobTest`
+        // (`test_a_failed_generation_does_not_dispatch_delivery_or_send_email`), care
+        // forțează exact aceeași `RuntimeException`.
+        $report = TenantContext::run($this->marlin, fn () => ReportDefinition::forceCreate([
+            'report_type' => ReportDefinition::TYPE_SAVED_VIEW_EXPORT,
+            'saved_view_id' => null,
+            'name' => 'Broken report',
+            'format' => 'csv',
+            'schedule_frequency' => 'none',
+            'recipients' => [$enOwner->email],
+            'is_active' => true,
+            'created_by' => $enOwner->getKey(),
+        ]));
+
+        $run = TenantContext::run($this->marlin, fn () => ReportRun::query()->create([
+            'report_definition_id' => $report->getKey(),
+            'status' => ReportRun::STATUS_QUEUED,
+            'triggered_by' => ReportRun::TRIGGERED_BY_MANUAL,
+        ]));
+        $this->clearDatabaseTenantContext();
+
+        (new GenerateReportJob($this->marlin->getKey(), $run->getKey()))->handle();
+
+        $fresh = TenantContext::run($this->marlin, fn () => ReportRun::query()->find($run->getKey()));
+        $this->clearDatabaseTenantContext();
+
+        $this->assertSame(ReportRun::STATUS_FAILED, $fresh->status);
+        $this->assertSame(
+            JobErrorMessage::encode('job_errors.report.unexpected'),
+            $fresh->error_message,
+            'Coloana trebuia să poarte cheia codificată, nu getMessage() brut al RuntimeException.',
+        );
+
+        $this->actingAs($enOwner)->get("/marlin/reports/{$report->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Reports/Show')
+                ->where('runs.0.errorMessage', 'This report failed due to an unexpected error. Try again or contact support if it keeps happening.'));
+
+        $this->actingAs($frOwner)->get("/marlin/reports/{$report->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Reports/Show')
+                ->where('runs.0.errorMessage', 'Ce rapport a échoué en raison d’une erreur inattendue. Réessayez ou contactez le support si le problème persiste.'));
+
+        $this->assertCount(1, $reported, 'Excepția neașteptată trebuia raportată prin report(), nu doar scrisă pe coloană.');
+        $this->assertInstanceOf(\RuntimeException::class, $reported[0]);
     }
 
     /**

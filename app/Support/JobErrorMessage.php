@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Lang;
 
 /**
  * I18N-03 — codificarea `error_message` (coloană `text`, nullable) de pe `bulk_operations`,
- * `shipments`, `report_runs`, `data_export_requests`. Cele patru joburi care scriu coloana
+ * `shipments`, `report_runs`, `data_export_requests` (și `webhook_events`, pentru explicația
+ * unui webhook ignorat — `StripeWebhookController::ignore()`). Joburile care scriu coloana
  * rulează pe un WORKER de coadă, fără cererea HTTP a nimănui (`.ai/rules/tenancy.md`, „două
  * familii de joburi") — un literal englez scris acolo, direct, e opac pentru
  * `php artisan i18n:coverage` (n-are nicio cheie de comparat) și, mai rău, chiar dacă ar fi
@@ -35,9 +36,11 @@ use Illuminate\Support\Facades\Lang;
  * eroare:
  *  - rânduri VECHI, scrise înainte de acest lot — text englez simplu, nu JSON — nu se pot
  *    decoda ca array cu o cheie `key` validă, deci se întorc EXACT cum sunt;
- *  - mesaje de la un FURNIZOR EXTERN (ex. `ShippingLabelFailed`, textul EXACT raportat de un
- *    transportator — vezi `App\Services\Shipping\ShippingCarrier`) — text dinamic,
- *    imposibil de catalogat static, deliberat NECODIFICAT de apelant — cad pe aceeași cale.
+ *  - mesaje brute scrise deliberat necodificat — azi doar `ProcessStripeWebhookJob::failed()`,
+ *    ecran de operare Owner-only (excepția documentată a gărzii `error_message` din
+ *    `ArchitectureTest`). Textul EXACT al unui furnizor extern (ex. `ShippingLabelFailed`) NU
+ *    mai ia această cale: intră ca parametru într-o cheie-cadru tradusă
+ *    (`job_errors.shipment.carrier_rejected`), ca utilizatorul să citească contextul în limba lui.
  * O cheie codificată dar NECUNOSCUTĂ catalogului (`Lang::has()` fals — catalog desincronizat,
  * cheie redenumită) ia aceeași cale: informația brută rămâne vizibilă (JSON-ul stocat), în
  * loc să arunce sau să dispară.

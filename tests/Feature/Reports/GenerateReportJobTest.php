@@ -153,7 +153,16 @@ class GenerateReportJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         $this->assertSame(ReportRun::STATUS_FAILED, $fresh->status);
-        $this->assertNotNull($fresh->error_message);
+        // P2 (lot i18n, „error_message brut în catch-all-uri") — `RuntimeException`
+        // proprie a jobului (mesajul englez de mai sus, „This report's saved view no
+        // longer exists.") NU mai ajunge brut pe coloană: ramura „orice altă Throwable"
+        // a ternarului din `GenerateReportJob::handle()` scrie acum cheia generică
+        // codificată, tradusă abia la randare (`ReportRunResource`).
+        $this->assertSame(JobErrorMessage::encode('job_errors.report.unexpected'), $fresh->error_message);
+        $this->assertSame(
+            'This report failed due to an unexpected error. Try again or contact support if it keeps happening.',
+            JobErrorMessage::render($fresh->error_message),
+        );
         $this->assertNull($fresh->file_path);
 
         Bus::assertNotDispatched(DeliverReportJob::class);

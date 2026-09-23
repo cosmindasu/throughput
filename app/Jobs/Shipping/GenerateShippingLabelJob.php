@@ -66,6 +66,12 @@ final class GenerateShippingLabelJob implements ShouldQueue
      */
     private const GENERIC_FAILURE_MESSAGE_KEY = 'job_errors.shipment.generic_failure';
 
+    /**
+     * Cadrul tradus pentru un eșec RAPORTAT de furnizor; `:reason` e motivul exact al
+     * transportatorului, necatalogabil, trecut cuvânt cu cuvânt ca parametru.
+     */
+    private const CARRIER_REJECTED_MESSAGE_KEY = 'job_errors.shipment.carrier_rejected';
+
     public function __construct(
         public string $tenantId,
         public string $shipmentId,
@@ -173,16 +179,16 @@ final class GenerateShippingLabelJob implements ShouldQueue
                     // arătat (motivul specific al furnizorului) — orice altceva e o
                     // eroare internă, mesaj generic, detaliile doar în log.
                     //
-                    // I18N-03 — DECIZIE: ramura raportată de furnizor rămâne text BRUT,
-                    // NECODIFICAT, deliberat — `$e->getMessage()` e textul EXACT primit
-                    // de la transportator (`ShippingLabelFailed`, contract „niciodată
-                    // reformulat"), dinamic și extern, imposibil de pus într-un catalog
-                    // static (`lang/{en,fr}/job_errors.php`) fără să-i schimbe sensul.
-                    // `JobErrorMessage::render()` tratează exact acest caz — text vechi/
-                    // extern, nu JSON — trecându-l NESCHIMBAT, nu ca eroare. Doar ramura
-                    // GENERICĂ (eroare internă) se codifică, fiindcă acolo TEXTUL e al
-                    // aplicației, nu al furnizorului.
-                    'error_message' => $isCarrierReported ? $e->getMessage() : JobErrorMessage::encode(self::GENERIC_FAILURE_MESSAGE_KEY),
+                    // I18N-03 — motivul raportat de furnizor (`ShippingLabelFailed`) e text
+                    // extern, dinamic, cu contractul „niciodată reformulat": nu se poate
+                    // cataloga. Intră deci ca PARAMETRU, cuvânt cu cuvânt, într-un cadru
+                    // tradus (`job_errors.shipment.carrier_rejected`) — utilizatorul citește
+                    // „transportatorul a refuzat eticheta" în limba lui, iar detaliul exact
+                    // al furnizorului rămâne neatins. Ramura GENERICĂ (eroare internă) nu
+                    // expune nimic din excepție; detaliile ajung doar în log.
+                    'error_message' => $isCarrierReported
+                        ? JobErrorMessage::encode(self::CARRIER_REJECTED_MESSAGE_KEY, ['reason' => $e->getMessage()])
+                        : JobErrorMessage::encode(self::GENERIC_FAILURE_MESSAGE_KEY),
                 ]);
             }
         });

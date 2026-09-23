@@ -73,11 +73,12 @@ return [
     ],
 
     /*
-     * I18N-08 — mesajele de eroare ale `App\Support\Exports\ExportFormat` (nu anteturi de
-     * coloană, deci fără constrângerea BR-I18N-01 de mai sus). Textul englez e identic,
-     * caracter cu caracter, cu literalul dinainte de extragere.
+     * I18N-08/I18N-09 — mesajele de eroare ale `App\Support\Exports\ExportFormat`/`ListExport`
+     * (nu anteturi de coloană, deci fără constrângerea BR-I18N-01 de mai sus). Textul englez e
+     * identic, caracter cu caracter, cu literalul dinainte de extragere.
      */
     'errors' => [
         'unknown_format' => 'Unknown export format ":format". Use csv, pdf or zip.',
+        'zip_not_supported' => 'This list cannot be exported as a zip archive. Use csv instead.',
     ],
 ];

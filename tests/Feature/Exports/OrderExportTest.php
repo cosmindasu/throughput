@@ -11,12 +11,16 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Exports\ExportQueryChunker;
+use App\Support\JobErrorMessage;
 use App\Support\Permissions;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use RuntimeException;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * Comenzi — export CSV/PDF (§13.5, lotul E). CSV urmează exact mecanismul deja testat pe
@@ -318,6 +322,84 @@ class OrderExportTest extends TestCase
         $this->assertSame(BulkOperation::STATUS_FAILED, $operation->status);
         $this->assertNotNull($operation->error_message);
         $this->assertNull($operation->result_path);
+    }
+
+    /**
+     * P2 (lot i18n, „error_message brut în catch-all-uri") — ramura GENERICĂ
+     * (`catch (Throwable $e)`) din `ExportListJob::handle()`, distinctă de `failed()` de
+     * mai sus (job ucis abrupt, fără excepție prinsă): aici, un `resource_type` FĂRĂ listă
+     * exportabilă înregistrată (`ExportableResources::resolve()` aruncă
+     * `InvalidArgumentException`, care poate purta detalii interne). Coloana nu mai poartă
+     * `getMessage()` brut — cheia generică codificată, plus confirmarea că excepția
+     * originală tot ajunge la `report()`.
+     *
+     * `App\Http\Resources\Exports\ExportResource` nu expune deloc `errorMessage` (spre
+     * deosebire de `BulkOperationResource`/`ReportRunResource`) — un gol preexistent, în
+     * afara feliei acestui lot (vezi raportul) — deci verificarea se oprește la granița
+     * codificării/randării (`JobErrorMessage::render()`, exact ca `row_cap_exceeded`/
+     * `zip_not_supported`/`list_failed`, deja catalogate, niciuna randată în UI azi).
+     */
+    public function test_an_unexpected_exception_while_exporting_is_encoded_not_written_raw(): void
+    {
+        $reported = [];
+        $this->app->instance(ExceptionHandler::class, new class($reported) implements ExceptionHandler
+        {
+            private array $reported;
+
+            public function __construct(array &$reported)
+            {
+                $this->reported = &$reported;
+            }
+
+            public function report(Throwable $e)
+            {
+                $this->reported[] = $e;
+            }
+
+            public function shouldReport(Throwable $e)
+            {
+                return true;
+            }
+
+            public function render($request, Throwable $e) {}
+
+            public function renderForConsole($output, Throwable $e) {}
+        });
+
+        $operation = TenantContext::run($this->marlin, fn () => BulkOperation::query()->create([
+            'user_id' => $this->owner->getKey(),
+            // Fără listă exportabilă înregistrată (`ExportableResources::map()`) —
+            // `resolve()` aruncă ÎNAINTE de orice altceva din `handle()`.
+            'resource_type' => 'deals',
+            'action' => 'export',
+            'filter_snapshot' => ['filter' => [], 'sort' => '-created_at', 'format' => 'csv'],
+            'total_rows' => 1,
+            'status' => BulkOperation::STATUS_PENDING,
+        ]));
+        $this->clearDatabaseTenantContext();
+
+        (new ExportListJob($this->marlin->getKey(), $operation->getKey()))->handle();
+
+        $fresh = TenantContext::run($this->marlin, fn () => $operation->fresh());
+        $this->clearDatabaseTenantContext();
+
+        $this->assertSame(BulkOperation::STATUS_FAILED, $fresh->status);
+        $this->assertSame(
+            JobErrorMessage::encode('job_errors.export.unexpected'),
+            $fresh->error_message,
+            'Coloana trebuia să poarte cheia codificată, nu getMessage() brut al InvalidArgumentException.',
+        );
+        $this->assertSame(
+            'This export failed due to an unexpected error. Try again or contact support if it keeps happening.',
+            JobErrorMessage::render($fresh->error_message),
+        );
+        $this->assertSame(
+            'Cet export a échoué en raison d’une erreur inattendue. Réessayez ou contactez le support si le problème persiste.',
+            __('job_errors.export.unexpected', [], 'fr'),
+        );
+
+        $this->assertCount(1, $reported, 'Excepția neașteptată trebuia raportată prin report(), nu doar scrisă pe coloană.');
+        $this->assertInstanceOf(InvalidArgumentException::class, $reported[0]);
     }
 
     /** P2 (code review) — `format` necunoscut nu cade tăcut pe CSV, refuză explicit cu 422. */

@@ -4,6 +4,7 @@ namespace Tests\Feature\Webhooks;
 
 use App\Models\Tenant;
 use App\Models\WebhookEvent;
+use App\Support\JobErrorMessage;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\SignsStripeWebhooks;
@@ -55,9 +56,17 @@ class StripeWebhookIgnoredEventTest extends TestCase
         );
 
         // `error_message` EXPLICĂ, nu acuză: spune de ce e normal (sandbox partajat) și
-        // păstrează id-ul de customer, singurul reper operațional util.
-        $this->assertStringContainsString('cus_belongs_to_another_project', (string) $stored->error_message);
-        $this->assertStringContainsString('shared with another project', (string) $stored->error_message);
+        // păstrează id-ul de customer, singurul reper operațional util. I18N-03 — stocat
+        // codificat, tradus abia la afișare, în limba celui care citește ecranul.
+        app()->setLocale('en');
+        $english = (string) JobErrorMessage::render($stored->error_message);
+        $this->assertStringContainsString('cus_belongs_to_another_project', $english);
+        $this->assertStringContainsString('shared with another project', $english);
+
+        app()->setLocale('fr');
+        $french = (string) JobErrorMessage::render($stored->error_message);
+        $this->assertStringContainsString('cus_belongs_to_another_project', $french);
+        $this->assertStringContainsString('partagé avec un autre projet', $french);
     }
 
     /** Un payload fără `data.object.customer` deloc: tot „nu ne privește", nu „a eșuat ceva". */
@@ -70,7 +79,7 @@ class StripeWebhookIgnoredEventTest extends TestCase
         $stored = WebhookEvent::query()->sole();
 
         $this->assertSame(WebhookEvent::STATUS_IGNORED, $stored->status);
-        $this->assertStringContainsString('no data.object.customer', (string) $stored->error_message);
+        $this->assertStringContainsString('no data.object.customer', (string) JobErrorMessage::render($stored->error_message));
         $this->assertSame(0, DB::table('jobs')->count());
     }
 

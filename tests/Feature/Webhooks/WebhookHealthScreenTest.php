@@ -5,6 +5,7 @@ namespace Tests\Feature\Webhooks;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WebhookEvent;
+use App\Support\JobErrorMessage;
 use App\Support\Permissions;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ class WebhookHealthScreenTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         $this->recordEvent('evt_failed_1', WebhookEvent::STATUS_FAILED, 'Subscription sync blew up.');
-        $this->recordEvent('evt_ignored_1', WebhookEvent::STATUS_IGNORED, 'Not for this deployment: Stripe customer cus_elsewhere …');
+        $this->recordEvent('evt_ignored_1', WebhookEvent::STATUS_IGNORED, JobErrorMessage::encode('job_errors.webhook.unknown_customer', ['customer' => 'cus_elsewhere']));
         $this->recordEvent('evt_processed_1', WebhookEvent::STATUS_PROCESSED, null);
     }
 
@@ -54,6 +55,28 @@ class WebhookHealthScreenTest extends TestCase
                 ->where('counts.processed', 1)
                 ->has('events', 3)
             );
+    }
+
+    /**
+     * I18N-03 — explicația unui webhook ignorat e stocată codificată și tradusă aici, în
+     * limba cititorului; mesajul brut al unui eșec intern trece neschimbat.
+     */
+    public function test_messages_are_rendered_in_the_readers_language_and_raw_ones_pass_through(): void
+    {
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $this->actingAs($this->owner)
+            ->get('/marlin/settings/webhooks?status=ignored')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('events.0.message', fn (string $message) => str_contains($message, 'Pas pour ce déploiement')
+                    && str_contains($message, 'cus_elsewhere'))
+            );
+
+        $this->actingAs($this->owner)
+            ->get('/marlin/settings/webhooks?status=failed')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('events.0.message', 'Subscription sync blew up.'));
     }
 
     public function test_the_status_filter_narrows_the_list(): void

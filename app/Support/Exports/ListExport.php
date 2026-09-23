@@ -42,8 +42,16 @@ final class ListExport
         // FR-BILL-03 — arhiva ZIP: doar pentru listele care CHIAR au câte un fișier per rând.
         // Refuz explicit, nu o arhivă goală, dacă cineva cere `?format=zip` pe altă resursă
         // (același principiu ca refuzul unui format necunoscut în `ExportFormat::fromRequest()`).
+        //
+        // I18N-09 (audit 2026-09-23) — literalul englez de aici ajungea neschimbat în
+        // răspunsul JSON al lui Laravel: `HttpException::getMessage()` e SINGURA excepție
+        // pe care `Handler::convertExceptionToArray()` o expune și cu `app.debug=false`
+        // (`isHttpException($e) ? $e->getMessage() : 'Server Error'`, verificat în
+        // `vendor/laravel/framework/.../Exceptions/Handler.php`) — spre deosebire de un
+        // `RuntimeException`/`InvalidArgumentException` oarecare, mascat de mesajul generic.
+        // Mutat pe `__()`, ca la `ExportFormat::fromRequest()` mai sus în ierarhie.
         if ($format === ExportFormat::Zip && ! $list instanceof ArchivableList) {
-            throw new HttpException(422, 'This list cannot be exported as a zip archive. Use csv instead.');
+            throw new HttpException(422, __('exports.errors.zip_not_supported'));
         }
 
         if ($format === ExportFormat::Pdf || $format === ExportFormat::Zip) {

@@ -5,14 +5,18 @@ namespace Tests\Unit;
 use App\Models\BulkOperationChunk;
 use App\Models\IdempotencyKey;
 use App\Models\SavedViewDefault;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitor\ParentConnectingVisitor;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\ScansPhpSource;
 
 /**
@@ -831,5 +835,565 @@ class ArchitectureTest extends TestCase
         $traverser->traverse($ast);
 
         return $collector->found;
+    }
+
+    /**
+     * I18N-03, recidivă catalogată în audit (2026-09-23, §3.10) — coloana `error_message`
+     * (`bulk_operations`, `shipments`, `report_runs`, `data_export_requests`, `webhook_events`)
+     * e randată prin `App\Support\JobErrorMessage::render()`, care traduce o CHEIE codificată
+     * (`JobErrorMessage::encode()`) abia la citire, în locale-ul cererii care randează ecranul —
+     * vezi docblock-ul clasei pentru motivul complet: o valoare tradusă la SCRIERE ar îngheța
+     * limba WORKERULUI, nu a cererii care randează mai târziu. Un `$e->getMessage()` sau un
+     * literal englez scris direct pe coloană ocolește complet traducerea — `render()` îl trece
+     * NESCHIMBAT (calea „tolerantă", păstrată pentru rânduri vechi/text extern de furnizor),
+     * deci ajunge pe ecran exact așa cum a fost scris, indiferent de limba cererii care-l
+     * afișează.
+     *
+     * **De ce AST, nu regex** — același argument ca la
+     * `test_user_facing_message_sinks_never_carry_a_raw_string_literal()` de mai sus:
+     * `update([...])`, `create([...])` și `forceFill([...])` sunt toate literale de array PHP,
+     * iar cheia `'error_message'` poate sta lângă alte chei, pe linii diferite, în interiorul
+     * unui ternar sau al unui `??` — exact structura pe care un parser real o vede fără
+     * ambiguitate și un regex o ghicește.
+     *
+     * **Ce prinde, exact** (vezi `errorMessageSinkHitsIn()` mai jos pentru detector):
+     *   - orice `ArrayItem` cu cheia literală `'error_message'` (acoperă `update()`/
+     *     `create()`/`forceFill()`, indiferent de apelant), a cărui valoare e un literal de
+     *     șir sau un apel `->getMessage()`;
+     *   - orice atribuire directă `$x->error_message = <valoare>`, cu aceeași formă;
+     *   - FIECARE RAMURĂ a unui ternar (`$a ? $b : $c`, inclusiv forma elvis `$a ?: $b`) sau a
+     *     unui `??` — un singur braț ofensator e suficient, chiar dacă celălalt e deja corect
+     *     (ex. `GenerateShippingLabelJob::markFailed()`: ramura raportată de furnizor rămâne
+     *     text brut deliberat, cea generică e deja codificată — AMBELE brațe sunt inspectate).
+     *
+     * **Ce NU prinde, deliberat**:
+     *   - `null` (un shipment/export/raport fără eroare) — valoare EXPLICIT permisă, nu
+     *     „scăpată";
+     *   - o proprietate/variabilă oarecare (`$export->error_message`, pass-through al unei
+     *     valori deja codificate — `FinalizeDataExportJob::markFailed()`) sau un apel static
+     *     (`JobErrorMessage::encode(...)`) — garda nu poate ști static dacă întoarce text
+     *     corect, dar niciunul din cele două NU e un literal/`getMessage()` direct, singurul
+     *     semnal cerut aici;
+     *   - lista de nume de coloane a unui atribut `#[Fillable([...])]` — acolo
+     *     `'error_message'` e o VALOARE de listă, fără cheie, nu cheia unui `ArrayItem`.
+     *
+     * **Excepții** — `errorMessageExceptions()` mai jos, pe FIȘIER întreg (nu pe text exact,
+     * ca la `sinkExceptions()`): un ecran de operare intern poate avea mai multe scrieri
+     * brute, toate acoperite de ACEEAȘI motivare.
+     *
+     * **Ce a găsit la prima rulare (2026-09-23)**, toate reparate în același lot, fără nicio
+     * intrare în `errorMessageExceptions()`: catch-all-urile din `PlanBulkOperationJob`,
+     * `ExportListJob` și `GenerateReportJob` (acum `job_errors.*.unexpected`), explicația în
+     * engleză din `StripeWebhookController::ignore()` (acum `job_errors.webhook.*`) și motivul
+     * transportatorului din `GenerateShippingLabelJob` (acum parametru al cheii-cadru
+     * `job_errors.shipment.carrier_rejected`).
+     */
+    public function test_the_error_message_column_never_stores_a_raw_string_or_getmessage_result(): void
+    {
+        $offenders = [];
+
+        foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
+            $relative = $this->relative($file);
+
+            if ($this->isExceptedErrorMessageFile($relative)) {
+                continue;
+            }
+
+            foreach ($this->errorMessageSinkHitsIn(file_get_contents($file->getPathname())) as $hit) {
+                $offenders[] = sprintf('%s:%d  %s', $relative, $hit['line'], $hit['text']);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "`error_message` a primit text brut în loc de o cheie JobErrorMessage::encode() (I18N-03).\n"
+            ."Randarea (JobErrorMessage::render()) traduce doar chei codificate — orice altceva\n"
+            ."trece neschimbat, în limba în care a fost scris de worker, nu a cererii care-l\n"
+            .'afișează. Fiecare linie de mai jos dă fișierul, linia și forma exactă găsită:'."\n"
+            .implode("\n", $offenders),
+        );
+    }
+
+    /**
+     * Singura excepție documentată azi — orice intrare nouă are nevoie de motivare proprie,
+     * verificată, nu de o extindere tăcută a asteia.
+     *
+     * @return list<array{file: string, reason: string}>
+     */
+    private function errorMessageExceptions(): array
+    {
+        return [
+            [
+                'file' => 'app/Jobs/Webhooks/ProcessStripeWebhookJob.php',
+                'reason' => 'failed() scrie $e->getMessage() brut pe error_message la a treia '.
+                    'reîncercare eșuată a unui webhook Stripe intern — ecran de operare EXCLUSIV '.
+                    'Owner (WebhookHealthController, gardă billing.view + '.
+                    'SingleOwnerDeployment::active(), verificat în docblock-ul controllerului), '.
+                    'niciodată expus unui Viewer/membru obișnuit. Mesajul e aici pentru DEPANARE '.
+                    '(SDK Stripe/framework), nu pentru un utilizator final care ar avea nevoie de '.
+                    'traducere — și oricum n-are catalog de tradus, fiind text dinamic extern.',
+            ],
+        ];
+    }
+
+    private function isExceptedErrorMessageFile(string $relativeFile): bool
+    {
+        foreach ($this->errorMessageExceptions() as $exception) {
+            if ($exception['file'] === $relativeFile) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Parcurge sursa cu `nikic/php-parser` și întoarce fiecare scriere „ofensatoare" pe
+     * `error_message` (vezi docblock-ul testului de mai sus pentru forma exactă).
+     *
+     * @return list<array{line: int, text: string}>
+     */
+    private function errorMessageSinkHitsIn(string $code): array
+    {
+        $parser = (new ParserFactory)->createForNewestSupportedVersion();
+
+        try {
+            $ast = $parser->parse($code);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if ($ast === null) {
+            return [];
+        }
+
+        $visitor = new class extends NodeVisitorAbstract
+        {
+            /** @var list<array{line: int, text: string}> */
+            public array $found = [];
+
+            public function enterNode(Node $node)
+            {
+                // ['error_message' => <valoare>] — acoperă update([...]), create([...]),
+                // forceFill([...]), indiferent de metoda care primește array-ul: garda nu se
+                // uită la NUMELE apelului, ci la orice literal de array cu cheia asta.
+                if ($node instanceof Node\Expr\ArrayItem
+                    && $node->key instanceof Node\Scalar\String_
+                    && $node->key->value === 'error_message') {
+                    $this->inspect($node->value, $node->getStartLine());
+                }
+
+                // $x->error_message = <valoare>
+                if ($node instanceof Node\Expr\Assign
+                    && $node->var instanceof Node\Expr\PropertyFetch
+                    && $node->var->name instanceof Node\Identifier
+                    && $node->var->name->toString() === 'error_message') {
+                    $this->inspect($node->expr, $node->getStartLine());
+                }
+
+                return null;
+            }
+
+            private function inspect(Node $value, int $line): void
+            {
+                $description = $this->forbiddenDescription($value);
+
+                if ($description !== null) {
+                    $this->found[] = ['line' => $line, 'text' => $description];
+                }
+            }
+
+            /**
+             * Descrierea valorii interzise, sau `null` dacă valoarea e permisă (`null`, o
+             * proprietate/apel oarecare — presupus deja codificat — sau
+             * `JobErrorMessage::encode(...)`). Ternarele (inclusiv forma elvis) și `??` se
+             * evaluează RECURSIV pe fiecare ramură care poate deveni valoarea finală — un
+             * singur braț ofensator e suficient.
+             */
+            private function forbiddenDescription(Node $value): ?string
+            {
+                if ($value instanceof Node\Expr\MethodCall
+                    && $value->name instanceof Node\Identifier
+                    && $value->name->toString() === 'getMessage') {
+                    return '->getMessage()';
+                }
+
+                if ($value instanceof Node\Scalar\String_) {
+                    return sprintf("literal '%s'", $value->value);
+                }
+
+                if ($value instanceof Node\Expr\Ternary) {
+                    // Elvis (`$a ?: $b`): `if` e null, ramura „adevărată" e chiar `cond`.
+                    $truthy = $value->if ?? $value->cond;
+
+                    return $this->forbiddenDescription($truthy) ?? $this->forbiddenDescription($value->else);
+                }
+
+                if ($value instanceof Node\Expr\BinaryOp\Coalesce) {
+                    return $this->forbiddenDescription($value->left) ?? $this->forbiddenDescription($value->right);
+                }
+
+                return null;
+            }
+        };
+
+        $traverser = new NodeTraverser;
+        $traverser->addVisitor($visitor);
+        $traverser->traverse($ast);
+
+        return $visitor->found;
+    }
+
+    /**
+     * Auto-verificare a detectorului de mai sus — fără ea, o eroare în
+     * `errorMessageSinkHitsIn()` care l-ar face să nu găsească NIMIC ar lăsa garda principală
+     * verde din greșeală, exact tiparul deja documentat la
+     * `test_the_created_at_ordering_detector_flags_offenders_and_passes_safe_chains()` mai sus.
+     */
+    public function test_the_error_message_sink_detector_flags_offenders_and_passes_safe_values(): void
+    {
+        $offending = <<<'PHP'
+            <?php
+
+            class Example
+            {
+                public function directAssignment(): void
+                {
+                    $shipment->error_message = $e->getMessage();
+                }
+
+                public function literalInUpdateCall(): void
+                {
+                    $shipment->update([
+                        'status' => 'label_failed',
+                        'error_message' => 'Something went wrong.',
+                    ]);
+                }
+
+                public function oneBadBranchOfATernary(): void
+                {
+                    $shipment->update([
+                        'error_message' => $isCarrierReported
+                            ? $e->getMessage()
+                            : JobErrorMessage::encode('job_errors.x'),
+                    ]);
+                }
+            }
+            PHP;
+
+        $safe = <<<'PHP'
+            <?php
+
+            class Example
+            {
+                public function encodedKeyIsFine(): void
+                {
+                    $shipment->update([
+                        'error_message' => JobErrorMessage::encode('job_errors.x'),
+                    ]);
+                }
+
+                public function nullIsFine(): void
+                {
+                    $shipment->update(['error_message' => null]);
+                }
+
+                public function propertyPassthroughIsFine(): void
+                {
+                    $export->update([
+                        'error_message' => $export->error_message ?? JobErrorMessage::encode('job_errors.y'),
+                    ]);
+                }
+
+                public function unrelatedKeyIsOutOfScope(): void
+                {
+                    $shipment->update(['message' => $e->getMessage()]);
+                }
+            }
+            PHP;
+
+        $offendingHits = $this->errorMessageSinkHitsIn($offending);
+        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat toate cele trei forme ofensatoare (atribuire directă, literal în update(), o ramură rea a unui ternar) — garda ar fi verde din greșeală.');
+
+        $this->assertSame([], $this->errorMessageSinkHitsIn($safe), 'Detectorul a semnalat fals-pozitiv o valoare permisă (cheie codificată, null, proprietate pass-through) sau a ieșit din sink-ul `error_message` propriu-zis.');
+    }
+
+    /**
+     * I18N-09 (audit 2026-09-23, §3.10) — `throw new X('literal englez')` ocolește complet
+     * `test_user_facing_message_sinks_never_carry_a_raw_string_literal()` de mai sus: acela
+     * scanează cinci SINK-uri de mesaj (`errors()->add`, `withMessages`, `$fail`, `abort`,
+     * `messages()/attributes()`), nu constructorul unei excepții. Un
+     * `grep -rEn "throw new [A-Za-z\\\\]*Exception\(['\"]" app` (verificat manual, ~19-27
+     * rezultate, în afara acestui fișier) arată că marea majoritate sunt
+     * `RuntimeException`/`InvalidArgumentException` — invarianți INTERNI (configurare
+     * coruptă, apelant care ocolește validarea deja făcută de un `FormRequest` sau de o
+     * constrângere de rută), care nu ajung niciodată la utilizator: necapturate, cad pe
+     * pagina 500 GENERICĂ a handler-ului Laravel, care ascunde `getMessage()` în producție.
+     *
+     * Exact ACEEAȘI regulă a handler-ului arată și DE CE clasele din familia `HttpException`
+     * sunt altfel — verificat în
+     * `vendor/laravel/framework/.../Foundation/Exceptions/Handler.php::convertExceptionToArray()`:
+     * `config('app.debug') ? [...] : ['message' => $this->isHttpException($e) ?
+     * $e->getMessage() : 'Server Error']` — `isHttpException($e)` e SINGURA ramură care scapă
+     * de `'Server Error'`, chiar cu `app.debug=false`. Un `HttpException`/
+     * `AuthorizationException`/`ValidationException` (sau o subclasă) e conceput de framework
+     * ca fiind SIGUR de arătat, spre deosebire de o excepție oarecare.
+     *
+     * Descoperit concret, nu doar teoretic, în `App\Support\Exports\ListExport::respond()`:
+     * `throw new HttpException(422, 'This list cannot be exported as a zip archive...')` ieșea
+     * neschimbat într-un răspuns JSON chiar cu `app.debug=false` — reparat în același lot cu
+     * garda de față (`__('exports.errors.zip_not_supported')`, chei noi simetrice în
+     * `lang/en/exports.php`/`lang/fr/exports.php`).
+     *
+     * **Ce prinde, exact** (vezi `newExceptionLiteralHitsIn()` mai jos pentru detector):
+     * `new X(<argument>)` pentru orice `X` care E sau EXTINDE (verificat prin reflecție —
+     * `is_subclass_of()`, nu doar comparație de nume, ca să prindă și o viitoare subclasă
+     * proprie a proiectului) una din `userVisibleExceptionBaseClasses()` mai jos, dacă VREUNUL
+     * din argumentele apelului e un literal de șir (sau o interpolare/concatenare care conține
+     * unul). `X` e rezolvat la numele complet calificat prin
+     * `PhpParser\NodeVisitor\NameResolver` (rezolvatorul din `nikic/php-parser`, pe bază de
+     * `use`-uri și namespace curent), nu comparat cu textul brut — deci prinde și forma scrisă
+     * cu namespace complet direct la fața locului (`new \Illuminate\Auth\Access\
+     * AuthorizationException(...)`).
+     *
+     * **Ce NU prinde, deliberat**:
+     *   - `RuntimeException`/`InvalidArgumentException`/orice clasă din afara listei — acelea
+     *     sunt garda VECHE (vezi mai sus în acest docblock), nu recidiva de față;
+     *   - un mesaj trecut prin `__()`/`trans()`/`trans_choice()` — valoarea argumentului e un
+     *     APEL de funcție, nu un literal, exact distincția cerută de FR-I18N-04;
+     *   - un array (de headere sau orice altceva) ca argument — garda inspectează valoarea
+     *     FIECĂRUI argument individual, nu recursiv în interiorul array-urilor literale, deci
+     *     `['Retry-After' => '60']` ca argument propriu e „un array", nu „un literal".
+     *
+     * **Consecvență cu `sinkExceptions()`** — literalul 429 din `PasswordResetLinkController`
+     * (`abort(429, '...')`) rămâne acceptat ACOLO, pe garda veche: e un `abort()`, nu un
+     * `new X(...)`, deci nici măcar nu intră în scanarea de față. Nicio politică dublă pentru
+     * același literal.
+     */
+    public function test_new_user_visible_exceptions_never_carry_a_raw_string_literal(): void
+    {
+        $offenders = [];
+
+        foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
+            $relative = $this->relative($file);
+
+            foreach ($this->newExceptionLiteralHitsIn(file_get_contents($file->getPathname())) as $hit) {
+                $offenders[] = sprintf('%s:%d  new %s(%s)', $relative, $hit['line'], $hit['class'], $hit['text']);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "Literal englez găsit direct într-un constructor de excepție VIZIBILĂ utilizatorului\n"
+            ."(I18N-09) — HttpException/AuthorizationException/ValidationException (sau o\n"
+            ."subclasă) randează mesajul chiar și cu app.debug=false. Forma corectă e mereu\n"
+            ."__()/trans() — vezi domeniul potrivit din lang/{en,fr}/. Fiecare linie de mai jos\n"
+            .'dă fișierul, linia, clasa și argumentul:'."\n"
+            .implode("\n", $offenders),
+        );
+    }
+
+    /**
+     * @return list<class-string<\Throwable>>
+     */
+    private function userVisibleExceptionBaseClasses(): array
+    {
+        return [
+            HttpException::class,
+            AuthorizationException::class,
+            ValidationException::class,
+        ];
+    }
+
+    /**
+     * Parcurge sursa cu `nikic/php-parser` + `NameResolver` și întoarce fiecare `new X(...)`
+     * al cărui `X` e vizibil utilizatorului (vezi docblock-ul testului de mai sus) și care
+     * primește cel puțin un argument literal.
+     *
+     * @return list<array{line: int, class: string, text: string}>
+     */
+    private function newExceptionLiteralHitsIn(string $code): array
+    {
+        $parser = (new ParserFactory)->createForNewestSupportedVersion();
+
+        try {
+            $ast = $parser->parse($code);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if ($ast === null) {
+            return [];
+        }
+
+        $collector = new class($this->userVisibleExceptionBaseClasses()) extends NodeVisitorAbstract
+        {
+            /** @var list<array{line: int, class: string, text: string}> */
+            public array $found = [];
+
+            /**
+             * @param  list<class-string>  $baseClasses
+             */
+            public function __construct(private readonly array $baseClasses) {}
+
+            public function enterNode(Node $node)
+            {
+                if (! $node instanceof Node\Expr\New_ || ! $node->class instanceof Node\Name) {
+                    return null;
+                }
+
+                $className = ltrim($node->class->toString(), '\\');
+
+                if (! $this->isUserVisible($className)) {
+                    return null;
+                }
+
+                foreach ($node->args as $arg) {
+                    if (! $arg instanceof Node\Arg) {
+                        continue;
+                    }
+
+                    $text = $this->literalTextIn($arg->value);
+
+                    if ($text !== null) {
+                        $this->found[] = ['line' => $node->getStartLine(), 'class' => $className, 'text' => $text];
+                    }
+                }
+
+                return null;
+            }
+
+            /**
+             * `$class` e deja numele COMPLET calificat (`NameResolver` a rulat înaintea
+             * acestui vizitator) — comparat direct cu bazele, apoi verificat prin reflecție
+             * pentru orice subclasă (proprie proiectului sau a framework-ului).
+             */
+            private function isUserVisible(string $class): bool
+            {
+                foreach ($this->baseClasses as $base) {
+                    $base = ltrim($base, '\\');
+
+                    if ($class === $base) {
+                        return true;
+                    }
+
+                    // `class_exists()`/`interface_exists()` declanșează autoload-ul — sigur de
+                    // apelat aici, fără bootstrap de aplicație: excepțiile verificate n-au
+                    // dependențe de container la ÎNCĂRCAREA clasei, doar (eventual) la
+                    // instanțiere.
+                    if ((class_exists($class) || interface_exists($class)) && is_subclass_of($class, $base)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private function literalTextIn(Node $value): ?string
+            {
+                if ($value instanceof Node\Scalar\String_) {
+                    return sprintf("'%s'", $value->value);
+                }
+
+                if ($value instanceof Node\Scalar\InterpolatedString || $value instanceof Node\Expr\BinaryOp\Concat) {
+                    return '<interpolat> '.$this->flatten($value);
+                }
+
+                return null;
+            }
+
+            private function flatten(Node $node): string
+            {
+                if ($node instanceof Node\Scalar\String_) {
+                    return $node->value;
+                }
+
+                if ($node instanceof Node\Expr\BinaryOp\Concat) {
+                    return $this->flatten($node->left).$this->flatten($node->right);
+                }
+
+                if ($node instanceof Node\Scalar\InterpolatedString) {
+                    $out = '';
+                    foreach ($node->parts as $part) {
+                        $out .= $part instanceof Node\InterpolatedStringPart ? $part->value : '${…}';
+                    }
+
+                    return $out;
+                }
+
+                return '…';
+            }
+        };
+
+        $traverser = new NodeTraverser;
+        $traverser->addVisitor(new NameResolver);
+        $traverser->addVisitor($collector);
+        $traverser->traverse($ast);
+
+        return $collector->found;
+    }
+
+    /**
+     * Auto-verificare a detectorului de mai sus — același motiv ca la celelalte două gărzi pe
+     * bază de AST din acest fișier.
+     */
+    public function test_the_new_exception_literal_detector_flags_offenders_and_passes_safe_calls(): void
+    {
+        $offending = <<<'PHP'
+            <?php
+
+            use Symfony\Component\HttpKernel\Exception\HttpException;
+            use Illuminate\Auth\Access\AuthorizationException;
+
+            class Example
+            {
+                public function directLiteral(): void
+                {
+                    throw new HttpException(422, 'Raw text shown to the user.');
+                }
+
+                public function fullyQualifiedFormIsStillCaught(): void
+                {
+                    throw new \Illuminate\Auth\Access\AuthorizationException('Raw text.');
+                }
+
+                public function interpolatedIsStillALiteral(): void
+                {
+                    throw new HttpException(422, "Unknown format {$format}.");
+                }
+            }
+            PHP;
+
+        $safe = <<<'PHP'
+            <?php
+
+            use Symfony\Component\HttpKernel\Exception\HttpException;
+            use RuntimeException;
+
+            class Example
+            {
+                public function translatedMessageIsFine(): void
+                {
+                    throw new HttpException(422, __('exports.errors.unknown_format', ['format' => $raw]));
+                }
+
+                public function unrelatedClassIsOutOfScope(): void
+                {
+                    throw new RuntimeException('Internal invariant, never shown to a user.');
+                }
+
+                public function headersArrayArgumentIsNotAScalarLiteral(): void
+                {
+                    throw new HttpException(429, __('rules.too_many_requests'), null, ['Retry-After' => '60']);
+                }
+            }
+            PHP;
+
+        $offendingHits = $this->newExceptionLiteralHitsIn($offending);
+        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat toate cele trei forme ofensatoare (literal direct, formă complet calificată, interpolare) — garda ar fi verde din greșeală.');
+
+        $this->assertSame([], $this->newExceptionLiteralHitsIn($safe), 'Detectorul a semnalat fals-pozitiv un mesaj tradus (__()), o clasă din afara familiei vizibile, sau un array de headere ca argument.');
     }
 }

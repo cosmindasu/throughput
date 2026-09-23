@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\Webhooks\ProcessStripeWebhookJob;
 use App\Models\Tenant;
 use App\Models\WebhookEvent;
+use App\Support\JobErrorMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Stripe\Exception\SignatureVerificationException;
@@ -113,9 +114,12 @@ final class StripeWebhookController extends Controller
     {
         $event->update([
             'status' => WebhookEvent::STATUS_IGNORED,
+            // I18N-03 — explicația e textul APLICAȚIEI, deci se codifică și se traduce abia în
+            // ecranul Webhook health, în limba celui care îl citește (`JobErrorMessage::render()`
+            // în `WebhookHealthController`). Garda din `ArchitectureTest` o cere.
             'error_message' => $customerId === null
-                ? 'Not for this deployment: the event has no data.object.customer, so there is no workspace it could belong to.'
-                : "Not for this deployment: Stripe customer {$customerId} does not belong to any workspace here. The Stripe sandbox is shared with another project, so its events arrive at this endpoint too.",
+                ? JobErrorMessage::encode('job_errors.webhook.no_customer')
+                : JobErrorMessage::encode('job_errors.webhook.unknown_customer', ['customer' => $customerId]),
         ]);
 
         return response('OK', 200);

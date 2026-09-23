@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\WebhookEvent;
+use App\Support\JobErrorMessage;
 use App\Support\SingleOwnerDeployment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -87,7 +88,9 @@ final class WebhookHealthController extends Controller
                 'status' => $event->status,
                 'receivedAt' => $event->received_at?->toIso8601String(),
                 'processedAt' => $event->processed_at?->toIso8601String(),
-                'message' => $event->error_message,
+                // Cheile codificate (webhook-uri ignorate) se traduc aici, în limba cititorului;
+                // mesajele brute ale `ProcessStripeWebhookJob::failed()` trec neschimbate.
+                'message' => JobErrorMessage::render($event->error_message),
             ])->all(),
             'counts' => $this->counts(),
             'statuses' => self::statuses(),

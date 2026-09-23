@@ -67,10 +67,12 @@ return [
         'balance_due' => 'Solde dû',
     ],
 
-    // I18N-08 — perechea franceză a lui `lang/en/exports.php`. Ghilimele DREPTE păstrate
-    // deliberat în jurul lui `:format` (vezi comentariul din `ExportFormat::fromRequest()`
-    // — valoare de utilizator, FR-I18N-06, nu etichetă a aplicației).
+    // I18N-08/I18N-09 — perechea franceză a lui `lang/en/exports.php`. Ghilimele DREPTE
+    // păstrate deliberat în jurul lui `:format` (vezi comentariul din
+    // `ExportFormat::fromRequest()` — valoare de utilizator, FR-I18N-06, nu etichetă a
+    // aplicației); `zip_not_supported` n-are niciun parametru, deci nicio ghilimea de ales.
     'errors' => [
         'unknown_format' => 'Format d’export inconnu ":format". Utilisez csv, pdf ou zip.',
+        'zip_not_supported' => 'Cette liste ne peut pas être exportée sous forme d’archive zip. Utilisez csv à la place.',
     ],
 ];
