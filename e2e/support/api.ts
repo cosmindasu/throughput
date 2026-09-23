@@ -85,6 +85,31 @@ export async function firstAccountId(page: Page, accountsUrl: string): Promise<s
     return id;
 }
 
+/**
+ * Generalizarea lui `firstAccountId` de mai sus — id-ul din primul rând al oricărei liste
+ * tabulare cu primul link al rândului spre Show (Orders/Invoices/Products/Deals), pentru
+ * teste care au nevoie de UN rând real, fără să presupună un id fix (fixture-urile de
+ * seed nu garantează ordine stabilă între rulări). Nu deduplichează cu `firstAccountId`
+ * (păstrată neatinsă) — lot de accesibilitate (TEST-10), scop: zero risc peste codul
+ * deja verificat de restul suitei.
+ */
+export async function firstRowId(page: Page, listUrl: string): Promise<string> {
+    await page.goto(listUrl);
+    await page.getByRole('table').waitFor();
+
+    const href = await page.locator('table tbody tr').first().getByRole('link').first().getAttribute('href');
+    if (!href) {
+        throw new Error(`Niciun rând găsit la ${listUrl} — ținta are nevoie de cel puțin un rând.`);
+    }
+
+    const id = href.split('/').filter(Boolean).pop();
+    if (!id) {
+        throw new Error(`Nu s-a putut citi id-ul din href-ul „${href}".`);
+    }
+
+    return id;
+}
+
 export interface VariantLookupOption {
     id: string;
     sku: string;
