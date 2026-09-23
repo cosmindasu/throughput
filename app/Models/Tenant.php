@@ -79,9 +79,22 @@ class Tenant extends Model
      * cu același `getForeignKey()`) rămâne neatinsă — codul acestui lot navighează mereu
      * dinspre Tenant, niciodată dinspre Subscription, deci acel sens nu e exercitat; dacă
      * un lot viitor are nevoie de el, aceeași corecție se aplică simetric.
+     *
+     * DOM-03 (audit 2026-09-23) — `orderBy('created_at', 'desc')` fără tiebreaker:
+     * `subscriptions.created_at` e `timestamp(0)` ca restul proiectului
+     * (`.ai/rules/tenancy.md`, „created_at are precizie 0"), deci două abonamente scrise
+     * în aceeași secundă (webhook Stripe + o rescriere manuală, sau două tranziții de
+     * status procesate la câteva milisecunde distanță) n-aveau niciun departajor —
+     * ordinea la egalitate era nedeterministă. Alimentează `subscription()`/`subscribed()`
+     * (din trait-ul `Billable`, prin `$this->subscriptions`) și
+     * `App\Support\Billing\SubscriptionAccessPolicy`, care citesc „abonamentul curent" ca
+     * primul din listă. `id` e auto-increment (migrația Fazei 1, tabelă fără RLS — vezi
+     * migrația `subscriptions`), deci reflectă mereu corect ordinea de inserare.
      */
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(Cashier::$subscriptionModel, 'user_id')->orderBy('created_at', 'desc');
+        return $this->hasMany(Cashier::$subscriptionModel, 'user_id')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
     }
 }
