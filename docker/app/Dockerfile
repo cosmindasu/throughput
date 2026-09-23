@@ -7,7 +7,7 @@
 ########################################
 # Stage: base — extensii PHP comune ambelor target-uri
 ########################################
-FROM php:8.3-fpm-alpine AS base
+FROM php:8.5-fpm-alpine AS base
 
 RUN apk add --no-cache \
         bash \
