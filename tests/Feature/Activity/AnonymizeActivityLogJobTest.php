@@ -62,6 +62,43 @@ class AnonymizeActivityLogJobTest extends TestCase
         });
     }
 
+    /**
+     * Garda „mutantă" pentru bucla peste tenanți: dacă cineva ar opri
+     * `Tenant::query()->eachById()` după primul tenant găsit — sau ar înlocui-o cu o
+     * interogare care procesează un singur tenant — NICIUN test din acest fișier l-ar
+     * prinde, fiindcă toate folosesc un singur tenant (`$this->marlin`). Doi tenanți,
+     * fiecare cu un rând vechi de Contact, dovedesc explicit că jobul anonimizează AMBII
+     * într-o singură rulare, nu doar primul din iterație.
+     */
+    public function test_the_job_anonymizes_old_rows_across_every_tenant_in_a_single_run(): void
+    {
+        $globex = $this->makeTenant('globex', 'Globex Industrial LLC');
+        $globexOwner = $this->makeMember($globex, 'owner@globex.throughput.dev', Permissions::OWNER);
+        $this->clearDatabaseTenantContext();
+
+        $marlinLogId = TenantContext::run(
+            $this->marlin,
+            fn () => $this->insertLog(Contact::class, now()->subMonths(40), ['email' => 'marlin@old.example']),
+        );
+
+        $globexLogId = TenantContext::run(
+            $globex,
+            fn () => $this->insertLog(Contact::class, now()->subMonths(40), ['email' => 'globex@old.example'], $globex, $globexOwner),
+        );
+
+        (new AnonymizeActivityLogJob)->handle();
+
+        TenantContext::run($this->marlin, function () use ($marlinLogId): void {
+            $log = ActivityLog::query()->findOrFail($marlinLogId);
+            $this->assertSame(['email' => '[anonymized]'], $log->new_values);
+        });
+
+        TenantContext::run($globex, function () use ($globexLogId): void {
+            $log = ActivityLog::query()->findOrFail($globexLogId);
+            $this->assertSame(['email' => '[anonymized]'], $log->new_values);
+        });
+    }
+
     public function test_running_the_job_twice_is_idempotent(): void
     {
         $logId = TenantContext::run(
@@ -78,15 +115,23 @@ class AnonymizeActivityLogJobTest extends TestCase
         });
     }
 
-    /** @param  array<string, mixed>  $newValues */
-    private function insertLog(string $auditableType, Carbon $createdAt, array $newValues): string
+    /**
+     * `$tenant`/`$user` opționale, implicit `$this->marlin`/`$this->owner` — vezi
+     * `test_the_job_anonymizes_old_rows_across_every_tenant_in_a_single_run()` pentru
+     * singurul apelant care le folosește explicit, pe un al doilea tenant.
+     *
+     * @param  array<string, mixed>  $newValues
+     */
+    private function insertLog(string $auditableType, Carbon $createdAt, array $newValues, ?Tenant $tenant = null, ?User $user = null): string
     {
+        $tenant ??= $this->marlin;
+        $user ??= $this->owner;
         $id = strtolower((string) Str::ulid());
 
         DB::table('activity_log')->insert([
             'id' => $id,
-            'tenant_id' => $this->marlin->getKey(),
-            'user_id' => $this->owner->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'user_id' => $user->getKey(),
             'action' => 'updated',
             'auditable_type' => $auditableType,
             'auditable_id' => strtolower((string) Str::ulid()),

@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Activity\ActivityLogAnonymizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -28,28 +29,14 @@ use Illuminate\Support\Facades\DB;
  * NU observă `User` — vezi docblock-ul provider-ului); `User` rămâne în listă pentru orice
  * scriere viitoare (alt lot) care ar loga modificări de profil.
  *
- * **De ce `UPDATE` prin `DB::table()`, nu `App\Models\ActivityLog::query()->update()`**:
- * identic cu motivul din `PruneSentEmailsJob` — un `Builder::update()` în masă NU
- * declanșează evenimente Eloquent (deci n-ar lovi oricum garda `App\Concerns\AppendOnly`,
- * care oprește doar `updating`/`deleting` PER INSTANȚĂ), dar `DB::table()` evită orice
- * ambiguitate legată de global scope-ul de tenant și de cast-ul `array` pe coloane `jsonb`
- * (un `UPDATE` SQL brut scrie JSON direct, calculat de PostgreSQL însuși — vezi mai jos).
- *
- * **De ce transformarea rulează ÎN SQL (`jsonb_object_agg`/`jsonb_each`), nu în PHP**: câte
- * o transformare per cheie JSON, per rând, ar cere fie citirea integrală a rândurilor în
- * PHP (cost de memorie pe un tenant vechi, cu istoric mare), fie N interogări individuale.
- * Un singur `UPDATE ... FROM (SELECT ...)` per chunk de id-uri face ambele citiri și
- * scrierea într-un singur round-trip. Cheile JSON (numele câmpurilor modificate) se
- * PĂSTREAZĂ — doar valorile devin `"[anonymized]"` — exact „păstrând structura rândului...
- * dar eliminând conținutul personal" din §17.2: se vede CE câmp s-a schimbat (ex: „email"),
- * nu CE valoare a avut.
- *
- * Idempotent prin CONVERGENȚĂ, nu prin marcaj: re-aplicarea transformării unui rând deja
- * anonimizat produce exact același rezultat (`"[anonymized]"` → `"[anonymized]"`), deci o
- * rulare lunară care se suprapune parțial cu luna anterioară (tenant cu ceas decalat, job
- * reluat după un eșec) nu dublează nimic și nu are nevoie de un flag separat. Clauza
- * `IS DISTINCT FROM` din `UPDATE` de mai jos e doar o optimizare (sare peste rândurile deja
- * convergente), nu condiția de corectitudine.
+ * **De ce doar selecția SQL stă aici**: mecanica propriu-zisă de mascare (`UPDATE` per
+ * chunk, `jsonb_object_agg`/`jsonb_each`, convergență, `IS DISTINCT FROM`) a fost extrasă
+ * în `App\Support\Activity\ActivityLogAnonymizer` (GDPR-02, audit 2026-09-23,
+ * `docs/reviews/2026-09-23_audit/08-gdpr.md`) — acest job construiește DOAR criteriul de
+ * selecție („personal + mai vechi de N luni") și îl pasează helper-ului comun, care e
+ * folosit identic din `App\Support\Contacts\ContactErasure` (mascare la MOMENTUL
+ * ștergerii unui contact, nu doar la 36 de luni). Docblock-ul complet al mecanicii SQL
+ * stă acolo, nu duplicat aici.
  */
 class AnonymizeActivityLogJob implements ShouldQueue
 {
@@ -58,10 +45,6 @@ class AnonymizeActivityLogJob implements ShouldQueue
     public int $tries = 1;
 
     public int $timeout = 600;
-
-    private const CHUNK_SIZE = 500;
-
-    private const PLACEHOLDER = '[anonymized]';
 
     public static function retentionMonths(): int
     {
@@ -87,52 +70,13 @@ class AnonymizeActivityLogJob implements ShouldQueue
 
     private function anonymizeCurrentTenant(CarbonImmutable $cutoff): void
     {
-        DB::table('activity_log')
-            ->whereIn('auditable_type', self::personalAuditableTypes())
-            ->where('created_at', '<=', $cutoff)
-            ->where(function ($query): void {
-                $query->whereNotNull('old_values')->orWhereNotNull('new_values');
-            })
-            ->orderBy('id')
-            ->chunkById(self::CHUNK_SIZE, function ($rows): void {
-                $this->anonymizeChunk($rows->pluck('id')->all());
-            }, 'id');
-    }
-
-    /** @param  list<string>  $ids */
-    private function anonymizeChunk(array $ids): void
-    {
-        if ($ids === []) {
-            return;
-        }
-
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-
-        // `jsonb_each` cere un OBJECT jsonb — `old_values`/`new_values` sunt mereu obiecte
-        // „nume câmp => valoare" (niciodată liste), per convenția de scriere din
-        // `App\Support\Activity\ChangedAttributes`, deci fără riscul erorii Postgres
-        // „cannot call jsonb_each on a non-object".
-        DB::statement(
-            <<<SQL
-                UPDATE activity_log a
-                SET old_values = t.new_old,
-                    new_values = t.new_new
-                FROM (
-                    SELECT
-                        id,
-                        CASE WHEN old_values IS NULL THEN NULL
-                             ELSE (SELECT jsonb_object_agg(e.key, to_jsonb(?::text)) FROM jsonb_each(old_values) AS e)
-                        END AS new_old,
-                        CASE WHEN new_values IS NULL THEN NULL
-                             ELSE (SELECT jsonb_object_agg(e.key, to_jsonb(?::text)) FROM jsonb_each(new_values) AS e)
-                        END AS new_new
-                    FROM activity_log
-                    WHERE id IN ({$placeholders})
-                ) t
-                WHERE a.id = t.id
-                  AND (a.old_values IS DISTINCT FROM t.new_old OR a.new_values IS DISTINCT FROM t.new_new)
-                SQL,
-            [self::PLACEHOLDER, self::PLACEHOLDER, ...$ids],
+        ActivityLogAnonymizer::anonymize(
+            DB::table('activity_log')
+                ->whereIn('auditable_type', self::personalAuditableTypes())
+                ->where('created_at', '<=', $cutoff)
+                ->where(function ($query): void {
+                    $query->whereNotNull('old_values')->orWhereNotNull('new_values');
+                }),
         );
     }
 }

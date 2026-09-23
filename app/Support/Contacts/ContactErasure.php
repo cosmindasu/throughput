@@ -2,7 +2,10 @@
 
 namespace App\Support\Contacts;
 
+use App\Jobs\System\MaskErasedContactActivityLogJob;
 use App\Models\Contact;
+use App\Models\Scopes\TenantScope;
+use App\Support\Activity\ActivityLogAnonymizer;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,6 +29,20 @@ use Illuminate\Support\Facades\DB;
  * cererii abandonată (`25P02` la orice interogare ulterioară, inclusiv `COMMIT`-ul final).
  * De-aia întreaga decizie stă într-un SINGUR `DB::transaction()`, iar apelantul
  * (`ContactController::destroy()`) nu prinde nimic în jurul ei.
+ *
+ * **GDPR-02 (audit 2026-09-23, `docs/reviews/2026-09-23_audit/08-gdpr.md`)**: ștergerea/
+ * anonimizarea de mai sus nu se oprea la rândul `contacts` — rândurile ISTORICE din
+ * `activity_log` (create/update-uri anterioare ale acestui contact) rămâneau cu
+ * numele/emailul/telefonul original în clar, vizibile în ecranul „Activity" până la
+ * anonimizarea de retenție de la 36 de luni (`App\Jobs\System\AnonymizeActivityLogJob`).
+ * Ambele ramuri de mai jos mascară acum și acele rânduri, prin `ActivityLogAnonymizer`
+ * (același mecanism SQL folosit de jobul de retenție lunară — vezi docblock-ul lui).
+ *
+ * Rândul NOU, scris ASINCRON de evenimentul `updated`/`deleted` declanșat chiar de
+ * operația de mai jos (`forceFill()->save()`/`delete()`), NU există încă în `activity_log`
+ * în momentul acestui apel — un query aici tot nu l-ar prinde. Acela e mascat la SURSĂ,
+ * sincron, în `App\Observers\ActivityLogObserver` (vezi docblock-ul lui pentru motivul
+ * cursei asincrone și alternativa aleasă).
  */
 final class ContactErasure
 {
@@ -45,6 +62,8 @@ final class ContactErasure
             if (! $hasReferences) {
                 $contact->delete();
 
+                self::maskActivityLog($contactId);
+
                 return false;
             }
 
@@ -59,7 +78,31 @@ final class ContactErasure
                 'anonymized_at' => now(),
             ])->save();
 
+            self::maskActivityLog($contactId);
+
             return true;
         });
+    }
+
+    /**
+     * GDPR-02 — mascarea rândurilor PREEXISTENTE din `activity_log` pentru acest contact,
+     * indiferent de vechime (spre deosebire de `AnonymizeActivityLogJob`, care mască doar
+     * ce a trecut de pragul de retenție). Filtrul explicit pe `auditable_id` ține mascarea
+     * strict la ACEST contact — un alt contact din același tenant, sau unul din alt
+     * tenant, nu e atins (interogarea rulează oricum sub RLS-ul tenantului curent).
+     */
+    private static function maskActivityLog(string $contactId): void
+    {
+        ActivityLogAnonymizer::anonymize(
+            DB::table('activity_log')
+                ->where('auditable_type', Contact::class)
+                ->where('auditable_id', $contactId),
+        );
+
+        // Rândurile încă în coadă în acest moment (modificări anterioare, nedrenate) se scriu
+        // după commit — le prinde plasa de siguranță, vezi docblock-ul jobului.
+        MaskErasedContactActivityLogJob::dispatch((string) TenantScope::currentTenantId(), $contactId)
+            ->afterCommit()
+            ->delay(MaskErasedContactActivityLogJob::DELAY_SECONDS);
     }
 }
