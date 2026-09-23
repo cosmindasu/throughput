@@ -45,7 +45,10 @@ class PermissionMatrixTest extends TestCase
                 // `orders.change_owner` (code review P2-002) — simetric cu
                 // `deals.change_owner`, care e deja aici. `shipments.delete` (Faza 3, valul 2,
                 // §7.4 „Onorare / expediere") — Manager are CRUD complet, ca Owner.
-                ['members.invite', 'orders.create', 'orders.change_owner', 'imports.create', 'reports.manage', 'activity_log.view', 'sent_emails.view', 'api_tokens.create', 'shipments.delete'],
+                // `products.create`/`products.edit` (TEST-02, audit 2026-09-23) — rândul
+                // „Produse & variante" din §7.4: CRUD complet pentru Owner/Manager, fără
+                // îngustare ABAC (`ProductPolicy`, un produs n-are proprietar).
+                ['members.invite', 'orders.create', 'orders.change_owner', 'imports.create', 'reports.manage', 'activity_log.view', 'sent_emails.view', 'api_tokens.create', 'shipments.delete', 'products.create', 'products.edit'],
                 // Fără billing (doar citire), fără setări de curierat, fără export GDPR nou.
                 ['billing.manage', 'carrier_settings.manage', 'carrier_settings.view', 'data_exports.create'],
             ],
@@ -61,7 +64,9 @@ class PermissionMatrixTest extends TestCase
                 // „—" în matrice: stoc, plăți, import, membri, pipeline, jurnal complet,
                 // schimbarea proprietarului unui deal SAU al unei comenzi (code review
                 // P2-002 — `orders.change_owner` nou, simetric cu `deals.change_owner`).
-                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'sent_emails.view', 'deals.change_owner', 'orders.change_owner'],
+                // `products.create`/`products.edit` (TEST-02) — Agentul are doar `products.view`
+                // (`Permissions::forRoles()`), niciodată create/edit pe catalog.
+                ['stock.adjust', 'payments.create', 'payments.view', 'imports.create', 'members.view', 'pipelines.view', 'activity_log.view', 'sent_emails.view', 'deals.change_owner', 'orders.change_owner', 'products.create', 'products.edit'],
             ],
             'Viewer' => [
                 Permissions::VIEWER,
@@ -69,8 +74,9 @@ class PermissionMatrixTest extends TestCase
                 // persona „contabil extern" din §5). Un refuz aici n-ar proteja nimic.
                 ['accounts.view', 'orders.view', 'shipments.view', 'invoices.view', 'payments.view', 'bulk.export', 'saved_views.manage_own'],
                 // Viewer are doar „R" pe onorare/expediere (§7.4) — nici creare, nici editare,
-                // nici renunțare (Faza 3, valul 2).
-                ['accounts.create', 'accounts.edit', 'deals.move_stage', 'bulk.write', 'orders.create', 'billing.view', 'reports.view', 'activity_log.view', 'sent_emails.view', 'shipments.create', 'shipments.edit', 'shipments.delete'],
+                // nici renunțare (Faza 3, valul 2). `products.create`/`products.edit`
+                // (TEST-02) — Viewer are doar `products.view`, ca Agentul.
+                ['accounts.create', 'accounts.edit', 'deals.move_stage', 'bulk.write', 'orders.create', 'billing.view', 'reports.view', 'activity_log.view', 'sent_emails.view', 'shipments.create', 'shipments.edit', 'shipments.delete', 'products.create', 'products.edit'],
             ],
         ];
     }
