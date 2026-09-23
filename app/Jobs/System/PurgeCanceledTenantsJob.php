@@ -40,7 +40,9 @@ use Throwable;
  *     (`App\Jobs\Webhooks\ProcessStripeWebhookJob`, secțiunea „Implementare" din ADR-012):
  *     portalul Stripe poate readuce un abonament la `active` fără să golească
  *     `subscription_canceled_at` — fixul de acolo rezolvă cazul curent, dar acest job nu se
- *     bazează STRICT pe el (sursa a doua de adevăr, nu singura).
+ *     bazează STRICT pe el (sursa a doua de adevăr, nu singura). Starea locală e, la rândul
+ *     ei, protejată de livrarea Stripe în altă ordine: un eveniment mai vechi decât ultimul
+ *     aplicat e ignorat (`subscriptions.last_stripe_event_at`, audit 2026-09-23).
  *
  * CE SE ȘTERGE, pe lângă rândul `tenants` (care cascadează spre cele 32 de tabele cu
  * `->constrained('tenants')->cascadeOnDelete()` — `memberships`, `accounts`, `deals`,
@@ -63,6 +65,9 @@ use Throwable;
  *    `ModelTenantScopeCoverageTest`/`IsolationTest` (nu sunt modele Eloquent ale acestui
  *    proiect) — dar tot au `tenant_id`, deci tot trebuie curățate la purjare. `permissions`
  *    (catalogul global, fără `team_foreign_key`) rămâne neatins.
+ *  - **Jetoanele Sanctum** (`personal_access_tokens`) — fără `tenant_id` și fără FK, tenantul
+ *    fiind codat doar în `abilities`; legate prin `api_tokens.token_hash`, vezi
+ *    `deleteSanctumTokenRows()`.
  *  - **Fișierele de pe disc**, pe discul `local`, sub rădăcina `{tenantId}` a fiecărei
  *    zone care scrie per-tenant (grep pe `Storage::`/`disk(` în `app/`): `exports/`
  *    (`ExportListJob`), `gdpr-exports/` (`App\Actions\Gdpr\DataExportPaths` — arhivele
@@ -111,7 +116,7 @@ class PurgeCanceledTenantsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $cutoff = CarbonImmutable::now('UTC')->subDays(self::retentionDays());
+        $cutoff = self::cutoff();
 
         Tenant::query()
             ->whereNotNull('subscription_canceled_at')
@@ -129,59 +134,83 @@ class PurgeCanceledTenantsJob implements ShouldQueue
             });
     }
 
-    private static function retentionDays(): int
+    private static function cutoff(): CarbonImmutable
     {
-        return (int) config('throughput.limits.tenant_purge_retention_days');
+        return CarbonImmutable::now('UTC')->subDays((int) config('throughput.limits.tenant_purge_retention_days'));
+    }
+
+    /**
+     * Ambele trepte ale criteriului (vezi docblock-ul clasei). A doua e citită prin
+     * `Subscription::valid()` — logica PROPRIE a pachetului (inclusiv
+     * `Cashier::keepPastDueSubscriptionsActive()` din `AppServiceProvider`), nu reprodusă în
+     * SQL brut, care ar putea diverge tăcut la următorul upgrade Cashier.
+     */
+    private function isEligible(Tenant $tenant): bool
+    {
+        if ($tenant->subscription_canceled_at === null
+            || CarbonImmutable::parse($tenant->subscription_canceled_at)->greaterThan(self::cutoff())) {
+            return false;
+        }
+
+        return ! $tenant->subscriptions()->get()->contains(fn ($subscription) => $subscription->valid());
     }
 
     private function purgeIfEligible(Tenant $tenant): void
     {
-        // A doua treaptă a criteriului — vezi docblock-ul clasei. Verificată AICI, nu în
-        // interogarea SQL de mai sus: `Subscription::valid()` combină trei coloane
-        // (`stripe_status`, `ends_at`, `trial_ends_at`) prin logica PROPRIE a pachetului
-        // (inclusiv `Cashier::keepPastDueSubscriptionsActive()`, setat în
-        // `AppServiceProvider`) — reprodus în SQL brut ar putea diverge tăcut de pachet la
-        // următorul upgrade Cashier.
-        if ($this->hasValidSubscription($tenant)) {
+        // Filtru ieftin, fără blocare; verificarea autoritară se repetă sub blocare, mai jos.
+        if (! $this->isEligible($tenant)) {
             return;
         }
 
-        $this->purgeTenant($tenant);
+        $this->purgeTenant($tenant->getKey());
     }
 
-    private function hasValidSubscription(Tenant $tenant): bool
+    /**
+     * O SINGURĂ tranzacție, cu rândul `tenants` blocat de la început (audit GDPR-01,
+     * 2026-09-23, P3 — două curse între verificare și ștergere):
+     *
+     *  - eligibilitatea se RE-VERIFICĂ sub blocare: o reactivare procesată între filtrul din
+     *    `purgeIfEligible()` și ștergere (webhook-ul scrie `tenants.subscription_canceled_at`,
+     *    deci așteaptă blocarea) e văzută, nu ignorată;
+     *  - lista de membri se citește DUPĂ blocare: acceptarea concurentă a unei invitații
+     *    verifică FK-ul spre `tenants` (`FOR KEY SHARE`), deci așteaptă și ea — niciun membru
+     *    nou nu scapă de evaluarea `OrphanUserCleanup`.
+     *
+     * `FOR UPDATE`, nu `FOR NO KEY UPDATE` (`.ai/rules/tenancy.md`): rândul chiar se ȘTERGE.
+     * Fișierele se șterg în interiorul tranzacției: o eroare de disc face rollback la rânduri,
+     * iar rularea următoare reia totul (ștergerea unui folder deja gol e un no-op).
+     */
+    private function purgeTenant(string $tenantId): void
     {
-        return $tenant->subscriptions()->get()->contains(fn ($subscription) => $subscription->valid());
-    }
+        $memberUserIds = [];
 
-    private function purgeTenant(Tenant $tenant): void
-    {
-        $tenantId = $tenant->getKey();
+        $purged = DB::transaction(function () use ($tenantId, &$memberUserIds): bool {
+            $tenant = Tenant::query()->whereKey($tenantId)->lockForUpdate()->first();
 
-        // Cine ar putea rămâne orfan: citit ÎN CONTEXTUL tenantului (politica RLS
-        // `membership_visibility` a lui `memberships` face vizibile toate rândurile lui,
-        // indiferent de user), ÎNAINTE ca ștergerea de mai jos să care rândul `memberships`
-        // odată cu cascada de pe `tenants` — după aceea, „cine avea o membership aici" nu
-        // mai e recuperabil din bază.
-        $memberUserIds = TenantContext::run(
-            $tenant,
-            fn () => DB::table('memberships')->where('tenant_id', $tenantId)->pluck('user_id')->all(),
-        );
+            if ($tenant === null || ! $this->isEligible($tenant)) {
+                return false;
+            }
 
-        // Fișierele de pe disc — ÎN AFARA oricărei tranzacții Postgres (nu sunt
-        // tranzacționale) și ÎNAINTEA ștergerii din bază: dacă ștergerea unui fișier ar
-        // eșua neașteptat, excepția oprește purjarea ACESTUI tenant (prinsă de bucla din
-        // `handle()`) înainte să dispară vreun rând — o rulare viitoare reia purjarea de
-        // la zero, idempotent (fișierele deja șterse sunt no-op-uri).
-        $this->deleteTenantFiles($tenantId);
+            // Sub RLS: `memberships` și `api_tokens` se văd doar în contextul tenantului.
+            [$memberUserIds, $tokenHashes] = TenantContext::run($tenant, fn (): array => [
+                DB::table('memberships')->where('tenant_id', $tenantId)->pluck('user_id')->all(),
+                DB::table('api_tokens')->where('tenant_id', $tenantId)->pluck('token_hash')->all(),
+            ]);
 
-        DB::transaction(function () use ($tenantId): void {
+            $this->deleteTenantFiles($tenantId);
+            $this->deleteSanctumTokenRows($tokenHashes);
             $this->deleteCashierSubscriptionRows($tenantId);
             $this->deletePermissionRows($tenantId);
 
             // Cascadă spre cele 32 de tabele `->cascadeOnDelete()` — vezi docblock-ul clasei.
             DB::table('tenants')->where('id', $tenantId)->delete();
+
+            return true;
         });
+
+        if (! $purged) {
+            return;
+        }
 
         $deletedMembers = 0;
         foreach ($memberUserIds as $userId) {
@@ -196,6 +225,22 @@ class PurgeCanceledTenantsJob implements ShouldQueue
             'members_evaluated' => count($memberUserIds),
             'members_deleted' => $deletedMembers,
         ]);
+    }
+
+    /**
+     * `personal_access_tokens` (Sanctum) — secretul hash-uit al fiecărui jeton API, cu
+     * tenantul codat doar în `abilities` (JSON), fără `tenant_id` și fără FK: nici cascada,
+     * nici un inventar pe `information_schema` nu-l văd. Legătura e `api_tokens.token_hash`
+     * (identic cu `personal_access_tokens.token`, vezi `ApiToken`), citită ÎNAINTE ca
+     * cascada să șteargă `api_tokens`. Audit GDPR-01, 2026-09-23 (P1).
+     *
+     * @param  list<string>  $tokenHashes
+     */
+    private function deleteSanctumTokenRows(array $tokenHashes): void
+    {
+        if ($tokenHashes !== []) {
+            DB::table('personal_access_tokens')->whereIn('token', $tokenHashes)->delete();
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ namespace Tests\Feature\Gdpr;
 
 use App\Jobs\System\PurgeCanceledTenantsJob;
 use App\Models\Account;
+use App\Models\ApiToken;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
@@ -69,6 +70,8 @@ class PurgeCanceledTenantsJobTest extends TestCase
             $account = new Account(['name' => 'Cascade Secret Customer Inc.']);
             $account->created_by = $witnessOwner->getKey();
             $account->save();
+
+            ApiToken::issue($witnessOwner, 'Witness token', ['*']);
         });
 
         $tenant->forceFill(['subscription_canceled_at' => now()->subDays(31)])->save();
@@ -81,6 +84,11 @@ class PurgeCanceledTenantsJobTest extends TestCase
         $this->assertNoTenantScopedRowsRemain($tenantId);
         $this->assertSame(0, DB::table('subscriptions')->where('user_id', $tenantId)->count(), 'Cashier subscriptions have no FK to tenants — must be deleted explicitly.');
         $this->assertSame(0, DB::table('subscription_items')->count(), 'subscription_items has no FK at all — orphaned rows must not survive.');
+        $this->assertSame(
+            0,
+            DB::table('personal_access_tokens')->where('abilities', 'like', '%tenant:'.$tenantId.'%')->count(),
+            'The Sanctum row (hashed secret, no tenant_id column) must go with the tenant.',
+        );
 
         foreach (['exports', 'gdpr-exports', 'imports', 'invoices', 'reports'] as $root) {
             $this->assertFalse(Storage::disk('local')->exists("{$root}/{$tenantId}"), "Files under {$root}/{$tenantId} must be gone.");
@@ -91,6 +99,11 @@ class PurgeCanceledTenantsJobTest extends TestCase
         $this->assertNotNull(User::query()->find($witnessOwner->getKey()));
         $witnessAccounts = TenantContext::run($witness, fn () => Account::query()->count());
         $this->assertSame(1, $witnessAccounts, 'The witness tenant must keep its own data untouched.');
+        $this->assertSame(
+            1,
+            DB::table('personal_access_tokens')->where('abilities', 'like', '%tenant:'.$witness->getKey().'%')->count(),
+            "The witness tenant's API token must survive.",
+        );
     }
 
     public function test_a_tenant_canceled_less_than_the_threshold_is_left_intact(): void
@@ -315,16 +328,9 @@ class PurgeCanceledTenantsJobTest extends TestCase
                 'updated_at' => $now,
             ]);
 
-            DB::table('api_tokens')->insert([
-                'id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->getKey(),
-                'user_id' => $owner->getKey(),
-                'name' => 'Integration token',
-                'abilities' => json_encode(['*']),
-                'token_hash' => hash('sha256', Str::random(40)),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+            // Emis pe calea REALĂ: `ApiToken::issue()` scrie și rândul Sanctum
+            // (`personal_access_tokens`), fără `tenant_id` — audit 2026-09-23, P1.
+            ApiToken::issue($owner, 'Integration token', ['*']);
 
             DB::table('idempotency_keys')->insert([
                 'id' => (string) Str::ulid(),
