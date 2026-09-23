@@ -44,7 +44,7 @@ class ComposeEnvironmentTest extends TestCase
         'APP_NAME' => 'Valoare fixă în x-app-env ("Throughput"), nu ${VAR} — nu vine din Coolify UI.',
         'APP_ENV' => 'Valoare fixă în x-app-env ("production") — n-are voie să fie schimbabilă din UI.',
         'APP_DEBUG' => 'Valoare fixă în x-app-env ("false") — deliberat, niciodată true în producție.',
-        'APP_LOCALE' => 'Valoare fixă în x-app-env ("en") — interfața e doar în engleză (specs.md §0).',
+        'APP_LOCALE' => 'Valoare fixă în x-app-env ("en") — limba IMPLICITĂ; limba efectivă e preferința fiecărui utilizator (ADR-022), nu o variabilă de mediu.',
         'DB_CONNECTION' => 'Valoare fixă în x-app-env ("pgsql") — nu variază pe mediu.',
         'DB_HOST' => 'Valoare fixă în x-app-env ("postgres") — numele serviciului Docker, nu configurabil.',
         'DB_MIGRATIONS_CONNECTION' => 'Valoare fixă în x-app-env ("pgsql_migrations") — nu variază pe mediu.',
@@ -54,6 +54,10 @@ class ComposeEnvironmentTest extends TestCase
         'QUEUE_CONNECTION' => 'Valoare fixă în x-app-env ("redis") — nu variază pe mediu.',
         'REDIS_HOST' => 'Valoare fixă în x-app-env ("redis") — numele serviciului Docker, nu configurabil.',
         'HORIZON_PREFIX' => 'Valoare fixă în x-app-env ("throughput_horizon:") — nu variază pe mediu.',
+
+        // --- Consumate de ALT serviciu, nu de aplicație — referite în compose, dar în afara
+        // ancorei `x-app-env`, deliberat. ---
+        'POSTGRES_BOOTSTRAP_PASSWORD' => 'Doar pentru serviciul `postgres` (POSTGRES_PASSWORD al superuserului de bootstrap, docker-compose.coolify.yml); aplicația se conectează cu DB_PASSWORD/DB_MIGRATIONS_PASSWORD, niciodată cu superuserul.',
 
         // --- Implicit din `config/throughput.php` deja IDENTIC cu valoarea din
         // `.env.example` — verificat citind fișierul (toate sub `'limits'`/`'demo'`). ---
@@ -143,12 +147,40 @@ class ComposeEnvironmentTest extends TestCase
         return array_values(array_unique($matches[1]));
     }
 
-    /** @return list<string> */
+    /**
+     * Doar ancora `x-app-env` (mediul containerelor `app`/`horizon`/`scheduler`), fără
+     * liniile de comentariu. Audit 2026-09-23: căutarea pe TOT fișierul accepta o cheie
+     * referită doar de alt serviciu (ex. `postgres.environment`) — adică exact golul
+     * `CASHIER_CURRENCY`, doar mutat — iar o linie comentată ar fi contat ca referință.
+     *
+     * @return list<string>
+     */
     private function keysReferencedInCompose(): array
     {
-        $contents = (string) file_get_contents(base_path('docker-compose.coolify.yml'));
+        $lines = file(base_path('docker-compose.coolify.yml'), FILE_IGNORE_NEW_LINES) ?: [];
+        $anchorBody = [];
+        $inAnchor = false;
 
-        preg_match_all('/\$\{([A-Z][A-Z0-9_]*)/', $contents, $matches);
+        foreach ($lines as $line) {
+            if (str_starts_with($line, 'x-app-env:')) {
+                $inAnchor = true;
+
+                continue;
+            }
+
+            // Ancora se termină la următoarea cheie de nivel zero (ex. `services:`).
+            if ($inAnchor && preg_match('/^[A-Za-z]/', $line) === 1) {
+                break;
+            }
+
+            if ($inAnchor && ! str_starts_with(ltrim($line), '#')) {
+                $anchorBody[] = $line;
+            }
+        }
+
+        $this->assertNotSame([], $anchorBody, 'Ancora `x-app-env` n-a fost găsită în docker-compose.coolify.yml — garda n-ar verifica nimic.');
+
+        preg_match_all('/\$\{([A-Z][A-Z0-9_]*)/', implode("\n", $anchorBody), $matches);
 
         return array_values(array_unique($matches[1]));
     }

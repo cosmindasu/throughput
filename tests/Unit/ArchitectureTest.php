@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 use PhpParser\Node;
+use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\NodeVisitor\ParentConnectingVisitor;
@@ -190,6 +191,34 @@ class ArchitectureTest extends TestCase
             .'Fiecare linie de mai jos dă fișierul, linia, sink-ul și textul — repară de acolo:'."\n"
             .implode("\n", $offenders),
         );
+    }
+
+    /**
+     * Auto-test al detectorului de mai sus, scris la auditul din 2026-09-23 când s-a
+     * descoperit că `abort_if`/`abort_unless` treceau neobservate: un detector care n-ar
+     * mai găsi nimic ar lăsa garda principală verde fără să verifice nimic.
+     */
+    public function test_the_message_sink_detector_flags_every_abort_form(): void
+    {
+        $offending = <<<'PHP'
+            <?php
+            abort(403, 'You are not allowed here.');
+            abort_if($x, 403, 'This account is not a member.');
+            abort_unless($y, 404, "Nothing to see {$here} today.");
+            PHP;
+
+        $safe = <<<'PHP'
+            <?php
+            abort(403, __('rules.members.cannot_invite'));
+            abort_if($x, 403, __('rules.members.no_workspace'));
+            abort_unless($y, 404);
+            PHP;
+
+        $this->assertSame(
+            ['abort', 'abort_if', 'abort_unless'],
+            array_column($this->sinkHitsIn($offending), 'sink'),
+        );
+        $this->assertSame([], $this->sinkHitsIn($safe));
     }
 
     /**
@@ -390,6 +419,17 @@ class ArchitectureTest extends TestCase
                     && isset($node->args[1])
                     && $node->args[1] instanceof Node\Arg) {
                     $this->collect($node->args[1]->value, 'abort', $node->getStartLine());
+                }
+
+                // abort_if($condiție, $cod, <literal>) / abort_unless(...) — mesajul e al TREILEA
+                // argument. Scăpat până la auditul din 2026-09-23: `DashboardController` avea un
+                // literal englez pe calea 403, randat ca atare de pagina de eroare temată.
+                if ($node instanceof Node\Expr\FuncCall
+                    && $node->name instanceof Node\Name
+                    && in_array($node->name->toString(), ['abort_if', 'abort_unless'], true)
+                    && isset($node->args[2])
+                    && $node->args[2] instanceof Node\Arg) {
+                    $this->collect($node->args[2]->value, $node->name->toString(), $node->getStartLine());
                 }
 
                 // public function messages()/attributes(): array { return ['regulă' => <literal>]; }
@@ -973,8 +1013,45 @@ class ArchitectureTest extends TestCase
             /** @var list<array{line: int, text: string}> */
             public array $found = [];
 
+            /**
+             * Aliasuri „ofensatoare" pe domeniu de funcție: `$msg = $e->getMessage();` urmat
+             * de `'error_message' => $msg` în ACEEAȘI metodă/closure. Stivă, nu hartă globală:
+             * o variabilă cu același nume din altă metodă nu are nicio legătură.
+             *
+             * @var list<array<string, string>>
+             */
+            private array $scopes = [[]];
+
+            public function leaveNode(Node $node)
+            {
+                if ($this->opensScope($node)) {
+                    array_pop($this->scopes);
+                }
+
+                return null;
+            }
+
             public function enterNode(Node $node)
             {
+                if ($this->opensScope($node)) {
+                    $this->scopes[] = [];
+                }
+
+                // $alias = <valoare> — ținut minte cât timp valoarea e ofensatoare; o
+                // reasignare sigură (ex. `JobErrorMessage::encode(...)`) îl șterge.
+                if ($node instanceof Node\Expr\Assign
+                    && $node->var instanceof Node\Expr\Variable
+                    && is_string($node->var->name)) {
+                    $description = $this->forbiddenDescription($node->expr);
+                    $top = array_key_last($this->scopes);
+
+                    if ($description !== null) {
+                        $this->scopes[$top][$node->var->name] = $description;
+                    } else {
+                        unset($this->scopes[$top][$node->var->name]);
+                    }
+                }
+
                 // ['error_message' => <valoare>] — acoperă update([...]), create([...]),
                 // forceFill([...]), indiferent de metoda care primește array-ul: garda nu se
                 // uită la NUMELE apelului, ci la orice literal de array cu cheia asta.
@@ -1023,6 +1100,19 @@ class ArchitectureTest extends TestCase
                     return sprintf("literal '%s'", $value->value);
                 }
 
+                // Audit 2026-09-23: text lipit din bucăți e tot text brut, oricare ar fi bucățile.
+                if ($value instanceof Node\Scalar\InterpolatedString || $value instanceof Node\Expr\BinaryOp\Concat) {
+                    return 'text concatenat/interpolat';
+                }
+
+                if ($value instanceof Node\Expr\Variable && is_string($value->name)) {
+                    $aliases = $this->scopes[array_key_last($this->scopes)];
+
+                    return isset($aliases[$value->name])
+                        ? sprintf('$%s (= %s)', $value->name, $aliases[$value->name])
+                        : null;
+                }
+
                 if ($value instanceof Node\Expr\Ternary) {
                     // Elvis (`$a ?: $b`): `if` e null, ramura „adevărată" e chiar `cond`.
                     $truthy = $value->if ?? $value->cond;
@@ -1034,7 +1124,64 @@ class ArchitectureTest extends TestCase
                     return $this->forbiddenDescription($value->left) ?? $this->forbiddenDescription($value->right);
                 }
 
+                // `__()`/`trans()` la SCRIERE îngheață limba workerului în coloană — exact bug-ul
+                // I18N-03; `sprintf()` produce text brut.
+                if ($value instanceof Node\Expr\FuncCall
+                    && $value->name instanceof Node\Name
+                    && in_array(strtolower($value->name->toString()), ['__', 'trans', 'trans_choice', 'sprintf', 'vsprintf'], true)) {
+                    return $value->name->toString().'() — text gata format la scriere';
+                }
+
+                // `JobErrorMessage::encode(...)` e forma sancționată, cu tot cu parametrii ei
+                // (motivul brut al unui furnizor intră ca parametru, deliberat).
+                if ($value instanceof Node\Expr\StaticCall
+                    && $value->class instanceof Node\Name
+                    && str_ends_with($value->class->toString(), 'JobErrorMessage')
+                    && $value->name instanceof Node\Identifier
+                    && $value->name->toString() === 'encode') {
+                    return null;
+                }
+
+                // Orice alt apel care ÎNVELEȘTE un mesaj brut (`Str::limit($e->getMessage())`,
+                // `mb_substr($msg, …)`) — argumentele-cheie literale ale unui helper nu contează.
+                if ($value instanceof Node\Expr\CallLike && ! $value->isFirstClassCallable()) {
+                    foreach ($value->getArgs() as $argument) {
+                        $inner = $this->rawMessageInside($argument->value);
+
+                        if ($inner !== null) {
+                            return sprintf('apel care învelește %s', $inner);
+                        }
+                    }
+                }
+
                 return null;
+            }
+
+            /** Un `->getMessage()` sau un alias ofensator oriunde în subarbore. */
+            private function rawMessageInside(Node $node): ?string
+            {
+                $aliases = $this->scopes[array_key_last($this->scopes)];
+
+                $hit = (new NodeFinder)->findFirst($node, fn (Node $candidate): bool => ($candidate instanceof Node\Expr\MethodCall
+                        && $candidate->name instanceof Node\Identifier
+                        && $candidate->name->toString() === 'getMessage')
+                    || ($candidate instanceof Node\Expr\Variable
+                        && is_string($candidate->name)
+                        && isset($aliases[$candidate->name])));
+
+                if ($hit === null) {
+                    return null;
+                }
+
+                return $hit instanceof Node\Expr\Variable ? '$'.$hit->name : '->getMessage()';
+            }
+
+            private function opensScope(Node $node): bool
+            {
+                return $node instanceof Node\Stmt\ClassMethod
+                    || $node instanceof Node\Stmt\Function_
+                    || $node instanceof Node\Expr\Closure
+                    || $node instanceof Node\Expr\ArrowFunction;
             }
         };
 
@@ -1079,6 +1226,37 @@ class ArchitectureTest extends TestCase
                             : JobErrorMessage::encode('job_errors.x'),
                     ]);
                 }
+
+                public function oneBadSideOfACoalesce(): void
+                {
+                    $shipment->update(['error_message' => $e->getMessage() ?? null]);
+                }
+
+                public function interpolatedText(): void
+                {
+                    $shipment->update(['error_message' => "Failed: {$e->getMessage()}"]);
+                }
+
+                public function concatenatedText(): void
+                {
+                    $shipment->update(['error_message' => 'Failed for '.$reason]);
+                }
+
+                public function wrappedRawMessage(): void
+                {
+                    $shipment->update(['error_message' => Str::limit($e->getMessage(), 200)]);
+                }
+
+                public function translatedAtWriteTime(): void
+                {
+                    $shipment->update(['error_message' => __('job_errors.x')]);
+                }
+
+                public function aliasedRawMessage(): void
+                {
+                    $message = $e->getMessage();
+                    $shipment->update(['error_message' => $message]);
+                }
             }
             PHP;
 
@@ -1110,13 +1288,43 @@ class ArchitectureTest extends TestCase
                 {
                     $shipment->update(['message' => $e->getMessage()]);
                 }
+
+                public function rawReasonAsAnEncodedParameterIsFine(): void
+                {
+                    $shipment->update([
+                        'error_message' => JobErrorMessage::encode('job_errors.shipment.carrier_rejected', ['reason' => $e->getMessage()]),
+                    ]);
+                }
+
+                public function reassignedAliasIsFine(): void
+                {
+                    $message = $e->getMessage();
+                    $message = JobErrorMessage::encode('job_errors.x');
+                    $shipment->update(['error_message' => $message]);
+                }
+
+                public function rawMessageOnlyLogged(): void
+                {
+                    $message = $e->getMessage();
+                    Log::warning($message);
+                }
+
+                public function sameNameInAnotherMethodIsUnrelated(): void
+                {
+                    $shipment->update(['error_message' => $message]);
+                }
+
+                public function helperWithAKeyArgumentIsFine(): void
+                {
+                    $shipment->update(['error_message' => $this->encodedFailure('job_errors.x')]);
+                }
             }
             PHP;
 
         $offendingHits = $this->errorMessageSinkHitsIn($offending);
-        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat toate cele trei forme ofensatoare (atribuire directă, literal în update(), o ramură rea a unui ternar) — garda ar fi verde din greșeală.');
+        $this->assertCount(9, $offendingHits, 'Detectorul n-a semnalat toate cele nouă forme ofensatoare (atribuire directă, literal, ternar, coalesce, interpolare, concatenare, înveliș, __() la scriere, alias) — garda ar fi verde din greșeală.');
 
-        $this->assertSame([], $this->errorMessageSinkHitsIn($safe), 'Detectorul a semnalat fals-pozitiv o valoare permisă (cheie codificată, null, proprietate pass-through) sau a ieșit din sink-ul `error_message` propriu-zis.');
+        $this->assertSame([], $this->errorMessageSinkHitsIn($safe), 'Detectorul a semnalat fals-pozitiv o valoare permisă (cheie codificată, cu sau fără parametru brut, null, pass-through, alias reasignat sau din altă metodă, helper cu argument-cheie) sau a ieșit din sink-ul `error_message` propriu-zis.');
     }
 
     /**
@@ -1301,6 +1509,25 @@ class ArchitectureTest extends TestCase
                     return '<interpolat> '.$this->flatten($value);
                 }
 
+                // Audit 2026-09-23 — o singură ramură literală e suficientă ca textul brut să
+                // ajungă la utilizator; `sprintf('literal %s', …)` e tot un literal.
+                if ($value instanceof Node\Expr\Ternary) {
+                    return $this->literalTextIn($value->if ?? $value->cond) ?? $this->literalTextIn($value->else);
+                }
+
+                if ($value instanceof Node\Expr\BinaryOp\Coalesce) {
+                    return $this->literalTextIn($value->left) ?? $this->literalTextIn($value->right);
+                }
+
+                if ($value instanceof Node\Expr\FuncCall
+                    && $value->name instanceof Node\Name
+                    && in_array(strtolower($value->name->toString()), ['sprintf', 'vsprintf'], true)
+                    && isset($value->args[0])
+                    && $value->args[0] instanceof Node\Arg
+                    && $value->args[0]->value instanceof Node\Scalar\String_) {
+                    return '<sprintf> '.$value->args[0]->value->value;
+                }
+
                 return null;
             }
 
@@ -1363,6 +1590,16 @@ class ArchitectureTest extends TestCase
                 {
                     throw new HttpException(422, "Unknown format {$format}.");
                 }
+
+                public function oneLiteralBranchOfATernary(): void
+                {
+                    throw new HttpException(422, $known ? __('exports.errors.unknown_format') : 'Unknown format.');
+                }
+
+                public function sprintfWithALiteralTemplate(): void
+                {
+                    throw new HttpException(422, sprintf('Unknown format %s.', $format));
+                }
             }
             PHP;
 
@@ -1392,7 +1629,7 @@ class ArchitectureTest extends TestCase
             PHP;
 
         $offendingHits = $this->newExceptionLiteralHitsIn($offending);
-        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat toate cele trei forme ofensatoare (literal direct, formă complet calificată, interpolare) — garda ar fi verde din greșeală.');
+        $this->assertCount(5, $offendingHits, 'Detectorul n-a semnalat toate cele cinci forme ofensatoare (literal direct, formă complet calificată, interpolare, ramură literală de ternar, sprintf cu șablon literal) — garda ar fi verde din greșeală.');
 
         $this->assertSame([], $this->newExceptionLiteralHitsIn($safe), 'Detectorul a semnalat fals-pozitiv un mesaj tradus (__()), o clasă din afara familiei vizibile, sau un array de headere ca argument.');
     }
