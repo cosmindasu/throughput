@@ -213,7 +213,11 @@ test('o comandă parcurge draft → confirmed → partially_fulfilled → fulfil
     expect(afterPayment.invoice.balanceDue).toBe(0);
 
     // Bucla se închide pe comandă: secțiunea de facturare nu mai oferă „Create Invoice",
-    // ci linkul către factura existentă, cu starea ei (BR-ORD-05 — o comandă, o factură).
+    // ci linkul către factura existentă, cu starea ei. Constrângerea „o factură per comandă"
+    // e o relație 1:1 în MVP, documentată în specs.md §19 (`invoices.order_id`) — NU o regulă
+    // de business numerotată: familia BR-ORD se oprește la 03. Comentariul de aici a citat
+    // până la 2026-09-22 un identificator inexistent din acea familie; înlocuit cu trimiterea
+    // la schemă, singurul loc care chiar documentează constrângerea.
     await page.goto(orderUrl);
     await expect(billing.getByRole('button', { name: 'Create Invoice' })).toHaveCount(0);
     await expect(billing.getByRole('link', { name: afterPayment.invoice.invoiceNumber! })).toBeVisible();

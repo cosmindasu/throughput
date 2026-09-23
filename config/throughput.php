@@ -168,6 +168,14 @@ return [
         // și estimarea de progres (`BulkOperationResource`) trebuie să vadă aceeași valoare.
         'bulk_chunk_size' => (int) env('BULK_CHUNK_SIZE', 500),
 
+        // BR-BILL-02 — câte facturi încarcă odată `App\Jobs\System\MarkOverdueInvoicesJob`
+        // la trecerea `sent -> overdue`. Nu e reglabil pe mediu pentru performanță (500 e
+        // aceeași mărime ca vecinii de mai sus și nimeni n-are motiv s-o schimbe în
+        // producție), ci ca să poată fi coborât într-un test: fără asta, dovada că ITERAREA
+        // pe tranșe nu sare rânduri ar cere 501 comenzi reale per rulare. Cu pragul la 2 și
+        // trei facturi, aceeași garanție costă trei comenzi.
+        'overdue_chunk_size' => (int) env('OVERDUE_CHUNK_SIZE', 500),
+
         // §13.2 (code review, fix operațional) — o operație de SCRIERE rămasă `pending`/
         // `running` FĂRĂ `batch_id` mai mult decât atât e considerată blocată (procesul a
         // murit exact între `Bus::batch()->dispatch()` și scrierea `batch_id`) —

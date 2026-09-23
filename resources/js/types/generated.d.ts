@@ -1502,7 +1502,7 @@ export interface ApiTokensIndexPageProps {
     // US-API-01 — valoarea în clar există EXACT o dată, imediat după creare, ca flash de
     // sesiune. Nu e persistată nicăieri: în bază stă doar hash-ul.
     plainTextToken: string | null;
-    can: { create: boolean; revoke: boolean };
+    can: { create: boolean; revoke: boolean; revokeAll: boolean };
     [key: string]: unknown;
 }
 

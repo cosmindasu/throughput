@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
@@ -195,6 +196,43 @@ class ApiToken extends Model
             ->delete();
 
         $this->forceFill(['revoked_at' => now()])->save();
+    }
+
+    /**
+     * Revocarea ÎN MASĂ (§22.2, „Revocarea în masă a tuturor jetoanelor API") — toate
+     * jetoanele ÎNCĂ ne-revocate ale tenantului CURENT (scopate automat de
+     * `BelongsToTenant`/RLS, ca orice altă interogare pe acest model). Simetrică cu
+     * `revoke()`: rândul `api_tokens` rămâne pentru fiecare jeton atins (istoric), doar
+     * rândul Sanctum dispare.
+     *
+     * `whereNull('revoked_at')` filtrează jetoanele deja revocate ÎNAINTE de a le atinge —
+     * nu doar în efect: a doua apelare, pe un tenant deja golit, nu trebuie să
+     * suprascrie un `revoked_at` mai vechi cu `now()`. Idempotența e literală, nu doar
+     * „fără eroare".
+     *
+     * @return int numărul de jetoane revocate acum (0 dacă nu era nimic de revocat)
+     */
+    public static function revokeAllUsable(): int
+    {
+        return DB::transaction(function (): int {
+            $tokens = self::query()->whereNull('revoked_at')->get(['id', 'token_hash']);
+
+            if ($tokens->isEmpty()) {
+                return 0;
+            }
+
+            $personalAccessToken = Sanctum::personalAccessTokenModel();
+
+            $personalAccessToken::query()
+                ->whereIn('token', $tokens->pluck('token_hash'))
+                ->delete();
+
+            self::query()
+                ->whereIn('id', $tokens->pluck('id'))
+                ->update(['revoked_at' => now()]);
+
+            return $tokens->count();
+        });
     }
 
     public function isRevoked(): bool

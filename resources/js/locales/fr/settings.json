@@ -180,6 +180,14 @@
             "title": "Révoquer ce jeton ?",
             "confirm": "Révoquer",
             "body": "Toute intégration utilisant encore <strong>{{name}}</strong> cesse de fonctionner immédiatement. Cette action est irréversible — émettez plutôt un nouveau jeton."
+        },
+        "revokeAllButton": "Tout révoquer ({{count}})",
+        "revokeAllDialog": {
+            "title": "Révoquer tous les jetons API ?",
+            "confirm": "Tout révoquer",
+            "body_one": "Cela révoque <strong>{{count}}</strong> jeton API immédiatement. Toute intégration qui l’utilise encore cesse de fonctionner. Cette action est irréversible — émettez de nouveaux jetons à la place.",
+            "body_many": "Cela révoque <strong>{{count}}</strong> de jetons API immédiatement. Toute intégration qui les utilise encore cesse de fonctionner. Cette action est irréversible — émettez de nouveaux jetons à la place.",
+            "body_other": "Cela révoque <strong>{{count}}</strong> jetons API immédiatement. Toute intégration qui les utilise encore cesse de fonctionner. Cette action est irréversible — émettez de nouveaux jetons à la place."
         }
     },
     "billing": {

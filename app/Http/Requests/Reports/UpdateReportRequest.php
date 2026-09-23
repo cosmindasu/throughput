@@ -6,7 +6,6 @@ use App\Enums\ReportFormat;
 use App\Models\ReportDefinition;
 use App\Models\SavedView;
 use App\Support\Exports\ExportableResources;
-use App\Support\SavedViews\SavedViewResourceType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -80,8 +79,7 @@ final class UpdateReportRequest extends FormRequest
                 return;
             }
 
-            if (! array_key_exists($savedView->resource_type, ExportableResources::map())
-                || ! SavedViewResourceType::isSupported($savedView->resource_type)) {
+            if (! array_key_exists($savedView->resource_type, ExportableResources::map())) {
                 $validator->errors()->add(
                     'saved_view_id',
                     __('rules.reports.saved_view_unsupported_type', ['type' => $savedView->resource_type]),

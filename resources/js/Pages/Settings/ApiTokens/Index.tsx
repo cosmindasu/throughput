@@ -202,17 +202,40 @@ export default function ApiTokensIndex() {
     const { t } = useTranslation('settings');
     const locale = useLocale();
     const [pendingRevoke, setPendingRevoke] = useState<ApiTokenRow | null>(null);
+    const [revokeAllOpen, setRevokeAllOpen] = useState(false);
     const revokeForm = useForm({});
+    // Formă SEPARATĂ de `revokeForm` (nu partajată): sunt două dialoguri de confirmare
+    // distincte, care pot fi deschise pe rând — `processing` al unuia nu are voie să
+    // "împrumute" starea celuilalt buton.
+    const revokeAllForm = useForm({});
     // Segmentul de workspace se pune explicit în URL, ca pe toate ecranele cu
     // `{workspace}` în cale (ADR-002) — `URL::defaults` îl propagă doar server-side.
     const baseUrl = `/${workspace?.slug ?? ''}/settings/api-tokens`;
+    // Cât revocă butonul „Revoke all" — DERIVAT din `tokens`, nu un prop separat: e
+    // exact filtrul pe care fiecare rând îl folosește deja pentru butonul lui individual
+    // (`token.status !== 'revoked'`), deci nu poate diverge de ce vede utilizatorul.
+    const revocableCount = tokens.filter((token) => token.status !== 'revoked').length;
 
     return (
         <>
             <Head title={t('settings:apiTokens.title')} />
 
             <div className="flex flex-col gap-6">
-                <PageHeader title={t('settings:apiTokens.title')} description={t('settings:apiTokens.description')} />
+                <PageHeader
+                    title={t('settings:apiTokens.title')}
+                    description={t('settings:apiTokens.description')}
+                    actions={
+                        // FR-RBAC-01 — absent, nu ascuns/dezactivat, pentru orice combinație de
+                        // rol insuficient SAU DEMO_MODE activ (`can.revokeAll` acoperă pe amândouă,
+                        // `ApiTokenController::index()`). Ascuns și când nu e nimic de revocat —
+                        // un buton „Revoke all (0)" n-ar face nimic util.
+                        can.revokeAll && revocableCount > 0 ? (
+                            <Button variant="danger" onClick={() => setRevokeAllOpen(true)}>
+                                {t('settings:apiTokens.revokeAllButton', { count: revocableCount })}
+                            </Button>
+                        ) : undefined
+                    }
+                />
 
                 {plainTextToken && <NewTokenNotice token={plainTextToken} />}
 
@@ -305,6 +328,31 @@ export default function ApiTokensIndex() {
                         t={t}
                         i18nKey="settings:apiTokens.revokeDialog.body"
                         values={{ name: pendingRevoke?.name ?? '' }}
+                        components={{ strong: <strong className="text-text" /> }}
+                    />
+                </p>
+            </ConfirmDialog>
+
+            <ConfirmDialog
+                open={revokeAllOpen}
+                title={t('settings:apiTokens.revokeAllDialog.title')}
+                confirmLabel={t('settings:apiTokens.revokeAllDialog.confirm')}
+                confirmVariant="danger"
+                processing={revokeAllForm.processing}
+                onClose={() => setRevokeAllOpen(false)}
+                onConfirm={() => {
+                    revokeAllForm.delete(baseUrl, {
+                        preserveScroll: true,
+                        onSuccess: () => setRevokeAllOpen(false),
+                    });
+                }}
+            >
+                <p className="text-sm text-text-2">
+                    <Trans
+                        t={t}
+                        i18nKey="settings:apiTokens.revokeAllDialog.body"
+                        count={revocableCount}
+                        values={{ count: revocableCount }}
                         components={{ strong: <strong className="text-text" /> }}
                     />
                 </p>

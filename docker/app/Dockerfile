@@ -13,6 +13,16 @@ RUN apk add --no-cache \
         bash \
         libpq \
         icu-libs \
+        # `icu-libs` e DOAR biblioteca; datele de locale stau separat, în `icu-data-full`.
+        # Fără el, ICU rămâne cu bundle-ul stub (4 locale: root + en*), iar `NumberFormatter`
+        # cade TĂCUT pe locale-ul root pentru orice altceva — `fr` formatează `1,234.50` în loc
+        # de `1 234,50`. Nu dă eroare, nu dă warning: dă cifre englezești într-o interfață
+        # franceză, în PDF-uri, exporturi, e-mailuri și mesaje de validare (FR-I18N-03).
+        # CI-ul nu putea prinde asta — `shivammathur/setup-php` vine cu ICU complet, deci
+        # suita e verde pe un runtime pe care imaginea NU îl reproducea. Măsurat la 2026-09-22:
+        # 4 locale înainte, 906 după. Costă ~30 MB pe imagine; alternativa e franceza ruptă în
+        # producție, în tăcere.
+        icu-data-full \
         libzip \
         libpng \
         libjpeg-turbo \

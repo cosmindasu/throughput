@@ -2,6 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Models\BulkOperationChunk;
+use App\Models\IdempotencyKey;
+use App\Models\SavedViewDefault;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Model;
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
@@ -9,6 +14,7 @@ use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionClass;
 use SplFileInfo;
 
 /**
@@ -172,6 +178,125 @@ class ArchitectureTest extends TestCase
             .'Fiecare linie de mai jos dă fișierul, linia, sink-ul și textul — repară de acolo:'."\n"
             .implode("\n", $offenders),
         );
+    }
+
+    /**
+     * BR-DATA-01 — entitățile expuse prin API/URL folosesc ULID ca cheie primară, niciodată
+     * auto-increment (enumerare de ID-uri secvențiale, OWASP API3:2023). `HasUlids` singur nu
+     * e suficient de verificat prin `grep` („folosește trait-ul undeva în fișier" ar trece și
+     * pe un model care îl importă dar nu îl pune în `use`) — verificarea corectă e prin
+     * reflecție, pe instanța reală a modelului: trait-ul chiar prezent în `class_uses_recursive()`,
+     * și cele două metode pe care Eloquent le consultă efectiv la INSERT/route-binding,
+     * `getIncrementing()`/`getKeyType()` — `HasUniqueStringIds::getIncrementing()`/`getKeyType()`
+     * le suprascriu condiționat, pe `uniqueIds()`, deci un model care redefinește
+     * `getKeyName()` fără să-l adauge la `uniqueIds()` ar avea trait-ul „folosit" în cod, dar
+     * comportamentul tot pe auto-increment.
+     *
+     * Lista de modele vine din `app/Models/*.php` (neredundant cu Scopes/, care nu extinde
+     * `Model`), MINUS o listă albă explicită — `modelsNeverExposedThroughAUrl()` — nu o listă
+     * neagră: un model NOU nu e verificat „din greșeală mai puțin", ci implicit VERIFICAT,
+     * până când cineva adaugă o excludere motivată.
+     */
+    public function test_url_and_api_exposed_models_use_ulid_primary_keys(): void
+    {
+        $modelClasses = $this->modelClasses();
+
+        // Gardă anti-„vacuous truth": dacă scanarea directorului s-ar rupe (cale greșită,
+        // model mutat), bucla de mai jos ar trece verde fără să verifice nimic.
+        $this->assertGreaterThan(25, count($modelClasses), 'app/Models/ pare incomplet scanat — verifică calea.');
+
+        $offenders = [];
+
+        foreach ($modelClasses as $class) {
+            if (in_array($class, $this->modelsNeverExposedThroughAUrl(), true)) {
+                continue;
+            }
+
+            $model = new $class;
+
+            $usesHasUlids = in_array(HasUlids::class, class_uses_recursive($class), true);
+            $incrementing = $model->getIncrementing();
+            $keyType = $model->getKeyType();
+
+            if (! $usesHasUlids || $incrementing !== false || $keyType !== 'string') {
+                $offenders[] = sprintf(
+                    '%s (HasUlids=%s, incrementing=%s, keyType=%s)',
+                    $class,
+                    $usesHasUlids ? 'da' : 'NU',
+                    $incrementing ? 'true' : 'false',
+                    $keyType,
+                );
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "Model expus prin rută/API fără cheie primară ULID (BR-DATA-01):\n".implode("\n", $offenders),
+        );
+    }
+
+    /**
+     * Listă ALBĂ, motivată individual — fiecare intrare verificată prin grep pe `app/`
+     * (2026-09-22), nu presupusă. Niciuna nu e un pivot Eloquent sau o tabelă de framework —
+     * proiectul n-are pivoturi de tip `Pivot` printre modelele lui — ci trei modele interne a
+     * căror cheie primară proprie nu ajunge NICIODATĂ într-un răspuns HTTP:
+     *
+     * - `IdempotencyKey` — adresat exclusiv prin coloana `key` (header-ul clientului,
+     *   `RequireIdempotencyKey`); `$existing->id`/`->getKey()` nu apare în niciun răspuns —
+     *   corpul memorat e cel al ENDPOINT-ULUI original (ex. `id`-ul comenzii), nu al rândului
+     *   de idempotență.
+     * - `SavedViewDefault` — `SavedViewController` întoarce `saved_view_id` (FK către
+     *   `SavedView`, alt model, deja verificat separat), niciodată `$default->id`/`->getKey()`
+     *   propriu.
+     * - `BulkOperationChunk` — bookkeeping intern per-chunk (`ProcessBulkChunkJob`,
+     *   `BulkChunkAction`); `BulkOperationResource` expune `id`-ul lui `BulkOperation` (rândul
+     *   PĂRINTE), niciun `Resource` sau răspuns JSON din `app/Http/` nu atinge un chunk.
+     *
+     * O interogare/`Resource` nouă care serializează `id`-ul unuia din aceste modele trebuie
+     * să-l scoată din listă, nu să extindă excepția tăcut.
+     *
+     * @return list<class-string<Model>>
+     */
+    private function modelsNeverExposedThroughAUrl(): array
+    {
+        return [
+            IdempotencyKey::class,
+            SavedViewDefault::class,
+            BulkOperationChunk::class,
+        ];
+    }
+
+    /**
+     * Toate clasele Eloquent direct în `app/Models/` (neredundant, nerecursiv — `Scopes/` nu
+     * conține modele). `glob()`, nu `phpFilesIn()` de mai jos: acela e recursiv prin design,
+     * pentru verificările pe tot `app/`, și ar coborî și în `Scopes/`.
+     *
+     * @return list<class-string<Model>>
+     */
+    private function modelClasses(): array
+    {
+        $classes = [];
+
+        foreach (glob(__DIR__.'/../../app/Models/*.php') ?: [] as $file) {
+            $class = 'App\\Models\\'.basename($file, '.php');
+
+            if (! class_exists($class)) {
+                continue;
+            }
+
+            $reflection = new ReflectionClass($class);
+
+            if ($reflection->isAbstract() || ! $reflection->isSubclassOf(Model::class)) {
+                continue;
+            }
+
+            $classes[] = $class;
+        }
+
+        sort($classes);
+
+        return $classes;
     }
 
     /**

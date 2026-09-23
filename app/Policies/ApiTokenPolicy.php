@@ -47,4 +47,16 @@ class ApiTokenPolicy
     {
         return $user->can('api_tokens.revoke');
     }
+
+    /**
+     * Revocarea ÎN MASĂ (§22.2, „Revocarea în masă a tuturor jetoanelor API", decizia
+     * proprietarului din 2026-09-22: butonul se construiește). Aceeași permisiune ca
+     * `revoke()` de mai sus — FR-API-02 nu distinge „un jeton" de „toate jetoanele", iar
+     * matricea §7.4 nu are un rând separat pentru varianta în masă. Fără instanță de
+     * model: acțiunea nu privește UN jeton anume, ci toate ale workspace-ului curent.
+     */
+    public function revokeAll(User $user): bool
+    {
+        return $user->can('api_tokens.revoke');
+    }
 }

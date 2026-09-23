@@ -175,6 +175,13 @@
             "title": "Revoke this token?",
             "confirm": "Revoke",
             "body": "Any integration still using <strong>{{name}}</strong> stops working immediately. This cannot be undone — issue a new token instead."
+        },
+        "revokeAllButton": "Revoke all ({{count}})",
+        "revokeAllDialog": {
+            "title": "Revoke all API tokens?",
+            "confirm": "Revoke all",
+            "body_one": "This revokes <strong>{{count}}</strong> API token immediately. Any integration still using it stops working. This cannot be undone — issue new tokens instead.",
+            "body_other": "This revokes <strong>{{count}}</strong> API tokens immediately. Any integration still using them stops working. This cannot be undone — issue new tokens instead."
         }
     },
     "billing": {

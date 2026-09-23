@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\ApiTokenResource;
 use App\Models\ApiToken;
+use App\Support\DemoMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -58,6 +59,13 @@ final class ApiTokenController extends Controller
                 // permisiune, fiindcă `ApiTokenPolicy::revoke()` nu îngustează pe rând
                 // (un jeton e al workspace-ului, nu al celui care l-a emis).
                 'revoke' => $request->user()->can('api_tokens.revoke'),
+                // §22.2 — acțiunea distinctă „revocare în masă". Aceeași permisiune ca
+                // `revoke` de mai sus, ȘI oprită în DEMO_MODE (`DemoMode::allows()`):
+                // afordanța dispare din interfață, la fel ca `members.canDeactivate`
+                // (`MembersController`) — al doilea strat e `EnsureDemoModeGuardrails`,
+                // global, pe numele rutei.
+                'revokeAll' => $request->user()->can('revokeAll', ApiToken::class)
+                    && DemoMode::allows('api-tokens.revoke-all'),
             ],
         ]);
     }
@@ -114,5 +122,25 @@ final class ApiTokenController extends Controller
         return redirect()
             ->route('settings.api-tokens.index')
             ->with('success', __('flash.api_tokens.revoked'));
+    }
+
+    /**
+     * §22.2, „Revocarea în masă a tuturor jetoanelor API" — decizia proprietarului
+     * (2026-09-22). `EnsureDemoModeGuardrails` (global) oprește ruta cât `DEMO_MODE=true`,
+     * pe numele ei (`settings.api-tokens.destroy-all`, în
+     * `App\Support\DemoMode::GUARDED_ACTIONS`); autorizarea de aici e al doilea strat,
+     * independent de DEMO_MODE.
+     */
+    public function destroyAll(): RedirectResponse
+    {
+        $this->authorize('revokeAll', ApiToken::class);
+
+        $revoked = ApiToken::revokeAllUsable();
+
+        return redirect()
+            ->route('settings.api-tokens.index')
+            ->with('success', $revoked > 0
+                ? trans_choice('flash.api_tokens.revoked_all', $revoked, ['count' => $revoked])
+                : __('flash.api_tokens.revoked_all_none'));
     }
 }

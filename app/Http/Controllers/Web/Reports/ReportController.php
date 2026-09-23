@@ -18,7 +18,6 @@ use App\Support\Exports\ExportableResources;
 use App\Support\Permissions;
 use App\Support\Reports\BuiltInReports;
 use App\Support\Reports\ReportRecipients;
-use App\Support\SavedViews\SavedViewResourceType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -212,10 +211,8 @@ final class ReportController extends Controller
      */
     private function eligibleSavedViews(User $user): Collection
     {
-        $exportableTypes = array_keys(ExportableResources::map());
-
         return SavedView::query()
-            ->whereIn('resource_type', array_values(array_filter($exportableTypes, SavedViewResourceType::isSupported(...))))
+            ->whereIn('resource_type', array_keys(ExportableResources::map()))
             ->where(fn ($query) => $query
                 ->where('user_id', $user->getKey())
                 ->orWhere('visibility', SavedView::VISIBILITY_TEAM))

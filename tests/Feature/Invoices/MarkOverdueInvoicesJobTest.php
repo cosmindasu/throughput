@@ -4,6 +4,7 @@ namespace Tests\Feature\Invoices;
 
 use App\Jobs\System\MarkOverdueInvoicesJob;
 use App\Models\Account;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
@@ -77,9 +78,34 @@ class MarkOverdueInvoicesJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         (new MarkOverdueInvoicesJob)->handle();
+        $this->drainDefaultQueue();
 
         $fresh = TenantContext::run($this->marlin, fn () => $invoice->fresh());
         $this->assertSame(Invoice::STATUS_OVERDUE, $fresh->status);
+
+        // BR-BILL-02 — „tranziția e vizibilă în activity_log cu user_id = null (acțiune
+        // de sistem)". Regresie directă pentru bug-ul găsit: un UPDATE în masă prin query
+        // builder nu declanșa evenimentele Eloquent, deci acest rând nu se scria niciodată.
+        //
+        // Filtrat pe `new_values->status`, NU doar pe `action = 'updated'`: fixtura de mai
+        // sus face ȘI un `$invoice->update(['due_date' => ...])` înainte de job (ca să
+        // devină eligibilă), ceea ce scrie propriul rând de jurnal, cu `due_date` în diff
+        // și fără cheia `status` (observer-ul înregistrează DOAR câmpurile schimbate,
+        // §17.1) — un `sole()` nefiltrat pe `status` ar găsi 2 rânduri și ar arunca
+        // `MultipleRecordsFoundException`, greșit acuzând jobul de duplicare.
+        $log = TenantContext::run(
+            $this->marlin,
+            fn () => ActivityLog::query()
+                ->where('auditable_type', Invoice::class)
+                ->where('auditable_id', $invoice->getKey())
+                ->where('action', 'updated')
+                ->where('new_values->status', Invoice::STATUS_OVERDUE)
+                ->sole(),
+        );
+
+        $this->assertNull($log->user_id, 'Tranziția automată trebuie atribuită sistemului, nu unui utilizator.');
+        $this->assertSame(Invoice::STATUS_SENT, $log->old_values['status']);
+        $this->assertSame(Invoice::STATUS_OVERDUE, $log->new_values['status']);
     }
 
     public function test_leaves_a_sent_invoice_alone_while_its_due_date_is_still_ahead(): void
@@ -92,8 +118,22 @@ class MarkOverdueInvoicesJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         (new MarkOverdueInvoicesJob)->handle();
+        $this->drainDefaultQueue();
 
         $this->assertSame(Invoice::STATUS_SENT, TenantContext::run($this->marlin, fn () => $invoice->fresh()->status));
+
+        // O factură NEATINSĂ de job nu capătă niciun rând de jurnal PENTRU O TRANZIȚIE —
+        // filtrat pe `action = 'updated'`, nu pe total: crearea facturii (`sentInvoice`)
+        // scrie deja, legitim, propriul rând `created`, neatins de bug-ul verificat aici.
+        $count = TenantContext::run(
+            $this->marlin,
+            fn () => ActivityLog::query()
+                ->where('auditable_type', Invoice::class)
+                ->where('auditable_id', $invoice->getKey())
+                ->where('action', 'updated')
+                ->count(),
+        );
+        $this->assertSame(0, $count, 'O factură neatinsă de job nu trebuie să apară cu niciun rând `updated` în activity_log.');
     }
 
     public function test_leaves_a_fully_paid_invoice_alone_even_past_its_due_date(): void
@@ -166,12 +206,54 @@ class MarkOverdueInvoicesJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         (new MarkOverdueInvoicesJob)->handle();
+        $this->drainDefaultQueue();
 
         $this->assertSame(Invoice::STATUS_OVERDUE, TenantContext::run($this->marlin, fn () => $marlinInvoice->fresh()->status));
         $this->assertSame(Invoice::STATUS_OVERDUE, TenantContext::run($this->cascade, fn () => $cascadeInvoice->fresh()->status));
 
         // Contextul nu rămâne legat de ultimul tenant din buclă (ADR-014).
         $this->assertNull(TenantScope::currentTenantId());
+
+        // Fiecare rând de jurnal aparține tenantului lui, sub RLS — nu doar starea
+        // facturii, ci și scrierea în activity_log respectă izolarea de tenant. Filtrat pe
+        // `new_values->status` — vezi nota din primul test: fixtura mai face ȘI un
+        // `update(['due_date' => ...])` înainte de job, care scrie propriul rând.
+        $marlinLog = TenantContext::run(
+            $this->marlin,
+            fn () => ActivityLog::query()
+                ->where('auditable_type', Invoice::class)
+                ->where('auditable_id', $marlinInvoice->getKey())
+                ->where('action', 'updated')
+                ->where('new_values->status', Invoice::STATUS_OVERDUE)
+                ->sole(),
+        );
+        $cascadeLog = TenantContext::run(
+            $this->cascade,
+            fn () => ActivityLog::query()
+                ->where('auditable_type', Invoice::class)
+                ->where('auditable_id', $cascadeInvoice->getKey())
+                ->where('action', 'updated')
+                ->where('new_values->status', Invoice::STATUS_OVERDUE)
+                ->sole(),
+        );
+        $this->assertNull($marlinLog->user_id);
+        $this->assertNull($cascadeLog->user_id);
+
+        // Sub RLS, tenantul cascade nu vede rândul de jurnal al lui marlin, și invers.
+        $this->assertSame(
+            0,
+            TenantContext::run(
+                $this->cascade,
+                fn () => ActivityLog::query()->where('auditable_id', $marlinInvoice->getKey())->count(),
+            ),
+        );
+        $this->assertSame(
+            0,
+            TenantContext::run(
+                $this->marlin,
+                fn () => ActivityLog::query()->where('auditable_id', $cascadeInvoice->getKey())->count(),
+            ),
+        );
     }
 
     public function test_it_is_idempotent_on_a_second_run(): void
@@ -186,9 +268,26 @@ class MarkOverdueInvoicesJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         (new MarkOverdueInvoicesJob)->handle();
+        $this->drainDefaultQueue();
         (new MarkOverdueInvoicesJob)->handle();
+        $this->drainDefaultQueue();
 
         $this->assertSame(Invoice::STATUS_OVERDUE, TenantContext::run($this->marlin, fn () => $invoice->fresh()->status));
+
+        // A doua rulare nu mai găsește factura în starea `sent` (deja trecută la
+        // `overdue` de prima), deci nu o salvează a doua oară — un singur rând de jurnal
+        // AL TRANZIȚIEI, nu doi. Filtrat pe `new_values->status`: fixtura mai scrie și
+        // rândul propriu al lui `update(['due_date' => ...])`, neatins de idempotență.
+        $count = TenantContext::run(
+            $this->marlin,
+            fn () => ActivityLog::query()
+                ->where('auditable_type', Invoice::class)
+                ->where('auditable_id', $invoice->getKey())
+                ->where('action', 'updated')
+                ->where('new_values->status', Invoice::STATUS_OVERDUE)
+                ->count(),
+        );
+        $this->assertSame(1, $count, 'O a doua rulare a jobului nu trebuie să dubleze rândul de jurnal al aceleiași tranziții.');
     }
 
     public function test_the_job_is_scheduled_daily(): void
@@ -200,5 +299,60 @@ class MarkOverdueInvoicesJobTest extends TestCase
 
         $this->assertNotNull($event, 'Intrarea de scheduler pentru facturi restante lipsește din routes/console.php.');
         $this->assertSame('0 0 * * *', $event->expression, 'daily() trebuie să rămână la miezul nopții implicit.');
+    }
+
+    /**
+     * Garda pe tranșe. Jobul iterează cu `chunkById()`, al cărui cursor avansează pe
+     * `id > ultimul_id`, deci rândurile deja trecute pe `overdue` rămân ÎN URMA lui și nu
+     * contează că ies din `WHERE status = 'sent'`. Cu `chunk()` și OFFSET, a doua tranșă ar
+     * sări exact atâtea rânduri câte a modificat prima — o factură rămasă tăcut `sent`,
+     * într-o listă de mii, fără nicio eroare nicăieri.
+     *
+     * Fără acest test, regresia ar fi invizibilă: toate celelalte teste din fișier au sub
+     * 500 de facturi, deci nu trec niciodată printr-o a doua tranșă. De asta pragul e în
+     * configurare și nu constantă — coborât la 2, aceeași dovadă costă trei comenzi în loc
+     * de 501.
+     */
+    public function test_it_does_not_skip_rows_when_the_eligible_set_spans_several_chunks(): void
+    {
+        config(['throughput.limits.overdue_chunk_size' => 2]);
+
+        $invoices = TenantContext::run($this->marlin, fn () => collect(range(1, 3))->map(function () {
+            $order = $this->confirmedOrder($this->marlinAccount, $this->marlinOwner, 500);
+            $invoice = $this->sentInvoice($order, 500);
+            $invoice->update(['due_date' => now()->subDay()->toDateString()]);
+
+            return $invoice;
+        }));
+        $this->clearDatabaseTenantContext();
+
+        (new MarkOverdueInvoicesJob)->handle();
+
+        TenantContext::run($this->marlin, function () use ($invoices): void {
+            foreach ($invoices as $index => $invoice) {
+                $this->assertSame(
+                    Invoice::STATUS_OVERDUE,
+                    $invoice->fresh()->status,
+                    "Factura #{$index} a rămas needitată — tranșa a doua a sărit rânduri.",
+                );
+            }
+        });
+    }
+
+    /**
+     * ADR-007 — scrierea în `activity_log` trece prin listener-ul PE COADĂ
+     * `WriteActivityLogEntry` (`App\Observers\ActivityLogObserver` doar dispecerizează
+     * evenimentul, sincron). Suita rulează pe coada `database` (`.ai/rules/tenancy.md`,
+     * „Testele rulează cu coadă database, nu sync"), deci rândul nu există în tabelă
+     * până nu se drenează coada — la fel ca `ActivityLogObserverTest::drainDefaultQueue()`.
+     */
+    private function drainDefaultQueue(): void
+    {
+        $this->clearDatabaseTenantContext();
+
+        $this->artisan('queue:work', [
+            '--stop-when-empty' => true,
+            '--no-interaction' => true,
+        ]);
     }
 }

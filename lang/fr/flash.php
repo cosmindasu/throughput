@@ -180,6 +180,8 @@ return [
         'created' => 'Jeton API créé. Copiez-le maintenant — il ne sera plus affiché ensuite.',
         'already_revoked' => 'Ce jeton était déjà révoqué.',
         'revoked' => 'Jeton API révoqué. Toute intégration qui l’utilisait cesse de fonctionner immédiatement.',
+        'revoked_all' => ':count jeton API révoqué. Toute intégration qui l’utilisait cesse de fonctionner immédiatement.|:count jetons API révoqués. Toute intégration qui les utilisait cesse de fonctionner immédiatement.',
+        'revoked_all_none' => 'Il n’y avait aucun jeton API actif à révoquer.',
     ],
 
     'carrier_settings' => [

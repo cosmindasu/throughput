@@ -225,6 +225,11 @@ return [
         'created' => 'API token created. Copy it now — it is not shown again.',
         'already_revoked' => 'That token was already revoked.',
         'revoked' => 'API token revoked. Any integration using it stops working immediately.',
+        // §22.2 — revocarea în masă. Ramura „none" există separat (nu `trans_choice` cu
+        // 0), la fel ca `flash.members.deactivated` vs `deactivated_with_open_records`:
+        // apelul cu 0 nu se face niciodată, controller-ul alege ramura înainte.
+        'revoked_all' => 'Revoked :count API token. Any integration using it stops working immediately.|Revoked :count API tokens. Any integration using them stops working immediately.',
+        'revoked_all_none' => 'There were no active API tokens to revoke.',
     ],
 
     'carrier_settings' => [
