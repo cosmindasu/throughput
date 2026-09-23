@@ -198,7 +198,7 @@ function CreateTokenForm({ abilities, baseUrl }: { abilities: ApiTokenAbilityOpt
  * din `.ai/rules/frontend.md`: `<caption className="sr-only">`.
  */
 export default function ApiTokensIndex() {
-    const { tokens, abilities, plainTextToken, can, workspace } = usePage<ApiTokensIndexPageProps>().props;
+    const { tokens, abilities, plainTextToken, can, workspace, flash } = usePage<ApiTokensIndexPageProps>().props;
     const { t } = useTranslation('settings');
     const locale = useLocale();
     const [pendingRevoke, setPendingRevoke] = useState<ApiTokenRow | null>(null);
@@ -215,6 +215,31 @@ export default function ApiTokensIndex() {
     // exact filtrul pe care fiecare rând îl folosește deja pentru butonul lui individual
     // (`token.status !== 'revoked'`), deci nu poate diverge de ce vede utilizatorul.
     const revocableCount = tokens.filter((token) => token.status !== 'revoked').length;
+
+    // A treia formă a capcanei din `.ai/rules/frontend.md`: declanșatorul unei revocări
+    // (butonul de rând, sau „Revoke all" din `PageHeader`) DISPARE din pagină după succes —
+    // `token.status !== 'revoked'` / `revocableCount > 0` devin false — și `<dialog>` nu mai
+    // are declanșatorul unde să întoarcă focusul la închidere. `revocationStatusRef` de mai
+    // jos e ținta EXPLICITĂ, pentru ambele dialoguri deodată (vezi comentariul de pe elementul
+    // însuși pentru motivul alegerii unui singur punct de focus).
+    //
+    // DERIVAT din props, NU stare locală scrisă dintr-un `onSuccess`: niciun apel
+    // `delete()`/`post()` de mai jos folosește `preserveState`, deci pagina se remontează
+    // INTEGRAL după fiecare succes (ADR — `.ai/rules/frontend.md`, „componenta de pagină se
+    // remontează la fiecare navigare"). O stare locală setată din `onSuccess` ar aparține
+    // instanței VECHI, distrusă odată cu remontarea — sursa de adevăr corectă e `flash.success`
+    // al montării noi, exact cum `plainTextToken` de mai sus e citit din props, nu memorat.
+    // `plainTextToken` exclude explicit fluxul de CREARE (`NewTokenNotice` își are propriul
+    // focus, cu alt conținut): fără verificarea asta, cele două ținte s-ar disputa focusul la
+    // fiecare creare de jeton, fiindcă ambele ar vedea același `flash.success`.
+    const revocationMessage = plainTextToken ? null : flash.success;
+    const revocationStatusRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (revocationMessage) {
+            revocationStatusRef.current?.focus();
+        }
+    }, [revocationMessage]);
 
     return (
         <>
@@ -236,6 +261,30 @@ export default function ApiTokensIndex() {
                         ) : undefined
                     }
                 />
+
+                {/*
+                    STABIL — spre deosebire de `NewTokenNotice` de mai jos (montată/demontată
+                    o dată cu `plainTextToken`), elementul ăsta stă PERMANENT în DOM, inclusiv
+                    cât timp `tokens` e gol: e ținta de focus de mai sus, iar un declanșator
+                    care dispare trebuie să găsească mereu unde să trimită focusul, nu doar
+                    cât timp există ceva de arătat.
+
+                    `sr-only`, intenționat: `FlashMessages` din `AppLayout` (deasupra acestei
+                    pagini) arată deja ACELAȘI `flash.success` într-un banner vizibil — un al
+                    doilea bloc identic, vizibil, chiar sub titlu, ar fi duplicare, nu
+                    informație nouă. Elementul de-aici există doar ca ANCORĂ de focus, cu
+                    text pentru cititorul de ecran (citit la primirea focusului, indiferent de
+                    `aria-live`).
+
+                    UN SINGUR punct de focus pentru revocare individuală ȘI „Revoke all":
+                    serverul pune mereu rezultatul pe același `flash.success`
+                    (`flash.api_tokens.revoked` / `revoked_all` / `revoked_all_none` /
+                    `already_revoked`) — un al doilea element identic, per dialog, ar fi cod
+                    duplicat fără niciun beneficiu de accesibilitate în plus.
+                */}
+                <div ref={revocationStatusRef} tabIndex={-1} role="status" className="sr-only">
+                    {revocationMessage}
+                </div>
 
                 {plainTextToken && <NewTokenNotice token={plainTextToken} />}
 
