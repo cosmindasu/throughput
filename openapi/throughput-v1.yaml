@@ -1110,6 +1110,7 @@ components:
         value:
           type: [number, "null"]
           minimum: 0
+          maximum: 9999999999.99
         currency:
           type: [string, "null"]
           minLength: 3
@@ -1232,10 +1233,12 @@ components:
               unit_price:
                 type: [number, "null"]
                 minimum: 0
+                maximum: 9999999.99
                 description: Defaults to the variant's current price.
               discount:
                 type: [number, "null"]
                 minimum: 0
+                maximum: 9999999.99
                 description: Cannot exceed the line's subtotal.
 
     Invoice:

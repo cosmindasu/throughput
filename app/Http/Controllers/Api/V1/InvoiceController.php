@@ -17,10 +17,11 @@ use Symfony\Component\HttpFoundation\Response;
  * `GET|POST /api/v1/invoices` — scopuri `invoices:read` / `invoices:write`,
  * `Idempotency-Key` obligatoriu pe POST (§18.4).
  *
- * `invoices:write` NU e în lista din FR-API-01 (care numește doar `invoices:read`), deși
- * §18.4 cere explicit `POST /invoices`. Golul e semnalat în raportul lotului; aici scopul
- * există, fiindcă altfel endpoint-ul cerut de specificație ar fi inaccesibil oricărui
- * jeton.
+ * `invoices:write` face parte din cele 11 scopuri ale FR-API-01 (specs.md, corectate în
+ * v1.23 — versiunile anterioare enumerau doar opt și lăsau acest endpoint inaccesibil
+ * oricărui jeton, deși §18.4 îl cere explicit). Sursa unică a catalogului rămâne
+ * `App\Models\ApiToken::abilityCatalog()`, de unde se hrănesc și `EnsureTokenAbility`,
+ * și `openapi/throughput-v1.yaml`.
  *
  * `CreateInvoiceAction` rămâne singurul loc care alocă `invoice_number` (BR-ORD-02-alike)
  * și singurul care decide din ce stări de comandă se poate factura — API-ul nu repetă

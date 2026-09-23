@@ -48,8 +48,11 @@ class LoginController extends Controller
 
     public function create(Request $request): Response
     {
+        // `demoMode` NU se repetă aici: `HandleInertiaRequests::share()` îl partajează deja
+        // global pe grupul `web` (config, nu env() — vezi comentariul de acolo), inclusiv pe
+        // `/login`, care e sub `guest` dar tot în grupul `web`. Un al doilea prop cu aceeași
+        // cheie ar fi doar o sursă suplimentară de drift, nu o valoare diferită.
         return Inertia::render('Auth/Login', [
-            'demoMode' => (bool) config('throughput.demo.mode'),
             'canResetPassword' => true,
             'status' => $request->session()->get('status'),
             'demoAccounts' => self::DEMO_ACCOUNTS,
