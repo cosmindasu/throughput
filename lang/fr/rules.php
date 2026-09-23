@@ -159,6 +159,7 @@ return [
      * `flash.php:members_change_role_disabled`.
      */
     'members' => [
+        'no_workspace' => 'Ce compte n’est membre d’aucun espace de travail.',
         'cannot_invite' => 'Vous ne pouvez pas inviter de membres dans cet espace de travail.',
         'owner_invites_owner' => 'Seul un :owner peut inviter un autre :owner.',
         'invitation_not_pending' => 'Cette invitation n’est plus en attente.',

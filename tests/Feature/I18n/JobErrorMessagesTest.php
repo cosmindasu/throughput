@@ -48,10 +48,8 @@ use Throwable;
  * pentru ramurile GENERICE (`catch (Throwable $e)`, excepție NEAȘTEPTATĂ, nu una din cele
  * deja catalogate mai sus) ale `PlanBulkOperationJob::handle()` și `GenerateReportJob::handle()`:
  * nici acelea nu mai scriu `getMessage()` brut pe coloană. Perechea pentru
- * `App\Jobs\Exports\ExportListJob` trăiește în `tests/Feature/Exports/OrderExportTest.php`
- * (job REAL, dar `App\Http\Resources\Exports\ExportResource` nu expune deloc `errorMessage`
- * — un gol preexistent, în afara feliei acestui lot — deci acolo verificarea se oprește la
- * `JobErrorMessage::render()`, nu la o pagină reală).
+ * `App\Jobs\Exports\ExportListJob` trăiește în `tests/Feature/Exports/OrderExportTest.php`,
+ * inclusiv verificarea pe pagina reală de status (`ExportResource::errorMessage`, EN și FR).
  */
 class JobErrorMessagesTest extends TestCase
 {

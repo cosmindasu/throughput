@@ -39,7 +39,9 @@ class DashboardController extends Controller
 
         // Un utilizator autentificat fără niciun membership activ nu are unde ajunge —
         // situație de configurare, nu de rutare greșită.
-        abort_if($membership === null, 403, 'This account is not a member of any workspace.');
+        // Mesajul ajunge pe pagina 403 temată (`resources/views/errors/403.blade.php`
+        // randează `getMessage()`), deci trece prin catalog — audit 2026-09-23.
+        abort_if($membership === null, 403, __('rules.members.no_workspace'));
 
         return redirect()->route('workspace.dashboard', ['workspace' => $membership->tenant->slug]);
     }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Imports;
 
+use App\Jobs\Imports\RunDryRunValidationJob;
 use App\Models\Import;
 use App\Models\ImportRow;
 use App\Models\Tenant;
@@ -11,6 +12,9 @@ use App\Support\Permissions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use ReflectionClass;
 use Tests\TestCase;
 
 /**
@@ -46,6 +50,9 @@ class DryRunValidationLocaleTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         config(['throughput.limits.import_chunk_size' => 2]);
+
+        // Fișierele încărcate nu rămân pe discul real (audit 2026-09-23) — ca în `JobLocaleLeakTest`.
+        Storage::fake('local');
     }
 
     public function test_a_french_users_dry_run_writes_french_messages_even_on_an_english_worker(): void
@@ -99,6 +106,42 @@ class DryRunValidationLocaleTest extends TestCase
         $this->assertStringContainsStringIgnoringCase('Product name', $byRowNumber[3]->errors[0]['message']);
 
         $this->assertSame('sku', $byRowNumber[4]->errors[0]['field']);
+        $this->assertSame(
+            'Duplicate value — already used by an earlier row in this file.',
+            $byRowNumber[4]->errors[0]['message'],
+        );
+    }
+
+    /**
+     * Audit i18n 2026-09-23 — un job pus în coadă de codul de dinainte de parametrul `locale`
+     * (payload fără proprietate) nu trebuie să crape la deserializare: proprietatea promovată
+     * rămâne neinițializată, iar `handle()` o completează cu `en`, limba de dinainte. Payload-ul
+     * vechi e reprodus exact: `SerializesModels::__serialize()` sare peste proprietățile
+     * neinițializate, deci o instanță creată fără constructor se serializează fără `locale`.
+     */
+    public function test_a_dry_run_job_queued_before_the_locale_parameter_existed_still_completes(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'legacy-owner@throughput.dev', Permissions::OWNER);
+        $this->clearDatabaseTenantContext();
+
+        $import = $this->uploadAndMap($owner, $this->fixtureContent());
+
+        $this->actingAs($owner)->post("/marlin/imports/{$import->getKey()}/dry-run")->assertRedirect();
+
+        // Jobul pus de codul nou e înlocuit cu forma lui de dinainte de deploy.
+        DB::table('jobs')->where('queue', 'imports')->delete();
+        $legacy = (new ReflectionClass(RunDryRunValidationJob::class))->newInstanceWithoutConstructor();
+        $legacy->tenantId = $this->marlin->getKey();
+        $legacy->importId = $import->getKey();
+        dispatch($legacy)->onQueue('imports');
+        $this->assertStringNotContainsString('locale', (string) DB::table('jobs')->where('queue', 'imports')->value('payload'));
+
+        App::setLocale('fr');
+        $this->drainImportsQueue();
+
+        $byRowNumber = $this->rowsByNumber($import);
+
+        $this->assertStringContainsStringIgnoringCase('Product name', $byRowNumber[3]->errors[0]['message']);
         $this->assertSame(
             'Duplicate value — already used by an earlier row in this file.',
             $byRowNumber[4]->errors[0]['message'],

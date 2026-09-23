@@ -235,6 +235,7 @@ return [
      * doua trecere, ca `invitation_already_pending` de mai jos.
      */
     'members' => [
+        'no_workspace' => 'This account is not a member of any workspace.',
         'cannot_invite' => 'You cannot invite members to this workspace.',
         'owner_invites_owner' => 'Only an :owner can invite another :owner.',
         'invitation_not_pending' => 'This invitation is no longer pending.',

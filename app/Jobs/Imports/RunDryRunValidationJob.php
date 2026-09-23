@@ -86,6 +86,11 @@ class RunDryRunValidationJob implements ShouldQueue
         // Vezi docblock-ul clasei — obligatoriu la ÎNCEPUTUL lui handle(), necondiționat
         // (nu doar „dacă diferă de ce e setat deja"): un worker de viață lungă n-are niciun
         // alt semnal de încredere despre ce a lăsat jobul anterior în urmă.
+        // Un job pus în coadă ÎNAINTE de 2026-09-23 a fost serializat fără `locale`, iar o
+        // proprietate promovată din constructor nu primește implicitul la deserializare —
+        // rămâne neinițializată și citirea ei aruncă. `??=` (semantica `isset()`) o
+        // completează cu limba de dinainte, cea a workerului.
+        $this->locale ??= 'en';
         App::setLocale($this->locale);
 
         $import = Import::query()->find($this->importId);

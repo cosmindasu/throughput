@@ -53,6 +53,8 @@ class FinalizeImportDryRunJob implements ShouldQueue
     public function handle(): void
     {
         // Vezi docblock-ul clasei — necondiționat, la începutul lui handle().
+        // Joburi serializate înainte de 2026-09-23, fără `locale` — vezi `RunDryRunValidationJob`.
+        $this->locale ??= 'en';
         App::setLocale($this->locale);
 
         $import = Import::query()->find($this->importId);
