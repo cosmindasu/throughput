@@ -80,7 +80,7 @@ jobs:
           --health-interval 10s --health-timeout 5s --health-retries 5
         ports: ["6379:6379"]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Fără manifestul Vite, orice pagină Inertia răspunde 500
       # (`ViteManifestNotFoundException`). Primele run-uri pe `main` au picat exact
@@ -191,7 +191,7 @@ jobs:
     name: "Node — typecheck, lint, build"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -237,7 +237,7 @@ jobs:
       # `QUEUE_CONNECTION=database` (e2e/support/env.ts) — un serviciu pornit doar
       # pentru acest job ar fi cost fără folos.
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Manifestul Vite vine ca artefact din `assets` — NU se reface build-ul aici
       # (§5.1/plan §5.2): un al doilea build ar costa un minut facturat în plus,
@@ -374,7 +374,7 @@ jobs:
     needs: [quality, assets]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
