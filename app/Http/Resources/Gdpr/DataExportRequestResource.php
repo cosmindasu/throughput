@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Gdpr;
 
 use App\Models\DataExportRequest;
+use App\Support\JobErrorMessage;
 use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,7 +35,10 @@ final class DataExportRequestResource extends JsonResource
             'completedAt' => $this->completed_at?->toISOString(),
             'expiresAt' => $this->expires_at?->toISOString(),
             'isExpired' => $this->isExpired(),
-            'errorMessage' => $this->error_message,
+            // I18N-03 — cheie codificată (`App\Jobs\Gdpr\{PlanDataExportJob,
+            // ExportTenantEntityJob,FinalizeDataExportJob}`), tradusă abia aici, în
+            // locale-ul cererii curente — vezi docblock-ul `JobErrorMessage`.
+            'errorMessage' => JobErrorMessage::render($this->error_message),
             // FR-TEN-04 — placeholder „(deactivated)" pe autorul cererii: istoricul de
             // exporturi e chiar locul unde apare un Owner care între timp a plecat.
             'requestedBy' => $this->whenLoaded('requestedBy', fn () => $this->requestedBy ? [

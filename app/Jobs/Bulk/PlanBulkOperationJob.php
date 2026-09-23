@@ -8,6 +8,7 @@ use App\Services\Tenancy\TenantContext;
 use App\Support\Bulk\BulkChunkActions;
 use App\Support\Bulk\BulkWritableResource;
 use App\Support\Bulk\BulkWritableResources;
+use App\Support\JobErrorMessage;
 use Illuminate\Bus\Batch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -95,7 +96,9 @@ class PlanBulkOperationJob implements ShouldQueue
         if ($actor === null) {
             $operation->update([
                 'status' => BulkOperation::STATUS_FAILED,
-                'error_message' => 'The member who started this operation is no longer available.',
+                // I18N-03 — cheie codificată, tradusă abia la randare (`BulkOperationResource`,
+                // în locale-ul cererii), nu al jobului — vezi docblock-ul `JobErrorMessage`.
+                'error_message' => JobErrorMessage::encode('job_errors.bulk.initiator_gone'),
             ]);
 
             return;

@@ -5,6 +5,7 @@ namespace App\Jobs\Gdpr;
 use App\Actions\Gdpr\DataExportSources;
 use App\Models\DataExportRequest;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
 use Illuminate\Bus\Batch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -100,7 +101,7 @@ class PlanDataExportJob implements ShouldQueue
                 })
                 ->dispatch();
         } catch (Throwable $e) {
-            $this->markFailed('The export could not be started. Try again.');
+            $this->markFailed('job_errors.gdpr_export.could_not_start');
 
             report($e);
         }
@@ -114,14 +115,19 @@ class PlanDataExportJob implements ShouldQueue
      */
     public function failed(Throwable $e): void
     {
-        $this->markFailed('The export could not be started. Try again.');
+        $this->markFailed('job_errors.gdpr_export.could_not_start');
 
         report($e);
     }
 
-    private function markFailed(string $message): void
+    /**
+     * I18N-03 — `$messageKey` e o cheie de catalog (`lang/{en,fr}/job_errors.php`), codificată
+     * AICI prin `JobErrorMessage::encode()`, singurul loc care scrie coloana — vezi
+     * `App\Jobs\Gdpr\FinalizeDataExportJob::markFailed()`, structurat identic.
+     */
+    private function markFailed(string $messageKey): void
     {
-        TenantContext::run($this->tenantId, function () use ($message): void {
+        TenantContext::run($this->tenantId, function () use ($messageKey): void {
             $export = DataExportRequest::query()->find($this->dataExportRequestId);
 
             if ($export === null || $export->status === DataExportRequest::STATUS_COMPLETED) {
@@ -130,7 +136,7 @@ class PlanDataExportJob implements ShouldQueue
 
             $export->update([
                 'status' => DataExportRequest::STATUS_FAILED,
-                'error_message' => $message,
+                'error_message' => JobErrorMessage::encode($messageKey),
                 'completed_at' => now(),
             ]);
         });

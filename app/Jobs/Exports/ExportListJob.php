@@ -10,6 +10,7 @@ use App\Support\Exports\CsvExporter;
 use App\Support\Exports\ExportableResources;
 use App\Support\Exports\PdfExporter;
 use App\Support\Exports\ZipExporter;
+use App\Support\JobErrorMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -103,7 +104,13 @@ class ExportListJob implements ShouldQueue
                     if ($currentTotal > $pdfCap) {
                         $operation->update([
                             'status' => BulkOperation::STATUS_FAILED,
-                            'error_message' => "This export now has {$currentTotal} rows; {$format} export is capped at {$pdfCap}. Use CSV for larger exports.",
+                            // I18N-03 — cheie codificată (`JobErrorMessage`), tradusă abia
+                            // la randare (`BulkOperationResource`), în locale-ul cererii.
+                            'error_message' => JobErrorMessage::encode('job_errors.export.row_cap_exceeded', [
+                                'count' => $currentTotal,
+                                'format' => $format,
+                                'cap' => $pdfCap,
+                            ]),
                         ]);
 
                         return;
@@ -122,7 +129,7 @@ class ExportListJob implements ShouldQueue
                     if (! $list instanceof ArchivableList) {
                         $operation->update([
                             'status' => BulkOperation::STATUS_FAILED,
-                            'error_message' => 'This list cannot be exported as a zip archive. Use CSV instead.',
+                            'error_message' => JobErrorMessage::encode('job_errors.export.zip_not_supported'),
                         ]);
 
                         return;
@@ -182,7 +189,7 @@ class ExportListJob implements ShouldQueue
 
             $operation->update([
                 'status' => BulkOperation::STATUS_FAILED,
-                'error_message' => 'This export could not be completed. Try again from the list.',
+                'error_message' => JobErrorMessage::encode('job_errors.export.list_failed'),
                 'result_path' => null,
             ]);
         });

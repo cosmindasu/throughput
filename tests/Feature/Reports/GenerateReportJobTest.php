@@ -11,6 +11,7 @@ use App\Models\ReportRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
 use App\Support\Permissions;
 use Database\Factories\AccountFactory;
 use Database\Factories\DealFactory;
@@ -179,7 +180,9 @@ class GenerateReportJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         $this->assertSame(ReportRun::STATUS_FAILED, $fresh->status);
-        $this->assertStringContainsString('capped at 1', $fresh->error_message);
+        // I18N-03 — `error_message` e o cheie codificată (`JobErrorMessage`); afirmă pe
+        // valoarea RANDATĂ, exact ce ar produce `ReportRunResource`.
+        $this->assertStringContainsString('capped at 1', JobErrorMessage::render($fresh->error_message));
         $this->assertNull($fresh->file_path);
 
         Bus::assertNotDispatched(DeliverReportJob::class);
@@ -208,7 +211,7 @@ class GenerateReportJobTest extends TestCase
         $this->clearDatabaseTenantContext();
 
         $this->assertSame(ReportRun::STATUS_FAILED, $fresh->status);
-        $this->assertStringContainsString('capped at 1', $fresh->error_message);
+        $this->assertStringContainsString('capped at 1', JobErrorMessage::render($fresh->error_message));
         $this->assertNull($fresh->file_path);
 
         Bus::assertNotDispatched(DeliverReportJob::class);

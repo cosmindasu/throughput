@@ -17,6 +17,7 @@ use App\Models\TenantCarrierSetting;
 use App\Models\User;
 use App\Services\Shipping\CarrierResolver;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesOrders;
@@ -98,7 +99,10 @@ class GenerateShippingLabelJobTest extends TestCase
 
             $this->assertSame(Shipment::STATUS_LABEL_FAILED, $shipment->status);
             $this->assertNull($shipment->tracking_number);
-            $this->assertSame('The carrier could not create a label. Try again or contact support.', $shipment->error_message);
+            // I18N-03 — `error_message` e acum o cheie codificată (`JobErrorMessage`), nu
+            // textul brut: se afirmă pe valoarea RANDATĂ, exact ce ar vedea utilizatorul
+            // prin `ShipmentResource`.
+            $this->assertSame('The carrier could not create a label. Try again or contact support.', JobErrorMessage::render($shipment->error_message));
             $this->assertStringNotContainsString('Shippo', $shipment->error_message, 'Detaliul intern nu ajunge pe shipment.');
         });
     }
@@ -142,7 +146,8 @@ class GenerateShippingLabelJobTest extends TestCase
             $shipment = Shipment::query()->findOrFail($shipmentId);
 
             $this->assertSame(Shipment::STATUS_LABEL_FAILED, $shipment->status);
-            $this->assertSame('The carrier could not create a label. Try again or contact support.', $shipment->error_message);
+            // I18N-03 — vezi nota din `test_a_carrier_resolution_failure_stores_the_generic_message()`.
+            $this->assertSame('The carrier could not create a label. Try again or contact support.', JobErrorMessage::render($shipment->error_message));
             $this->assertStringNotContainsString(
                 CarrierThatFailsUnexpectedly::MESSAGE,
                 $shipment->error_message,
@@ -175,8 +180,12 @@ class GenerateShippingLabelJobTest extends TestCase
 
             $this->assertSame(Shipment::STATUS_LABEL_FAILED, $shipment->status);
             $this->assertNull($shipment->tracking_number);
-            $this->assertStringContainsString('no longer open for shipping', $shipment->error_message);
-            $this->assertStringContainsString('Cancelled', $shipment->error_message);
+            // I18N-03 — `error_message` e o cheie codificată cu un parametru AMÂNAT
+            // (`:status`, vezi `JobErrorMessage::translatedParam()`); afirmă pe valoarea
+            // randată, ca `ShipmentResource` ar produce-o.
+            $rendered = JobErrorMessage::render($shipment->error_message);
+            $this->assertStringContainsString('no longer open for shipping', $rendered);
+            $this->assertStringContainsString('Cancelled', $rendered);
         });
     }
 
@@ -202,7 +211,7 @@ class GenerateShippingLabelJobTest extends TestCase
 
             $this->assertSame(Shipment::STATUS_LABEL_FAILED, $shipment->status, 'Eticheta "reușită" nu trebuie activată.');
             $this->assertNull($shipment->tracking_number);
-            $this->assertStringContainsString('no longer open for shipping', $shipment->error_message);
+            $this->assertStringContainsString('no longer open for shipping', JobErrorMessage::render($shipment->error_message));
         });
     }
 

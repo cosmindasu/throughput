@@ -9,6 +9,7 @@ use App\Services\Shipping\CarrierResolver;
 use App\Services\Shipping\ShippingCarrier;
 use App\Services\Shipping\ShippingLabelFailed;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -58,8 +59,12 @@ final class GenerateShippingLabelJob implements ShouldQueue
      * `Throwable` decât `ShippingLabelFailed` (rețea, credențiale, un bug intern al
      * adaptorului): mesajul EI brut nu e sigur de arătat unui Viewer, deci shipment-ul
      * primește acest mesaj generic, iar detaliile reale ajung doar în log (`report()`).
+     *
+     * I18N-03 — cheie de catalog (`JobErrorMessage`), nu text: tradusă abia la randare
+     * (`ShipmentResource`), în locale-ul cererii care randează comanda, nu al workerului
+     * care a scris eșecul.
      */
-    private const GENERIC_FAILURE_MESSAGE = 'The carrier could not create a label. Try again or contact support.';
+    private const GENERIC_FAILURE_MESSAGE_KEY = 'job_errors.shipment.generic_failure';
 
     public function __construct(
         public string $tenantId,
@@ -95,7 +100,7 @@ final class GenerateShippingLabelJob implements ShouldQueue
                 // furnizor — mesajul generic, nu cel brut.
                 $shipment->update([
                     'status' => Shipment::STATUS_LABEL_FAILED,
-                    'error_message' => self::GENERIC_FAILURE_MESSAGE,
+                    'error_message' => JobErrorMessage::encode(self::GENERIC_FAILURE_MESSAGE_KEY),
                 ]);
 
                 report($e);
@@ -167,7 +172,17 @@ final class GenerateShippingLabelJob implements ShouldQueue
                     // `ShippingLabelFailed` e SINGURA excepție al cărei mesaj e sigur de
                     // arătat (motivul specific al furnizorului) — orice altceva e o
                     // eroare internă, mesaj generic, detaliile doar în log.
-                    'error_message' => $isCarrierReported ? $e->getMessage() : self::GENERIC_FAILURE_MESSAGE,
+                    //
+                    // I18N-03 — DECIZIE: ramura raportată de furnizor rămâne text BRUT,
+                    // NECODIFICAT, deliberat — `$e->getMessage()` e textul EXACT primit
+                    // de la transportator (`ShippingLabelFailed`, contract „niciodată
+                    // reformulat"), dinamic și extern, imposibil de pus într-un catalog
+                    // static (`lang/{en,fr}/job_errors.php`) fără să-i schimbe sensul.
+                    // `JobErrorMessage::render()` tratează exact acest caz — text vechi/
+                    // extern, nu JSON — trecându-l NESCHIMBAT, nu ca eroare. Doar ramura
+                    // GENERICĂ (eroare internă) se codifică, fiindcă acolo TEXTUL e al
+                    // aplicației, nu al furnizorului.
+                    'error_message' => $isCarrierReported ? $e->getMessage() : JobErrorMessage::encode(self::GENERIC_FAILURE_MESSAGE_KEY),
                 ]);
             }
         });
@@ -186,8 +201,18 @@ final class GenerateShippingLabelJob implements ShouldQueue
         return in_array($order->status, [OrderStatus::Confirmed, OrderStatus::PartiallyFulfilled], true);
     }
 
+    /**
+     * I18N-03 — `:status` e un parametru AMÂNAT (`JobErrorMessage::translatedParam()`), nu
+     * `$order->status->label()` apelat aici: `label()` ar traduce ÎN LOCALE-UL JOBULUI (dacă
+     * are unul), înghețând limba în coloană — vezi docblock-ul `JobErrorMessage`. Se
+     * stochează valoarea BRUTĂ a enum-ului, cu cheia de catalog `enums.order_status.*`
+     * atașată; traducerea reală se întâmplă abia în `ShipmentResource`, în locale-ul
+     * cererii care randează comanda.
+     */
     private function orderNoLongerOpenMessage(Order $order): string
     {
-        return "This order is no longer open for shipping (status: {$order->status->label()}).";
+        return JobErrorMessage::encode('job_errors.shipment.order_no_longer_open', [
+            'status' => JobErrorMessage::translatedParam('enums.order_status.'.$order->status->value),
+        ]);
     }
 }

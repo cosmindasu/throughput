@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Reports;
 
 use App\Models\ReportRun;
+use App\Support\JobErrorMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,7 +35,9 @@ class ReportRunResource extends JsonResource
             'startedAt' => $this->started_at?->toIso8601String(),
             'finishedAt' => $this->finished_at?->toIso8601String(),
             'rowCount' => $this->row_count,
-            'errorMessage' => $this->error_message,
+            // I18N-03 — cheie codificată (`App\Jobs\Reports\GenerateReportJob`), tradusă
+            // abia aici, în locale-ul cererii curente — vezi docblock-ul `JobErrorMessage`.
+            'errorMessage' => JobErrorMessage::render($this->error_message),
             'hasFile' => $this->status === 'success' && $this->file_path !== null,
         ];
     }

@@ -6,6 +6,7 @@ use App\Actions\Gdpr\DataExportSources;
 use App\Actions\Gdpr\WriteEntityExportAction;
 use App\Models\DataExportRequest;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -108,7 +109,13 @@ class ExportTenantEntityJob implements ShouldQueue
             }
 
             $export->update([
-                'error_message' => "The export stopped while writing the \"{$entity}\" file. Nothing was delivered; request a new export to try again.",
+                // I18N-03 — cheie codificată, tradusă abia la randare
+                // (`DataExportRequestResource`), în locale-ul cererii. `entity` rămâne
+                // parametru BRUT (nume tehnic de sursă — `accounts`, `contacts` — nu o
+                // etichetă tradusă, la fel ca înainte).
+                'error_message' => JobErrorMessage::encode('job_errors.gdpr_export.entity_write_failed', [
+                    'entity' => $entity,
+                ]),
             ]);
         });
 

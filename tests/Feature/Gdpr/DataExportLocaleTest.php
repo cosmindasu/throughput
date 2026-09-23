@@ -7,6 +7,7 @@ use App\Models\DataExportRequest;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\LocaleFormat;
 use App\Support\Permissions;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -55,10 +56,15 @@ class DataExportLocaleTest extends TestCase
 
         $this->assertSame(DataExportRequest::STATUS_COMPLETED, $export->status, (string) $export->error_message);
 
-        Mail::assertSent(DataExportReadyMail::class, function (DataExportReadyMail $mail) use ($owner) {
+        // I18N-05: data de expirare intră într-o propoziție franceză — `toFormattedDateString()`
+        // o dădea mereu engleză („Oct 23, 2026"). Aceeași sursă ca jobul: `expires_at` persistat.
+        $expectedDate = LocaleFormat::date($export->expires_at, 'fr');
+
+        Mail::assertSent(DataExportReadyMail::class, function (DataExportReadyMail $mail) use ($owner, $expectedDate) {
             return $mail->hasSubject(
                 trans('mail.data_export_ready.subject', ['workspace' => 'Marlin Fasteners & Supply Co.'], 'fr')
-            ) && $mail->hasTo($owner->email);
+            ) && $mail->hasTo($owner->email)
+                && $mail->expiresOn === $expectedDate;
         });
     }
 

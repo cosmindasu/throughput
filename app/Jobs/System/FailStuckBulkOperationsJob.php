@@ -6,6 +6,7 @@ use App\Models\BulkOperation;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Bulk\BulkChunkActions;
+use App\Support\JobErrorMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -47,7 +48,10 @@ class FailStuckBulkOperationsJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    private const MESSAGE = 'This operation could not start. Please try again.';
+    // I18N-03 — cheie de catalog, nu text (`JobErrorMessage`); tradusă abia la randare
+    // (`BulkOperationResource`), în locale-ul cererii, nu al acestui job de sistem
+    // (`.ai/rules/tenancy.md`, „joburi de sistem" — n-are niciun `locale` de utilizator).
+    private const MESSAGE_KEY = 'job_errors.bulk.stuck_operation';
 
     public function handle(): void
     {
@@ -63,7 +67,7 @@ class FailStuckBulkOperationsJob implements ShouldQueue
                     ->where('updated_at', '<', $cutoff)
                     ->update([
                         'status' => BulkOperation::STATUS_FAILED,
-                        'error_message' => self::MESSAGE,
+                        'error_message' => JobErrorMessage::encode(self::MESSAGE_KEY),
                     ]);
             });
         });

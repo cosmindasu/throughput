@@ -10,6 +10,8 @@ use App\Models\DataExportRequest;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Support\JobErrorMessage;
+use App\Support\LocaleFormat;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -73,7 +75,7 @@ class FinalizeDataExportJob implements ShouldQueue
         App::setLocale($this->locale);
 
         if ($this->batchFailed()) {
-            $this->markFailed('The export could not be completed. Nothing was delivered; request a new export to try again.');
+            $this->markFailed('job_errors.gdpr_export.nothing_delivered');
             Storage::disk(DataExportPaths::DISK)->deleteDirectory(
                 DataExportPaths::workFolder($this->tenantId, $this->dataExportRequestId),
             );
@@ -94,7 +96,7 @@ class FinalizeDataExportJob implements ShouldQueue
                 $this->manifest($context),
             );
         } catch (Throwable $e) {
-            $this->markFailed('The export could not be packaged. Nothing was delivered; request a new export to try again.');
+            $this->markFailed('job_errors.gdpr_export.packaging_failed');
 
             report($e);
 
@@ -268,7 +270,7 @@ class FinalizeDataExportJob implements ShouldQueue
                     'workspace' => $context['workspaceSlug'],
                     'dataExportRequest' => $this->dataExportRequestId,
                 ]),
-                expiresOn: $expiresAt->toFormattedDateString(),
+                expiresOn: LocaleFormat::date($expiresAt) ?? '—',
                 retentionDays: (int) config('throughput.limits.export_retention_days'),
                 locale: $this->locale,
             );
@@ -277,9 +279,14 @@ class FinalizeDataExportJob implements ShouldQueue
         });
     }
 
-    private function markFailed(string $message): void
+    /**
+     * I18N-03 — `$messageKey` e o cheie de catalog (`lang/{en,fr}/job_errors.php`), nu text:
+     * `JobErrorMessage::encode()` o codifică AICI, în singurul loc care scrie coloana, ca
+     * niciun apelant să nu poată strecura un literal englez direct.
+     */
+    private function markFailed(string $messageKey): void
     {
-        TenantContext::run($this->tenantId, function () use ($message): void {
+        TenantContext::run($this->tenantId, function () use ($messageKey): void {
             $export = DataExportRequest::query()->find($this->dataExportRequestId);
 
             if ($export === null || $export->status === DataExportRequest::STATUS_COMPLETED) {
@@ -289,8 +296,10 @@ class FinalizeDataExportJob implements ShouldQueue
             $export->update([
                 'status' => DataExportRequest::STATUS_FAILED,
                 // Un mesaj specific, scris de `ExportTenantEntityJob::failed()` (CARE
-                // entitate a căzut), nu se înlocuiește cu unul generic.
-                'error_message' => $export->error_message ?? $message,
+                // entitate a căzut), nu se înlocuiește cu unul generic. Rândul deja scris
+                // e deja codificat (JSON), la fel ca `JobErrorMessage::encode($messageKey)`
+                // de mai jos — ambele ramuri ale `??` sunt din același registru.
+                'error_message' => $export->error_message ?? JobErrorMessage::encode($messageKey),
                 'completed_at' => now(),
             ]);
         });
@@ -298,7 +307,7 @@ class FinalizeDataExportJob implements ShouldQueue
 
     public function failed(Throwable $e): void
     {
-        $this->markFailed('The export could not be completed. Nothing was delivered; request a new export to try again.');
+        $this->markFailed('job_errors.gdpr_export.nothing_delivered');
 
         report($e);
     }

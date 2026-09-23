@@ -4,6 +4,7 @@ namespace App\Http\Resources\Orders;
 
 use App\Models\Shipment;
 use App\Services\Shipping\DemoShippingCarrier;
+use App\Support\JobErrorMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -36,7 +37,11 @@ final class ShipmentResource extends JsonResource
             'trackingUrl' => $this->tracking_number !== null && $this->carrier === 'demo'
                 ? (new DemoShippingCarrier)->trackingUrl($this->resource)
                 : null,
-            'errorMessage' => $this->error_message,
+            // I18N-03 — cheie codificată (`App\Jobs\Shipping\GenerateShippingLabelJob`) SAU
+            // textul EXACT raportat de un transportator (`ShippingLabelFailed`, text extern
+            // deliberat necodificat — vezi docblock-ul `JobErrorMessage`); `render()` tratează
+            // ambele, tradus în locale-ul CERERII curente.
+            'errorMessage' => JobErrorMessage::render($this->error_message),
             'shippedAt' => $this->shipped_at?->toIso8601String(),
             'deliveredAt' => $this->delivered_at?->toIso8601String(),
             'cost' => $this->cost !== null ? (float) $this->cost : null,

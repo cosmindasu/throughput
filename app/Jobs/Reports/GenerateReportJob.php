@@ -8,6 +8,7 @@ use App\Models\ReportRun;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Exports\ExportableResources;
+use App\Support\JobErrorMessage;
 use App\Support\Reports\BuiltInReports;
 use App\Support\Reports\ReportFileWriter;
 use Illuminate\Bus\Queueable;
@@ -78,7 +79,7 @@ class GenerateReportJob implements ShouldQueue
                 $run->update([
                     'status' => ReportRun::STATUS_FAILED,
                     'finished_at' => now(),
-                    'error_message' => 'The report definition no longer exists.',
+                    'error_message' => JobErrorMessage::encode('job_errors.report.definition_missing'),
                 ]);
 
                 return;
@@ -116,7 +117,16 @@ class GenerateReportJob implements ShouldQueue
                 $run->update([
                     'status' => ReportRun::STATUS_FAILED,
                     'finished_at' => now(),
-                    'error_message' => $e->getMessage(),
+                    // I18N-03 — `ReportRowCapExceededException` (mai jos) poartă DOUĂ
+                    // reprezentări separate ale aceluiași eșec: `getMessage()`, engleză,
+                    // pentru `report()`/Sentry, și `encodedColumnValue`, cheia codificată
+                    // pentru coloană — vezi docblock-ul excepției. Orice altă `Throwable`
+                    // rămâne pe calea veche (`getMessage()` brut): nu e în lista celor ~12
+                    // literale ale acestui lot, iar un mesaj de excepție intern arbitrar
+                    // nu se poate cataloga static oricum.
+                    'error_message' => $e instanceof ReportRowCapExceededException
+                        ? $e->encodedColumnValue
+                        : $e->getMessage(),
                 ]);
 
                 report($e);
@@ -187,7 +197,10 @@ class GenerateReportJob implements ShouldQueue
         $cap = (int) config('throughput.limits.export_pdf_max_rows');
 
         if ($count > $cap) {
-            throw new \RuntimeException("This report has {$count} rows; PDF is capped at {$cap}. Use CSV or XLSX for larger reports.");
+            throw new ReportRowCapExceededException(
+                "This report has {$count} rows; PDF is capped at {$cap}. Use CSV or XLSX for larger reports.",
+                JobErrorMessage::encode('job_errors.report.pdf_row_cap_exceeded', ['count' => $count, 'cap' => $cap]),
+            );
         }
     }
 
@@ -205,7 +218,10 @@ class GenerateReportJob implements ShouldQueue
         $cap = (int) config('throughput.limits.export_xlsx_max_rows');
 
         if ($count > $cap) {
-            throw new \RuntimeException("This report has {$count} rows; XLSX is capped at {$cap}. Use CSV for larger reports.");
+            throw new ReportRowCapExceededException(
+                "This report has {$count} rows; XLSX is capped at {$cap}. Use CSV for larger reports.",
+                JobErrorMessage::encode('job_errors.report.xlsx_row_cap_exceeded', ['count' => $count, 'cap' => $cap]),
+            );
         }
     }
 
@@ -225,10 +241,37 @@ class GenerateReportJob implements ShouldQueue
             $run->update([
                 'status' => ReportRun::STATUS_FAILED,
                 'finished_at' => now(),
-                'error_message' => 'This report could not be generated. Try running it again.',
+                'error_message' => JobErrorMessage::encode('job_errors.report.generation_failed'),
             ]);
         });
 
         report($e);
+    }
+}
+
+/**
+ * I18N-03 — plasă a lui `assertWithinPdfCap()`/`assertWithinXlsxCap()` de mai sus: singurele
+ * două excepții ARUNCATE de acest job cu un mesaj propriu, în engleză, care CHIAR trebuie să
+ * ajungă în DOUĂ locuri diferite, cu conținut diferit:
+ *
+ *  - `getMessage()` (moștenit din `RuntimeException`) — text englez, citit de `report()`/
+ *    Sentry; rămâne engleză mereu, e pentru operator, nu pentru interfață;
+ *  - `encodedColumnValue` — cheia de catalog codificată (`JobErrorMessage::encode()`),
+ *    scrisă direct pe `report_runs.error_message`, tradusă abia la randare
+ *    (`ReportRunResource`), în locale-ul cererii.
+ *
+ * Fără cele două reprezentări separate, catch-ul generic din `handle()` (`$e->getMessage()`)
+ * ar fi scris fie text englez brut pe coloană (regresie I18N-03), fie JSON-ul codificat în
+ * log-uri (opac în Sentry) — niciuna dintre ele corectă pentru amândouă destinațiile.
+ *
+ * Definită în ACEST fișier, nu într-o clasă separată: excepția e aruncată și prinsă exclusiv
+ * aici, în `GenerateReportJob` — n-are niciun alt apelant care s-o rezolve prin autoload
+ * independent.
+ */
+final class ReportRowCapExceededException extends \RuntimeException
+{
+    public function __construct(string $message, public readonly string $encodedColumnValue)
+    {
+        parent::__construct($message);
     }
 }

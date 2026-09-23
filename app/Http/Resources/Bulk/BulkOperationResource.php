@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Bulk;
 
 use App\Models\BulkOperation;
+use App\Support\JobErrorMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Bus;
@@ -42,7 +43,11 @@ class BulkOperationResource extends JsonResource
             'failedJobs' => $batch?->failedJobs ?? 0,
             'processedRowsEstimate' => $this->processedRowsEstimate($totalJobs, $processedJobs),
             'canCancel' => (bool) $request->user()?->can('cancel', $this->resource),
-            'errorMessage' => $this->error_message,
+            // I18N-03 — `error_message` poate fi o cheie codificată (`JobErrorMessage`,
+            // `App\Jobs\Bulk\PlanBulkOperationJob`/`App\Jobs\System\FailStuckBulkOperationsJob`)
+            // sau text vechi, necodificat — `render()` traduce în locale-ul CERERII curente
+            // (nu al jobului) și e tolerant la ambele.
+            'errorMessage' => JobErrorMessage::render($this->error_message),
             'activityLogUrl' => $this->activityLogUrl($request),
         ];
     }
