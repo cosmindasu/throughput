@@ -9,13 +9,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\ParentConnectingVisitor;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use ReflectionClass;
-use SplFileInfo;
+use Tests\Concerns\ScansPhpSource;
 
 /**
  * Reguli pe care code review-ul le-ar prinde în zilele bune și le-ar rata în celelalte.
@@ -26,6 +24,8 @@ use SplFileInfo;
  */
 class ArchitectureTest extends TestCase
 {
+    use ScansPhpSource;
+
     public function test_the_eloquent_tenant_scope_is_bypassed_in_exactly_one_place(): void
     {
         $offenders = [];
@@ -67,9 +67,17 @@ class ArchitectureTest extends TestCase
     {
         $offenders = [];
 
-        foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
-            if (preg_match('/(?<![>\w:])env\s*\(/', $this->codeWithoutComments($file))) {
-                $offenders[] = $this->relative($file);
+        // `database/` a intrat în scanare abia acum (cerere ulterioară a coordonatorului,
+        // 2026-09-23): comanda `demo:reset` și seederele rulează în același proces PHP ca
+        // restul aplicației, deci un `env()` direct acolo are exact aceeași boală ca unul
+        // în `app/` — moare tăcut după `config:cache`.
+        foreach ([__DIR__.'/../../app', __DIR__.'/../../database'] as $directory) {
+            foreach ($this->phpFilesIn($directory) as $file) {
+                // Prima rulare pe `database/` a prins un `env()` rămas în `CarrierSettingsSeeder`
+                // după un fix DOM-04 care schimbase doar docblock-ul — exact golul acoperit acum.
+                if (preg_match('/(?<![>\w:])env\s*\(/', $this->codeWithoutComments($file))) {
+                    $offenders[] = $this->relative($file);
+                }
             }
         }
 
@@ -268,38 +276,6 @@ class ArchitectureTest extends TestCase
     }
 
     /**
-     * Toate clasele Eloquent direct în `app/Models/` (neredundant, nerecursiv — `Scopes/` nu
-     * conține modele). `glob()`, nu `phpFilesIn()` de mai jos: acela e recursiv prin design,
-     * pentru verificările pe tot `app/`, și ar coborî și în `Scopes/`.
-     *
-     * @return list<class-string<Model>>
-     */
-    private function modelClasses(): array
-    {
-        $classes = [];
-
-        foreach (glob(__DIR__.'/../../app/Models/*.php') ?: [] as $file) {
-            $class = 'App\\Models\\'.basename($file, '.php');
-
-            if (! class_exists($class)) {
-                continue;
-            }
-
-            $reflection = new ReflectionClass($class);
-
-            if ($reflection->isAbstract() || ! $reflection->isSubclassOf(Model::class)) {
-                continue;
-            }
-
-            $classes[] = $class;
-        }
-
-        sort($classes);
-
-        return $classes;
-    }
-
-    /**
      * Excepțiile listei de mai sus — fiecare cu motivul ei, verificat, nu presupus.
      * Potrivire pe (fișier, sink, text EXACT), nu doar pe fișier: o excepție nu acoperă
      * tăcut un literal NOU adăugat mai târziu în același fișier.
@@ -482,50 +458,381 @@ class ArchitectureTest extends TestCase
     }
 
     /**
-     * Codul fără comentarii.
+     * TEST-01 recidivat (audit 2026-09-23) — `InvoiceController::forOrder()` reintroducea
+     * EXACT bugul deja reparat o dată în `Order::invoice()` (`.ai/rules/tenancy.md`,
+     * „`created_at` are precizie 0 — nu ordonează singur nimic"): o interogare manuală cu
+     * `->latest('created_at')`, fără niciun tiebreaker, pe o rută complet netestată. Trei
+     * recidive ale ACELEAȘI clase de bug (`Order::invoice()` în Faza 5, `forOrder()` acum,
+     * plus cele găsite separat de auditul de domeniu — DOM-03/DOM-05) sunt semnul că un
+     * comentariu în `tenancy.md` nu ajunge: codul nou tot îl poate ignora fără să știe că
+     * există. Testul de față îl transformă în ceva ce PICĂ, nu ceva ce se citește.
      *
-     * Prima variantă a acestor verificări citea fișierul brut și pica pe COMENTARIILE care
-     * explicau tocmai regula („citit din config, niciodată din env()") — un test care
-     * pedepsește documentarea regulii pe care o impune nu rezistă nici o săptămână.
+     * **Ce verifică, exact** (vezi `createdAtOrderingHitsIn()` mai jos pentru detector):
+     * orice `->latest()`/`->oldest()` (fără argument, implicit `created_at`) sau
+     * `->latest('created_at')`/`->oldest('created_at')`/`->orderBy('created_at', ...)`/
+     * `->orderByDesc('created_at')`, dacă ACELAȘI lanț fluent de apeluri nu conține și un
+     * ordering pe `id` (`orderBy('id', ...)`, `orderByDesc('id')`, `latest('id')`,
+     * `oldest('id')`) — plus, separat, `latestOfMany()`/`oldestOfMany()` fără `id` printre
+     * coloanele lor proprii (`latestOfMany(['created_at', 'id'])` e forma corectă, folosită
+     * azi de `Order::invoice()`).
+     *
+     * **De ce AST, nu regex** — același argument ca la
+     * `test_user_facing_message_sinks_never_carry_a_raw_string_literal()` mai sus, dar
+     * pentru STRUCTURĂ, nu proză: „conține `orderByDesc('id')` undeva mai jos în fișier" nu
+     * înseamnă „în același lanț" — un fișier poate ordona corect o interogare și greșit pe
+     * alta, la zece linii distanță. Un regex pe apropiere de linii ar rata asta în ambele
+     * sensuri (fals negativ pe lanțuri lungi, fals pozitiv pe lanțuri diferite apropiate).
+     * AST-ul reconstituie lanțul real: urcă la apelul cel mai exterior al expresiei fluente,
+     * apoi coboară prin `->var` al fiecărui `MethodCall`, colectând fiecare verigă — exact
+     * ce ar citi un developer cu ochiul, mecanic.
+     *
+     * **Ce NU verifică, deliberat**: o coloană diferită de `created_at` (`->latest('sent_at')`,
+     * `->orderByDesc('changed_at')`) — acelea nu sunt clasa de bug documentată (alte coloane
+     * pot avea altă precizie sau altă garanție de unicitate) și extinderea regulii la „orice
+     * coloană" ar cere o listă albă mult mai mare, fără dovadă că bug-ul chiar există acolo.
+     *
+     * **Baseline, nu listă neagră**: fișierele din `createdAtOrderingBaseline()` sunt debit
+     * cunoscut, verificat individual (linie exactă, nu doar fișier) — vezi
+     * `test_baseline_of_created_at_ordering_without_id_only_shrinks()` imediat după, care
+     * pică dacă o intrare e reparată și lăsată totuși în listă.
      */
-    private function codeWithoutComments(SplFileInfo $file): string
+    public function test_created_at_ordering_always_has_an_id_tiebreaker_in_the_same_chain(): void
     {
-        $code = '';
+        $offenders = [];
 
-        foreach (token_get_all(file_get_contents($file->getPathname())) as $token) {
-            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
-                continue;
+        foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
+            $relative = $this->relative($file);
+            $code = file_get_contents($file->getPathname());
+
+            foreach ($this->createdAtOrderingHitsIn($code) as $hit) {
+                if ($this->isBaselinedCreatedAtOrdering($relative, $hit['line'])) {
+                    continue;
+                }
+
+                $offenders[] = sprintf('%s:%d  %s', $relative, $hit['line'], $hit['description']);
             }
-
-            $code .= is_array($token) ? $token[1] : $token;
         }
 
-        return $code;
+        $this->assertSame(
+            [],
+            $offenders,
+            "Ordonare pe `created_at` fără tiebreaker pe `id`, în afara baseline-ului cunoscut.\n"
+            ."`created_at` are precizie de secundă (timestamp(0)) — două rânduri scrise în\n"
+            ."aceeași cerere pot avea valoarea IDENTICĂ, caz în care Postgres nu garantează\n"
+            ."nicio ordine între ele. Bug-ul concret, deja reprodus de două ori în acest\n"
+            ."proiect: o anulare + reemitere în aceeași secundă întorcea rândul greșit (cel\n"
+            ."vechi) exact în cazul care conta (cel mai recent). Adaugă `->orderBy('id', ...)`/\n"
+            ."`->orderByDesc('id')`/`->latest('id')`/`->oldest('id')` în ACELAȘI lanț, sau\n"
+            ."`->latestOfMany(['created_at', 'id'])`. Fiecare linie de mai jos dă fișierul,\n"
+            .'linia și forma exactă găsită:'."\n"
+            .implode("\n", $offenders),
+        );
     }
 
     /**
-     * @return list<SplFileInfo>
+     * Simetric cu restul listelor albe din acest fișier (`sinkExceptions`,
+     * `modelsNeverExposedThroughAUrl`): dacă o intrare din baseline e reparată (chiar
+     * primește tiebreaker-ul), garda principală de mai sus nu mai are cum s-o vadă — a
+     * ieșit din lista de rezultate ale detectorului. Fără acest test, baseline-ul ar
+     * „proteja" tăcut un fișier care n-are nevoie de protecție, iar o regresie VIITOARE pe
+     * același loc (cineva scoate tiebreaker-ul din greșeală) ar trece nedetectată.
      */
-    private function phpFilesIn(string $directory): array
+    public function test_baseline_of_created_at_ordering_without_id_only_shrinks(): void
     {
-        $files = [];
+        foreach ($this->createdAtOrderingBaseline() as $entry) {
+            $path = __DIR__.'/../../'.$entry['file'];
 
-        /** @var SplFileInfo $file */
-        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory)) as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
-                $files[] = $file;
+            $this->assertFileExists($path, "Fișier din baseline care nu mai există: {$entry['file']} — scoate intrarea.");
+
+            $hits = $this->createdAtOrderingHitsIn(file_get_contents($path));
+            $stillOffending = false;
+
+            foreach ($hits as $hit) {
+                if ($hit['line'] === $entry['line']) {
+                    $stillOffending = true;
+                }
+            }
+
+            $this->assertTrue(
+                $stillOffending,
+                "Baseline {$entry['file']}:{$entry['line']} nu mai e ofensator — scoate intrarea din ".
+                'createdAtOrderingBaseline(), nu o lăsa să protejeze tăcut alt cod adăugat mai târziu pe aceeași linie.'
+            );
+        }
+    }
+
+    /**
+     * Auto-verificare a detectorului: fără acest test, o eroare în `createdAtOrderingHitsIn()`
+     * care l-ar face să nu găsească NIMIC ar lăsa garda de mai sus verde din greșeală —
+     * exact tiparul „gate care dovedește simetria, nu conținutul" deja găsit o dată în
+     * lotul I18N (`i18n:coverage`, vezi docblock-ul testului de mesaje mai sus).
+     */
+    public function test_the_created_at_ordering_detector_flags_offenders_and_passes_safe_chains(): void
+    {
+        $offending = <<<'PHP'
+            <?php
+
+            class Example
+            {
+                public function bad()
+                {
+                    return Invoice::query()->where('order_id', $id)->latest('created_at')->first();
+                }
+
+                public function alsoBad()
+                {
+                    return Invoice::query()->latestOfMany(['created_at']);
+                }
+            }
+            PHP;
+
+        $safe = <<<'PHP'
+            <?php
+
+            class Example
+            {
+                public function good()
+                {
+                    return Invoice::query()
+                        ->where('order_id', $id)
+                        ->latest('created_at')
+                        ->orderByDesc('id')
+                        ->first();
+                }
+
+                public function alsoGood()
+                {
+                    return $this->hasOne(Invoice::class)->latestOfMany(['created_at', 'id']);
+                }
+
+                public function unrelatedColumnIsNotInScope()
+                {
+                    return Invoice::query()->latest('sent_at')->first();
+                }
+            }
+            PHP;
+
+        $offendingHits = $this->createdAtOrderingHitsIn($offending);
+        $this->assertCount(2, $offendingHits, 'Detectorul n-a semnalat cazurile clar ofensatoare — garda ar fi verde din greșeală.');
+
+        $this->assertSame([], $this->createdAtOrderingHitsIn($safe), 'Detectorul a semnalat fals-pozitiv un lanț cu tiebreaker pe id deja prezent (sau o coloană din afara domeniului regulii).');
+    }
+
+    /**
+     * Debit cunoscut, verificat individual la 2026-09-23 (fișier:linie, nu doar fișier —
+     * o intrare nouă pe alt rând din același fișier NU e acoperită tăcut). Toate sunt ÎN
+     * AFARA feliei acestui task (Products/Accounts/Contacts/Orders/Imports/timeline-ul de
+     * cont) — nu se repară aici. Lista poate doar SCĂDEA (vezi testul simetric de mai sus).
+     *
+     * @return list<array{file: string, line: int}>
+     */
+    private function createdAtOrderingBaseline(): array
+    {
+        return [
+            // `Accounts/Show.tsx`, secțiunea „Deals" a unui cont — listă scurtă (limit 20),
+            // UI necritic; o coadă nedeterministă la egalitate de secundă schimbă cel mult
+            // ordinea a două carduri adiacente, nu vizibilitatea datelor.
+            ['file' => 'app/Http/Controllers/Web/Accounts/AccountController.php', 'line' => 144],
+            // `Contacts/Show.tsx`, secțiunea „Deals" a unui contact — același profil de risc
+            // ca rândul de mai sus (listă scurtă, afișare, nu decizie de business).
+            ['file' => 'app/Http/Controllers/Web/Contacts/ContactController.php', 'line' => 111],
+            // `Orders/Show.tsx`, secțiunea „Shipments" a comenzii — afișare, nu alegerea
+            // „ultimului shipment" pentru vreo decizie server-side (aceea ar fi altă gardă).
+            ['file' => 'app/Http/Controllers/Web/Orders/OrderController.php', 'line' => 190],
+            // `Imports/Index.tsx` — cele mai recente 50 importuri, limită mică, doar afișare.
+            ['file' => 'app/Http/Controllers/Web/Imports/ImportController.php', 'line' => 53],
+            // `AccountActivityTimeline::build()` — blocul „Deals" al cronologiei unui cont
+            // (limit LIMIT, doar afișare). Al doilea bloc din același fișier, „ActivityLog",
+            // ARE deja tiebreaker pe `id` (linia ~112) — de aceea baseline-ul ține doar linia
+            // exactă a blocului nereparat, nu tot fișierul.
+            ['file' => 'app/Support/Accounts/AccountActivityTimeline.php', 'line' => 49],
+        ];
+    }
+
+    /**
+     * @param  list<array{file: string, line: int}>  $baseline
+     */
+    private function isBaselinedCreatedAtOrdering(string $relativeFile, int $line): bool
+    {
+        foreach ($this->createdAtOrderingBaseline() as $entry) {
+            if ($entry['file'] === $relativeFile && $entry['line'] === $line) {
+                return true;
             }
         }
 
-        usort($files, fn (SplFileInfo $a, SplFileInfo $b) => strcmp($a->getPathname(), $b->getPathname()));
-
-        return $files;
+        return false;
     }
 
-    private function relative(SplFileInfo $file): string
+    /**
+     * Parcurge sursa cu `nikic/php-parser` și întoarce fiecare ordonare pe `created_at`
+     * (sau `latestOfMany`/`oldestOfMany` fără `id`) care NU are un tiebreaker pe `id` în
+     * același lanț fluent. Vezi docblock-ul testului de mai sus pentru regulile exacte.
+     *
+     * @return list<array{line: int, description: string}>
+     */
+    private function createdAtOrderingHitsIn(string $code): array
     {
-        $root = realpath(__DIR__.'/../../').'/';
+        $parser = (new ParserFactory)->createForNewestSupportedVersion();
 
-        return str_replace($root, '', $file->getRealPath());
+        try {
+            $ast = $parser->parse($code);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if ($ast === null) {
+            return [];
+        }
+
+        $collector = new class extends NodeVisitorAbstract
+        {
+            /** @var list<array{line: int, description: string}> */
+            public array $found = [];
+
+            public function enterNode(Node $node)
+            {
+                if (! $node instanceof Node\Expr\MethodCall || ! $node->name instanceof Node\Identifier) {
+                    return null;
+                }
+
+                $method = $node->name->toString();
+
+                if (in_array($method, ['latestOfMany', 'oldestOfMany'], true)) {
+                    if (! $this->orderOfManyHasIdTiebreaker($node)) {
+                        $this->found[] = [
+                            'line' => $node->getStartLine(),
+                            'description' => sprintf('->%s(...) fără `id` printre coloanele de ordonare', $method),
+                        ];
+                    }
+
+                    return null;
+                }
+
+                if (! in_array($method, ['latest', 'oldest', 'orderBy', 'orderByDesc'], true)) {
+                    return null;
+                }
+
+                $column = $this->orderedColumn($node, $method);
+
+                if ($column !== 'created_at') {
+                    return null;
+                }
+
+                if (! $this->chainHasIdTiebreaker($node)) {
+                    $this->found[] = [
+                        'line' => $node->getStartLine(),
+                        'description' => sprintf(
+                            '->%s(%s) pe `created_at` fără id în același lanț',
+                            $method,
+                            isset($node->args[0]) ? "'created_at', ..." : '',
+                        ),
+                    ];
+                }
+
+                return null;
+            }
+
+            /**
+             * Coloana pe care ordonează apelul, dacă e determinabilă static din sursă —
+             * `null` dacă argumentul e dinamic (variabilă, concatenare) sau lipsă pentru o
+             * metodă care nu are implicit `created_at` (`orderBy`/`orderByDesc`).
+             */
+            private function orderedColumn(Node\Expr\MethodCall $node, string $method): ?string
+            {
+                if (in_array($method, ['latest', 'oldest'], true) && ! isset($node->args[0])) {
+                    // Regula din brief: „latest()/oldest() fără argument = created_at".
+                    return 'created_at';
+                }
+
+                return $this->stringArg($node, 0);
+            }
+
+            private function stringArg(Node\Expr\MethodCall $node, int $index): ?string
+            {
+                if (! isset($node->args[$index]) || ! $node->args[$index] instanceof Node\Arg) {
+                    return null;
+                }
+
+                $value = $node->args[$index]->value;
+
+                return $value instanceof Node\Scalar\String_ ? $value->value : null;
+            }
+
+            private function orderOfManyHasIdTiebreaker(Node\Expr\MethodCall $node): bool
+            {
+                if (! isset($node->args[0]) || ! $node->args[0] instanceof Node\Arg) {
+                    // Fără argument, `latestOfMany()`/`oldestOfMany()` ordonează pe coloana
+                    // implicită a modelului (niciodată `id`) — ofensator prin definiție.
+                    return false;
+                }
+
+                $value = $node->args[0]->value;
+
+                if ($value instanceof Node\Scalar\String_) {
+                    return $value->value === 'id';
+                }
+
+                if ($value instanceof Node\Expr\Array_) {
+                    foreach ($value->items as $item) {
+                        if ($item !== null && $item->value instanceof Node\Scalar\String_ && $item->value->value === 'id') {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            /**
+             * Urcă la verigă cea mai exterioară a lanțului fluent care conține `$node`
+             * (cât timp `$node` e chiar receptorul — `->var` — apelului părinte), apoi
+             * coboară prin `->var` al fiecărui `MethodCall`, verificând fiecare verigă.
+             * Se oprește la primul `StaticCall`/`Variable`/altceva care nu mai e un
+             * `MethodCall` — rădăcina lanțului, în afara căreia „același lanț" nu mai are
+             * sens (ex. o interogare salvată în altă variabilă, într-o altă instrucțiune).
+             */
+            private function chainHasIdTiebreaker(Node\Expr\MethodCall $node): bool
+            {
+                $top = $node;
+
+                while (($parent = $top->getAttribute('parent')) instanceof Node\Expr\MethodCall && $parent->var === $top) {
+                    $top = $parent;
+                }
+
+                $current = $top;
+
+                while ($current instanceof Node\Expr\MethodCall) {
+                    if ($this->isIdTiebreaker($current)) {
+                        return true;
+                    }
+
+                    $current = $current->var;
+                }
+
+                return false;
+            }
+
+            private function isIdTiebreaker(Node\Expr\MethodCall $node): bool
+            {
+                if (! $node->name instanceof Node\Identifier) {
+                    return false;
+                }
+
+                $method = $node->name->toString();
+
+                if (! in_array($method, ['orderBy', 'orderByDesc', 'latest', 'oldest'], true)) {
+                    return false;
+                }
+
+                return $this->stringArg($node, 0) === 'id';
+            }
+        };
+
+        $traverser = new NodeTraverser;
+        $traverser->addVisitor(new ParentConnectingVisitor);
+        $traverser->addVisitor($collector);
+        $traverser->traverse($ast);
+
+        return $collector->found;
     }
 }

@@ -3,9 +3,8 @@
 namespace Tests\Feature\Contacts;
 
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Concerns\ScansPhpSource;
 
 /**
  * Gardă de arhitectură pentru BR-CRM-02 (specs.md): „`opt_out = true` pe un contact
@@ -37,6 +36,8 @@ use SplFileInfo;
  */
 class ContactOptOutFilterGuardTest extends TestCase
 {
+    use ScansPhpSource;
+
     /**
      * Singurele fișiere din `app/` care ating `opt_out` azi — toate despre gestiunea
      * contactului (model, export/afișare, ștergere GDPR, resurse HTTP, validare CRUD),
@@ -103,50 +104,5 @@ class ContactOptOutFilterGuardTest extends TestCase
                 "Fișierul din lista albă nu mai conține `opt_out`: {$relative} — scoate-l din listă."
             );
         }
-    }
-
-    /**
-     * Codul fără comentarii — un docblock care EXPLICĂ regula (ca ăsta) nu trebuie să
-     * numere ca „referință" (același motiv ca în `ArchitectureTest::codeWithoutComments()`).
-     */
-    private function codeWithoutComments(SplFileInfo $file): string
-    {
-        $code = '';
-
-        foreach (token_get_all(file_get_contents($file->getPathname())) as $token) {
-            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
-                continue;
-            }
-
-            $code .= is_array($token) ? $token[1] : $token;
-        }
-
-        return $code;
-    }
-
-    /**
-     * @return list<SplFileInfo>
-     */
-    private function phpFilesIn(string $directory): array
-    {
-        $files = [];
-
-        /** @var SplFileInfo $file */
-        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory)) as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
-                $files[] = $file;
-            }
-        }
-
-        usort($files, fn (SplFileInfo $a, SplFileInfo $b) => strcmp($a->getPathname(), $b->getPathname()));
-
-        return $files;
-    }
-
-    private function relative(SplFileInfo $file): string
-    {
-        $root = realpath(__DIR__.'/../../../').'/';
-
-        return str_replace($root, '', $file->getRealPath());
     }
 }
