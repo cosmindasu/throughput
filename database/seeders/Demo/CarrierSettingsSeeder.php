@@ -26,7 +26,7 @@ final class CarrierSettingsSeeder
     public function run(Tenant $tenant, array $config): void
     {
         $credentials = match ($config['carrier']) {
-            'shippo' => array_filter(['api_key' => (string) env('SHIPPO_SANDBOX_KEY')]),
+            'shippo' => array_filter(['api_key' => (string) config('throughput.demo.shippo_sandbox_key')]),
             default => [],
         };
 
