@@ -281,6 +281,19 @@ class ExplainCriticalQueries extends Command
             'activity_log — feed de dashboard' => [
                 'select * from activity_log order by created_at desc limit 10', [],
             ],
+            // PERF-05 (audit 2026-09-23) — `ActivityLogController::index()` linia 53:
+            // un Agent (fără `activity_log.view`, doar `activity_log.view_own`) primește
+            // necondiționat `where('user_id', ...)` peste `orderByDesc('created_at')
+            // ->orderByDesc('id')`. Migrația
+            // `2026_09_23_100000_add_user_id_index_to_activity_log_table` adaugă
+            // `(tenant_id, user_id, created_at)` exact pentru acest caz — măsurat sub RLS,
+            // ca `throughput_app`, pe seed-ul complet (Marlin, 108.166 rânduri, agent cu
+            // 15.236 rânduri proprii): ÎNAINTE, `Bitmap Heap Scan` pe TOT tenantul
+            // (`Rows Removed by Filter: 92930`), 49,2 ms; DUPĂ, `Index Scan Backward` pe
+            // noul index, 0,5 ms.
+            'activity_log — filtrat pe utilizator (Agent, PERF-05)' => [
+                'select * from activity_log where user_id = (select user_id from activity_log order by user_id limit 1) order by created_at desc, id desc limit 50', [],
+            ],
 
             // Căutare globală (FR-SEARCH-01/02, BR-SEARCH-01, ADR-018) — termen cu o greșeală
             // de tastare deliberată („fastners" în loc de „fasteners"), ca planul măsurat să
