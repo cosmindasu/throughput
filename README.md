@@ -4,7 +4,7 @@ CRM operațional multi-tenant pentru distribuitori B2B: conturi și contacte, pi
 
 **Demo live:** [throughput.dbg.ro](https://throughput.dbg.ro) — intră cu un buton, fără cont și fără parolă.
 
-**Stare:** funcționalitatea e completă și acoperită de teste. Urmează un lot de internaționalizare (EN + FR, [ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)) și tag-ul `v1.0`.
+**Stare:** funcționalitatea e completă, acoperită de teste și verificată printr-un audit intern cod↔documentație (2026-09-23), inclusiv interfața bilingvă EN + FR ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)). Rămâne publicarea live pe Coolify și tag-ul `v1.0`.
 
 ## Ce demonstrează
 
@@ -28,6 +28,7 @@ CRM operațional multi-tenant pentru distribuitori B2B: conturi și contacte, pi
 | **Export & GDPR** | Export de listă (CSV / PDF / zip), export complet de workspace pentru portabilitate, anonimizare de contacte |
 | **Administrare** | Membri și invitații ([ADR-011](docs/adr/ADR-011-dezactivare-membru-fara-blocare.md)), jetoane API, abonament, jurnal de activitate ([ADR-007](docs/adr/ADR-007-audit-log-cod-propriu.md)), jurnal de email, sănătatea webhook-urilor |
 | **API public** | REST versionat pe cale ([ADR-008](docs/adr/ADR-008-versionare-api-pe-cale.md)), scopuri per jeton, `Idempotency-Key` obligatoriu la scriere, contract OpenAPI 3.1 |
+| **Internaționalizare** | Interfață completă EN/FR per utilizator (`users.locale`, ales din Settings → Preferences), fără locale în URL ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)); gate CI (`i18n:coverage`) verifică simetria celor două cataloage |
 
 ## Stack
 
