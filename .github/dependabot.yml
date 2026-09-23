@@ -1,0 +1,70 @@
+# .github/dependabot.yml — OPS-13 (audit infra 2026-09-23)
+#
+# Cota de minute GitHub Actions e comună cu celelalte 11 proiecte, iar fiecare PR deschis
+# de Dependabot rulează `ci.yml` ca orice PR non-draft (`quality` + `assets` + subsetul
+# `@smoke` din `e2e`, ~14 min; `smoke-image` NU, e doar pe `main`/tag-uri). De aici:
+#   - `interval: monthly`: actualizările de SECURITATE vin oricum în afara programului;
+#     cele de rutină nu merită CI săptămânal.
+#   - `groups` minor+patch pe fiecare ecosistem: un singur PR în loc de unul per pachet.
+#     Majorele rămân în afara grupului, cu PR propriu — sunt exact schimbările care cer
+#     atenție separată (ex. un viitor Laravel 13).
+#   - `open-pull-requests-limit` mic, ca o serie de majore restante să nu inunde CI-ul.
+#
+# Estimare: ~5 PR-uri grupate/lună + 0-2 majore ≈ 70-100 min/lună de Actions.
+
+version: 2
+updates:
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      composer-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Acoperă `.github/workflows/ci.yml` — toate `uses:` de acolo sunt pinuite pe SHA
+  # complet cu comentariu `# vX.Y.Z` (OPS-11), convenția exactă pe care Dependabot o
+  # citește ca să propună actualizări (actualizează hash-ul ȘI comentariul, nu doar
+  # unul din ele).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      github-actions-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Două intrări separate, câte una per Dockerfile (`docker/app`, `docker/nginx`):
+  # Dependabot scanează TOATE liniile `FROM` dintr-un Dockerfile din directorul dat,
+  # deci `docker/app/Dockerfile` (php:8.3-fpm-alpine + node:22-alpine în stage-ul
+  # `assets`) și `docker/nginx/Dockerfile` (nginx:1.31-alpine + node:22-alpine,
+  # propriul stage `assets` — vezi comentariul din acel Dockerfile despre de ce
+  # reconstruiește independent) rămân urmărite separat.
+  - package-ecosystem: "docker"
+    directory: "/docker/app"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      docker-app-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "docker"
+    directory: "/docker/nginx"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      docker-nginx-minor-patch:
+        update-types: ["minor", "patch"]

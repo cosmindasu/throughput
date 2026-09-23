@@ -80,7 +80,7 @@ jobs:
           --health-interval 10s --health-timeout 5s --health-retries 5
         ports: ["6379:6379"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Fără manifestul Vite, orice pagină Inertia răspunde 500
       # (`ViteManifestNotFoundException`). Primele run-uri pe `main` au picat exact
@@ -88,21 +88,30 @@ jobs:
       # `withoutVite()` în TestCase ar fi fost mai ieftin, dar ar fi orbit testul de
       # preload de fonturi din AppShellTest, care verifică tocmai căile din manifestul
       # REAL (un bump de @fontsource care mută fișierul).
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: vite-build
           path: public/build
 
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "${{ matrix.php }}"
           extensions: "pdo_pgsql, pgsql, redis, gd, intl, zip, bcmath"
-          coverage: pcov
+          # OPS-12 (audit infra 2026-09-23): `./vendor/bin/pest` mai jos rulează fără
+          # niciun flag `--coverage` — `pcov` doar încărca extensia și încetinea fiecare
+          # test, fără niciun beneficiu (nimic nu citește raportul de acoperire). `none`
+          # ca în jobul `e2e`, care nu rulează Pest deloc.
+          coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
+          # OPS-09 (audit infra 2026-09-23): fără `restore-keys`, orice schimbare de
+          # `composer.lock` (frecventă) era cache miss TOTAL — reinstalare completă în
+          # loc de reutilizare parțială a pachetelor neschimbate.
+          restore-keys: |
+            composer-
 
       - run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
@@ -169,7 +178,12 @@ jobs:
           APP_ENV: testing
 
       - name: "Lint OpenAPI (Spectral)"
-        run: npx --yes @stoplight/spectral-cli lint openapi/throughput-v1.yaml
+        # OPS-10 (audit infra 2026-09-23): versiune pinuită, nu ultima disponibilă —
+        # fără ea, o versiune nouă cu reguli schimbate poate pica CI fără nicio
+        # schimbare de cod, și fiecare run descărca pachetul de la zero (fără cache).
+        # Verificat local 2026-09-23: `6.16.3` (ultima stabilă la data pinării) trece
+        # curat pe `openapi/throughput-v1.yaml` cu `.spectral.yaml` existent.
+        run: npx --yes @stoplight/spectral-cli@6.16.3 lint openapi/throughput-v1.yaml
 
       - run: composer audit --no-dev --format=plain --locked
 
@@ -177,9 +191,9 @@ jobs:
     name: "Node — typecheck, lint, build"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: "npm"
@@ -191,7 +205,7 @@ jobs:
 
       # Consumat de `quality` (pasul pereche de acolo). O zi de retenție: artefactul
       # servește doar run-ului curent, nu ține spațiu de stocare pe cont.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vite-build
           path: public/build
@@ -223,26 +237,29 @@ jobs:
       # `QUEUE_CONNECTION=database` (e2e/support/env.ts) — un serviciu pornit doar
       # pentru acest job ar fi cost fără folos.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Manifestul Vite vine ca artefact din `assets` — NU se reface build-ul aici
       # (§5.1/plan §5.2): un al doilea build ar costa un minut facturat în plus,
       # iar fără el orice pagină Inertia (inclusiv `/login`) răspunde 500.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: vite-build
           path: public/build
 
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: "pdo_pgsql, pgsql, redis, gd, intl, zip, bcmath"
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
+          # OPS-09 (audit infra 2026-09-23) — vezi comentariul identic din jobul `quality`.
+          restore-keys: |
+            composer-
 
       - run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
@@ -285,7 +302,7 @@ jobs:
             echo "APP_URL=http://127.0.0.1:8010"
           } >> .env
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: "npm"
@@ -296,7 +313,7 @@ jobs:
         id: playwright-version
         run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -331,8 +348,117 @@ jobs:
       # DOAR la eșec — un run verde n-are nimic de arătat, iar retenția scurtă
       # ține contul de stocare mic (§5.1).
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-report
           path: e2e/playwright-report
           retention-days: 3
+
+  smoke-image:
+    name: "Docker — imaginea de producție (app + nginx)"
+    # OPS-06 (audit infra 2026-09-23): singura verificare automată a imaginii REALE de
+    # producție. Până acum nimic în CI construia `docker/app/Dockerfile` — runtime-ul
+    # testat de `quality` (`shivammathur/setup-php`, ICU complet) și runtime-ul care chiar
+    # ajunge pe Coolify (Alpine, extensii compilate manual) puteau diverge fără ca CI să
+    # vadă nimic. Exact așa a scăpat bugul ICU (vezi `docker/app/Dockerfile`, stage-ul
+    # `base`: fără `icu-data-full`, 4 locale în loc de 906, franceza formatată tăcut cu
+    # cifre englezești) — măsurat, nu presupus, la audit 2026-09-22/23.
+    #
+    # DOAR pe `push` la `main`/tag-uri, NICIODATĂ pe PR (inclusiv non-draft): sintaxa
+    # PHP/JS e deja acoperită de `quality`/`assets` pe fiecare PR — jobul ăsta verifică
+    # runtime-ul IMAGINII (extensii compilate, date ICU), nu codul, și un build Docker
+    # complet costă minute reale de facturat pe fiecare push, spre deosebire de ele.
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    # Gate-urile ieftine existente, ca să nu pornească un build Docker (cel mai scump pas
+    # al pipeline-ului) după un lint/typecheck/test picat.
+    needs: [quality, assets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Scope PROPRIU (`smoke-image-app`), distinct de cache-ul composer/npm de mai sus
+      # (alt backend — `actions/cache`, cu chei proprii) și de cel al imaginii nginx mai
+      # jos: fără scope-uri separate, un build ar putea evacua cache-ul celuilalt.
+      # `mode=max`: layerele scumpe (`apk add` cu `icu-data-full`, `composer install
+      # --no-dev`, `npm ci`) stau în stage-uri INTERMEDIARE (`base`, `assets`), nu în
+      # stage-ul final `production` — cu modul implicit (`min`, care cacheuiește DOAR
+      # layerele din imaginea exportată) niciunul dintre ele nu s-ar cacheui, și fiecare
+      # push ar reface `npm ci`/`composer install`/`apk add` de la zero (exact partea
+      # lentă, măsurată local la ~2m21s pe un build fără NICIUN cache — vezi raport).
+      # Dimensiune: imaginea `production` comprimată are ~116 MB (`docker images`,
+      # măsurat local 2026-09-23) — cu câteva versiuni păstrate per scope (GitHub
+      # evacuează singur, LRU, peste prag), rămâne confortabil sub cei 10 GB/repo.
+      - name: "Build imagine app (production)"
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/app/Dockerfile
+          target: production
+          tags: throughput:smoke
+          load: true
+          cache-from: type=gha,scope=smoke-image-app
+          cache-to: type=gha,mode=max,scope=smoke-image-app
+
+      # `--entrypoint php`: `docker/app/entrypoint.sh` rulează NECONDIȚIONAT
+      # `permission:cache-reset` (checklist §15) la fiecare pornire, indiferent de
+      # comanda finală — are nevoie de Postgres/Redis vii, pe care acest job nu le
+      # pornește (verifică DOAR runtime-ul PHP/ICU al imaginii, nu boot-ul complet al
+      # aplicației). Fără ocolirea asta, orice `docker run throughput:smoke php ...` ar
+      # cădea pe „Connection refused" la 127.0.0.1:5432 înainte să ajungă la comanda
+      # cerută — reprodus local 2026-09-23.
+      - name: "php -m conține intl"
+        run: docker run --rm --entrypoint php throughput:smoke -m | grep -qi '^intl$'
+
+      - name: "ICU are datele complete (>100 locale), nu bundle-ul stub"
+        run: |
+          docker run --rm --entrypoint php throughput:smoke -r '
+            $n = count(ResourceBundle::getLocales(""));
+            fwrite(STDERR, "locale: {$n}" . PHP_EOL);
+            exit($n > 100 ? 0 : 1);
+          '
+
+      # Bugul reprodus la audit (2026-09-22): fără `icu-data-full`, ICU cade tăcut pe
+      # bundle-ul stub (4 locale) și `fr_FR` formatează cu virgula/punctul englezesc.
+      # ATENȚIE la separator: ICU modern (78.x, verificat pe imaginea construită local)
+      # folosește NNBSP (U+202F), NU spațiul obișnuit (U+0020), ca separator de mii în
+      # franceză — `bin2hex()` pe imaginea locală a dat exact `31 e2 80 af 32 33 34 2c
+      # 35`, adică `"1" . "\u{202F}" . "234,5"`. Comparație pe BYTES EXACȚI, nu pe un
+      # `preg_match` relaxat cu `\s` — un separator greșit (spațiu simplu, pe care `\s`
+      # ar accepta oricum) ar trece neobservat altfel, exact genul de fals-pozitiv pe
+      # care jobul ăsta există să-l elimine.
+      - name: "NumberFormatter(fr_FR) — separator de mii corect (NNBSP)"
+        run: |
+          docker run --rm --entrypoint php throughput:smoke -r '
+            $f = new NumberFormatter("fr_FR", NumberFormatter::DECIMAL);
+            $out = $f->format(1234.5);
+            $expected = "1\u{202F}234,5";
+            fwrite(STDERR, "format: " . bin2hex($out) . " (\"{$out}\")" . PHP_EOL);
+            exit($out === $expected ? 0 : 1);
+          '
+
+      # Imaginea nginx, ca pas în ACELAȘI job, nu job separat (regula globală „fără
+      # micro-job-uri" — fiecare job se facturează rotunjit la minutul întreg). Scope de
+      # cache DIFERIT de cel al imaginii `app` de mai sus: cele două `Dockerfile`
+      # reconstruiesc independent stage-ul `assets` (vezi comentariul din
+      # `docker/nginx/Dockerfile` despre de ce nu poate face `COPY --from=<imaginea
+      # app>`) — layerele identice (instrucțiuni + context identice) se pot regăsi
+      # oricum între scope-uri prin digest, scope-ul separat doar evită ca un build să
+      # evacueze cache-ul specific celuilalt sub presiune de spațiu.
+      - name: "Build imagine nginx (production)"
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/nginx/Dockerfile
+          target: production
+          tags: throughput-nginx:smoke
+          load: true
+          cache-from: type=gha,scope=smoke-image-nginx
+          cache-to: type=gha,mode=max,scope=smoke-image-nginx
+
+      # `--add-host app:127.0.0.1`: `default.conf` face `fastcgi_pass app:9000` — fără
+      # un host `app` rezolvabil, `nginx -t` pică pe „host not found in upstream",
+      # independent de orice greșeală reală de sintaxă (reprodus local 2026-09-23).
+      - name: "nginx -t pe imaginea construită"
+        run: docker run --rm --add-host app:127.0.0.1 throughput-nginx:smoke nginx -t
