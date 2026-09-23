@@ -14,6 +14,8 @@ use App\Support\Permissions;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesInvoices;
 use Tests\TestCase;
 
@@ -334,6 +336,63 @@ class MarkOverdueInvoicesJobTest extends TestCase
                     Invoice::STATUS_OVERDUE,
                     $invoice->fresh()->status,
                     "Factura #{$index} a rămas needitată — tranșa a doua a sărit rânduri.",
+                );
+            }
+        });
+    }
+
+    /**
+     * DOM-02 (audit 2026-09-23) — dovada directă că fiecare tranșă își deschide PROPRIA
+     * tranzacție, nu că doar interogarea de selecție diferă de la o tranșă la alta.
+     * `TenantContext::setTenant()` scrie `select set_config('app.tenant_id', ?, true)` o
+     * SINGURĂ dată per apel al lui `TenantContext::run()` (`TenantContext.php`) — deci
+     * numărul de asemenea instrucțiuni, pentru bindingul acestui tenant, e exact numărul de
+     * ori în care `run()` a fost chemat pentru el.
+     *
+     * 5 facturi eligibile, tranșă de 2: [2, 2, 1] — a treia tranșă întoarce 1 (< 2) și
+     * oprește bucla, deci exact 3 apeluri ale lui `run()`. PE CODUL VECHI (un singur
+     * `TenantContext::run()` înfășurând întreaga buclă de tranșe, fie `chunkById()`, fie un
+     * `do…while` reîmpachetat greșit), acest numărător ar rămâne 1 indiferent de câte tranșe
+     * interne se parcurg — testul pică direct pe regresia pe care vrea s-o prindă, nu doar
+     * „probabil".
+     */
+    public function test_it_opens_a_separate_transaction_per_chunk_instead_of_one_for_the_whole_tenant(): void
+    {
+        config(['throughput.limits.overdue_chunk_size' => 2]);
+
+        $invoices = TenantContext::run($this->marlin, fn () => collect(range(1, 5))->map(function () {
+            $order = $this->confirmedOrder($this->marlinAccount, $this->marlinOwner, 500);
+            $invoice = $this->sentInvoice($order, 500);
+            $invoice->update(['due_date' => now()->subDay()->toDateString()]);
+
+            return $invoice;
+        }));
+        $this->clearDatabaseTenantContext();
+
+        $tenantContextEntries = 0;
+        DB::listen(function (QueryExecuted $query) use (&$tenantContextEntries): void {
+            if (
+                str_contains($query->sql, "set_config('app.tenant_id'")
+                && ($query->bindings[0] ?? null) === $this->marlin->getKey()
+            ) {
+                $tenantContextEntries++;
+            }
+        });
+
+        (new MarkOverdueInvoicesJob)->handle();
+
+        $this->assertSame(
+            3,
+            $tenantContextEntries,
+            'Fiecare tranșă trebuie procesată în propriul apel TenantContext::run() (deci în propria tranzacție), nu toate într-unul singur pentru tot tenantul.',
+        );
+
+        TenantContext::run($this->marlin, function () use ($invoices): void {
+            foreach ($invoices as $index => $invoice) {
+                $this->assertSame(
+                    Invoice::STATUS_OVERDUE,
+                    $invoice->fresh()->status,
+                    "Factura #{$index} a rămas needitată.",
                 );
             }
         });
