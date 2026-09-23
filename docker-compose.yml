@@ -29,8 +29,12 @@ services:
     working_dir: /app
     # Legarea pe 0.0.0.0 (fără care portul publicat 5173 nu duce nicăieri) e în
     # vite.config.ts, într-un singur loc, nu duplicată aici ca flag de linie de comandă.
-    command: ["npm", "run", "dev"]
-    volumes: [".:/app"]
+    # `node_modules` propriu, pe volum: cel de pe host e instalat pentru macOS, iar binarul nativ
+    # al lui rolldown pentru `linux-arm64-musl` (Alpine) lipsește din el, deci `vite` pica la
+    # pornire. `npm ci` în volum instalează binarele corecte pentru container, fără să atingă
+    # `node_modules` de pe host.
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npm run dev"]
+    volumes: [".:/app", "vite_node_modules:/app/node_modules"]
     ports: ["5173:5173"]
 
   postgres:
@@ -66,4 +70,5 @@ services:
       retries: 5
 
 volumes:
+  vite_node_modules:
   postgres_data:

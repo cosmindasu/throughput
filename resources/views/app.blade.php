@@ -44,6 +44,10 @@
             <link rel="preload" as="font" type="font/woff2" href="{{ $font }}" crossorigin>
         @endforeach
 
+        {{-- Preambulul Fast Refresh cerut de @vitejs/plugin-react în `npm run dev`; fără el, orice
+             pagină pică cu „can't detect preamble". În afara modului hot nu randează nimic, iar
+             CSP-ul strict (care ar bloca scriptul inline) e oricum oprit în modul hot. --}}
+        @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         @inertiaHead
     </head>

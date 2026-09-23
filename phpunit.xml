@@ -52,5 +52,13 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!--
+            Proiectul nu folosește SSR Inertia (niciun bundle SSR, nimic `ssr` în Vite), dar
+            `config/inertia.php` îl are activ implicit. Cât timp serviciul `vite` de dezvoltare
+            rulează, `public/hot` există și Inertia încearcă SSR prin serverul Vite — cerere HTTP
+            blocată de `Http::preventStrayRequests()` (TestCase), deci ORICE test care randează o
+            pagină pica sau trecea după starea mediului local, nu după cod. Găsit la 2026-09-23.
+        -->
+        <env name="INERTIA_SSR_ENABLED" value="false"/>
     </php>
 </phpunit>
