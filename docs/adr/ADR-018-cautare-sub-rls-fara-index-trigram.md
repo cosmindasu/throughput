@@ -24,7 +24,7 @@ This is not a question of volume. The indexes do not become usable with more dat
 
 Environment: PostgreSQL 16.14, the dev database after `demo:reset` (Marlin: 4,000 accounts, ~5,200 contacts out of 10,385 in total, 2,200 deals), the GIN indexes still present. The same query as in `GlobalSearchService`, with the tenant filter the global scope adds.
 
-```
+```text
 proname       | proleakproof
 similarity    | f
 similarity_op | f

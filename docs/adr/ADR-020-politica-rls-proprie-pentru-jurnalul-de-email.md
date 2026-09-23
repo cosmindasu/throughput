@@ -57,6 +57,7 @@ The third row is the important one: an active tenant cannot even *write* a tenan
 ## Consequences
 
 **Positive**
+
 - BR-DEMO-02 is covered in full, password reset flow included.
 - Cross-tenant isolation stays total, verified empirically (the table above) and covered by
   tests: `SentEmailsTest::test_a_tenant_never_sees_another_tenants_sent_emails` and
@@ -67,6 +68,7 @@ The third row is the important one: an active tenant cannot even *write* a tenan
 - The indexable form from [[ADR-016]] is preserved on the branch that carries the volume.
 
 **Negative, accepted**
+
 - The second hand-written policy in the project. The "a second caller needs an ADR" rule stays in force; **a third caller needs a new ADR**, not a reference to this one.
 - Tenant-less rows are not visible on any workspace screen, by construction. They are reachable only by code running without a context (the retention job). If an operations screen for them becomes necessary, that requires a separate decision — it is not solved by weakening the policy.
 - **A known gap, documented, not closed by this ADR:** an email sent from a job that has already closed its tenant context before the external call (as [[ADR-013]] requires) lands in the log with `tenant_id = NULL`, hence invisible in the Settings of the tenant that triggered it. Correct attribution requires the job to pass the tenant explicitly along with the message; the mechanism exists (the `X-Throughput-Tenant-Id` header, read and stripped by `DemoInterceptingTransport`), but each sender has to set it.

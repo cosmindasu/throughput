@@ -75,7 +75,7 @@ The Stripe webhook is the only place where the tenant comes from an external pay
 
 The context middleware is applied **per job**, not globally. Jobs that do I/O outside our own Postgres (`GenerateShippingLabelJob`, PDF generation, reports) do not use it — they call the helper twice, with the external call between the transactions:
 
-```
+```text
 [short transaction] read the input data           → commit
 external call / Chromium                           (no open transaction)
 [short transaction] write the result               → commit
