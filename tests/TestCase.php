@@ -13,6 +13,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Queue\Console\WorkCommand;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\Concerns\RefreshesTenantDatabase;
 
@@ -46,10 +47,19 @@ abstract class TestCase extends BaseTestCase
      * `0` dezactivează verificarea (`Worker::memoryExceeded()` cere plafon > 0). Aici, și
      * nu la cele ~45 de apeluri `queue:work` din suită, ca un test nou să nu reintroducă
      * capcana pur și simplu uitând opțiunea. Vezi `.ai/rules/tenancy.md`.
+     *
+     * `Http::preventStrayRequests()` (TEST-06, audit 2026-09-23): ADR-013 interzice apelurile
+     * externe sincrone în cererea HTTP ca „regulă absolută", dar o încălcare nu dă eroare, dă
+     * tranzacții lungi vizibile abia sub concurență. Fără gardă, un apel nou fără
+     * `Http::fake()` ar pleca din CI spre un domeniu real, sau ar agăța pe un DNS mort.
+     * Acum orice cerere nefakuită aruncă imediat. `Http::fake()` explicit din testele de
+     * curierat rămâne compatibil.
      */
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::preventStrayRequests();
 
         $this->app->resolving(
             WorkCommand::class,
