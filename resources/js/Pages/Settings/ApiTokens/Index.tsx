@@ -243,10 +243,25 @@ export default function ApiTokensIndex() {
     // „Revoke all").
     const revocationMessage = plainTextToken ? null : flash.success;
 
+    // DOUĂ cadre, nu focus imediat (audit a11y 2026-09-23): `FlashMessages` golește regiunea
+    // sincron și scrie textul abia în următorul `requestAnimationFrame` (golire → text, ca
+    // `aria-live` să vadă o mutație). Focusul imediat ateriza pe regiunea încă GOALĂ. Un
+    // singur rAF ar depinde de ordinea în care React rulează cele două efecte; al doilea
+    // cadru vine garantat după cel în care textul a fost scris, oricare ar fi ordinea.
     useEffect(() => {
-        if (revocationMessage) {
-            document.getElementById('flash-status')?.focus();
+        if (!revocationMessage) {
+            return;
         }
+
+        let second = 0;
+        const first = requestAnimationFrame(() => {
+            second = requestAnimationFrame(() => document.getElementById('flash-status')?.focus());
+        });
+
+        return () => {
+            cancelAnimationFrame(first);
+            cancelAnimationFrame(second);
+        };
     }, [revocationMessage]);
 
     return (

@@ -75,6 +75,9 @@ export default function Show() {
                 <div
                     role="status"
                     aria-live="polite"
+                    // Badge-ul și motivul eșecului apar în ACELAȘI commit: citite împreună, ca un
+                    // singur enunț („Failed — motivul"), nu fragmentat — ca în `FlashMessages`.
+                    aria-atomic="true"
                     className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4"
                 >
                     <StatusBadge tone={TONES[exportStatus.status]}>{labels[exportStatus.status]}</StatusBadge>
