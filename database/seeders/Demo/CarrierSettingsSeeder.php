@@ -9,7 +9,7 @@ use Database\Factories\TenantCarrierSettingFactory;
 /**
  * `tenant_carrier_settings` (ADR-010): Marlin → `demo` (fără credențiale, deci fluxul de
  * onorare merge fără dependență externă), Cascade și Northgate → `shippo`, cu credențiale
- * din `SHIPPO_SANDBOX_KEY` (pot fi goale local).
+ * din `config('throughput.demo.shippo_sandbox_key')` (pot fi goale local).
  *
  * Northgate primea `easypost` până la 2026-09-12, când furnizorul a fost scos: EasyPost
  * condiționează accesul la chei, inclusiv cele de test, de un abonament lunar — supapa

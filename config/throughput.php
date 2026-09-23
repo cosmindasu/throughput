@@ -30,6 +30,17 @@ return [
 
         // Reset zilnic al setului de date de demonstrație (§22.1, FR-DEMO-03).
         'reset_cron' => env('DEMO_RESET_CRON', '0 3 * * *'),
+
+        // ADR-010 — cheia sandbox Shippo scrisă de `Database\Seeders\Demo\CarrierSettingsSeeder`
+        // pe `tenant_carrier_settings` al tenanților 2 și 3 ai demo-ului (poate fi goală
+        // local: seederul filtrează un `api_key` gol cu `array_filter`). La runtime nimeni
+        // altcineva n-o citește — furnizorul și credențialele active sunt PER TENANT, în
+        // `tenant_carrier_settings`, criptate la repaus; o a doua sursă de configurare
+        // globală pentru același lucru ar contrazice direct ADR-010. Mutată aici (audit
+        // 2026-09-23, DOM-04) dintr-un `env()` citit direct în seeder — `database/` nu
+        // rulează sub `config:cache`, dar un `env()` în afara fișierelor de configurare
+        // rămâne un obicei greșit de reprodus, nu doar un bug latent aici.
+        'shippo_sandbox_key' => (string) env('SHIPPO_SANDBOX_KEY', ''),
     ],
 
     /*
