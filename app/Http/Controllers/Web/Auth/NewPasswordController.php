@@ -56,8 +56,21 @@ class NewPasswordController extends Controller
         );
 
         if ($status !== Password::PASSWORD_RESET) {
+            // SEC-07, audit de securitate 2026-09-23 — `passwords.user` („cont inexistent")
+            // și `passwords.token` („jeton invalid") sunt normalizate la ACELAȘI mesaj.
+            // Cine ajunge la acest pas are deja un link de reset (a trecut de pasul
+            // anti-enumerare al cererii inițiale, PasswordResetLinkController, care
+            // răspunde mereu cu mesajul generic „If an account exists…"), deci un mesaj
+            // distinct aici tot confirma/infirma existența contului — mica asimetrie
+            // semnalată de audit față de disciplina anti-enumerare aplicată peste tot
+            // altundeva (invitații, login). `passwords.throttled` rămâne NEATINS: nu spune
+            // nimic despre existența contului, doar despre limitarea de rată.
+            $messageKey = in_array($status, [Password::INVALID_USER, Password::INVALID_TOKEN], true)
+                ? Password::INVALID_TOKEN
+                : $status;
+
             throw ValidationException::withMessages([
-                'email' => [trans($status)],
+                'email' => [trans($messageKey)],
             ]);
         }
 

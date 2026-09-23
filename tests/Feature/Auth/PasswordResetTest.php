@@ -99,3 +99,29 @@ it('rejects an invalid or expired reset token', function () {
 
     $response->assertSessionHasErrors('email');
 });
+
+it('gives the identical final error message for a non-existent account and for a wrong token', function () {
+    // SEC-07, audit de securitate 2026-09-23 — `passwords.user` («cont inexistent») și
+    // `passwords.token` («jeton invalid») nu mai trebuie să se distingă la acest pas: cine
+    // ajunge aici are deja un link de reset, deci un mesaj diferit tot ar confirma/infirma
+    // existența contului. Amândouă căile trebuie să cadă pe `passwords.token`.
+    $genericMessage = trans('passwords.token');
+
+    $noSuchAccount = $this->post('/reset-password', [
+        'token' => Str::random(64),
+        'email' => 'nobody-'.Str::random(12).'@example.test',
+        'password' => 'NewPassword123!',
+        'password_confirmation' => 'NewPassword123!',
+    ]);
+    $noSuchAccount->assertSessionHasErrors(['email' => $genericMessage]);
+
+    $user = User::factory()->create(['email' => 'wrongtoken-'.Str::random(12).'@example.test']);
+
+    $wrongToken = $this->post('/reset-password', [
+        'token' => 'not-a-real-token',
+        'email' => $user->email,
+        'password' => 'NewPassword123!',
+        'password_confirmation' => 'NewPassword123!',
+    ]);
+    $wrongToken->assertSessionHasErrors(['email' => $genericMessage]);
+});

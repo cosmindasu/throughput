@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,61 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('Content-Security-Policy', SecurityHeaders::CONTENT_SECURITY_POLICY);
+    }
+
+    /**
+     * SEC-05 — hardening peste specs §20.2, nu o cerință de-acolo (vezi docblock-ul clasei).
+     * `clipboard-write=(self)` rămâne permis (folosit la copierea jetonului API nou creat),
+     * restul API-urilor neutilizate sunt dezactivate explicit.
+     */
+    public function test_permissions_policy_disables_unused_browser_apis(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertHeader('Permissions-Policy', SecurityHeaders::PERMISSIONS_POLICY);
+
+        $policy = (string) $response->headers->get('Permissions-Policy');
+
+        $this->assertStringContainsString('geolocation=()', $policy);
+        $this->assertStringContainsString('camera=()', $policy);
+        $this->assertStringContainsString('microphone=()', $policy);
+        $this->assertStringContainsString('payment=()', $policy);
+        $this->assertStringContainsString('clipboard-write=(self)', $policy);
+    }
+
+    /**
+     * OPS-03 — mecanismul de nonce cerut de Horizon (deblocat de SEC-01), dar scris general:
+     * orice cod care apelează `Vite::useCspNonce()` mai devreme în cerere primește un
+     * `script-src` cu `'nonce-<valoare>'` în plus; fără niciun apel, politica rămâne
+     * IDENTICĂ, caracter cu caracter, cu constanta publică.
+     *
+     * Ordinea celor două asertări contează: `Illuminate\Foundation\Vite` e `singleton`, nu
+     * `scoped` (vezi docblock-ul `SecurityHeaders::contentSecurityPolicy()`) — în ACELAȘI
+     * test Pest/PHPUnit, containerul supraviețuiește între mai multe `$this->get()`, deci
+     * varianta FĂRĂ nonce trebuie verificată ÎNAINTE de a genera unul, altfel nonce-ul
+     * primului apel „s-ar scurge" în al doilea. Sub php-fpm (runtime-ul real) fiecare
+     * cerere HTTP pornește un proces nou, deci scurgerea asta nu există în producție.
+     */
+    public function test_content_security_policy_gets_a_nonce_only_when_vite_generates_one(): void
+    {
+        Route::middleware(SecurityHeaders::class)->get('/__security-headers-test/no-nonce', fn () => 'ok');
+        Route::middleware(SecurityHeaders::class)->get('/__security-headers-test/with-nonce', function () {
+            Vite::useCspNonce();
+
+            return 'ok';
+        });
+
+        $withoutNonce = $this->get('/__security-headers-test/no-nonce');
+        $withoutNonce->assertHeader('Content-Security-Policy', SecurityHeaders::CONTENT_SECURITY_POLICY);
+
+        $withNonce = $this->get('/__security-headers-test/with-nonce');
+        $nonce = Vite::cspNonce();
+        $csp = (string) $withNonce->headers->get('Content-Security-Policy');
+
+        $this->assertNotNull($nonce);
+        $this->assertStringContainsString("script-src 'self' 'nonce-{$nonce}'", $csp);
+        // `style-src` NU primește nonce — vezi motivul în docblock-ul metodei testate.
+        $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", $csp);
     }
 
     public function test_scripts_get_no_inline_or_eval_exception(): void
