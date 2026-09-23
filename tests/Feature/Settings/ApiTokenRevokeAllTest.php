@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\DemoMode;
 use App\Support\Permissions;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Feature\Api\Concerns\IssuesApiTokens;
 use Tests\TestCase;
@@ -100,6 +102,41 @@ class ApiTokenRevokeAllTest extends TestCase
         });
 
         Carbon::setTestNow();
+    }
+
+    /**
+     * DOM-01 (audit 2026-09-23) — cursa, intercalată determinist. Un apel repetat la rând
+     * NU o reproduce: al doilea `SELECT` vede deja `revoked_at` scris și întoarce 0 și pe
+     * codul vechi. Fereastra reală e ÎNTRE `SELECT`-ul candidaților și `UPDATE`: o cerere
+     * concurentă revocă jetonul exact acolo. `DB::listen` rulează după fiecare interogare,
+     * pe aceeași conexiune și în aceeași tranzacție, deci scrierea din listener e vizibilă
+     * `UPDATE`-ului care urmează — exact ce vede a doua tranzacție după `EvalPlanQual`.
+     * Pe codul vechi: `revoked_at` suprascris cu `now()` mai târziu și „1 revocat".
+     */
+    public function test_a_token_revoked_concurrently_between_select_and_update_is_neither_overwritten_nor_counted(): void
+    {
+        [$token] = $this->issueTokenRow($this->tenant, $this->owner, [ApiToken::ABILITY_ORDERS_READ]);
+
+        $concurrentRevokedAt = Carbon::parse('2026-01-01 10:00:00');
+        $interleaved = false;
+
+        DB::listen(function (QueryExecuted $query) use ($token, $concurrentRevokedAt, &$interleaved): void {
+            if ($interleaved || ! str_starts_with(strtolower($query->sql), 'select') || ! str_contains($query->sql, 'api_tokens')) {
+                return;
+            }
+
+            $interleaved = true;
+            DB::table('api_tokens')->where('id', $token->getKey())->update(['revoked_at' => $concurrentRevokedAt]);
+        });
+
+        $count = TenantContext::run($this->tenant, fn (): int => ApiToken::revokeAllUsable());
+
+        $this->assertTrue($interleaved, 'Premisa: revocarea concurentă a avut loc între SELECT și UPDATE.');
+        $this->assertSame(0, $count, 'Nimic n-a fost revocat de ACEST apel — cererea concurentă a câștigat.');
+        $this->assertTrue(
+            $concurrentRevokedAt->equalTo($token->fresh()->revoked_at),
+            '`revoked_at` scris de cererea concurentă rămâne neatins.',
+        );
     }
 
     public function test_calling_it_twice_on_an_already_empty_workspace_does_not_explode(): void

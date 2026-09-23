@@ -210,7 +210,26 @@ class ApiToken extends Model
      * suprascrie un `revoked_at` mai vechi cu `now()`. Idempotența e literală, nu doar
      * „fără eroare".
      *
-     * @return int numărul de jetoane revocate acum (0 dacă nu era nimic de revocat)
+     * DE CE CONDIȚIA SE REPETĂ PE `update()`, NU DOAR PE `SELECT` (audit 2026-09-23,
+     * DOM-01 — cursă reprodusă, nu doar teoretizată): `SELECT`-ul de mai jos NU blochează
+     * rândurile citite. Două apeluri concurente (dublu-click, sau două cereri simultane)
+     * pot citi AMÂNDOUĂ aceeași listă de ID-uri „încă ne-revocate" înainte ca vreuna să
+     * apuce să scrie. Dacă `update()`-ul repetă doar `whereIn('id', ...)`, fără
+     * `whereNull('revoked_at')`, a doua tranzacție (care așteaptă la blocarea de rând pusă
+     * de `update()`-ul primeia, apoi — READ COMMITTED, `EvalPlanQual` — reevaluează
+     * condiția pe versiunea proaspătă a rândului) ar suprascrie `revoked_at` deja scris de
+     * prima cu un `now()` mai târziu, ȘI ar raporta `$tokens->count()` din propriul SELECT
+     * (stale) — „N revocate" pentru 0 rânduri modificate în realitate, contrazicând exact
+     * paragraful de mai sus.
+     *
+     * Cu `whereNull('revoked_at')` REPETAT pe `update()`, Postgres exclude singur, la
+     * reevaluare, rândurile pe care le-a golit deja cealaltă tranzacție — iar valoarea de
+     * retur a lui `update()` (numărul REAL de rânduri afectate de ACEST apel) e chiar ce
+     * se întoarce. `$tokens` rămâne doar lista de CANDIDAȚI, folosită exclusiv ca să se știe
+     * ce rânduri Sanctum (`token_hash`) de șters — niciodată sursa numărului raportat.
+     *
+     * @return int numărul de jetoane revocate ACUM, de ACEST apel (0 dacă nu era nimic de
+     *             revocat, sau dacă o cerere concurentă le-a revocat deja pe toate)
      */
     public static function revokeAllUsable(): int
     {
@@ -227,11 +246,10 @@ class ApiToken extends Model
                 ->whereIn('token', $tokens->pluck('token_hash'))
                 ->delete();
 
-            self::query()
+            return self::query()
                 ->whereIn('id', $tokens->pluck('id'))
+                ->whereNull('revoked_at')
                 ->update(['revoked_at' => now()]);
-
-            return $tokens->count();
         });
     }
 
