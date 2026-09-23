@@ -12,10 +12,14 @@ use App\Support\LocalePreference;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Redis;
 
 return Application::configure(basePath: dirname(__DIR__))
     // BUG DE FUNDAȚIE găsit la testarea lotului de abonament (Faza 5, specs.md §12.2),
@@ -40,6 +44,24 @@ return Application::configure(basePath: dirname(__DIR__))
     // eveniment→listener din proiect e ORICUM înregistrată explicit (`Event::listen()`),
     // deci nimic nu se pierde; se elimină doar dubla înregistrare tăcută.
     ->withEvents(discover: false)
+    // OPS-04 (audit infra 2026-09-23) — `/up` (parametrul `health` de mai jos) verifica doar
+    // că PHP a bootat: cu Postgres sau Redis căzute, dar php-fpm în viață, tot răspundea 200.
+    // Ruta face `Event::dispatch(new DiagnosingHealth)` într-un `try/catch` și răspunde 500
+    // dacă un listener aruncă (`ApplicationBuilder::buildRoutingCallback()`), deci ajunge un
+    // listener care atinge ambele conexiuni. Legat aici, explicit (descoperirea automată e
+    // oprită mai sus): e un callback fără stare al rutei de sănătate, nu un eveniment de domeniu.
+    //
+    // Doar healthcheck-ul lui `nginx` (docker-compose.coolify.yml) cheamă `/up`; al lui `app`
+    // verifică doar că FPM ascultă pe 9000. Deliberat: o dependență căzută scoate site-ul din
+    // rotația Traefik (utilizatorii ar primi oricum 500), dar nu declară mort procesul PHP,
+    // care își revine singur când Redis/Postgres revin. 30 s × 3 încercări pe `nginx`
+    // absorb o întrerupere scurtă fără să scoată site-ul din rotație.
+    ->booted(function (): void {
+        Event::listen(DiagnosingHealth::class, function (): void {
+            DB::connection()->getPdo();
+            Redis::connection()->ping();
+        });
+    })
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         // API public v1 (specs.md §18, ADR-008, plan §11, valul 2 al Fazei 5). Prefixul

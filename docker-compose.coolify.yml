@@ -13,6 +13,18 @@ x-app-env: &app-env
   APP_DEBUG: "false"
   APP_URL: "${APP_URL}"
   APP_LOCALE: en
+  # OPS-05 (audit infra 2026-09-23): fără astea, producția moștenea implicitele din
+  # config/logging.php — `stack`→`single` (scrie pe disc, în `storage/logs/laravel.log`,
+  # PE VOLUMUL PARTAJAT `app_storage`, fără rotație) și `LOG_LEVEL=debug` (volum mare,
+  # fiecare interogare/eveniment logat explicit ajungea pe disc). Driverul Docker
+  # `json-file` (ancora `x-logging`) captează DOAR stdout/stderr al procesului
+  # principal — un fișier scris în interiorul containerului nu ajunge niciodată în
+  # log-urile Coolify. `stderr` (canal deja definit în config/logging.php, cu
+  # `formatter`/`level` citite din env) trimite exact pe acel canal; `warning` taie
+  # zgomotul de `debug`/`info` fără să piardă nimic ce ar declanșa o alertă. Ambele
+  # rămân suprascriabile din Coolify → Environment Variables, fără commit.
+  LOG_CHANNEL: "${LOG_CHANNEL:-stderr}"
+  LOG_LEVEL: "${LOG_LEVEL:-warning}"
   DEMO_MODE: "${DEMO_MODE:-true}"
   # Plan §2.1. Implicitul din config/throughput.php e același; stă aici ca ora resetului să
   # se poată schimba din Coolify → Environment Variables, fără commit.
@@ -34,6 +46,14 @@ x-app-env: &app-env
   # Cu două puncte la final: prefixul se concatenează direct la numele cheii Redis,
   # iar `throughput_horizon` fără ele produce chei de forma `throughput_horizonjobs:...`.
   HORIZON_PREFIX: "throughput_horizon:"
+  # OPS-03 / SEC-04 — Coolify injectează în containere doar variabilele referite aici; fără
+  # aceste linii, valorile setate în UI nu ajung în aplicație. Credențialele goale lasă
+  # dashboard-ul închis tuturor (fail-closed, vezi App\Http\Middleware\HorizonBasicAuth).
+  # Implicitul `horizon` al căii există doar ca un `HORIZON_PATH` gol să nu mute dashboard-ul
+  # pe rădăcina site-ului; în producție se setează o valoare neghicibilă (runbook §8).
+  HORIZON_PATH: "${HORIZON_PATH:-horizon}"
+  HORIZON_BASIC_AUTH_USER: "${HORIZON_BASIC_AUTH_USER}"
+  HORIZON_BASIC_AUTH_PASSWORD: "${HORIZON_BASIC_AUTH_PASSWORD}"
   MAIL_MAILER: "${MAIL_MAILER:-smtp}"
   MAIL_HOST: "${MAIL_HOST}"
   # Portul și expeditorul din plan §2.4. Fără ele, config/mail.php cade pe implicitele
