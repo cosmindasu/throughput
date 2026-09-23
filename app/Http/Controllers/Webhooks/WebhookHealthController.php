@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\WebhookEvent;
+use App\Support\SingleOwnerDeployment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -37,6 +38,15 @@ use Inertia\Response;
  * niciun terț nu are date aici. Dacă vreodată tenanții devin organizații independente,
  * ecranul trebuie mutat în afara workspace-ului (super-admin), nu filtrat pe `stripe_id`:
  * exact rândurile fără mapare sunt cele care interesează operațional.
+ *
+ * GARDĂ EXPLICITĂ (SEC-02, audit 2026-09-23, `docs/reviews/2026-09-23_audit/01-securitate.md`):
+ * `App\Support\SingleOwnerDeployment::active()` verifică, la FIECARE cerere, dacă premisa
+ * de mai sus ține — un singur Owner comun tuturor tenanților existenți (FR-TEN-01) — și
+ * refuză cu 403 (fail-closed, aceeași formă ca `billing.view` mai jos, nu 404: nu ascundem
+ * EXISTENȚA ecranului, doar dreptul de a-l vedea cross-tenant) din clipa în care apare un
+ * tenant fără Owner comun cu restul. NU e un flag manual: se derivă din `model_has_roles`,
+ * deci nu depinde de cineva care-și amintește să-l comute la primul tenant plătitor real —
+ * vezi docblock-ul clasei pentru semnal și motivare.
  */
 final class WebhookHealthController extends Controller
 {
@@ -50,6 +60,7 @@ final class WebhookHealthController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()->can('billing.view'), 403);
+        abort_unless(SingleOwnerDeployment::active(), 403);
 
         $status = $request->string('status')->toString();
         $status = in_array($status, self::statuses(), true) ? $status : null;

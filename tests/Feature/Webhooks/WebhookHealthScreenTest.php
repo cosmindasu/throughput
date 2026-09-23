@@ -94,6 +94,49 @@ class WebhookHealthScreenTest extends TestCase
         $this->actingAs($this->viewer)->get('/marlin/settings/webhooks')->assertForbidden();
     }
 
+    /**
+     * SEC-02 (audit 2026-09-23) — `App\Support\SingleOwnerDeployment::active()`. Config
+     * demo REALĂ (FR-TEN-01): trei tenanți, un singur Owner comun tuturor. Cu un singur
+     * tenant (`marlin`, celelalte teste din acest fișier), garda trece trivial — asta nu
+     * dovedește nimic despre semnalul „Owner comun". Aici mai adaug DOI tenanți și fac
+     * din `$this->owner` Owner și acolo, ca interogarea `model_has_roles` (nu cazul
+     * banal `tenantCount <= 1`) să fie cea exercitată.
+     */
+    public function test_the_guard_lets_the_screen_through_when_every_tenant_shares_the_same_owner(): void
+    {
+        $cascade = $this->makeTenant('cascade', 'Cascade Metal Works');
+        $northgate = $this->makeTenant('northgate', 'Northgate Traders');
+
+        $this->makeMember($cascade, $this->owner->email, Permissions::OWNER, $this->owner);
+        $this->makeMember($northgate, $this->owner->email, Permissions::OWNER, $this->owner);
+
+        $this->actingAs($this->owner)
+            ->get('/marlin/settings/webhooks')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Settings/WebhookHealth/Index')
+                ->has('events', 3)
+            );
+    }
+
+    /**
+     * SEC-02 — al doilea tenant (`northgate`) NU împarte niciun Owner cu `marlin`:
+     * proprietarul lui `marlin` (`$this->owner`) nu are rol Owner acolo, iar Owner-ul lui
+     * `northgate` nu are rol Owner în `marlin`. Exact scenariul pe care docblock-ul
+     * controllerului îl numește „tenantul devine o organizație independentă" — ecranul
+     * trebuie să refuze, nu doar să-l lase pe Owner-ul lui `marlin` să vadă evenimentele
+     * (potențial) ale altui proprietar.
+     */
+    public function test_the_guard_refuses_when_a_tenant_has_a_different_owner(): void
+    {
+        $northgate = $this->makeTenant('northgate', 'Northgate Traders');
+        $this->makeMember($northgate, 'other.owner@example.com', Permissions::OWNER);
+
+        $this->actingAs($this->owner)
+            ->get('/marlin/settings/webhooks')
+            ->assertForbidden();
+    }
+
     private function recordEvent(string $eventId, string $status, ?string $message): void
     {
         WebhookEvent::query()->create([
