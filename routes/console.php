@@ -8,7 +8,9 @@ use App\Jobs\System\FailStuckImportsJob;
 use App\Jobs\System\MarkOverdueInvoicesJob;
 use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\PruneExpiredImportFilesJob;
+use App\Jobs\System\PruneExpiredInvitationsJob;
 use App\Jobs\System\PruneSentEmailsJob;
+use App\Jobs\System\RedactWebhookEventPayloadsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
 use Carbon\CarbonImmutable;
@@ -52,6 +54,14 @@ Schedule::command('stock:reconcile')->weekly();
 // fără parametri: implicit șterge batch-urile terminate de peste 24h). Fără `when()`, ca la
 // `PruneExpiredExportsJob`: operațiile în masă există independent de DEMO_MODE.
 Schedule::command('queue:prune-batches')->daily();
+
+// GDPR-07 (audit 2026-09-23, docs/reviews/2026-09-23_audit/08-gdpr.md) — `failed_jobs` nu
+// avea nicio retenție (comandă nativă Laravel, fără `when()`, ca `queue:prune-batches` de
+// mai sus, pentru același motiv). 168h = 7 zile, ca `sent_email_retention_days`/
+// `export_retention_days`: un payload eșuat poate conține fragmente de date (mesajul unei
+// excepții), nu doar id-uri, deci nu stă nedefinit doar pentru că azi niciun job de tenant nu
+// cară altceva decât scalari (`.ai/rules/tenancy.md`, „Două familii de joburi").
+Schedule::command('queue:prune-failed', ['--hours' => 168])->daily();
 
 // §13.2 (code review, fix operațional) — plasă de siguranță pentru fereastra dintre
 // `Bus::batch()->dispatch()` și scrierea `batch_id` (`PlanBulkOperationJob`, tries=1
@@ -113,3 +123,31 @@ Schedule::job(new MarkOverdueInvoicesJob, 'default')->daily();
 // idempotent prin convergență (vezi docblock-ul clasei), deci o rulare lunară fixă e
 // suficientă — nu are nevoie de recuperare specială dacă o lună a fost ratată.
 Schedule::job(new AnonymizeActivityLogJob, 'default')->monthly();
+
+// GDPR-03 (audit 2026-09-23, docs/reviews/2026-09-23_audit/08-gdpr.md) — retenția
+// PAYLOAD-ULUI evenimentelor Stripe (`webhook_events.payload`, care cară `customer_email`
+// complet — vezi docblock-ul jobului): pentru rândurile TERMINALE `processed`/`ignored` mai
+// vechi de 90 de zile (constantă de clasă, `config/throughput.php` nu e în felia lotului
+// care a scris jobul). Fără `when()`, ca `PruneExpiredExportsJob`: `webhook_events` n-are
+// `tenant_id`/RLS (§19.1) — o singură trecere, fără tenanți de iterat, independentă de
+// DEMO_MODE.
+Schedule::job(new RedactWebhookEventPayloadsJob, 'default')->daily();
+
+// GDPR-09 (audit 2026-09-23, docs/reviews/2026-09-23_audit/08-gdpr.md) — invitațiile
+// `pending` neacceptate, expirate de peste 30 de zile (constantă de clasă), urmează EXACT
+// fluxul manual al `RevokeInvitationAction` (idem `activity_log`), plus ștergerea rândului
+// `users` orfan rămas fără niciun membership, în niciun tenant (limitarea semnalată în
+// docblock-ul acelei acțiuni — vezi docblock-ul jobului pentru cum un job de SISTEM o
+// rezolvă, un actor uman nu poate). ZILNIC, nu lunar ca `AnonymizeActivityLogJob`: pragul de
+// acolo e în LUNI (36) — o derivă de o lună e neglijabilă; aici pragul e în ZILE (30), deci o
+// cadență lunară ar dubla practic fereastra reală de retenție. Job de SISTEM (ADR-014 pct.
+// 4): iterează tenanții el însuși — fără `when()`, din același motiv ca restul listei.
+Schedule::job(new PruneExpiredInvitationsJob, 'default')->daily();
+
+// GDPR-10 (audit 2026-09-23, docs/reviews/2026-09-23_audit/08-gdpr.md) — NIMIC programat
+// aici, deliberat: producția rulează `SESSION_DRIVER=redis` (`docker-compose.coolify.yml`),
+// unde fiecare cheie expiră singură cu TTL-ul ei — nimic de purjat la nivelul aplicației.
+// Tabela `sessions` (`config/session.php`, implicit `database`) rămâne doar plasa de
+// siguranță „fără Redis" a schemei și n-are prune automat în Laravel. Dacă `SESSION_DRIVER`
+// devine vreodată `database` în producție, adaugă aici un job/comandă care șterge rândurile
+// cu `last_activity` mai vechi decât `config('session.lifetime')`.
