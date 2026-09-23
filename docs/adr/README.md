@@ -20,7 +20,7 @@ Each ADR documents one architectural decision with long-term impact — **contex
 | [ADR-010](ADR-010-doi-furnizori-curierat-configurabili.md) | Two shipping carriers, selectable per tenant, plus a demo one | Accepted · valve pulled (EasyPost out); one Consequences bullet retracted | 2026-09-12 | Sprint 5 |
 | [ADR-011](ADR-011-dezactivare-membru-fara-blocare.md) | Deactivating a member is never blocked by the records they own | Accepted | 2026-09-12 | Phase 2 |
 | [ADR-012](ADR-012-retentie-30-zile-post-anulare.md) | A 30-day retention window after subscription cancellation | Accepted | 2026-09-12 | Phase 5 |
-| [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | External calls leave the HTTP request and move to queues | Accepted | 2026-09-12 | Phase 5 |
+| [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | External calls leave the HTTP request and move to queues | Accepted · narrow exception for two calls per [ADR-023](ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md) | 2026-09-12 | Phase 5 |
 | [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Tenant context — a single gate, two session variables, a dedicated policy for `memberships` — partially supersedes point 1 of [ADR-003](ADR-003-izolare-tenant-doua-straturi.md) | Accepted · the SQL form in point 2 partially superseded by [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | 2026-09-12 | Phase 1 |
 | [ADR-015](ADR-015-laravel-13-si-inertia-3.md) | Laravel 13 and Inertia 3, not Laravel 12 and Inertia 2 — supersedes the versions in [ADR-001](ADR-001-stack-tehnic.md) | Accepted | 2026-09-12 | Sprint 0 |
 | [ADR-016](ADR-016-cast-rls-pe-setare-nu-pe-coloana.md) | RLS policies cast the setting, not the column — partially supersedes the SQL form in [ADR-014](ADR-014-context-de-tenant-o-singura-poarta.md) | Accepted | 2026-09-12 | Phase 1 |
@@ -30,6 +30,7 @@ Each ADR documents one architectural decision with long-term impact — **contex
 | [ADR-020](ADR-020-politica-rls-proprie-pentru-jurnalul-de-email.md) | A dedicated RLS policy for the email log, with an optional tenant | Accepted | 2026-09-19 | Phase 4 |
 | [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | The subscription invoice stays on `DompdfInvoiceRenderer`, the Cashier default — not on `spatie/laravel-pdf` — partially supersedes [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Accepted | 2026-09-19 | Phase 5 |
 | [ADR-022](ADR-022-locale-en-fr-per-utilizator-nu-in-url.md) | The interface becomes bilingual (EN default + FR), language is a per-user preference (`users.locale`) — not a URL segment — amends [ADR-002](ADR-002-tenancy-pe-cale.md) | Accepted | 2026-09-20 | after Phase 5 |
+| [ADR-023](ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md) | Two synchronous Stripe calls in `BillingController` (`portal()`, `invoiceHistory()`) stay in the HTTP request — a narrow, named exception to [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | Accepted | 2026-09-23 | Phase 5 |
 
 ## Conventions
 

@@ -1,10 +1,12 @@
 # ADR-013: External calls leave the HTTP request and move to queues
 
-- **Status**: Accepted
+- **Status**: Accepted — **narrow exception for two calls, see [[ADR-023]]**
 - **Date**: 2026-09-12
 - **Deciders**: Owner
 - **Related**: [[ADR-003]] (the transaction comes from the isolation mechanism), [[ADR-010]] (shipping)
 - **Tags**: performance, transactions, queues, postgresql, sprint-5
+
+> **Exception, 2026-09-23 — [[ADR-023]].** The rule below stays in force for every other controller and every other external call. `BillingController::portal()` and `BillingController::invoiceHistory()` are a documented, narrowly-named exception — neither has an async equivalent (an immediate Stripe redirect; a read page that needs Stripe's real invoice list). See [[ADR-023]] for the full argument, the measured cost, and the criteria for revisiting it. This note only points there; it does not restate or relax the rule.
 
 ## Context and problem statement
 

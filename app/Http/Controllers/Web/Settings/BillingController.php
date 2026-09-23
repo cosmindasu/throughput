@@ -67,6 +67,9 @@ final class BillingController extends Controller
      * căzut nu are voie să transforme pagina de billing într-un 500 — se arată „momentan
      * indisponibil", nu o eroare necontrolată.
      *
+     * Excepție formalizată în ADR-023 (docs/adr/ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md)
+     * — argumentul complet, costul măsurat și criteriile de revizuire stau acolo, nu aici.
+     *
      * @return list<array{id: string, date: ?string, total: string, status: ?string, hostedUrl: ?string}>
      */
     private function invoiceHistory(Tenant $tenant): array
@@ -99,6 +102,9 @@ final class BillingController extends Controller
      * eticheta de curierat sau la PDF-ul de factură. Apelul e scurt (un singur POST către
      * Stripe, fără upload/randare), spre deosebire de Chromium-ul de câteva secunde care a
      * motivat ADR-013 inițial. Semnalat explicit în raportul lotului, nu ascuns în cod.
+     *
+     * Excepție formalizată în ADR-023 (docs/adr/ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md)
+     * — argumentul complet, costul măsurat și criteriile de revizuire stau acolo, nu aici.
      *
      * `Inertia::location()`, NU `redirect()`: ținta e alt domeniu (`checkout.stripe.com`/
      * `billing.stripe.com`) — clientul Inertia ar încerca să urmeze un `redirect()` normal
