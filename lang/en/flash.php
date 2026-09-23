@@ -256,6 +256,11 @@ return [
     'subscription' => [
         // `EnsureSubscriptionAccess::respondReadOnly()` — starea `unpaid` (§12.2).
         'read_only' => 'Your subscription is unpaid — update your payment method to restore full access.',
+
+        // `BillingController::portal()` — ADR-023: Stripe indisponibil sau tenant fără
+        // `stripe_id` încă. Simetric cu `invoices.pdf_not_ready` ca ton („momentan
+        // indisponibil", nu o eroare tehnică).
+        'portal_unavailable' => 'The billing portal is temporarily unavailable — try again in a moment.',
     ],
 
     // `App\Support\DemoMode::GUARDED_ACTIONS` — array-ul rămâne o CONSTANTĂ de clasă

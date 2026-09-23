@@ -79,4 +79,21 @@ class BillingPageTest extends TestCase
             ->post('/marlin/settings/billing/portal')
             ->assertForbidden();
     }
+
+    /**
+     * ADR-023 — asimetria închisă: `portal()` n-avea `try/catch`, spre deosebire de
+     * `invoiceHistory()`. Tenantul de test n-are `stripe_id` (§22.4, ca la
+     * `test_the_owner_sees_the_current_plan_and_can_manage()` de mai sus), deci
+     * `billingPortalUrl()` aruncă `Laravel\Cashier\Exceptions\InvalidCustomer`
+     * (`assertCustomerExists()`) ÎNAINTE de orice cerere de rețea — exact mecanismul deja
+     * folosit în acest fișier pentru a evita un Stripe fals, nu unul nou.
+     */
+    public function test_portal_failure_redirects_back_with_a_translated_flash_error_instead_of_500(): void
+    {
+        $this->actingAs($this->owner)
+            ->from('/marlin/settings/billing')
+            ->post('/marlin/settings/billing/portal')
+            ->assertRedirect('/marlin/settings/billing')
+            ->assertSessionHas('error', __('flash.subscription.portal_unavailable'));
+    }
 }

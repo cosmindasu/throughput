@@ -202,6 +202,8 @@ return [
 
     'subscription' => [
         'read_only' => 'Votre abonnement est impayé — mettez à jour votre moyen de paiement pour retrouver un accès complet.',
+
+        'portal_unavailable' => 'Le portail de facturation est temporairement indisponible — réessayez dans un instant.',
     ],
 
     'demo' => [

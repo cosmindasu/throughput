@@ -38,6 +38,9 @@ de context ține o tranzacție deschisă pe toată durata cererii, deci un apel 
 Chromium de câteva secunde ține o tranzacție Postgres deschisă pe un container cu
 `max_connections=30`. Dacă o acțiune atinge altceva decât baza proprie, acțiunea aparține unei
 cozi. Încălcarea **nu dă eroare** — dă tranzacții lungi care se văd abia sub concurență.
+Excepție îngustă, numită explicit: [ADR-023](../../docs/adr/ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md),
+DOAR pentru `BillingController::portal()`/`invoiceHistory()` — un al treilea apelant nu se
+justifică prin precedent, ci prin propriul ADR.
 
 Corolar: fiecare `dispatch()` se întâmplă într-o tranzacție deschisă, deci
 `'after_commit' => true` pe conexiunea Redis e obligatoriu.

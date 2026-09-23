@@ -110,6 +110,18 @@ final class BillingController extends Controller
      * `billing.stripe.com`) — clientul Inertia ar încerca să urmeze un `redirect()` normal
      * ca pe o vizită SPA (XHR), care fie eșuează la CORS, fie randează HTML-ul Stripe ca
      * „pagină Inertia". `Inertia::location()` forțează un `window.location` complet.
+     *
+     * Asimetria semnalată de ADR-023 („`portal()` n-are try/catch, spre deosebire de
+     * `invoiceHistory()`") se închide aici, aliniat la același tipar: `catch (Throwable)`,
+     * nu doar `Stripe\Exception\ApiErrorException` — `billingPortalUrl()` aruncă ÎNTÂI
+     * `Laravel\Cashier\Exceptions\InvalidCustomer` (`assertCustomerExists()`, tenant fără
+     * `stripe_id` — cazul „reachable, not merely theoretical" din ADR-023, fiindcă
+     * frontend-ul nu ascunde butonul „Manage billing" în absența unui abonament) ÎNAINTE
+     * de orice apel de rețea, deci un `catch` restrâns la excepțiile Stripe (care includ
+     * `ApiConnectionException`, subclasă a `ApiErrorException`) ar lăsa exact acel caz să
+     * dea tot 500. Fără real Stripe fake în acest proiect (§22.4), tenantul de test FĂRĂ
+     * `stripe_id` e și mecanismul prin care se verifică fixul, la fel cum `invoiceHistory()`
+     * își verifică deja ramura de succes.
      */
     public function portal(Request $request): Response
     {
@@ -117,7 +129,16 @@ final class BillingController extends Controller
 
         $tenant = app('tenant');
 
-        $url = $tenant->billingPortalUrl(route('settings.billing.index'));
+        try {
+            $url = $tenant->billingPortalUrl(route('settings.billing.index'));
+        } catch (Throwable $e) {
+            report($e);
+            Log::warning('Nu s-a putut deschide Stripe Customer Portal.', [
+                'tenant_id' => $tenant->getKey(),
+            ]);
+
+            return back()->with('error', __('flash.subscription.portal_unavailable'));
+        }
 
         return Inertia::location($url);
     }
