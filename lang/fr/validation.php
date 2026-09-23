@@ -16,10 +16,19 @@
  * tehnice pe ecrane adresate unui utilizator obișnuit: `password.uncompromised` („fuite de
  * données"), `uploaded`, `mimes`.
  *
- * `attributes` RĂMÂNE GOL, în ambele limbi. Umplut doar în franceză („email" → „adresse
- * e-mail") ar face mesajele franceze mai naturale, dar ar desperechea fișierele și ar pica
- * `i18n:coverage`; umplut și în engleză ar SCHIMBA engleza vizibilă, ceea ce lotul nu are
- * voie să facă. Rămâne o îmbunătățire posibilă, de făcut simetric, ca decizie separată.
+ * `attributes` — POPULAT simetric în ambele limbi de la I18N-01 (P1): până atunci, orice
+ * eroare de validare pe un câmp cu nume compus randa numele englez, humanizat („Le champ
+ * credit terms est obligatoire."), pe o interfață altfel complet franceză — exact „găurile
+ * invizibile" numite mai sus. Cheile provin din `rules()` ale TUTUROR FormRequest-urilor
+ * (`app/Http/Requests/**`), plus cele două `Validator::make` manuale din
+ * `app/Http/Controllers/Web` — extrase sistematic (nu ochiometric): `ValidationAttributesTest`
+ * parcurge prin reflecție toate FormRequest-urile și verifică, pentru fiecare cheie din
+ * `rules()`, o intrare `attributes` în AMBELE limbi — gate-ul care ține cataloagele sincrone
+ * cu codul, nu doar simetrice între ele. Cheile compuse (`lines.*.discount`,
+ * `billing_address.line1`) folosesc notația cu punct pe care Laravel o rezolvă nativ, inclusiv
+ * varianta cu wildcard (`Validator::getDisplayableAttribute()` cade pe `cheie.*` dacă
+ * `cheie.0` lipsește) — un câmp neacoperit aici cade pe fallback-ul humanizat al numelui de
+ * variabilă, corect doar în engleză.
  *
  * Tipografie (revizuit la Valul 5 al Lotului I18N — inversează nota veche, păstrată mai jos
  * ca istoric): spațiu INSECABIL ÎNGUST (U+202F) înaintea lui „:", „;", „?", „!" și „»", și
@@ -224,7 +233,123 @@ return [
         ],
     ],
 
-    // Gol în ambele limbi, deliberat — vezi docblock-ul de la începutul fișierului.
-    'attributes' => [],
+    // Populat de la I18N-01 — vezi docblock-ul de la începutul fișierului. Aceleași chei,
+    // în aceeași ordine, ca în `lang/en/validation.php` (simetrie verificată de
+    // `ValidationAttributesTest` și de `php artisan i18n:coverage`).
+    'attributes' => [
+        'account_id' => 'compte',
+        'acknowledge_backorder' => 'confirmation de rupture de stock',
+        'active' => 'actif',
+        'amount' => 'montant',
+        'attributes' => 'attributs',
+        'billing_address' => 'adresse de facturation',
+        'billing_address.city' => 'ville de l’adresse de facturation',
+        'billing_address.country' => 'pays de l’adresse de facturation',
+        'billing_address.line1' => 'ligne d’adresse de facturation',
+        'billing_address.postal_code' => 'code postal de l’adresse de facturation',
+        'billing_address.state' => 'état de l’adresse de facturation',
+        'category' => 'catégorie',
+        'columns' => 'colonnes',
+        'columns.*' => 'colonne',
+        'confirm_duplicate_email' => 'confirmation d’e-mail en double',
+        'confirmed' => 'confirmé',
+        'contact' => 'contact',
+        'contact.email' => 'e-mail du contact',
+        'contact.first_name' => 'prénom du contact',
+        'contact.last_name' => 'nom du contact',
+        'contact.phone' => 'téléphone du contact',
+        'contact.title' => 'fonction du contact',
+        'contact_id' => 'contact',
+        'cost' => 'coût',
+        'credentials' => 'identifiants',
+        'credentials.api_key' => 'clé API',
+        'credit_terms' => 'conditions de crédit',
+        'currency' => 'devise',
+        'deal_id' => 'affaire',
+        'delta' => 'changement de quantité',
+        'direction' => 'sens',
+        'domain' => 'domaine',
+        'email' => 'e-mail',
+        'expected_close_date' => 'date de clôture prévue',
+        'file' => 'fichier',
+        'filter' => 'filtre',
+        'filter.*' => 'valeur de filtre',
+        'first_name' => 'prénom',
+        'format' => 'format',
+        'from_location_id' => 'emplacement d’origine',
+        'ids' => 'enregistrements sélectionnés',
+        'ids.*' => 'enregistrement sélectionné',
+        'industry' => 'secteur',
+        'is_active' => 'actif',
+        'is_lost' => 'perdu',
+        'is_primary' => 'principal',
+        'is_won' => 'gagné',
+        'key' => 'clé',
+        'last_name' => 'nom',
+        'lines' => 'lignes',
+        'lines.*' => 'quantité',
+        'lines.*.discount' => 'remise de ligne',
+        'lines.*.quantity' => 'quantité de ligne',
+        'lines.*.unit_price' => 'prix unitaire de ligne',
+        'lines.*.variant_id' => 'variante de ligne',
+        'locale' => 'langue',
+        'location_id' => 'emplacement',
+        'lost_reason' => 'motif de perte',
+        'low_stock_threshold' => 'seuil de stock faible',
+        'mapping' => 'correspondance des colonnes',
+        'mapping.*' => 'colonne associée',
+        'method' => 'méthode de paiement',
+        'mode' => 'mode',
+        'name' => 'nom',
+        'new_owner_user_id' => 'nouveau propriétaire',
+        'note' => 'note',
+        'notes' => 'notes',
+        'opt_out' => 'désinscription des communications marketing',
+        'owner_user_id' => 'propriétaire',
+        'paid_at' => 'date de paiement',
+        'password' => 'mot de passe',
+        'phone' => 'téléphone',
+        'price' => 'prix',
+        'primary_contact_id' => 'contact principal',
+        'probability' => 'probabilité',
+        'provider' => 'transporteur',
+        'quantity' => 'quantité',
+        'reason' => 'motif',
+        'reassign' => 'réaffectation',
+        'recipients' => 'destinataires',
+        'recipients.*' => 'destinataire',
+        'report_type' => 'source',
+        'resolvedTheme' => 'thème résolu',
+        'resource_type' => 'type de ressource',
+        'role' => 'rôle',
+        'saved_view_id' => 'vue enregistrée',
+        'schedule_day' => 'jour de planification',
+        'schedule_frequency' => 'fréquence de planification',
+        'schedule_time' => 'heure de planification',
+        'selectAllMatching' => 'tout sélectionner selon le filtre',
+        'shipping_address' => 'adresse de livraison',
+        'shipping_address.city' => 'ville de l’adresse de livraison',
+        'shipping_address.country' => 'pays de l’adresse de livraison',
+        'shipping_address.line1' => 'ligne d’adresse de livraison',
+        'shipping_address.postal_code' => 'code postal de l’adresse de livraison',
+        'shipping_address.state' => 'état de l’adresse de livraison',
+        'sku' => 'SKU',
+        'sort' => 'tri',
+        'source' => 'source',
+        'stage_ids' => 'étapes',
+        'stage_ids.*' => 'étape',
+        'status' => 'statut',
+        'tags' => 'étiquettes',
+        'tags.*' => 'étiquette',
+        'theme' => 'thème',
+        'title' => 'titre',
+        'to_location_id' => 'emplacement de destination',
+        'to_stage_id' => 'étape cible',
+        'token' => 'jeton',
+        'unit_of_measure' => 'unité de mesure',
+        'value' => 'valeur',
+        'visibility' => 'visibilité',
+        'weight' => 'poids',
+    ],
 
 ];

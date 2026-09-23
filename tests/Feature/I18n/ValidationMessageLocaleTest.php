@@ -46,12 +46,13 @@ class ValidationMessageLocaleTest extends TestCase
     {
         // `name` n-are suprascriere în `forms.php` — deci mesajul vine din `validation.php`,
         // fișierul care până acum nu exista deloc în franceză. Ăsta e chiar golul reparat.
+        // Numele câmpului vine din `validation.attributes` (I18N-01): „nom", nu „name".
         $this->speaksFrench();
 
         $this->actingAs($this->owner)
             ->from('/marlin/accounts/create')
             ->post('/marlin/accounts', ['status' => 'prospect', 'credit_terms' => 'net_30'])
-            ->assertSessionHasErrors(['name' => 'Le champ name est obligatoire.']);
+            ->assertSessionHasErrors(['name' => 'Le champ nom est obligatoire.']);
     }
 
     public function test_the_same_generic_message_stays_english_by_default(): void
