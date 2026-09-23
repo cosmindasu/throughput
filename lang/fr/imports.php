@@ -95,5 +95,8 @@ return [
         // I18N-07 — perechea franceză a lui `lang/en/imports.php`. Fără interpolare, deci
         // fără capcana ghilimelelor/genului de acolo.
         'duplicate_value' => 'Existe déjà — un enregistrement existant utilise cette valeur.',
+
+        // P2 (lot i18n) — perechea française de `duplicate_in_file` (`lang/en/imports.php`).
+        'duplicate_in_file' => 'Valeur en double — déjà utilisée par une ligne précédente de ce fichier.',
     ],
 ];

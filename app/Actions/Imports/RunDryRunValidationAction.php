@@ -5,6 +5,7 @@ namespace App\Actions\Imports;
 use App\Jobs\Imports\RunDryRunValidationJob;
 use App\Models\Import;
 use App\Models\ImportRow;
+use Illuminate\Support\Facades\App;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -13,6 +14,14 @@ use Illuminate\Validation\ValidationException;
  * scrie: un dublu-clic pe „Run dry-run validation" nu are voie să pornească DOUĂ lanțuri de
  * joburi auto-continue în paralel pe ACELAȘI import (`RunDryRunValidationJob` s-ar
  * suprascrie reciproc contoarele).
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `App::getLocale()` se citește AICI, încă în
+ * contextul cererii HTTP (limba celui care APASĂ „Run dry-run validation" ACUM, la fel ca
+ * `App\Actions\Members\InviteMemberAction::send()` — nu neapărat cea a lui `created_by`, dacă
+ * un alt membru relansează proba uscată), și se transmite EXPLICIT jobului. Fără parametrul
+ * explicit, `RunDryRunValidationJob` (job de tenant, viață lungă pe worker) ar moșteni limba
+ * ÎNTÂMPLĂTOARE lăsată de orice alt job rulat înainte pe același worker — exact scurgerea
+ * interzisă de ADR-022, documentată de `tests/Feature/I18n/JobLocaleLeakTest.php`.
  */
 final class RunDryRunValidationAction
 {
@@ -55,6 +64,10 @@ final class RunDryRunValidationAction
         // am confirmat, atomic, că importul chiar a tranziționat din `mapped`.
         ImportRow::query()->where('import_id', $import->getKey())->delete();
 
-        RunDryRunValidationJob::dispatch($import->tenant_id, $import->getKey())->onQueue('imports');
+        RunDryRunValidationJob::dispatch(
+            $import->tenant_id,
+            $import->getKey(),
+            App::getLocale(),
+        )->onQueue('imports');
     }
 }

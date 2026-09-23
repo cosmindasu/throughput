@@ -7,12 +7,15 @@ use App\Jobs\Reports\GenerateReportJob;
 use App\Mail\DataExportReadyMail;
 use App\Mail\ReportDeliveryMail;
 use App\Models\DataExportRequest;
+use App\Models\Import;
+use App\Models\ImportRow;
 use App\Models\ReportDefinition;
 use App\Models\ReportRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -48,6 +51,14 @@ use ZipArchive;
  * pe tot restul procesului de test) — se vedea DOAR cu două exporturi succesive, de limbi
  * diferite, pe același worker: `test_two_consecutive_gdpr_exports_with_different_locales_do_not_leak_entity_labels_into_each_other`
  * mai jos.
+ *
+ * P2 (lot i18n, „RunDryRunValidationJob fără locale") a adăugat
+ * `App\Jobs\Imports\RunDryRunValidationJob`/`App\Jobs\Imports\FinalizeImportDryRunJob` la
+ * aceeași familie de risc: coada `imports` e dedicată, dar rulează pe același TIP de worker
+ * de viață lungă — `test_two_consecutive_dry_run_imports_with_different_locales_do_not_leak_field_labels_into_each_other`
+ * mai jos. Verificarea detaliată, cu fixture-uri de fișier și AMBELE capete ale lanțului
+ * (eticheta din validator ȘI duplicatul ÎN FIȘIER al `ImportDryRunFinalizer`), trăiește în
+ * `tests/Feature/Imports/DryRunValidationLocaleTest.php`.
  */
 class JobLocaleLeakTest extends TestCase
 {
@@ -255,6 +266,82 @@ class JobLocaleLeakTest extends TestCase
             .'Vezi App\Jobs\Gdpr\ExportTenantEntityJob::handle(): App::setLocale($this->locale) '
             .'trebuie să ruleze necondiționat, la începutul metodei.',
         );
+    }
+
+    /**
+     * P2 (lot i18n, „RunDryRunValidationJob fără locale") — DOUĂ probe uscate COMPLETE,
+     * pentru tenanți diferiți (fiecare tenant cu propriul import), cu owneri de limbi
+     * diferite, ambele dispecerizate ÎNAINTE de orice drenare — un SINGUR `queue:work` pe
+     * coada `imports` le procesează pe amândouă, franceza înainte de engleză (ordinea FIFO a
+     * inserării), PE ACELAȘI worker. Exact scenariul din docblock-ul clasei, aplicat probei
+     * uscate de import.
+     *
+     * Verificarea DETALIATĂ (fixture mai bogat, ambele capete ale lanțului — eticheta din
+     * validator ȘI duplicatul ÎN FIȘIER al `ImportDryRunFinalizer`) trăiește în
+     * `tests/Feature/Imports/DryRunValidationLocaleTest.php`; aici doar confirmarea că
+     * mecanismul supraviețuiește ȘI cu o coadă REALĂ, DOI tenanți, PE RÂND.
+     */
+    public function test_two_consecutive_dry_run_imports_with_different_locales_do_not_leak_field_labels_into_each_other(): void
+    {
+        $marlin = $this->marlin;
+        $cascade = $this->makeTenant('cascade', 'Cascade Hydraulic Components');
+
+        $frOwner = User::factory()->create(['locale' => 'fr']);
+        $this->makeMember($marlin, $frOwner->email, Permissions::OWNER, $frOwner);
+        $this->clearDatabaseTenantContext();
+
+        $enOwner = User::factory()->create(['locale' => 'en']);
+        $this->makeMember($cascade, $enOwner->email, Permissions::OWNER, $enOwner);
+        $this->clearDatabaseTenantContext();
+
+        // Un singur rând, cu numele de produs LIPSĂ — forțează mesajul validatorului cu
+        // eticheta câmpului interpolată (`ImportField::label()`), exact riscul documentat în
+        // `App\Support\Imports\ImportDryRunChunkProcessor`.
+        $csv = "SKU,Product Name,Price,Cost\nSKU-001,,9.99,4.00\n";
+
+        $frImport = $this->uploadAndMapVariants($marlin, $frOwner, $csv);
+        $enImport = $this->uploadAndMapVariants($cascade, $enOwner, $csv);
+
+        // Ambele QUEUED (status `validating`, job pe coada `imports`) înainte de orice
+        // drenare.
+        $this->actingAs($frOwner)->post("/marlin/imports/{$frImport->getKey()}/dry-run")->assertRedirect();
+        $this->actingAs($enOwner)->post("/cascade/imports/{$enImport->getKey()}/dry-run")->assertRedirect();
+
+        $this->clearDatabaseTenantContext();
+        $this->artisan('queue:work', [
+            '--queue' => 'imports',
+            '--stop-when-empty' => true,
+            '--no-interaction' => true,
+        ]);
+
+        $frRow = TenantContext::run($marlin, fn () => ImportRow::query()->where('import_id', $frImport->getKey())->where('row_number', 2)->sole());
+        $enRow = TenantContext::run($cascade, fn () => ImportRow::query()->where('import_id', $enImport->getKey())->where('row_number', 2)->sole());
+        $this->clearDatabaseTenantContext();
+
+        $this->assertStringContainsStringIgnoringCase('Nom du produit', $frRow->errors[0]['message']);
+        $this->assertStringContainsStringIgnoringCase(
+            'Product name',
+            $enRow->errors[0]['message'],
+            'Scurgere de limbă între probe uscate — al doilea import a moștenit franceza primului. '
+            .'Vezi App\Jobs\Imports\RunDryRunValidationJob::handle(): App::setLocale($this->locale) '
+            .'trebuie să ruleze necondiționat, la începutul metodei.',
+        );
+    }
+
+    private function uploadAndMapVariants(Tenant $tenant, User $owner, string $csvContent): Import
+    {
+        $file = UploadedFile::fake()->createWithContent('products.csv', $csvContent);
+
+        $this->actingAs($owner)->post("/{$tenant->slug}/imports", ['resource_type' => 'variants', 'file' => $file]);
+
+        $import = TenantContext::run($tenant, fn () => Import::query()->firstOrFail());
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)->post("/{$tenant->slug}/imports/{$import->getKey()}/mapping", [
+            'mapping' => ['SKU' => 'sku', 'Product Name' => 'product_name', 'Price' => 'price', 'Cost' => 'cost'],
+        ]);
+
+        return $import;
     }
 
     /**

@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Throwable;
 
 /**
@@ -21,6 +22,13 @@ use Throwable;
  * la plafon (50.000 rânduri) ar însuma AICI citirea/scrierea ultimului chunk ȘI trecerea de
  * finalizare (`ImportDryRunFinalizer`, ~100 interogări chunk-uite) în ACEEAȘI fereastră dacă
  * ar fi inline, ceea ce apropie inutil de plafon fără niciun câștig.
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `locale` e SCALAR de constructor, propagat de
+ * `App\Jobs\Imports\RunDryRunValidationJob` (vezi docblock-ul acelui job pentru motivul
+ * complet): `ImportDryRunFinalizer::run()`, apelat mai jos, scrie în `import_rows.errors`
+ * mesajul de duplicat ÎN FIȘIER (`imports.validation.duplicate_in_file`), care trebuie să
+ * moștenească limba utilizatorului care a pornit proba uscată, nu limba ÎNTÂMPLĂTOARE a
+ * worker-ului la momentul rulării. Vezi `tests/Feature/I18n/JobLocaleLeakTest.php`.
  */
 class FinalizeImportDryRunJob implements ShouldQueue
 {
@@ -33,6 +41,7 @@ class FinalizeImportDryRunJob implements ShouldQueue
     public function __construct(
         public string $tenantId,
         public string $importId,
+        public string $locale = 'en',
     ) {}
 
     /** @return array<int, object> */
@@ -43,6 +52,9 @@ class FinalizeImportDryRunJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Vezi docblock-ul clasei — necondiționat, la începutul lui handle().
+        App::setLocale($this->locale);
+
         $import = Import::query()->find($this->importId);
 
         if ($import === null || $import->status !== Import::STATUS_VALIDATING) {

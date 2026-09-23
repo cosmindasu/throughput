@@ -72,16 +72,21 @@ final class ImportDryRunChunkProcessor
 
             if ($errors === [] && $signature !== null && isset($existingByField[$signature['field']][$signature['value']])) {
                 // I18N-07, FR-I18N-04 — mutat din literal englez direct într-o cheie
-                // (`lang/{en,fr}/imports.php`). ATENȚIE la locale: acest cod rulează în
-                // `RunDryRunValidationJob` (job de tenant, `ApplyTenantContextToJob`), care
-                // NU apelează `App::setLocale()` — spre deosebire de tiparul stabilit în
+                // (`lang/{en,fr}/imports.php`).
+                //
+                // P2 (lot i18n, „RunDryRunValidationJob fără locale", FIXAT) — acest cod
+                // rulează în `RunDryRunValidationJob` (job de tenant,
+                // `ApplyTenantContextToJob`), care ACUM apelează `App::setLocale($this->locale)`
+                // necondiționat, la ÎNCEPUTUL lui `handle()`, exact tiparul stabilit de
                 // `App\Jobs\Reports\DeliverReportJob`/`ExportTenantEntityJob` (ADR-022,
-                // FR-I18N-05, `.ai/rules/tenancy.md:123-138`). Mesajul de-aici moștenește deci
-                // limba pe care `App::currentLocale()` o are ÎNTÂMPLĂTOR pe worker-ul de
-                // coadă în momentul rulării jobului, nu neapărat limba utilizatorului care a
-                // pornit importul — același risc de scurgere între joburi documentat în
-                // `tests/Feature/I18n/JobLocaleLeakTest.php`, dar nereparat aici (nu face
-                // parte din felia asta; jobul nu a fost atins).
+                // FR-I18N-05, `.ai/rules/tenancy.md:123-138`). `$this->locale` e limba
+                // utilizatorului care a pornit proba uscată, capturată la dispatch de
+                // `App\Actions\Imports\RunDryRunValidationAction::execute()` — mesajul de-aici
+                // (și eticheta câmpului, `ImportField::label()`, mai jos în
+                // `validateFields()`) moștenesc deci limba corectă, nu una întâmplătoare a
+                // worker-ului. Aceeași garanție acoperă `ImportDryRunFinalizer::run()`, apelat
+                // din `FinalizeImportDryRunJob`, care fixează limba identic înainte de a
+                // scrie duplicatele ÎN FIȘIER. Vezi `tests/Feature/I18n/JobLocaleLeakTest.php`.
                 $errors[] = [
                     'field' => $signature['field'],
                     'message' => __('imports.validation.duplicate_value'),

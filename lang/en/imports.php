@@ -84,5 +84,15 @@ return [
          * IDENTIC, caracter cu caracter, cu literalul dinainte de extragere.
          */
         'duplicate_value' => 'Already exists — an existing record uses this value.',
+
+        /*
+         * P2 (lot i18n, `RunDryRunValidationJob` fără locale) — mutat din
+         * `ImportDryRunFinalizer::run()`, unde era literal englez direct în array-ul de
+         * erori scris în `import_rows.errors` (duplicat ÎN FIȘIER, între rânduri scrise
+         * de chunk-uri diferite — distinct de `duplicate_value` de mai sus, care e
+         * duplicatul FAȚĂ DE o entitate deja existentă în bază). Textul englez e
+         * IDENTIC, caracter cu caracter, cu literalul dinainte de extragere.
+         */
+        'duplicate_in_file' => 'Duplicate value — already used by an earlier row in this file.',
     ],
 ];

@@ -15,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -44,6 +45,21 @@ use Throwable;
  *
  * Reluarea poziției: `MAX(row_number)` deja scris în `import_rows` pentru acest import — nu
  * o coloană nouă pe `imports` (task brief: nicio cheie de config/coloană nouă fără aprobare).
+ *
+ * ADR-022, specs.md §15.8 FR-I18N-05 — `locale` e SCALAR de constructor, exact ca
+ * `tenantId`/`importId` (ADR-013/014), rezolvat de
+ * `App\Actions\Imports\RunDryRunValidationAction::execute()` ÎNAINTE de dispecerizare, din
+ * limba cererii HTTP care a pornit proba uscată. Worker-ul de coadă e un proces de viață
+ * lungă (`.ai/rules/tenancy.md:123-138`): `App::setLocale()` scrie pe singleton-ul
+ * `Translator` din container, iar Laravel resetează între joburi doar instanțele `scoped()`
+ * — fără apelul necondiționat de mai jos, un job FR urmat de un job EN pe ACELAȘI worker ar
+ * păstra franceza pentru etichetele/mesajele scrise de `ImportDryRunChunkProcessor` în
+ * `import_rows.errors` (COAPTE definitiv în acea limbă, la fel ca `ReportDeliveryMail`). Vezi
+ * `tests/Feature/I18n/JobLocaleLeakTest.php`.
+ *
+ * Jobul se re-dispecerizează SINGUR (chunk după chunk) și dispecerizează
+ * `FinalizeImportDryRunJob` la final — `$this->locale` se propagă EXPLICIT la amândouă, ca
+ * niciun pas din lanț să nu rămână pe limba implicită (`'en'`).
  */
 class RunDryRunValidationJob implements ShouldQueue
 {
@@ -56,6 +72,7 @@ class RunDryRunValidationJob implements ShouldQueue
     public function __construct(
         public string $tenantId,
         public string $importId,
+        public string $locale = 'en',
     ) {}
 
     /** @return array<int, object> */
@@ -66,6 +83,11 @@ class RunDryRunValidationJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Vezi docblock-ul clasei — obligatoriu la ÎNCEPUTUL lui handle(), necondiționat
+        // (nu doar „dacă diferă de ce e setat deja"): un worker de viață lungă n-are niciun
+        // alt semnal de încredere despre ce a lăsat jobul anterior în urmă.
+        App::setLocale($this->locale);
+
         $import = Import::query()->find($this->importId);
 
         if ($import === null || ! in_array($import->status, [Import::STATUS_MAPPED, Import::STATUS_VALIDATING], true)) {
@@ -98,12 +120,12 @@ class RunDryRunValidationJob implements ShouldQueue
         }
 
         if (! $range['isLastChunk']) {
-            self::dispatch($this->tenantId, $this->importId)->onQueue('imports');
+            self::dispatch($this->tenantId, $this->importId, $this->locale)->onQueue('imports');
 
             return;
         }
 
-        FinalizeImportDryRunJob::dispatch($this->tenantId, $this->importId)->onQueue('imports');
+        FinalizeImportDryRunJob::dispatch($this->tenantId, $this->importId, $this->locale)->onQueue('imports');
     }
 
     /**

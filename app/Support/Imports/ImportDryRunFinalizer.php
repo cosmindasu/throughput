@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\DB;
  * Prima apariție a unei valori rămâne `valid`; oricare apariție ULTERIOARĂ devine `invalid`,
  * cu eroarea adăugată la cele existente (dacă rândul avea deja alte erori de format,
  * imposibil aici — doar rândurile `valid` intră în această trecere).
+ *
+ * P2 (lot i18n, „RunDryRunValidationJob fără locale") — mesajul de mai jos (`__()`, cheia
+ * `imports.validation.duplicate_in_file`) moștenește `App::currentLocale()` la momentul
+ * scrierii, exact ca `ImportDryRunChunkProcessor::process()`. Corect AICI fiindcă singurul
+ * apelant, `App\Jobs\Imports\FinalizeImportDryRunJob::handle()`, fixează limba
+ * utilizatorului care a pornit proba uscată ÎNAINTEA acestui apel (vezi docblock-ul acelui
+ * job) — nu era cazul înainte de acest lot, când textul era literal englez direct.
  */
 final class ImportDryRunFinalizer
 {
@@ -48,7 +55,7 @@ final class ImportDryRunFinalizer
                             'status' => ImportRow::STATUS_INVALID,
                             'errors' => [[
                                 'field' => $signature['field'],
-                                'message' => 'Duplicate value — already used by an earlier row in this file.',
+                                'message' => __('imports.validation.duplicate_in_file'),
                             ]],
                         ]);
                         $newlyInvalid++;
