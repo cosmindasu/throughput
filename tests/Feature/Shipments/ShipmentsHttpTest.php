@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\Shipping\CarrierResolver;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\CreatesOrders;
 use Tests\TestCase;
 
@@ -278,6 +279,34 @@ class ShipmentsHttpTest extends TestCase
         $this->actingAs($stranger)
             ->patch("/cascade/orders/{$shipment->order_id}/shipments/{$shipment->getKey()}/ship")
             ->assertNotFound();
+    }
+
+    /**
+     * N+1 prins de `preventLazyLoading` (PERF-03), dar doar de E2E: `ShipmentResource`
+     * evaluează `retryLabel`/`markShipped` pe FIECARE shipment, iar politica citește
+     * `$shipment->order`, o interogare per rând, deși comanda e chiar pagina. E nevoie de
+     * două shipment-uri: Laravel blochează lazy load-ul doar pe modelele dintr-o colecție
+     * de peste un rând. Și de un rol cu `shipments.edit`: fără el, `&&` scurtcircuitează.
+     */
+    public function test_the_order_page_with_several_shipments_does_not_lazy_load_the_order_per_shipment(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'owner12@throughput.dev', Permissions::OWNER);
+
+        $order = TenantContext::run($this->marlin, function () use ($owner): Order {
+            $order = $this->confirmedOrderWithLine($owner);
+            $lineId = $order->orderLines()->firstOrFail()->getKey();
+
+            (new CreateShipmentAction(new CarrierResolver))->execute($order, [$lineId => 2]);
+            (new CreateShipmentAction(new CarrierResolver))->execute($order->fresh(), [$lineId => 2]);
+
+            return $order;
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($owner)
+            ->get("/marlin/orders/{$order->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('order.shipments', 2));
     }
 
     private function confirmedOrderWithLine(?User $owner = null): Order

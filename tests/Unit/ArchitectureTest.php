@@ -636,9 +636,6 @@ class ArchitectureTest extends TestCase
             // `Contacts/Show.tsx`, secțiunea „Deals" a unui contact — același profil de risc
             // ca rândul de mai sus (listă scurtă, afișare, nu decizie de business).
             ['file' => 'app/Http/Controllers/Web/Contacts/ContactController.php', 'line' => 111],
-            // `Orders/Show.tsx`, secțiunea „Shipments" a comenzii — afișare, nu alegerea
-            // „ultimului shipment" pentru vreo decizie server-side (aceea ar fi altă gardă).
-            ['file' => 'app/Http/Controllers/Web/Orders/OrderController.php', 'line' => 190],
             // `Imports/Index.tsx` — cele mai recente 50 importuri, limită mică, doar afișare.
             ['file' => 'app/Http/Controllers/Web/Imports/ImportController.php', 'line' => 53],
             // `AccountActivityTimeline::build()` — blocul „Deals" al cronologiei unui cont

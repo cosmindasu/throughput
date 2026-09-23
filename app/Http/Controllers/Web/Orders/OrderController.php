@@ -187,9 +187,16 @@ final class OrderController extends Controller
             // (FR-ORD-03).
             'orderLines.variant:id,sku',
             'orderLines.shipmentLines.shipment',
-            'shipments' => fn ($query) => $query->latest('created_at'),
+            'shipments' => fn ($query) => $query->latest('created_at')->latest('id'),
             'shipments.shipmentLines.orderLine:id,description',
         ]);
+
+        // `ShipmentResource` evaluează `retryLabel`/`markShipped` pe fiecare shipment, iar
+        // politica citește `$shipment->order`, adică exact comanda de pe pagină. Fără
+        // relația inversă setată aici, o interogare per shipment (prins de E2E sub PERF-03).
+        // Local, nu `chaperone()` pe `Order::shipments()`: o referință circulară globală ar
+        // ajunge și în serializarea joburilor.
+        $order->shipments->each->setRelation('order', $order);
 
         return Inertia::render('Orders/Show', [
             'order' => OrderResource::make($order),
