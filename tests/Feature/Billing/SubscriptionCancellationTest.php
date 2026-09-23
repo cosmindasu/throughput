@@ -77,6 +77,74 @@ class SubscriptionCancellationTest extends TestCase
     }
 
     /**
+     * GDPR-01, ADR-012 („Implementare") — bug de reactivare: reactivarea prin portalul
+     * Stripe (`customer.subscription.updated`, status `active`, fără `cancel_at_period_end`/
+     * `cancel_at`/`canceled_at`) trebuie să golească `subscription_canceled_at`, altfel
+     * `PurgeCanceledTenantsJob` ar număra o fereastră de 30 de zile pornind de la o anulare
+     * care nu mai e reală.
+     */
+    public function test_reactivation_after_cancellation_clears_subscription_canceled_at(): void
+    {
+        $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'canceled',
+        ], eventId: 'evt_to_canceled'))->assertOk();
+        $this->workTheQueue();
+
+        $this->assertNotNull($this->tenant->fresh()->subscription_canceled_at);
+
+        $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'active',
+        ], eventId: 'evt_reactivated'))->assertOk();
+        $this->workTheQueue();
+
+        $this->assertNull(
+            $this->tenant->fresh()->subscription_canceled_at,
+            'A reactivation with no scheduled cancellation must clear the retention window anchor.',
+        );
+    }
+
+    /**
+     * O a doua anulare, DUPĂ o reactivare, trebuie să înceapă o fereastră NOUĂ — nu doar
+     * să lase ancora goală moștenită de la reactivare, și nu ancora VECHE dinaintea
+     * reactivării (idempotența BR-BILL-05 e per TRANZIȚIE, nu per abonament).
+     */
+    public function test_a_new_cancellation_after_reactivation_stamps_a_fresh_date(): void
+    {
+        $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'canceled',
+        ], eventId: 'evt_to_canceled'))->assertOk();
+        $this->workTheQueue();
+        $firstStamp = $this->tenant->fresh()->subscription_canceled_at;
+
+        $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'active',
+        ], eventId: 'evt_reactivated'))->assertOk();
+        $this->workTheQueue();
+        $this->assertNull($this->tenant->fresh()->subscription_canceled_at);
+
+        $this->travel(2)->days();
+
+        $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'canceled',
+        ], eventId: 'evt_to_canceled_again'))->assertOk();
+        $this->workTheQueue();
+
+        $secondStamp = $this->tenant->fresh()->subscription_canceled_at;
+        $this->assertNotNull($secondStamp);
+        $this->assertTrue($secondStamp->greaterThan($firstStamp), 'The second cancellation must stamp a NEW date, not reuse the one from before reactivation.');
+    }
+
+    /**
      * `--stop-when-empty`, NU un număr fix de `--once` (formă anterioară a acestui test) —
      * de când tranzițiile de status declanșează și emailurile din §12.2 (review-ul lotului,
      * pct. 1), fiecare webhook poate lăsa în urmă 0 SAU 1 job suplimentar (listener-ul de

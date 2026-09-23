@@ -10,6 +10,7 @@ use App\Jobs\System\PruneExpiredExportsJob;
 use App\Jobs\System\PruneExpiredImportFilesJob;
 use App\Jobs\System\PruneExpiredInvitationsJob;
 use App\Jobs\System\PruneSentEmailsJob;
+use App\Jobs\System\PurgeCanceledTenantsJob;
 use App\Jobs\System\RedactWebhookEventPayloadsJob;
 use App\Jobs\System\ResetDemoDataJob;
 use App\Support\DemoMode;
@@ -143,6 +144,19 @@ Schedule::job(new RedactWebhookEventPayloadsJob, 'default')->daily();
 // cadență lunară ar dubla practic fereastra reală de retenție. Job de SISTEM (ADR-014 pct.
 // 4): iterează tenanții el însuși — fără `when()`, din același motiv ca restul listei.
 Schedule::job(new PruneExpiredInvitationsJob, 'default')->daily();
+
+// GDPR-01, ADR-012, BR-BILL-05 (specs.md §20.5) — ștergerea INTEGRALĂ a tenantului la 30 de
+// zile de la anularea definitivă a abonamentului (`throughput.limits.
+// tenant_purge_retention_days`). ZILNIC, nu LUNAR cum spune litera specs §20.5 („job
+// programat lunar"): pragul e în ZILE (30), exact situația deja tranșată pentru
+// `PruneExpiredInvitationsJob` cu doar 2 rânduri mai sus — o cadență lunară ar dubla
+// practic fereastra reală, iar un vizitator care a exportat datele înainte de a anula
+// (§20.5) nu se așteaptă ca „30 de zile" să însemne uneori 59. Job de SISTEM (ADR-014 pct.
+// 4): iterează tenanții eligibili el însuși — fără `when()`, ca restul listei: DEMO_MODE nu
+// are nevoie de gardă proprie aici (vezi docblock-ul jobului, secțiunea DEMO_MODE — niciun
+// tenant demo nu poate ajunge la pragul de 30 de zile cât timp `demo:reset` rulează
+// `migrate:fresh` în fiecare noapte).
+Schedule::job(new PurgeCanceledTenantsJob, 'default')->daily();
 
 // GDPR-10 (audit 2026-09-23, docs/reviews/2026-09-23_audit/08-gdpr.md) — NIMIC programat
 // aici, deliberat: producția rulează `SESSION_DRIVER=redis` (`docker-compose.coolify.yml`),

@@ -175,6 +175,23 @@ final class ProcessStripeWebhookJob implements ShouldQueue
 
         $subscription->save();
 
+        // GDPR-01, ADR-012 („Implementare") — bug de reactivare: portalul Stripe poate
+        // readuce un abonament la `active`/`trialing`, FĂRĂ nicio anulare programată
+        // (`ends_at` calculat mai sus rămâne `null`), dar `subscription_canceled_at` scris
+        // la o tranziție ANTERIOARĂ spre `canceled` nu se golea niciodată — premisa lui
+        // ADR-012 („reactivarea în fereastră anulează numărătoarea celor 30 de zile") n-avea
+        // cod. Fără acest reset, ancora locală ar minți despre starea reală a abonamentului
+        // (garda proprie a `App\Jobs\System\PurgeCanceledTenantsJob`, care citește STAREA
+        // Cashier, nu doar coloana, tot ar fi oprit o purjare greșită — dar sursa a doua de
+        // adevăr nu scutește prima de la a fi corectă). `$deleted` exclude explicit
+        // `customer.subscription.deleted`: acela nu e niciodată o reactivare.
+        if (! $deleted
+            && in_array($subscription->stripe_status, [StripeSubscription::STATUS_ACTIVE, StripeSubscription::STATUS_TRIALING], true)
+            && $subscription->ends_at === null
+            && $tenant->subscription_canceled_at !== null) {
+            $tenant->forceFill(['subscription_canceled_at' => null])->save();
+        }
+
         // BR-BILL-05 — ancora ferestrei de retenție de 30 de zile pornește EXACT la
         // tranziția SPRE `canceled`, nu la fiecare rescriere ulterioară a unui abonament
         // deja `canceled` (idempotență — un al doilea `customer.subscription.updated` pe

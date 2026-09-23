@@ -42,3 +42,39 @@ The tax retention period **varies by jurisdiction**. No number is fixed in code:
 
 - Data occupies space for 30 days after the tenant has left. Irrelevant at demo scale.
 - The figure is arbitrary by its nature. Documented as such — it changes through a new ADR, not through a silent edit.
+
+## Implementation (2026-09-23)
+
+`App\Jobs\System\PurgeCanceledTenantsJob` (GDPR-01) closes the gap left open above: before
+this date, `subscription_canceled_at` was written once (`ProcessStripeWebhookJob`) and read
+once (`BillingController`) — nothing ever consumed it. Three decisions from the owner,
+taken at implementation time, not re-derived from the text above:
+
+1. **Full deletion, invoices included — not the anonymization described in "What is not
+   deleted on purge."** For this deployment, the specification's own default for §20.5
+   ("no further retention beyond the 30 days") supersedes that section: there is no
+   per-tenant configurable tax-retention parameter in code, and building one was judged not
+   worth it for a demo. The distinction this ADR draws between "delete" and "anonymize" for
+   financial records stays correct in general — it just isn't the path this codebase takes
+   today. All 32 tenant-scoped tables cascade from `tenants` (`->cascadeOnDelete()`);
+   Cashier's `subscriptions`/`subscription_items` and Spatie's tenant-scoped
+   `roles`/`model_has_roles`/`model_has_permissions` do not (by design — see the job's
+   docblock) and are deleted explicitly, alongside the tenant's files on disk.
+2. **A member left with no workspace anywhere is deleted too** — a plain row in `users`,
+   never re-created from Stripe or anything else. A membership in another tenant, active or
+   deactivated (ADR-011 never hard-deletes a membership), keeps the user. This reuses
+   `App\Support\Members\OrphanUserCleanup`, unchanged, from the invitation-pruning job
+   (GDPR-09).
+3. **Stripe is untouched.** The tenant and its local Cashier rows disappear from this
+   database; the customer and its invoice history stay in Stripe. No outbound call from this
+   job.
+
+**Reactivation bug, found while wiring the purge job**: reactivating a subscription through
+the Stripe customer portal never cleared `subscription_canceled_at` — the "reactivating
+inside the window cancels the countdown" premise stated earlier in this document had no
+code behind it. Fixed in `ProcessStripeWebhookJob`: a `customer.subscription.updated` event
+that lands on `active`/`trialing` with no scheduled cancellation now resets the column to
+`null`. The purge job does not rely on the column alone regardless — it re-checks the
+tenant's actual Cashier subscription state (`Subscription::valid()`) before deleting
+anything, so a tenant with a currently valid subscription is never purged even if some
+future edge case leaves the local anchor stale again.

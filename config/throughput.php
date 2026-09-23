@@ -202,6 +202,17 @@ return [
         // AnonymizeActivityLogJob`). Rândul NU se șterge — structura (acțiune, tip
         // entitate, dată) rămâne pentru statistici agregate.
         'activity_log_retention_months' => (int) env('ACTIVITY_LOG_RETENTION_MONTHS', 36),
+
+        // GDPR-01, ADR-012, BR-BILL-05 (specs.md §20.5) — fereastra de 30 de zile DUPĂ
+        // tranziția `subscription_canceled_at` (`App\Jobs\Webhooks\ProcessStripeWebhookJob`),
+        // înainte ca `App\Jobs\System\PurgeCanceledTenantsJob` să șteargă tenantul integral
+        // (decizia proprietarului: ștergere completă, inclusiv facturile — valoarea
+        // implicită din specs §20.5 pentru acest demo, nu anonimizare). Valoare de BUSINESS
+        // — dar literal, FĂRĂ `env()` nou: o variabilă de mediu nouă ar cere și
+        // `.env.example` + `docker-compose*.yml`, în afara feliei lotului care a adăugat-o.
+        // Dacă termenul devine reglabil pe mediu, adaugă `env('TENANT_PURGE_RETENTION_DAYS', 30)`
+        // ATUNCI, cu fișierele-soră actualizate în aceeași schimbare.
+        'tenant_purge_retention_days' => 30,
     ],
 
 ];
