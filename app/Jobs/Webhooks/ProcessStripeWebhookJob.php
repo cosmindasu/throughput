@@ -139,6 +139,21 @@ final class ProcessStripeWebhookJob implements ShouldQueue
         }
 
         $subscription = $tenant->subscriptions()->firstOrNew(['stripe_id' => $data['id']]);
+
+        // Stripe nu garantează ordinea de livrare, iar un eveniment eșuat e reîncercat mai
+        // târziu: o anulare VECHE sosită după reactivare nu are voie să rescrie starea.
+        // Starea locală alimentează accesul și purjarea tenantului (ADR-012), deci un
+        // eveniment mai vechi decât ultimul aplicat e ignorat — audit GDPR-01, 2026-09-23.
+        $eventCreatedAt = is_int($event->payload['created'] ?? null)
+            ? Carbon::createFromTimestamp($event->payload['created'])
+            : null;
+
+        if ($eventCreatedAt !== null
+            && $subscription->last_stripe_event_at !== null
+            && $eventCreatedAt->lessThan(Carbon::parse($subscription->last_stripe_event_at))) {
+            return;
+        }
+
         $previousStatus = $subscription->stripe_status;
 
         $subscription->type = $subscription->type ?? ($data['metadata']['type'] ?? 'default');
@@ -171,6 +186,10 @@ final class ProcessStripeWebhookJob implements ShouldQueue
             } else {
                 $subscription->ends_at = null;
             }
+        }
+
+        if ($eventCreatedAt !== null) {
+            $subscription->last_stripe_event_at = $eventCreatedAt->toDateTimeString();
         }
 
         $subscription->save();

@@ -83,6 +83,70 @@ class SubscriptionCancellationTest extends TestCase
      * `PurgeCanceledTenantsJob` ar număra o fereastră de 30 de zile pornind de la o anulare
      * care nu mai e reală.
      */
+    /**
+     * Audit GDPR-01 (2026-09-23, P1) — Stripe nu garantează ordinea de livrare, iar un
+     * eveniment eșuat e reîncercat mai târziu. O anulare VECHE, sosită după reactivare, nu are
+     * voie să rescrie starea: altfel abonamentul rămânea `canceled` local (deși activ în
+     * Stripe), iar `PurgeCanceledTenantsJob` ar fi șters un tenant plătitor după 30 de zile.
+     */
+    public function test_a_stale_cancellation_delivered_after_the_reactivation_is_ignored(): void
+    {
+        $reactivation = $this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'active',
+        ], eventId: 'evt_reactivated');
+        $reactivation['created'] = now()->subMinutes(5)->getTimestamp();
+
+        $staleCancellation = $this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'canceled',
+            'canceled_at' => now()->subMinutes(10)->getTimestamp(),
+        ], eventId: 'evt_to_canceled');
+        $staleCancellation['created'] = now()->subMinutes(10)->getTimestamp();
+
+        // Livrare inversată: reactivarea întâi, anularea (mai veche) abia după.
+        $this->postStripeWebhook($reactivation)->assertOk();
+        $this->workTheQueue();
+        $this->postStripeWebhook($staleCancellation)->assertOk();
+        $this->workTheQueue();
+
+        $subscription = Subscription::query()->where('stripe_id', 'sub_marlin_test')->sole();
+
+        $this->assertSame('active', $subscription->stripe_status);
+        $this->assertNull($subscription->ends_at);
+        $this->assertNull($this->tenant->fresh()->subscription_canceled_at);
+    }
+
+    /** Ordinea normală rămâne aplicată: un eveniment mai NOU trece. */
+    public function test_a_newer_event_still_overrides_an_older_one(): void
+    {
+        $cancellation = $this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'canceled',
+        ], eventId: 'evt_older_cancel');
+        $cancellation['created'] = now()->subMinutes(10)->getTimestamp();
+
+        $reactivation = $this->stripeEvent('customer.subscription.updated', [
+            'id' => 'sub_marlin_test',
+            'customer' => 'cus_marlin_test',
+            'status' => 'active',
+        ], eventId: 'evt_newer_reactivation');
+        $reactivation['created'] = now()->subMinutes(5)->getTimestamp();
+
+        $this->postStripeWebhook($cancellation)->assertOk();
+        $this->workTheQueue();
+        $this->assertNotNull($this->tenant->fresh()->subscription_canceled_at);
+
+        $this->postStripeWebhook($reactivation)->assertOk();
+        $this->workTheQueue();
+
+        $this->assertSame('active', Subscription::query()->where('stripe_id', 'sub_marlin_test')->sole()->stripe_status);
+        $this->assertNull($this->tenant->fresh()->subscription_canceled_at);
+    }
+
     public function test_reactivation_after_cancellation_clears_subscription_canceled_at(): void
     {
         $this->postStripeWebhook($this->stripeEvent('customer.subscription.updated', [
