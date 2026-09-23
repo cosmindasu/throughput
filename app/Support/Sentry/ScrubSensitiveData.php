@@ -74,7 +74,32 @@ final class ScrubSensitiveData
             $event->setExtra(self::scrub($extra));
         }
 
+        // Textul LIBER al mesajului unei excepții nu are chei pe care filtrul de mai sus să le
+        // prindă — iar unele erori de furnizor (Stripe, Shippo) repetă în mesaj valori din
+        // cererea trimisă, inclusiv adrese de e-mail. Audit de securitate 2026-09-23
+        // (SEC-AUD-01): `BillingController` raportează explicit excepțiile Stripe.
+        foreach ($event->getExceptions() as $exception) {
+            $exception->setValue(self::scrubText($exception->getValue()));
+        }
+
+        $message = $event->getMessage();
+
+        if ($message !== null) {
+            $formatted = $event->getMessageFormatted();
+            $event->setMessage(
+                self::scrubText($message),
+                $event->getMessageParams(),
+                $formatted === null ? null : self::scrubText($formatted),
+            );
+        }
+
         return $event;
+    }
+
+    /** Adresele de e-mail din text liber — singura categorie de PII recunoscută sigur după formă. */
+    private static function scrubText(string $text): string
+    {
+        return preg_replace('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', self::REDACTED, $text) ?? $text;
     }
 
     /**
