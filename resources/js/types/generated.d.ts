@@ -789,6 +789,8 @@ export interface ExportStatusPayload {
     // FR-GDPR-01, specs.md §20.5 — null cât timp exportul nu e `completed`.
     expiresAt: string | null;
     isExpired: boolean;
+    // I18N-03 — motivul unui export `failed`, deja tradus de server; null dacă lipsește.
+    errorMessage: string | null;
 }
 
 export interface ExportsShowPageProps {

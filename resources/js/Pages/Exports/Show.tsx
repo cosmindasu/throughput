@@ -80,7 +80,9 @@ export default function Show() {
                     <StatusBadge tone={TONES[exportStatus.status]}>{labels[exportStatus.status]}</StatusBadge>
                     {!isTerminal && <span className="text-sm text-text-2">{t('imports:exports.show.autoUpdate')}</span>}
                     {exportStatus.status === 'failed' && (
-                        <span className="text-sm text-danger">{t('imports:exports.show.failed')}</span>
+                        <span className="text-sm text-danger">
+                            {exportStatus.errorMessage ?? t('imports:exports.show.failed')}
+                        </span>
                     )}
                     {exportStatus.status === 'completed' && exportStatus.expiresAt && (
                         <span className="text-sm text-text-2">

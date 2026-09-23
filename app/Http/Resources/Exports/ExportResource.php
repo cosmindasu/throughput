@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Exports;
 
 use App\Models\BulkOperation;
+use App\Support\JobErrorMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +17,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ExportResource extends JsonResource
 {
     /**
-     * @return array{id: string, resourceType: string, format: string, status: string, totalRows: int, canDownload: bool, expiresAt: string|null, isExpired: bool}
+     * @return array{id: string, resourceType: string, format: string, status: string, totalRows: int, canDownload: bool, expiresAt: string|null, isExpired: bool, errorMessage: string|null}
      */
     public function toArray(Request $request): array
     {
@@ -34,6 +35,10 @@ class ExportResource extends JsonResource
             // valabil, apoi „This export expired on …" în locul butonului de descărcare.
             'expiresAt' => $this->expires_at?->toIso8601String(),
             'isExpired' => $this->isExpired(),
+            // I18N-03 — motivul eșecului, tradus în limba acestei cereri. Până la 2026-09-23
+            // pagina arăta doar „failed", deși `ExportListJob` scria deja un motiv acționabil
+            // (ex. plafonul XLSX/PDF depășit — „folosiți CSV").
+            'errorMessage' => JobErrorMessage::render($this->error_message),
         ];
     }
 }

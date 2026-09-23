@@ -17,6 +17,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia;
 use InvalidArgumentException;
 use RuntimeException;
 use Tests\TestCase;
@@ -296,6 +297,22 @@ class OrderExportTest extends TestCase
         $this->assertNotNull($operation->error_message);
         $this->assertNull($operation->result_path);
         Storage::disk('local')->assertMissing("exports/{$this->marlin->getKey()}/{$operation->getKey()}.pdf");
+
+        // I18N-03 — motivul acționabil („folosiți CSV") ajunge pe pagina de status, în limba
+        // cititorului; până la 2026-09-23 pagina arăta doar „failed".
+        $this->actingAs($this->owner)
+            ->get("/marlin/exports/{$operation->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('export.errorMessage', fn (string $message) => str_contains($message, 'Use CSV for larger exports')));
+
+        $this->owner->forceFill(['locale' => 'fr'])->save();
+
+        $this->actingAs($this->owner)
+            ->get("/marlin/exports/{$operation->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('export.errorMessage', fn (string $message) => str_contains($message, 'Utilisez le CSV pour les exports plus volumineux')));
     }
 
     /**
@@ -333,11 +350,9 @@ class OrderExportTest extends TestCase
      * `getMessage()` brut — cheia generică codificată, plus confirmarea că excepția
      * originală tot ajunge la `report()`.
      *
-     * `App\Http\Resources\Exports\ExportResource` nu expune deloc `errorMessage` (spre
-     * deosebire de `BulkOperationResource`/`ReportRunResource`) — un gol preexistent, în
-     * afara feliei acestui lot (vezi raportul) — deci verificarea se oprește la granița
-     * codificării/randării (`JobErrorMessage::render()`, exact ca `row_cap_exceeded`/
-     * `zip_not_supported`/`list_failed`, deja catalogate, niciuna randată în UI azi).
+     * Afișarea pe pagina de status (`ExportResource::errorMessage`) e verificată în
+     * `test_a_pdf_export_that_grows_past_the_cap_between_dispatch_and_execution_fails_cleanly()`;
+     * aici verificarea se oprește la granița codificării/randării (`JobErrorMessage::render()`).
      */
     public function test_an_unexpected_exception_while_exporting_is_encoded_not_written_raw(): void
     {
