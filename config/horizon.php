@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\HorizonBasicAuth;
 use Illuminate\Support\Str;
 
 return [
@@ -83,7 +84,15 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // OPS-03 — `HorizonBasicAuth` ține accesul pe credențiale din env, nu pe un utilizator din
+    // baza de date (motivul e în docblock-ul clasei). Rulează după `web` și înaintea gate-ului
+    // pachetului, ca să poată trimite provocarea 401 pe care browserul o transformă în prompt.
+    'middleware' => ['web', HorizonBasicAuth::class],
+
+    'basic_auth' => [
+        'user' => env('HORIZON_BASIC_AUTH_USER'),
+        'password' => env('HORIZON_BASIC_AUTH_PASSWORD'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
