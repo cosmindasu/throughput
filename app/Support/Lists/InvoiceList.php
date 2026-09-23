@@ -30,6 +30,13 @@ final class InvoiceList extends ResourceList implements ArchivableList, Exportab
         return ['q', 'status', 'account', 'from', 'to'];
     }
 
+    /**
+     * PERF-06 (audit 2026-09-23) — sortările secundare (`total`, `balance_due`) NU au index
+     * dedicat: măsurat sub RLS, ca `throughput_app`, pe seed-ul de volum, între 8 și 88 ms,
+     * sub pragul p95 de 200 ms (`git show 9b57ef6`). Decizia proprietarului a fost să nu
+     * adauge index fără o măsurătoare care s-o justifice — dacă cifrele astea se schimbă
+     * (volum mult mai mare, plângeri reale de latență), re-măsoară înainte de a adăuga unul.
+     */
     protected function sortableColumns(): array
     {
         return ['invoice_number', 'total', 'balance_due', 'due_date', 'created_at'];
