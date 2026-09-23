@@ -6,6 +6,7 @@ use App\Jobs\System\AnonymizeActivityLogJob;
 use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\Contact;
+use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
@@ -116,14 +117,157 @@ class AnonymizeActivityLogJobTest extends TestCase
     }
 
     /**
+     * GDPR-09 (P3, audit 2026-09-23) — `Membership` e un tip MIXT (vezi docblock-ul
+     * jobului): doar `created`/`deleted` (invitare/revocare) scriu emailul invitatului.
+     * `role_changed` și `updated` (dezactivare) NU au nimic personal și NU trebuie
+     * mascate, oricât de vechi ar fi — altfel s-ar distruge fără motiv un istoric de
+     * business (US-AUD-01).
+     */
+    public function test_old_membership_revocation_rows_are_anonymized_but_recent_and_non_personal_rows_are_not(): void
+    {
+        [$oldRevocationId, $recentRevocationId, $oldRoleChangeId, $oldDeactivationId] = TenantContext::run($this->marlin, function (): array {
+            $old = now()->subMonths(40);
+            $recent = now()->subMonths(2);
+
+            // `App\Actions\Members\RevokeInvitationAction` — emailul stă în `old_values`,
+            // `new_values` rămâne `null` (rândul șters).
+            $oldRevocation = $this->insertLog(
+                Membership::class,
+                $old,
+                newValues: null,
+                oldValues: ['status' => Membership::STATUS_PENDING, 'email' => 'invited@old.example', 'role' => Permissions::AGENT],
+                action: 'deleted',
+            );
+
+            $recentRevocation = $this->insertLog(
+                Membership::class,
+                $recent,
+                newValues: null,
+                oldValues: ['status' => Membership::STATUS_PENDING, 'email' => 'invited@recent.example', 'role' => Permissions::AGENT],
+                action: 'deleted',
+            );
+
+            // `App\Actions\Members\UpdateMemberRoleAction` — niciun email, oricât de vechi.
+            $oldRoleChange = $this->insertLog(
+                Membership::class,
+                $old,
+                newValues: ['role' => Permissions::VIEWER],
+                oldValues: ['role' => Permissions::MANAGER],
+                action: 'role_changed',
+            );
+
+            // Dezactivare (`MembersController`) — niciun email, `deactivated_by` e un ID.
+            $oldDeactivation = $this->insertLog(
+                Membership::class,
+                $old,
+                newValues: ['status' => Membership::STATUS_DEACTIVATED, 'deactivated_by' => $this->owner->getKey()],
+                oldValues: ['status' => Membership::STATUS_ACTIVE],
+                action: 'updated',
+            );
+
+            return [$oldRevocation, $recentRevocation, $oldRoleChange, $oldDeactivation];
+        });
+
+        (new AnonymizeActivityLogJob)->handle();
+
+        TenantContext::run($this->marlin, function () use ($oldRevocationId, $recentRevocationId, $oldRoleChangeId, $oldDeactivationId): void {
+            // `assertEquals`, NU `assertSame`, pe rândurile cu 2+ chei: Postgres
+            // canonicalizează ordinea cheilor unui `jsonb` (lungime, apoi lexicografic),
+            // nu ordinea de inserare — `===` pe array-uri PHP e sensibil la ordine,
+            // `==`/`assertEquals` nu, iar ordinea cheilor n-are nicio semnificație de
+            // business aici.
+            $oldRevocation = ActivityLog::query()->findOrFail($oldRevocationId);
+            $this->assertEquals(
+                ['status' => '[anonymized]', 'email' => '[anonymized]', 'role' => '[anonymized]'],
+                $oldRevocation->old_values,
+            );
+            $this->assertNull($oldRevocation->new_values);
+
+            $recentRevocation = ActivityLog::query()->findOrFail($recentRevocationId);
+            $this->assertEquals(
+                ['status' => Membership::STATUS_PENDING, 'email' => 'invited@recent.example', 'role' => Permissions::AGENT],
+                $recentRevocation->old_values,
+            );
+
+            $oldRoleChange = ActivityLog::query()->findOrFail($oldRoleChangeId);
+            $this->assertSame(['role' => Permissions::MANAGER], $oldRoleChange->old_values);
+            $this->assertSame(['role' => Permissions::VIEWER], $oldRoleChange->new_values);
+
+            $oldDeactivation = ActivityLog::query()->findOrFail($oldDeactivationId);
+            $this->assertSame(['status' => Membership::STATUS_ACTIVE], $oldDeactivation->old_values);
+            $this->assertEquals(
+                ['status' => Membership::STATUS_DEACTIVATED, 'deactivated_by' => $this->owner->getKey()],
+                $oldDeactivation->new_values,
+            );
+        });
+    }
+
+    /**
+     * Cross-tenant, sub RLS: o revocare veche a lui `globex` se maschează în ACEEAȘI
+     * rulare ca a lui `marlin`, fiecare vizibilă doar prin propriul `TenantContext` — nu
+     * doar tenantul implicit al fișierului (aceeași gardă „mutantă" ca la Contact, de
+     * mai sus, dar pe tipul nou adăugat).
+     */
+    public function test_old_membership_revocation_rows_are_anonymized_across_every_tenant(): void
+    {
+        $globex = $this->makeTenant('globex', 'Globex Industrial LLC');
+        $globexOwner = $this->makeMember($globex, 'owner@globex.throughput.dev', Permissions::OWNER);
+        $this->clearDatabaseTenantContext();
+
+        $marlinLogId = TenantContext::run(
+            $this->marlin,
+            fn () => $this->insertLog(
+                Membership::class,
+                now()->subMonths(40),
+                newValues: null,
+                oldValues: ['status' => Membership::STATUS_PENDING, 'email' => 'marlin-invited@old.example', 'role' => Permissions::AGENT],
+                action: 'deleted',
+            ),
+        );
+
+        $globexLogId = TenantContext::run(
+            $globex,
+            fn () => $this->insertLog(
+                Membership::class,
+                now()->subMonths(40),
+                newValues: null,
+                oldValues: ['status' => Membership::STATUS_PENDING, 'email' => 'globex-invited@old.example', 'role' => Permissions::AGENT],
+                action: 'deleted',
+                tenant: $globex,
+                user: $globexOwner,
+            ),
+        );
+
+        (new AnonymizeActivityLogJob)->handle();
+
+        TenantContext::run($this->marlin, function () use ($marlinLogId): void {
+            $log = ActivityLog::query()->findOrFail($marlinLogId);
+            $this->assertSame('[anonymized]', $log->old_values['email']);
+        });
+
+        TenantContext::run($globex, function () use ($globexLogId): void {
+            $log = ActivityLog::query()->findOrFail($globexLogId);
+            $this->assertSame('[anonymized]', $log->old_values['email']);
+        });
+    }
+
+    /**
      * `$tenant`/`$user` opționale, implicit `$this->marlin`/`$this->owner` — vezi
      * `test_the_job_anonymizes_old_rows_across_every_tenant_in_a_single_run()` pentru
      * singurul apelant care le folosește explicit, pe un al doilea tenant.
      *
-     * @param  array<string, mixed>  $newValues
+     * @param  array<string, mixed>|null  $newValues
+     * @param  array<string, mixed>|null  $oldValues
      */
-    private function insertLog(string $auditableType, Carbon $createdAt, array $newValues, ?Tenant $tenant = null, ?User $user = null): string
-    {
+    private function insertLog(
+        string $auditableType,
+        Carbon $createdAt,
+        ?array $newValues,
+        ?Tenant $tenant = null,
+        ?User $user = null,
+        ?array $oldValues = null,
+        string $action = 'updated',
+    ): string {
         $tenant ??= $this->marlin;
         $user ??= $this->owner;
         $id = strtolower((string) Str::ulid());
@@ -132,11 +276,11 @@ class AnonymizeActivityLogJobTest extends TestCase
             'id' => $id,
             'tenant_id' => $tenant->getKey(),
             'user_id' => $user->getKey(),
-            'action' => 'updated',
+            'action' => $action,
             'auditable_type' => $auditableType,
             'auditable_id' => strtolower((string) Str::ulid()),
-            'old_values' => null,
-            'new_values' => json_encode($newValues),
+            'old_values' => $oldValues === null ? null : json_encode($oldValues),
+            'new_values' => $newValues === null ? null : json_encode($newValues),
             'ip_address' => '127.0.0.1',
             'user_agent' => 'PestTest/1.0',
             'created_at' => $createdAt,
