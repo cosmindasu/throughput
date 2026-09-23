@@ -10,7 +10,9 @@
             "draftNumber": "Draft #{{id}}",
             "draftOrderLower": "draft order {{id}}",
             "actions": "Actions",
-            "edit": "Edit"
+            "edit": "Edit",
+            "sortedAscending": "sorted ascending",
+            "sortedDescending": "sorted descending"
         },
         "columns": {
             "grandTotal": "Grand total",

@@ -46,14 +46,19 @@ export default function Show() {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    // FE-01 (audit) — dialogul se închide DOAR la succes; la eroare rămâne deschis, cu
+    // mesajul afișat în `role="alert"` chiar în el (`.ai/rules/frontend.md`, „Dialogul
+    // închis și la eroare”). Stare SEPARATĂ de `errorMessage` de mai sus (mutarea de
+    // etapă) — acela se arată pe pagină, ăsta ÎN dialog.
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const destroy = () => {
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`/${workspaceSlug}/deals/${deal.id}`, {
-            onFinish: () => {
-                setDeleting(false);
-                setConfirmingDelete(false);
-            },
+            onSuccess: () => setConfirmingDelete(false),
+            onError: (errors) => setDeleteError(Object.values(errors)[0] ?? t('show.delete.error')),
+            onFinish: () => setDeleting(false),
         });
     };
 
@@ -151,12 +156,20 @@ export default function Show() {
             <ConfirmDialog
                 open={confirmingDelete}
                 title={t('show.delete.title')}
-                onClose={() => setConfirmingDelete(false)}
+                onClose={() => {
+                    setConfirmingDelete(false);
+                    setDeleteError(null);
+                }}
                 onConfirm={destroy}
                 confirmLabel={t('show.delete.confirmLabel')}
                 confirmVariant="danger"
                 processing={deleting}
             >
+                {deleteError && (
+                    <p role="alert" className="mb-2 rounded-md bg-danger-tint px-2 py-1.5 text-danger">
+                        {deleteError}
+                    </p>
+                )}
                 {t('show.delete.body', { title: deal.title })}
             </ConfirmDialog>
         </>

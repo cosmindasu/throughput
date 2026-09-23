@@ -27,7 +27,7 @@ import type { DemoAccountRole, LoginPageProps } from '@/types/generated';
  */
 export default function Login() {
     const { demoMode, canResetPassword, status, demoAccounts } = usePage<LoginPageProps>().props;
-    const { t } = useTranslation('auth');
+    const { t } = useTranslation(['auth', 'common']);
     const [pendingRole, setPendingRole] = useState<DemoAccountRole | null>(null);
 
     const demoLogin = (role: DemoAccountRole) => {
@@ -186,6 +186,19 @@ export default function Login() {
                         {t('auth:login.submit')}
                     </Button>
                 </form>
+
+                {/* GDPR-06 — link către Politica de confidențialitate/Termeni, direct sub
+                    formular (în afara oricărui `<footer>`: pagina asta n-are unul propriu,
+                    cel din `GuestLayout` acoperă restul ecranelor pe acest shell). */}
+                <p className="text-center text-xs text-text-3">
+                    <Link href="/privacy" className="hover:text-text hover:underline">
+                        {t('common:footer.privacyLink')}
+                    </Link>
+                    <span aria-hidden="true"> · </span>
+                    <Link href="/terms" className="hover:text-text hover:underline">
+                        {t('common:footer.termsLink')}
+                    </Link>
+                </p>
             </div>
         </>
     );

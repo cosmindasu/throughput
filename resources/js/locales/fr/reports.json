@@ -89,7 +89,7 @@
                 "rows": "Lignes",
                 "download": "Télécharger"
             },
-            "downloadAria": "Télécharger l’exécution du {{date}}"
+            "downloadSrLabel": "l’exécution du {{date}}"
         },
         "deleteConfirmTitle": "Supprimer {{name}} ?",
         "deleteWarning": "Cette action est irréversible. La livraison programmée s’arrêtera immédiatement.",

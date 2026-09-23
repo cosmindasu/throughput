@@ -350,7 +350,10 @@ function OrdersTable({
                                 >
                                     {t('index.table.orderNumberColumn')}
                                     {sort.column === 'order_number' && (
-                                        <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
+                                        <>
+                                            <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
+                                            <span className="sr-only">, {sortStateLabel(t, sort.direction)}</span>
+                                        </>
                                     )}
                                 </button>
                             </th>
@@ -364,12 +367,15 @@ function OrdersTable({
                                     {column.sortKey ? (
                                         <button
                                             type="button"
-                                            onClick={() => onSort(column.sortKey!)}
+                                            onClick={() => column.sortKey && onSort(column.sortKey)}
                                             className={`flex items-center gap-1 hover:text-text ${column.headerClassName === 'text-right' ? 'ml-auto' : ''}`}
                                         >
                                             {column.label}
                                             {sort.column === column.sortKey && (
-                                                <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
+                                                <>
+                                                    <span aria-hidden="true">{sort.direction === 'asc' ? '↑' : '↓'}</span>
+                                                    <span className="sr-only">, {sortStateLabel(t, sort.direction)}</span>
+                                                </>
                                             )}
                                         </button>
                                     ) : (
@@ -473,6 +479,17 @@ function ariaSortFor(column: string, sort: { column: string; direction: 'asc' | 
     }
 
     return sort.direction === 'asc' ? 'ascending' : 'descending';
+}
+
+/**
+ * A11Y-06 (audit) — SC 2.5.3 (Label in Name): starea de sortare intră în numele accesibil
+ * al BUTONULUI printr-un `<span className="sr-only">` lângă săgeata `aria-hidden`, NU prin
+ * `aria-label` (care ar înlocui textul vizibil). `aria-sort` de pe `<th>` (deja corect, mai
+ * sus) e anunțat fiabil doar în modul de navigare pe tabel al unui cititor de ecran, nu la
+ * Tab+Enter direct pe control.
+ */
+function sortStateLabel(t: TFunction, direction: 'asc' | 'desc'): string {
+    return direction === 'asc' ? t('index.table.sortedAscending') : t('index.table.sortedDescending');
 }
 
 Index.layout = (page: ReactNode) => <AppLayout>{page}</AppLayout>;

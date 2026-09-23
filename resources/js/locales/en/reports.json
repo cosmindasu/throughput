@@ -87,7 +87,7 @@
                 "rows": "Rows",
                 "download": "Download"
             },
-            "downloadAria": "Download the run from {{date}}"
+            "downloadSrLabel": "the run from {{date}}"
         },
         "deleteConfirmTitle": "Delete {{name}}?",
         "deleteWarning": "This action cannot be undone. Scheduled delivery will stop immediately.",

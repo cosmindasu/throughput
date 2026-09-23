@@ -7,6 +7,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 // nu într-un `useEffect` dintr-o componentă, ca prima randare să nu arate deja engleză
 // pentru un utilizator FR (ADR-022, „Lot I18N" Val 1).
 import '@/lib/i18n';
+// Import de efect: înregistrează O SINGURĂ DATĂ ascultătorul global `router.on('error', …)`
+// care mută focusul pe primul câmp invalid după un submit eșuat (A11Y-01) — mecanism unic
+// pentru toate ecranele care importă `Form/Field.tsx`, nu cod repetat pe fiecare formular.
+import '@/lib/focusOnValidationError';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Throughput';
 

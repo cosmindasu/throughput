@@ -13,7 +13,6 @@
     "index": {
         "title": "Settings",
         "open": "Open",
-        "openAriaLabel": "Open {{title}}",
         "sections": {
             "members": {
                 "title": "Members",
@@ -76,13 +75,10 @@
         "invitationPending": "Invited {{invitedDate}} · expires {{expiresDate}}",
         "deactivatedBy": "by {{name}}",
         "resendButton": "Resend",
-        "resendAriaLabel": "Resend the invitation to {{email}}",
         "revokeButton": "Revoke",
-        "revokeAriaLabel": "Revoke the invitation to {{email}}",
+        "invitationSrLabel": "the invitation to {{email}}",
         "changeRoleButton": "Change role",
-        "changeRoleAriaLabel": "Change {{name}}'s role",
         "deactivateButton": "Deactivate member",
-        "deactivateAriaLabel": "Deactivate {{name}}",
         "outcomes": {
             "deactivated": "{{name}} was deactivated.",
             "deactivatedReassigning_one": "{{name}} was deactivated; reassigning {{count}} record…",
@@ -247,7 +243,6 @@
             "actions": "Actions"
         },
         "empty": "No data export has been requested for this workspace yet.",
-        "downloadAriaLabel": "Download the export requested on {{date}}",
         "downloadButton": "Download ZIP"
     },
     "sentEmails": {
@@ -271,7 +266,7 @@
         "recipientsTotal_other": "{{count}} recipients total (to/cc/bcc)",
         "view": "View",
         "hide": "Hide",
-        "detailAriaLabel": "{{action}} email \"{{subject}}\" to {{recipient}}",
+        "detailSrLabel": "email \"{{subject}}\" to {{recipient}}",
         "from": "From",
         "recipients": "Recipients",
         "linkRedacted": "Link redacted",
@@ -299,8 +294,7 @@
         "save": "Save",
         "saveAndActivate": "Save & activate",
         "activate": "Activate",
-        "saving": "Saving…",
-        "actionAriaLabel": "{{action}} {{label}}"
+        "saving": "Saving…"
     },
     "webhooks": {
         "title": "Webhook health",

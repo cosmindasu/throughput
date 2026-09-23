@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\Auth\NewPasswordController;
 use App\Http\Controllers\Web\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\LegalController;
 use App\Http\Controllers\Webhooks\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -28,6 +29,15 @@ Route::get('/', function () {
 Route::post('/webhooks/stripe', StripeWebhookController::class)
     ->middleware('throttle:60,1')
     ->name('webhooks.stripe');
+
+// GDPR-06 (audit 2026-09-23, §3) — suprafață publică minimă (Art. 13/14): Politica de
+// confidențialitate și Termenii de utilizare. Nume FIXE (`legal.privacy`/`legal.terms`),
+// scanate de teste externe de accesibilitate. Deliberat în AFARA grupului `guest` (un
+// vizitator autentificat trebuie să le poată deschide la fel) și în afara grupului `auth` +
+// `workspace` (nu au nevoie de sesiune sau de tenant rezolvat) — rămân totuși în grupul
+// `web`, deci văd `NoIndexHeaders` ca orice altă rută (FR-PUB-04, `NoIndexTest`).
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 
 // Publice — plan §7.4.
 Route::middleware('guest')->group(function () {

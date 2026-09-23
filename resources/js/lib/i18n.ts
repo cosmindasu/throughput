@@ -10,6 +10,7 @@ import dashboardEn from '@/locales/en/dashboard.json';
 import dealsEn from '@/locales/en/deals.json';
 import importsEn from '@/locales/en/imports.json';
 import invoicesEn from '@/locales/en/invoices.json';
+import legalEn from '@/locales/en/legal.json';
 import ordersEn from '@/locales/en/orders.json';
 import productsEn from '@/locales/en/products.json';
 import reportsEn from '@/locales/en/reports.json';
@@ -26,6 +27,7 @@ import dashboardFr from '@/locales/fr/dashboard.json';
 import dealsFr from '@/locales/fr/deals.json';
 import importsFr from '@/locales/fr/imports.json';
 import invoicesFr from '@/locales/fr/invoices.json';
+import legalFr from '@/locales/fr/legal.json';
 import ordersFr from '@/locales/fr/orders.json';
 import productsFr from '@/locales/fr/products.json';
 import reportsFr from '@/locales/fr/reports.json';
@@ -88,6 +90,10 @@ const NAMESPACES = [
     'auth',
     'dashboard',
     'roles',
+    // GDPR-06 (audit 2026-09-23) — cataloagele celor două pagini publice minime
+    // (`Pages/Legal/Privacy.tsx`/`Terms.tsx`), fără legătură cu vreun modul de business —
+    // de aici un namespace propriu, nu o extindere a lui `common`.
+    'legal',
     // Declarat aici, dar ABSENT din `resources` de mai jos — singurul namespace al
     // proiectului fără import static. Resursele lui ajung prin `addResourceBundle`, la
     // prima deschidere a panoului de ajutor, pe limba activă; vezi `help/catalog.ts`
@@ -135,6 +141,7 @@ void i18n.use(initReactI18next).init({
             auth: authEn,
             dashboard: dashboardEn,
             roles: rolesEn,
+            legal: legalEn,
         },
         fr: {
             common: commonFr,
@@ -153,6 +160,7 @@ void i18n.use(initReactI18next).init({
             auth: authFr,
             dashboard: dashboardFr,
             roles: rolesFr,
+            legal: legalFr,
         },
     },
     interpolation: {

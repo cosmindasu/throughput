@@ -51,8 +51,17 @@ export default function Field({ label, error, hint, required = false, children }
                     {hint}
                 </p>
             )}
+            {/* Audit de accesibilitate P1 (A11Y-01), SC 3.3.1/4.1.3 — `role="alert"` anunță
+                eroarea la cititorul de ecran în momentul în care apare (nu doar la focus,
+                cum face `aria-describedby` singur). Fără dublare absurdă: un paragraf
+                prezent DEJA la montare (ex. eroare server-side pe prima randare) nu se
+                anunță — browserele anunță doar mutațiile ulterioare ale unei regiuni
+                `role="alert"`, nu conținutul ei inițial. Focusul pe primul câmp invalid
+                după un submit eșuat e mecanismul global din `lib/focusOnValidationError.ts`
+                (`router.on('error', …)`, înregistrat o singură dată în `app.tsx`) — niciun
+                cod aici, ca să nu repete tiparul în cele 31 de fișiere care importă `Field`. */}
             {error && (
-                <p id={errorId} className="text-xs text-danger">
+                <p id={errorId} role="alert" className="text-xs text-danger">
                     {error}
                 </p>
             )}

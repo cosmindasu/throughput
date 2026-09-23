@@ -70,26 +70,108 @@ class FrontendAccessibilityConventionsTest extends TestCase
     /**
      * Capcana măsurată din `.ai/rules/frontend.md`: `disabled` nativ pe butonul care ARE
      * focusul (exact cel tocmai apăsat) îl blurează, iar browserul mută focusul pe `<body>` —
-     * inclusiv în interiorul unui `<dialog>` modal. Forma corectă e `pending` pe `Button`
-     * (`aria-disabled` + clic neutralizat + etichetă „…"), plus un retur timpuriu în handler.
+     * inclusiv în interiorul unui `<dialog>` modal. Forma corectă e `aria-disabled` + un
+     * handler no-op/`pending` pe `Button`, plus un retur timpuriu în handler.
      *
-     * Regula vizează DOAR stările „cererea mea e în zbor" — `disabled` rămâne legitim pe un
-     * control care nu poate avea focus în momentul în care se blochează (ex. un buton care
-     * depinde de un `<select>` pe care utilizatorul îl operează chiar atunci).
+     * Lărgit la audit (A11Y-05/FE-02): prima versiune verifica DOAR variabile numite
+     * `processing|loading|submitting|saving|sending`, deci rata `disabled={isFirst}` din
+     * `Pipeline/Index.tsx` (Move up/down la capătul listei — exact aceeași capcană, altă
+     * cauză decât „cererea mea e în zbor"). Acum verificăm ORICE `disabled={...}` aflat
+     * într-un tag de deschidere `<button>`/`<Button>`, minus lista albă motivată de mai jos
+     * (`nativeDisableWhitelist()`, pe modelul `modelsNeverExposedThroughAUrl()` din
+     * `ArchitectureTest`).
+     *
+     * Scoping-ul pe `<button>`/`<Button>` exclude STRUCTURAL `<input disabled>`/
+     * `<fieldset disabled>` — capcana asta (blurarea sub propriul click) nu li se aplică:
+     * niciunul din cele două nu e ținta unui click care-l blochează pe el însuși.
      */
-    public function test_no_button_is_natively_disabled_while_its_own_request_is_in_flight(): void
+    public function test_no_button_is_natively_disabled_without_a_documented_reason(): void
     {
         $offenders = [];
 
         foreach ($this->frontendSources() as $path) {
-            // `(?<![\w-])` exclude `aria-disabled={processing}` — chiar FORMA CORECTĂ, care
-            // altfel ar fi raportată ca încălcare (`\b` se potrivește și după cratimă).
-            if (preg_match_all('/(?<![\w-])disabled=\{[^}]*\b(processing|loading|submitting|saving|sending)/i', file_get_contents($path), $matches)) {
-                $offenders[] = $this->relative($path).' ('.implode(', ', $matches[0]).')';
+            $relative = $this->relative($path);
+            $source = file_get_contents($path);
+
+            foreach (['button', 'Button'] as $element) {
+                foreach ($this->jsxOpeningTagsOf($element, $source) as $tag) {
+                    // `(?<![\w-])` exclude `aria-disabled={...}` — forma CORECTĂ, care altfel
+                    // ar fi raportată ca încălcare (`\b` se potrivește și după cratimă).
+                    if (! preg_match('/(?<![\w-])disabled=\{[^}]*\}/', $tag, $match)) {
+                        continue;
+                    }
+
+                    $expression = trim($match[0]);
+
+                    if ($this->isWhitelistedNativeDisable($relative, $expression)) {
+                        continue;
+                    }
+
+                    $offenders[] = "{$relative} ({$expression})";
+                }
             }
         }
 
-        $this->assertSame([], $offenders, '`disabled` nativ pe un buton blocat de propria cerere — folosește `<Button pending={…}>`: '.implode('; ', $offenders));
+        $this->assertSame(
+            [],
+            $offenders,
+            '`disabled` nativ pe un `<button>`/`<Button>` fără o excepție motivată — folosește `aria-disabled` + handler no-op, sau adaugă o intrare motivată în `nativeDisableWhitelist()`: '.implode('; ', $offenders),
+        );
+    }
+
+    /**
+     * Listă ALBĂ, motivată individual — fiecare intrare verificată prin `Read` direct pe
+     * fișierul sursă (2026-09-23), nu presupusă. Toate sunt controale a căror stare
+     * `disabled` depinde de UN ALT câmp (`<select>`/`<input>`) pe care utilizatorul îl
+     * operează ÎN ACEL MOMENT — focusul e pe câmpul respectiv, nu pe buton, deci comutarea
+     * lui `disabled` nu-l poate blura pe ACESTA din urmă. Capcana reală (descrisă mai sus) e
+     * „butonul tocmai apăsat devine `disabled` sub propriul lui click" — asta e altceva.
+     *
+     * Cheia e calea relativă a fișierului; valoarea e fragmentul EXACT `disabled={...}`
+     * găsit. Dacă fragmentul se schimbă, whitelistul nu se mai potrivește și testul
+     * redevine roșu, intenționat — cere o nouă verificare, nu doar actualizarea listei.
+     *
+     * - `Components/BulkSelectionBar.tsx` (5×, în afara feliei acestui agent) —
+     *   `disabled={!ownerId || overRowCap}` / `disabled={!validAmount || overRowCap}` /
+     *   `disabled={overRowCap}` (×3): fiecare depinde de un `<select>`/`<input>` din
+     *   ACELAȘI dialog (owner de reasignat / sumă de ajustat) sau de `overRowCap` (prag
+     *   static, calculat din selecția de rânduri — nu din propriul click al butonului).
+     *   Fiecare are deja `aria-disabled={processing || undefined}` separat pentru starea
+     *   „cerere în zbor".
+     * - `Components/GlobalSearch.tsx` (în afara feliei) — `disabled={!workspace}`:
+     *   workspace-ul e context de pagină, stabilit înainte ca butonul să existe pe ecran —
+     *   nu se schimbă printr-un click pe ACEST buton.
+     * - `Components/Members/DeactivateMemberDialog.tsx`, `Pages/Unassigned/Index.tsx`
+     *   (ambele în afara feliei) — `disabled={newOwnerUserId === ''}`: depinde de un
+     *   `<select>` de reasignare aflat în ACELAȘI dialog/formular.
+     *
+     * @return array<string, list<string>>
+     */
+    private function nativeDisableWhitelist(): array
+    {
+        return [
+            'resources/js/Components/BulkSelectionBar.tsx' => [
+                'disabled={!ownerId || overRowCap}',
+                'disabled={overRowCap}',
+                'disabled={!validAmount || overRowCap}',
+            ],
+            'resources/js/Components/GlobalSearch.tsx' => [
+                'disabled={!workspace}',
+            ],
+            'resources/js/Components/Members/DeactivateMemberDialog.tsx' => [
+                "disabled={newOwnerUserId === ''}",
+            ],
+            'resources/js/Pages/Unassigned/Index.tsx' => [
+                "disabled={newOwnerUserId === ''}",
+            ],
+        ];
+    }
+
+    private function isWhitelistedNativeDisable(string $relativePath, string $expression): bool
+    {
+        $whitelist = $this->nativeDisableWhitelist();
+
+        return isset($whitelist[$relativePath]) && in_array($expression, $whitelist[$relativePath], true);
     }
 
     /**
@@ -157,5 +239,67 @@ class FrontendAccessibilityConventionsTest extends TestCase
     private function relative(string $path): string
     {
         return str_replace(base_path().DIRECTORY_SEPARATOR, '', $path);
+    }
+
+    /**
+     * Ca `openingTagsOf()`, dar respectă acolade `{...}` IMBRICATE în interiorul tagului —
+     * necesar pe `<button>`/`<Button>`, unde un handler ca `onClick={() => setX(...)}`
+     * conține o săgeată `=>`, adică un `>` literal ÎNAINTE de sfârșitul real al tagului.
+     * `openingTagsOf()` (regex simplu `[^>]*>`) s-ar opri acolo, trunchiind tagul înainte
+     * de atributele următoare — posibil chiar `disabled={...}` — și ar rata cazul, nu l-ar
+     * raporta greșit. De-aia testul de mai sus NU refolosește `openingTagsOf()`.
+     *
+     * Nu recunoaște un `>` literal în interiorul unui șir simplu, necotat prin `{}` (ex.
+     * `className="[&>svg]:..."`) — verificat prin grep (2026-09-23): nicio apariție în
+     * `resources/js`, deci simplificarea e sigură azi, nu doar presupusă.
+     *
+     * @return list<string>
+     */
+    private function jsxOpeningTagsOf(string $element, string $source): array
+    {
+        $tags = [];
+        $needle = '<'.$element;
+        $offset = 0;
+        $length = strlen($source);
+
+        while (($start = strpos($source, $needle, $offset)) !== false) {
+            $afterName = $start + strlen($needle);
+            $nextChar = $afterName < $length ? $source[$afterName] : '';
+
+            // Graniță de „cuvânt" după nume — `<Button` nu trebuie să prindă `<ButtonLink`.
+            if ($nextChar !== '' && (ctype_alnum($nextChar) || $nextChar === '_' || $nextChar === '-')) {
+                $offset = $afterName;
+
+                continue;
+            }
+
+            $depth = 0;
+            $pos = $afterName;
+            $tagEnd = null;
+
+            while ($pos < $length) {
+                $char = $source[$pos];
+
+                if ($char === '{') {
+                    $depth++;
+                } elseif ($char === '}') {
+                    $depth--;
+                } elseif ($char === '>' && $depth <= 0) {
+                    $tagEnd = $pos;
+                    break;
+                }
+
+                $pos++;
+            }
+
+            if ($tagEnd === null) {
+                break;
+            }
+
+            $tags[] = substr($source, $start, $tagEnd - $start + 1);
+            $offset = $tagEnd + 1;
+        }
+
+        return $tags;
     }
 }

@@ -21,6 +21,10 @@ export default function ContactsShow() {
     const { contact, can, workspace } = usePage<ContactsShowPageProps>().props;
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // FE-01 (audit) — dialogul se închide DOAR la succes; la eroare rămâne deschis, cu
+    // mesajul afișat în `role="alert"` chiar în el (`.ai/rules/frontend.md`, „Dialogul
+    // închis și la eroare”).
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const destroy = () => {
         if (!workspace) {
@@ -28,11 +32,11 @@ export default function ContactsShow() {
         }
 
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`/${workspace.slug}/contacts/${contact.id}`, {
-            onFinish: () => {
-                setDeleting(false);
-                setConfirmingDelete(false);
-            },
+            onSuccess: () => setConfirmingDelete(false),
+            onError: (errors) => setDeleteError(Object.values(errors)[0] ?? t('show.deleteDialog.error')),
+            onFinish: () => setDeleting(false),
         });
     };
 
@@ -129,12 +133,20 @@ export default function ContactsShow() {
                 <ConfirmDialog
                     open={confirmingDelete}
                     title={t('show.deleteDialog.title')}
-                    onClose={() => setConfirmingDelete(false)}
+                    onClose={() => {
+                        setConfirmingDelete(false);
+                        setDeleteError(null);
+                    }}
                     onConfirm={destroy}
                     confirmLabel={t('show.deleteDialog.confirm')}
                     confirmVariant="danger"
                     processing={deleting}
                 >
+                    {deleteError && (
+                        <p role="alert" className="mb-2 rounded-md bg-danger-tint px-2 py-1.5 text-danger">
+                            {deleteError}
+                        </p>
+                    )}
                     {t('show.deleteDialog.body', { name: contact.fullName })}
                 </ConfirmDialog>
             </div>

@@ -80,7 +80,6 @@
         "empty": {
             "contacts": "No contacts yet.",
             "deals": "No deals yet.",
-            "activityLoading": "Loading activity…",
             "activityNone": "No activity recorded yet."
         },
         "primaryContactBadge": "Primary",
@@ -88,7 +87,8 @@
             "blockedTitle": "Cannot delete this account",
             "title": "Delete {{name}}?",
             "confirm": "Delete",
-            "body": "This action cannot be undone."
+            "body": "This action cannot be undone.",
+            "error": "This account could not be deleted."
         }
     },
     "form": {

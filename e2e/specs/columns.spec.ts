@@ -39,13 +39,20 @@ function columnsPanel(page: Page): Locator {
  * `data-testid` pe fiecare `<th>`, care n-ar exista pentru nimic altceva în aplicație.
  */
 async function configurableHeaders(page: Page): Promise<string[]> {
-    const all = await page.locator('table thead th').allTextContents();
+    // Antetul cu sortare activă (`Orders/Index.tsx`, implicit „Created" — `-created_at`)
+    // poartă o săgeată `aria-hidden` și, de la A11Y-06, un sufix `sr-only` („, sorted
+    // descending") — amândouă rămân în `textContent`. Coloanele se identifică după eticheta
+    // VIZIBILĂ, nu după starea de sortare, deci citim textul fără aceste două noduri.
+    const all = await page.locator('table thead th').evaluateAll((cells) =>
+        cells.map((cell) => {
+            const copy = cell.cloneNode(true) as HTMLElement;
+            copy.querySelectorAll('.sr-only, [aria-hidden="true"]').forEach((node) => node.remove());
 
-    // Săgeata de sortare (`aria-hidden="true"`, dar TOT text — `aria-hidden` scoate un nod
-    // doar din arborele de accesibilitate, nu din `textContent`) se atașează antetului cu
-    // sortare activă (`Orders/Index.tsx`, implicit „Created" — `-created_at`). Coloanele
-    // se identifică după etichetă, nu după direcția de sortare curentă.
-    return all.slice(2, -1).map((text) => text.replace(/[↑↓]/g, '').trim());
+            return (copy.textContent ?? '').trim();
+        }),
+    );
+
+    return all.slice(2, -1);
 }
 
 test.describe('Selector de coloane — Accounts', () => {

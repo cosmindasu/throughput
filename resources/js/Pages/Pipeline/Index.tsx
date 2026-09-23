@@ -7,6 +7,7 @@ import EmptyState from '@/Components/EmptyState';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
+import { useAnnounce } from '@/hooks/useAnnounce';
 import AppLayout from '@/Layouts/AppLayout';
 import type { PipelinePageProps, PipelineStage } from '@/types/generated';
 
@@ -30,27 +31,19 @@ export default function PipelineIndex() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    // FE-01 (audit) — dialogul de ștergere a unei etape se închide DOAR la succes; la
+    // eroare rămâne deschis, cu mesajul afișat în `role="alert"` chiar în el.
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     // P2-004: un mesaj explicit, local pe pagină — un "snap back" tăcut al ordinii (după un
     // 422/403) se citea ca "n-am apăsat destul de tare", nu ca un refuz de server (§9.3).
     const [orderError, setOrderError] = useState<string | null>(null);
-    // P2-005: „Move up”/„Move down” pot muta rândul curent pe marginea listei, unde BUTONUL
-    // apăsat devine `disabled` — un element dezactivat pierde focusul spre `<body>`. Mutăm
+    // P2-005: „Move up”/„Move down” pot muta rândul curent pe marginea listei — mutăm
     // focusul explicit pe rândul mutat (stabil, indiferent de poziție) și anunțăm noua poziție
-    // într-o regiune `aria-live`, ca cititoarele de ecran să nu piardă contextul (WCAG 2.2 SC
-    // 2.5.7 — deja citat mai sus pentru drag/tastatură).
-    const [announcement, setAnnouncement] = useState('');
+    // într-o regiune `aria-live` (`useAnnounce`, FE-03), ca cititoarele de ecran să nu piardă
+    // contextul (WCAG 2.2 SC 2.5.7 — deja citat mai sus pentru drag/tastatură).
+    const { announcement, announce } = useAnnounce();
     const lastMovedIdRef = useRef<string | null>(null);
     const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
-    const announcementFrameRef = useRef<number | null>(null);
-
-    useEffect(
-        () => () => {
-            if (announcementFrameRef.current !== null) {
-                cancelAnimationFrame(announcementFrameRef.current);
-            }
-        },
-        [],
-    );
 
     useEffect(() => {
         const id = lastMovedIdRef.current;
@@ -91,26 +84,6 @@ export default function PipelineIndex() {
                 },
             },
         );
-    }
-
-    /**
-     * SC 4.1.3 — golire sincronă, apoi textul pe frame-ul următor. O regiune `aria-live`
-     * raportează MUTAȚIA din DOM, nu intenția de a scrie: `setAnnouncement` cu exact
-     * aceeași valoare face bail-out în React (`objectIs`, înainte de programarea randării),
-     * deci nu se atinge niciun nod de text și anunțul e mut. Se întâmplă real aici — un
-     * „Move down" respins de server (ordinea revine) urmat de al doilea „Move down" produce
-     * de două ori la rând același șir. Vezi `.ai/rules/frontend.md` și `ListUpdateAnnouncer`.
-     */
-    function announce(text: string) {
-        if (announcementFrameRef.current !== null) {
-            cancelAnimationFrame(announcementFrameRef.current);
-        }
-
-        setAnnouncement('');
-        announcementFrameRef.current = requestAnimationFrame(() => {
-            announcementFrameRef.current = null;
-            setAnnouncement(text);
-        });
     }
 
     function announceMove(stageId: string, nextOrder: string[]) {
@@ -167,12 +140,12 @@ export default function PipelineIndex() {
 
     function confirmDelete(stageId: string) {
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`${stagesPath}/${stageId}`, {
             preserveScroll: true,
-            onFinish: () => {
-                setDeleting(false);
-                setConfirmingDeleteId(null);
-            },
+            onSuccess: () => setConfirmingDeleteId(null),
+            onError: (errors) => setDeleteError(Object.values(errors)[0] ?? t('pipeline.deleteDialog.error')),
+            onFinish: () => setDeleting(false),
         });
     }
 
@@ -280,7 +253,10 @@ export default function PipelineIndex() {
             <ConfirmDialog
                 open={confirmingStage !== null}
                 title={confirmingStage ? t('pipeline.deleteDialog.title', { name: confirmingStage.name }) : ''}
-                onClose={() => setConfirmingDeleteId(null)}
+                onClose={() => {
+                    setConfirmingDeleteId(null);
+                    setDeleteError(null);
+                }}
                 // BR-DEAL-01: dacă etapa are deals, dialogul doar INFORMEAZĂ (fără
                 // `onConfirm`) — butonul „Delete" rămâne prezent pentru cine are dreptul
                 // (`pipelines.manage`), regula de stare se explică, nu se ascunde.
@@ -289,6 +265,11 @@ export default function PipelineIndex() {
                 confirmVariant="danger"
                 processing={deleting}
             >
+                {deleteError && (
+                    <p role="alert" className="mb-2 rounded-md bg-danger-tint px-2 py-1.5 text-danger">
+                        {deleteError}
+                    </p>
+                )}
                 {confirmingStage?.deletionBlockedReason ?? t('pipeline.deleteDialog.body')}
             </ConfirmDialog>
         </>
@@ -470,21 +451,26 @@ function StageRow({
                         <span aria-hidden="true" className="cursor-grab px-1 text-text-3">
                             ⠿
                         </span>
+                        {/* `aria-disabled`, NU `disabled`: la capătul listei, un buton nativ
+                            dezactivat iese din ordinea de tab și, dacă avea focusul (exact
+                            butonul tocmai apăsat), îl pierde pe `<body>` — A11Y-05/FE-02 din
+                            audit, exact tiparul deja reparat în `ColumnSelector.tsx`. Rămâne
+                            focusabil; `onMoveUp`/`onMoveDown` sunt deja no-op la capăt. */}
                         <button
                             type="button"
                             onClick={onMoveUp}
-                            disabled={isFirst}
+                            aria-disabled={isFirst}
                             aria-label={t('pipeline.moveUp', { name: stage.name })}
-                            className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
+                            className={`flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${isFirst ? 'cursor-not-allowed opacity-40' : ''}`}
                         >
                             <span aria-hidden="true">↑</span>
                         </button>
                         <button
                             type="button"
                             onClick={onMoveDown}
-                            disabled={isLast}
+                            aria-disabled={isLast}
                             aria-label={t('pipeline.moveDown', { name: stage.name })}
-                            className="flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
+                            className={`flex size-6 items-center justify-center rounded-md text-text-2 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${isLast ? 'cursor-not-allowed opacity-40' : ''}`}
                         >
                             <span aria-hidden="true">↓</span>
                         </button>

@@ -39,7 +39,7 @@ export default function DealCard({ deal, stages, workspaceSlug, onDragStart, onE
             draggable={deal.can.moveStage}
             onDragStart={(event) => deal.can.moveStage && onDragStart(event, deal)}
             className="rounded-md border border-border bg-surface p-3 shadow-sm focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            aria-roledescription={deal.can.moveStage ? 'Draggable deal card' : undefined}
+            aria-roledescription={deal.can.moveStage ? t('card.draggableRoleDescription') : undefined}
         >
             <Link href={`/${workspaceSlug}/deals/${deal.id}`} className="text-sm font-medium text-text hover:underline">
                 {deal.title}

@@ -23,6 +23,10 @@ export default function Show() {
     const base = workspace ? `/${workspace.slug}` : '';
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // FE-01 (audit) — dialogul se închide DOAR la succes; la eroare rămâne deschis, cu
+    // mesajul afișat în `role="alert"` chiar în el (`.ai/rules/frontend.md`, „Dialogul
+    // închis și la eroare”).
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     // FR-AUD-02, §17.3 — istoricul unei variante (US-AUD-01: „prețul variantei X a fost
     // schimbat de 3 ori") se arată inline, sub rândul ei, nu pe o pagină separată (variantele
     // n-au propriul Show — vezi raportul lotului). Un singur rând deschis o dată.
@@ -30,11 +34,11 @@ export default function Show() {
 
     const destroy = () => {
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`${base}/products/${product.id}`, {
-            onFinish: () => {
-                setDeleting(false);
-                setConfirmingDelete(false);
-            },
+            onSuccess: () => setConfirmingDelete(false),
+            onError: (errors) => setDeleteError(Object.values(errors)[0] ?? t('products:show.deleteError')),
+            onFinish: () => setDeleting(false),
         });
     };
 
@@ -200,8 +204,16 @@ export default function Show() {
                 confirmVariant="danger"
                 confirmLabel={t('products:actions.delete')}
                 processing={deleting}
-                onClose={() => setConfirmingDelete(false)}
+                onClose={() => {
+                    setConfirmingDelete(false);
+                    setDeleteError(null);
+                }}
             >
+                {deleteError && (
+                    <p role="alert" className="mb-2 rounded-md bg-danger-tint px-2 py-1.5 text-danger">
+                        {deleteError}
+                    </p>
+                )}
                 {/* `deletionBlockedReason` vine deja tradus din backend (mesaj Laravel,
                     App::setLocale() din LocalePreference) — nu se retraduce aici. */}
                 {deletionBlockedReason ?? t('products:show.deleteWarning')}

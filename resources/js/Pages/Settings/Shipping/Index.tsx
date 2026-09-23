@@ -112,9 +112,12 @@ function ProviderCard({ provider, canManage, action }: { provider: CarrierSettin
                     // pornește de la „Skip to content". `aria-disabled` + returul timpuriu
                     // din `submit()` de mai sus dau același efect fără să rupă tab-order-ul.
                     aria-disabled={form.processing || undefined}
-                    aria-label={t('settings:shipping.actionAriaLabel', { action: actionLabel, label: provider.label })}
                 >
+                    {/* Audit de accesibilitate (SC 2.5.3) — sufix `sr-only`, nu `aria-label`:
+                        numele de furnizor disambiguizează cele două carduri fără să rescrie
+                        textul vizibil ("Save"/"Save & activate"/"Activate"/"Saving…"). */}
                     {form.processing ? t('settings:shipping.saving') : actionLabel}
+                    <span className="sr-only"> {provider.label}</span>
                 </Button>
             )}
         </form>

@@ -184,8 +184,12 @@ export default function Show() {
                 </section>
 
                 {builtInPreview && (
-                    <section aria-label={t('reports:show.currentResult.heading')} className="flex flex-col gap-3">
-                        <h2 className="text-sm font-medium text-text">
+                    // `aria-labelledby`, nu `aria-label` duplicat: sursă unică de adevăr cu
+                    // titlul `h2` chiar de dedesubt (găsit la scanare, în afara listei
+                    // auditului — același principiu ca „Numele accesibil al unui tabel"
+                    // din `.ai/rules/frontend.md`, aplicat aici landmark-ului).
+                    <section aria-labelledby="current-result-heading" className="flex flex-col gap-3">
+                        <h2 id="current-result-heading" className="text-sm font-medium text-text">
                             {t('reports:show.currentResult.heading')}
                             {!builtInPreview.hiddenForCost && (
                                 <span className="ml-2 font-normal text-text-3">
@@ -263,8 +267,10 @@ export default function Show() {
                     </section>
                 )}
 
-                <section aria-label={t('reports:show.runHistory.heading')} className="flex flex-col gap-3">
-                    <h2 className="text-sm font-medium text-text">{t('reports:show.runHistory.heading')}</h2>
+                {/* `aria-labelledby`, nu `aria-label` duplicat — vezi comentariul de la
+                    secțiunea „Current result" de mai sus. */}
+                <section aria-labelledby="run-history-heading" className="flex flex-col gap-3">
+                    <h2 id="run-history-heading" className="text-sm font-medium text-text">{t('reports:show.runHistory.heading')}</h2>
 
                     {runs.length === 0 ? (
                         <EmptyState message={t('reports:show.runHistory.empty')} />
@@ -313,17 +319,22 @@ export default function Show() {
                                                 {/* Descărcare binară — `<a href>` simplu, NU un `<Link>` Inertia: un
                                                     răspuns `Content-Disposition: attachment` fără antet `X-Inertia`
                                                     ar deschide dialogul de eroare al Inertia în loc să descarce
-                                                    (defect real, documentat în `Exports/Show.tsx`). `aria-label`
-                                                    disambiguizează „Download" repetat pe fiecare rând (fix P3). */}
+                                                    (defect real, documentat în `Exports/Show.tsx`). */}
                                                 {can.download && run.hasFile && (
                                                     <a
                                                         href={`${base}/reports/${report.id}/runs/${run.id}/download`}
-                                                        aria-label={t('reports:show.runHistory.downloadAria', {
-                                                            date: run.startedAt ? formatDateTime(run.startedAt, locale) : `#${run.id}`,
-                                                        })}
                                                         className="text-accent-text hover:underline"
                                                     >
                                                         {t('reports:show.runHistory.columns.download')}
+                                                        {/* Audit de accesibilitate (SC 2.5.3) — sufix `sr-only`, nu
+                                                            `aria-label`: „Download" rămâne conținut în numele
+                                                            accesibil pe fiecare rând (fix P3 din audit). */}
+                                                        <span className="sr-only">
+                                                            {' '}
+                                                            {t('reports:show.runHistory.downloadSrLabel', {
+                                                                date: run.startedAt ? formatDateTime(run.startedAt, locale) : `#${run.id}`,
+                                                            })}
+                                                        </span>
                                                     </a>
                                                 )}
                                             </td>

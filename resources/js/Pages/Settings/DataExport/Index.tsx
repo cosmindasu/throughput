@@ -166,11 +166,12 @@ export default function DataExportIndex() {
                                         <a
                                             href={`/${workspace.slug}/settings/data-export/${row.id}/download`}
                                             className={buttonClass('secondary')}
-                                            aria-label={t('settings:dataExport.downloadAriaLabel', {
-                                                date: formatDateTime(row.requestedAt, locale),
-                                            })}
                                         >
                                             {t('settings:dataExport.downloadButton')}
+                                            {/* Audit de accesibilitate (SC 2.5.3, Label in Name) — sufix
+                                                `sr-only`, nu `aria-label`, ca „Download ZIP" să rămână
+                                                conținut în numele accesibil pe fiecare rând. */}
+                                            <span className="sr-only"> — {formatDateTime(row.requestedAt, locale)}</span>
                                         </a>
                                     )}
                                 </td>

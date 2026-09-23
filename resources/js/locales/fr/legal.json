@@ -1,0 +1,154 @@
+{
+    "privacy": {
+        "title": "Politique de confidentialité",
+        "heading": "Politique de confidentialité",
+        "lastUpdated": "Dernière mise à jour : 23 septembre 2026",
+        "intro": "Throughput est une démonstration de portfolio, publique et librement accessible, d'un produit CRM/OMS B2B fictif — pas une entreprise réelle servant de vrais clients. Cette page explique, conformément aux articles 13 et 14 du RGPD, quelles données personnelles cette démonstration traite, pourquoi, et quels sont vos droits.",
+        "sections": {
+            "whoWeAre": {
+                "heading": "1. Qui est responsable de cette démonstration",
+                "paragraphs": [
+                    "Cette démonstration est exploitée, à des fins de portfolio, par [nom légal de l'exploitant — espace réservé, à confirmer par le propriétaire]. Pour toute question ou demande relative à la confidentialité, contactez [privacy@throughput.dbg.ro — espace réservé, à confirmer par le propriétaire]."
+                ]
+            },
+            "twoRoles": {
+                "heading": "2. Deux rôles différents au sens du RGPD",
+                "paragraphs": [
+                    "Pour vos propres données de compte (voir ci-dessous), l'exploitant agit en tant que responsable du traitement. Pour toute donnée CRM que vous ou un autre visiteur saisissez dans un espace de travail de démonstration partagé — fiches d'entreprise, contacts, affaires, commandes, factures — l'exploitant agit uniquement en tant que sous-traitant pour le compte de la personne qui a saisi ces données : il ne décide pas de la finalité de cette saisie et n'offre aucun moyen pour un tiers nommé dans ces données de le contacter directement (art. 28, paragraphe 3, point e))."
+                ]
+            },
+            "whatWeProcess": {
+                "heading": "3. Quelles données personnelles cette démonstration traite",
+                "intro": "Uniquement les catégories suivantes, toutes générées par l'utilisation de l'application elle-même :",
+                "items": [
+                    "Comptes de membres d'un espace de travail — nom et adresse e-mail, créés lorsqu'une personne accepte une invitation à un espace de travail ou réinitialise un mot de passe. Les quatre comptes de démonstration partagés (Owner, Manager, Agent, Viewer) sont des données de départ préchargées, pas des comptes personnels appartenant à des visiteurs.",
+                    "Données CRM saisies dans un espace de travail de démonstration partagé — fiches d'entreprise, contacts (nom, e-mail, téléphone), affaires, commandes et factures. Toute personne disposant d'un identifiant de démonstration peut saisir ou modifier ces données — voir l'avertissement de la section suivante.",
+                    "Journal d'activité — un enregistrement de qui a modifié quoi et quand, pour les modifications effectuées dans un espace de travail.",
+                    "Cookies fonctionnels uniquement — un cookie de session, ainsi que deux cookies de préférence (thème de l'interface et langue). Aucun n'est utilisé à des fins d'analyse, de publicité ou de suivi, et aucun outil de ce type n'est intégré à ce site."
+                ]
+            },
+            "noRealData": {
+                "heading": "4. Merci de ne saisir aucune donnée personnelle réelle",
+                "paragraphs": [
+                    "Les identifiants de démonstration sont partagés par tous les visiteurs jusqu'à la prochaine réinitialisation quotidienne. Tout ce que vous saisissez dans un formulaire de Contact, de Compte ou similaire — un vrai nom, une vraie adresse e-mail, un vrai numéro de téléphone — devient visible pour tout autre visiteur qui se connecte au même compte de démonstration avant cette réinitialisation. Merci de n'utiliser que des données fictives."
+                ]
+            },
+            "legalBasis": {
+                "heading": "5. Base légale",
+                "items": [
+                    "Comptes de membres d'un espace de travail : exécution de l'arrangement qui vous permet d'utiliser la démonstration (art. 6, paragraphe 1, point b)), ou intérêt légitime de l'exploitant à démontrer le parcours d'invitation (art. 6, paragraphe 1, point f)).",
+                    "Données CRM saisies par les visiteurs : intérêt légitime de l'exploitant à permettre un essai concret du produit (art. 6, paragraphe 1, point f)) — la pertinence des données qu'un visiteur choisit de saisir reste de sa propre responsabilité.",
+                    "Cookies fonctionnels : strictement nécessaires au fonctionnement du site, donc aucune bannière de consentement n'est affichée (art. 5, paragraphe 3, de la directive ePrivacy)."
+                ]
+            },
+            "recipients": {
+                "heading": "6. Qui d'autre voit ces données",
+                "intro": "Les sous-traitants suivants sont utilisés, chacun uniquement pour la finalité indiquée :",
+                "items": [
+                    "Stripe — traite l'abonnement simulé (mode test uniquement, dans cette démonstration).",
+                    "Shippo — génère les étiquettes d'expédition des commandes (identifiants de bac à sable uniquement, dans cette démonstration).",
+                    "Resend — livre les e-mails transactionnels : réinitialisations de mot de passe, invitations à un espace de travail, rapports programmés. Dans cette démonstration, toute adresse en dehors d'une liste blanche interne est interceptée et jamais réellement envoyée.",
+                    "Sentry — surveillance des erreurs, hébergée dans l'UE (Allemagne). Configuré pour ne pas collecter de données personnelles par défaut, et pour supprimer les mots de passe, jetons et valeurs similaires avant tout envoi."
+                ],
+                "transfers": "Stripe, Shippo et Resend sont des fournisseurs basés aux États-Unis. Le mécanisme de transfert exact utilisé pour chacun — clauses contractuelles types ou cadre de protection des données UE-États-Unis (DPF) — n'a pas été documenté pour cette démonstration [décision en attente de confirmation du propriétaire]."
+            },
+            "hosting": {
+                "heading": "7. Hébergement",
+                "paragraphs": [
+                    "L'application fonctionne sur un serveur virtuel autogéré (Coolify). Sa région d'hébergement exacte n'a pas été documentée publiquement pour cette démonstration [décision en attente de confirmation du propriétaire]."
+                ]
+            },
+            "retention": {
+                "heading": "8. Durée de conservation des données",
+                "items": [
+                    "L'application entière est reconstruite à partir de ses données de départ chaque jour à 03h00 UTC. Chaque compte, espace de travail, contact et toute autre donnée saisie par un visiteur depuis la dernière réinitialisation est supprimé à ce moment-là, au plus tard.",
+                    "Un fichier d'export RGPD (voir « Vos droits » ci-dessous) est conservé 7 jours après sa génération, puis supprimé ; la demande elle-même reste enregistrée.",
+                    "Par conception, le journal d'activité conserve les entrées pendant 36 mois, après quoi les détails identifiants des entrées les plus anciennes sont remplacés par une mention générique — bien que, dans cette démonstration, la réinitialisation quotidienne ci-dessus efface normalement tout bien avant ce délai.",
+                    "Le journal des e-mails transactionnels envoyés en mode démonstration est conservé 7 jours."
+                ]
+            },
+            "rights": {
+                "heading": "9. Vos droits",
+                "intro": "Sous réserve de la répartition des deux rôles expliquée ci-dessus, vous pouvez exercer :",
+                "items": [
+                    "Accès et portabilité (art. 15/20) — un Owner peut demander un export complet des données d'un espace de travail depuis Paramètres → Export de données, préparé sous forme d'archive ZIP téléchargeable dans l'application.",
+                    "Rectification (art. 16) — modifiez n'importe quel enregistrement directement depuis l'écran concerné.",
+                    "Effacement (art. 17) — un Contact peut être supprimé ou anonymisé depuis l'application ; pour toute autre demande d'effacement, y compris d'un compte de membre d'un espace de travail, contactez [privacy@throughput.dbg.ro — espace réservé, à confirmer par le propriétaire].",
+                    "Limitation et opposition (art. 18/21) — contactez la même adresse.",
+                    "Compte tenu de la nature de ce projet — une démonstration de portfolio publique, réinitialisée chaque jour, et non un produit réel avec de vrais clients — certaines de ces demandes peuvent déjà être sans objet en pratique : tout ce que vous avez saisi date d'au plus un jour avant d'être supprimé."
+                ]
+            },
+            "complaint": {
+                "heading": "10. Droit de réclamation",
+                "paragraphs": [
+                    "Vous pouvez déposer une réclamation auprès de l'autorité de contrôle de protection des données de votre pays. En Roumanie, il s'agit de l'Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP), www.dataprotection.ro."
+                ]
+            },
+            "changes": {
+                "heading": "11. Modifications de cette politique",
+                "paragraphs": [
+                    "Cette page peut être mise à jour à mesure que la démonstration évolue ; la date ci-dessus reflète la dernière révision."
+                ]
+            }
+        }
+    },
+    "terms": {
+        "title": "Conditions d'utilisation",
+        "heading": "Conditions d'utilisation",
+        "lastUpdated": "Dernière mise à jour : 23 septembre 2026",
+        "intro": "Ces conditions ne concernent que l'utilisation de cette démonstration publique — ce ne sont pas les conditions d'un produit commercial.",
+        "sections": {
+            "nature": {
+                "heading": "1. De quoi il s'agit",
+                "paragraphs": [
+                    "Throughput est une démonstration de portfolio : un produit CRM/OMS B2B fictif, conçu pour montrer un logiciel fonctionnel plutôt qu'une entreprise proposant un service réel. Rien sur ce site ne constitue une offre commerciale."
+                ]
+            },
+            "acceptableUse": {
+                "heading": "2. Utilisation acceptable",
+                "items": [
+                    "Ne saisissez aucune donnée personnelle réelle vous appartenant ou appartenant à autrui — voir la Politique de confidentialité, section 4.",
+                    "N'utilisez pas la démonstration pour stocker, transmettre ou générer du contenu illicite, abusif ou contrefaisant.",
+                    "N'essayez pas de contourner les limites de débit, les contrôles de sécurité ou les garde-fous opérationnels de la démonstration, ni de perturber le service pour les autres visiteurs.",
+                    "N'utilisez pas d'outils automatisés pour extraire, importer ou écrire des données en masse au-delà d'une exploration normale et manuelle du produit."
+                ]
+            },
+            "sharedAccounts": {
+                "heading": "3. Comptes partagés, réinitialisation quotidienne",
+                "paragraphs": [
+                    "Les identifiants de démonstration sont partagés par tous les visiteurs, et toute modification que vous effectuez — y compris ce que vous supprimez — reste visible par les autres jusqu'à la prochaine réinitialisation. L'application entière est restaurée à son état de départ chaque jour à 03h00 UTC ; rien de ce que vous saisissez n'est garanti de subsister au-delà."
+                ]
+            },
+            "noWarranty": {
+                "heading": "4. Aucune garantie, aucune responsabilité",
+                "paragraphs": [
+                    "Cette démonstration est fournie « telle quelle », sans aucune garantie de disponibilité, d'exactitude ou d'adéquation à un usage particulier. Dans toute la mesure permise par la loi, l'exploitant n'est pas responsable des dommages résultant de l'utilisation, ou de l'impossibilité d'utiliser, cette démonstration."
+                ]
+            },
+            "intellectualProperty": {
+                "heading": "5. Propriété intellectuelle",
+                "paragraphs": [
+                    "Le code source, la conception et le contenu de cette démonstration font partie du portfolio de l'exploitant et restent sa propriété, à l'exception des composants tiers utilisés sous leurs propres licences."
+                ]
+            },
+            "governingLaw": {
+                "heading": "6. Droit applicable",
+                "paragraphs": [
+                    "Le droit applicable et la juridiction compétente pour ces conditions n'ont pas été documentés pour cette démonstration [décision en attente de confirmation du propriétaire]."
+                ]
+            },
+            "contact": {
+                "heading": "7. Contact",
+                "paragraphs": [
+                    "Les questions relatives à ces conditions peuvent être envoyées à [privacy@throughput.dbg.ro — espace réservé, à confirmer par le propriétaire]."
+                ]
+            },
+            "changes": {
+                "heading": "8. Modifications de ces conditions",
+                "paragraphs": [
+                    "Ces conditions peuvent être mises à jour à mesure que la démonstration évolue ; la date ci-dessus reflète la dernière révision."
+                ]
+            }
+        }
+    }
+}

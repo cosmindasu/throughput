@@ -128,15 +128,17 @@ function EmailRow({ email }: { email: SentEmailRow }) {
                         type="button"
                         aria-expanded={expanded}
                         aria-controls={detailId}
-                        aria-label={t('settings:sentEmails.detailAriaLabel', {
-                            action: actionLabel,
-                            subject: email.subject,
-                            recipient,
-                        })}
                         onClick={() => setExpanded((value) => !value)}
                         className="inline-flex min-h-6 items-center rounded px-2 py-1 text-sm font-medium text-accent-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
                     >
+                        {/* Audit de accesibilitate (SC 2.5.3) — sufix `sr-only`, nu `aria-label`:
+                            „View"/„Hide" rămâne primul, disambiguizarea (subiect + destinatar)
+                            urmează după. */}
                         {actionLabel}
+                        <span className="sr-only">
+                            {' '}
+                            {t('settings:sentEmails.detailSrLabel', { subject: email.subject, recipient })}
+                        </span>
                     </button>
                 </td>
             </tr>

@@ -96,18 +96,23 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="min-h-screen bg-bg text-text">
-            <DemoBanner />
-            {/* specs.md §12.2 — sub DemoBanner, deasupra header-ului: pe orice pagină, nu
-                doar Billing. `canceled` nu ajunge niciodată aici — `EnsureSubscriptionAccess`
-                redirectează server-side către Settings/Billing/Index înainte de randare. */}
-            <SubscriptionBanner />
-
+            {/* A11Y-08 — PRIMUL element focusabil al paginii, înaintea `DemoBanner`/
+                `SubscriptionBanner` (care randează, amândouă, propriile controale
+                focusabile pe fiecare pagină). Altfel un utilizator de tastatură are nevoie
+                de 1-2 Tab-uri suplimentare înainte să ajungă la mecanismul de bypass
+                (SC 2.4.1) — găsit la audit, impact redus, dar ieftin de corectat. */}
             <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-accent-fill focus:px-4 focus:py-2 focus:text-accent-on focus:outline-2 focus:outline-offset-2 focus:outline-focus"
             >
                 {t('common:nav.skipToContent')}
             </a>
+
+            <DemoBanner />
+            {/* specs.md §12.2 — sub DemoBanner, deasupra header-ului: pe orice pagină, nu
+                doar Billing. `canceled` nu ajunge niciodată aici — `EnsureSubscriptionAccess`
+                redirectează server-side către Settings/Billing/Index înainte de randare. */}
+            <SubscriptionBanner />
 
             <header className="border-b border-border bg-surface">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -208,6 +213,25 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 la fiecare navigare GET (`key: Date.now()`), deci o regiune live montată acolo
                 nu apucă niciodată să raporteze o schimbare. Vezi `.ai/rules/frontend.md`. */}
             <ListUpdateAnnouncer />
+
+            {/* GDPR-06 — link către Politica de confidențialitate/Termeni, în `<footer>`,
+                nu în `<main>`: nu fac parte din conținutul paginii curente. */}
+            <footer className="border-t border-border bg-surface">
+                <div className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-4 text-xs text-text-2 sm:px-6 lg:px-8">
+                    <Link
+                        href="/privacy"
+                        className="rounded-sm hover:text-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    >
+                        {t('common:footer.privacyLink')}
+                    </Link>
+                    <Link
+                        href="/terms"
+                        className="rounded-sm hover:text-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    >
+                        {t('common:footer.termsLink')}
+                    </Link>
+                </div>
+            </footer>
         </div>
     );
 }

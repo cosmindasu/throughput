@@ -18,7 +18,9 @@
             "selectAllOnPage": "Sélectionner toutes les affaires de cette page",
             "selectRow": "Sélectionner {{title}}",
             "actions": "Actions",
-            "edit": "Modifier"
+            "edit": "Modifier",
+            "sortedAscending": "trié par ordre croissant",
+            "sortedDescending": "trié par ordre décroissant"
         },
         "columns": {
             "value": "Valeur",
@@ -140,7 +142,8 @@
         "delete": {
             "title": "Supprimer cette affaire ?",
             "confirmLabel": "Supprimer",
-            "body": "Cela masque « {{title}} » des listes, du tableau, de la recherche et des rapports. L’historique des étapes est conservé, les rapports d’étape restent donc corrects."
+            "body": "Cela masque « {{title}} » des listes, du tableau, de la recherche et des rapports. L’historique des étapes est conservé, les rapports d’étape restent donc corrects.",
+            "error": "Cette affaire n’a pas pu être supprimée."
         },
         "duration": {
             "days_one": "{{count}} jour",
@@ -166,7 +169,8 @@
         "error": "Impossible de déplacer cette affaire."
     },
     "card": {
-        "lost": "Perdue — {{reason}}"
+        "lost": "Perdue — {{reason}}",
+        "draggableRoleDescription": "Carte d’affaire déplaçable"
     },
     "lostReasonDialog": {
         "title": "Marquer l’affaire comme perdue",
@@ -209,7 +213,8 @@
         "deleteDialog": {
             "title": "Supprimer « {{name}} » ?",
             "confirmLabel": "Supprimer",
-            "body": "Cette action ne peut pas être annulée."
+            "body": "Cette action ne peut pas être annulée.",
+            "error": "Cette étape n’a pas pu être supprimée."
         },
         "form": {
             "nameLabel": "Nom",

@@ -88,7 +88,8 @@
         },
         "deleteBlockedTitle": "Impossible de supprimer ce produit",
         "deleteConfirmTitle": "Supprimer {{name}} ?",
-        "deleteWarning": "Cette action est irréversible."
+        "deleteWarning": "Cette action est irréversible.",
+        "deleteError": "Ce produit n’a pas pu être supprimé."
     },
     "variant": {
         "create": {

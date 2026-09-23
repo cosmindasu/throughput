@@ -80,7 +80,6 @@
         "empty": {
             "contacts": "Aucun contact pour le moment.",
             "deals": "Aucune affaire pour le moment.",
-            "activityLoading": "Chargement de l’activité…",
             "activityNone": "Aucune activité enregistrée pour le moment."
         },
         "primaryContactBadge": "Principal",
@@ -88,7 +87,8 @@
             "blockedTitle": "Impossible de supprimer ce compte",
             "title": "Supprimer {{name}} ?",
             "confirm": "Supprimer",
-            "body": "Cette action est irréversible."
+            "body": "Cette action est irréversible.",
+            "error": "Ce compte n’a pas pu être supprimé."
         }
     },
     "form": {

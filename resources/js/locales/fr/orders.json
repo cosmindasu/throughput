@@ -10,7 +10,9 @@
             "draftNumber": "Brouillon #{{id}}",
             "draftOrderLower": "commande brouillon {{id}}",
             "actions": "Actions",
-            "edit": "Modifier"
+            "edit": "Modifier",
+            "sortedAscending": "trié par ordre croissant",
+            "sortedDescending": "trié par ordre décroissant"
         },
         "columns": {
             "grandTotal": "Total",

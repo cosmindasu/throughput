@@ -15,16 +15,6 @@ import { formatDate } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import type { Invoice, InvoiceStatus, InvoicesIndexPageProps } from '@/types/generated';
 
-/**
- * `can` e propul FIECĂREI pagini (§1.2 regula 2 din plan), declarat în `*PageProps` din
- * `resources/js/types/generated.d.ts` — fișier de INTEGRARE, neatins de acest lot. Până
- * când propul ajunge acolo (blocul exact e în raport), forma închisă stă aici, ca `tsc` să
- * nu vadă `unknown`.
- */
-interface InvoicesIndexProps extends InvoicesIndexPageProps {
-    can: { export: boolean };
-}
-
 const STATUS_VALUES: Array<InvoiceStatus | ''> = ['', 'draft', 'sent', 'paid', 'overdue', 'void'];
 
 const STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
@@ -50,7 +40,7 @@ function statusFilterLabel(t: (key: string) => string, value: InvoiceStatus | ''
  */
 export default function Index() {
     const { t } = useTranslation('invoices');
-    const page = usePage<InvoicesIndexProps>();
+    const page = usePage<InvoicesIndexPageProps>();
     const { filters, workspace, can } = page.props;
     const base = workspace ? `/${workspace.slug}` : '';
     const { setFilter } = useListFilters(filters);

@@ -60,7 +60,8 @@
         "deleteDialog": {
             "title": "Supprimer ce contact ?",
             "confirm": "Supprimer",
-            "body": "Cette action est irréversible. Si {{name}} n’est référencé par aucune affaire ni commande, le contact est supprimé. Sinon, ses données personnelles (nom, e-mail, téléphone, fonction) sont retirées et la fiche est conservée, afin que l’historique des affaires et des commandes reste intact."
+            "body": "Cette action est irréversible. Si {{name}} n’est référencé par aucune affaire ni commande, le contact est supprimé. Sinon, ses données personnelles (nom, e-mail, téléphone, fonction) sont retirées et la fiche est conservée, afin que l’historique des affaires et des commandes reste intact.",
+            "error": "Ce contact n’a pas pu être supprimé."
         }
     },
     "form": {

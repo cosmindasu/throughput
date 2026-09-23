@@ -1,4 +1,7 @@
 {
+    "externalLink": {
+        "opensInNewTab": "(s’ouvre dans un nouvel onglet)"
+    },
     "topics": {
         "account-detail": {
             "title": "Détail du compte",
@@ -353,23 +356,23 @@
             "howItsBuilt": "La requête ne fait presque rien : elle valide, écrit une ligne `imports` et stocke le fichier. Elle ne parse jamais le fichier. Le nombre de lignes qui applique la limite de 50 000 est mesuré à moindre coût — un comptage de lignes pour le CSV, et pour XLSX les dimensions déclarées de la feuille, lues via un filtre qui rejette chaque cellule, si bien que le classeur n’est jamais matérialisé. Les en-têtes de colonnes ne sont pas non plus stockés sur l’enregistrement ; ils sont relus depuis le fichier sauvegardé à la demande, à l’étape de correspondance, ce qui fait du fichier la seule source de vérité et garantit qu’une nouvelle correspondance voit toujours l’en-tête actuel plutôt qu’une copie périmée. Tout ce qui est plus lourd que cela — valider les lignes, écrire les entités — relève de tâches en file d’attente, parce que le mécanisme d’isolation des tenants maintient une transaction de base de données ouverte pendant toute la durée de la requête web."
         },
         "imports-list": {
-            "title": "Importations",
+            "title": "Imports",
             "whatIsThis": "Chaque fichier que cet espace de travail a fait entrer via le flux d’import : ce qu’il contenait, jusqu’où il est allé, et combien de ses lignes se sont révélées exploitables. Vous démarrez un nouvel import depuis ici, et vous revenez ici pour rouvrir un import plus ancien.",
             "whatCanYouDo": [
                 "Démarrez un fichier avec « Nouvel import » — ou « Démarrer votre premier import » tant que la liste est encore vide.",
                 "Lisez où en est chaque fichier grâce à son statut : « Téléversé », « Associé », « Validation… », « Prêt à importer », « Import en cours… », « Terminé », « Terminé avec erreurs » ou « Échec ».",
-                "Consultez la colonne « Lignes » pour la répartition « {{valid}} valide / {{invalid}} invalide » produite par la simulation, avant de décider si le fichier mérite même d’être ouvert.",
+                "Consultez la colonne « Lignes » pour la répartition « N valides / M invalides » produite par la simulation, avant de décider si le fichier mérite même d’être ouvert.",
                 "Ouvrez le nom d’un fichier pour revenir dans son flux en quatre étapes, ou directement vers son rapport final.",
                 "Consultez qui a apporté chaque fichier, et quand, sous « Importé par » et « Importé »."
             ],
             "rules": [
-                "Seuls le Propriétaire et le Gestionnaire accèdent à cet écran. Le Commercial et l’Observateur n’ont absolument aucun droit d’import (specs.md §7.4) — « Importations » est absent de leur navigation, et la route les refuse elle aussi, si bien que le menu n’est pas la seule protection.",
+                "Seuls le Propriétaire et le Gestionnaire accèdent à cet écran. Le Commercial et l’Observateur n’ont absolument aucun droit d’import (specs.md §7.4) — « Imports » est absent de leur navigation, et la route les refuse elle aussi, si bien que le menu n’est pas la seule protection.",
                 "Il n’existe pas ici de filtre « mes imports » restreint, contrairement aux Comptes, Affaires ou Commandes : un Propriétaire ou un Gestionnaire voit tous les imports de l’espace de travail, quel que soit qui les a téléversés. La matrice de permissions ne donne aucun accès au Commercial, donc il n’existe pas de sous-ensemble « propre » à isoler.",
                 "Un seul import peut être actif par espace de travail à la fois. « Actif » désigne tout ce qui n’a pas encore atteint « Terminé », « Terminé avec erreurs » ou « Échec » — y compris un fichier téléversé puis abandonné avant l’association. Vous pouvez le libérer vous-même avec « Annuler l’import » sur la page de cet import ; livré à lui-même, un nettoyeur en arrière-plan clôture un import abandonné après 24 heures, ainsi qu’un import dont le traitement s’est interrompu, après 15 minutes.",
                 "La liste affiche les 50 imports les plus récents, puis s’arrête là. Un import est une action délibérée et occasionnelle, pas un flux continu de lignes, donc elle ne bénéficie pas de la pagination par curseur qu’utilisent les grandes listes.",
                 "Rien n’est supprimé ici, et il n’y a aucun bouton à essayer : la ligne d’historique et le contenu brut de chaque ligne en échec sont conservés, ce qui rend précisément possible le rapport d’erreurs téléchargeable et réimportable (BR-IMP-01). Le fichier téléversé lui-même n’est pas conservé indéfiniment — une tâche quotidienne le supprime du disque 7 jours après la fin de l’import, donc téléchargez le rapport d’erreurs avant cela ; la ligne, elle, reste dans tous les cas."
             ],
-            "howItsBuilt": "Chaque ligne est un enregistrement `imports` dont les compteurs sont écrits par les tâches en arrière-plan, pas par cette page : chaque bloc de 500 lignes valide `total_rows`/`valid_rows`/`error_rows` dans sa propre transaction courte, si bien que la répartition « {{valid}} valide / {{invalid}} invalide » affichée ici est exacte même pendant que le fichier est encore en cours de traitement — c’est un total courant, pas un chiffre écrit une seule fois à la fin. La règle du import-actif-unique est appliquée côté serveur dans l’action de téléversement, contre l’ensemble des statuts non terminaux, pas en masquant le bouton : un second téléversement reçoit un refus clair plutôt que d’être mis en file silencieusement derrière le premier. La liste elle-même se passe délibérément de la pagination par curseur, des vues enregistrées et de la mécanique d’opérations groupées que partagent les grandes listes — 50 lignes triées de la plus récente à la plus ancienne, c’est toute la requête."
+            "howItsBuilt": "Chaque ligne est un enregistrement `imports` dont les compteurs sont écrits par les tâches en arrière-plan, pas par cette page : chaque bloc de 500 lignes valide `total_rows`/`valid_rows`/`error_rows` dans sa propre transaction courte, si bien que la répartition « N valides / M invalides » affichée ici est exacte même pendant que le fichier est encore en cours de traitement — c’est un total courant, pas un chiffre écrit une seule fois à la fin. La règle du import-actif-unique est appliquée côté serveur dans l’action de téléversement, contre l’ensemble des statuts non terminaux, pas en masquant le bouton : un second téléversement reçoit un refus clair plutôt que d’être mis en file silencieusement derrière le premier. La liste elle-même se passe délibérément de la pagination par curseur, des vues enregistrées et de la mécanique d’opérations groupées que partagent les grandes listes — 50 lignes triées de la plus récente à la plus ancienne, c’est toute la requête."
         },
         "invoice-detail": {
             "title": "Détail de la facture",
@@ -441,7 +444,7 @@
                 "« Confirmer la commande » une fois que la commande a au moins une ligne — cela fige un numéro de commande et réserve le stock de chaque ligne.",
                 "Une fois la commande confirmée, « Créer l’expédition » : choisissez une quantité pour chaque ligne que vous pouvez envoyer maintenant — envoyer moins que la totalité de la commande est possible, le reste demeure ouvert pour une expédition ultérieure.",
                 "Sur une expédition dont l’étiquette a échoué, « Réessayer l’étiquette » pour mettre en file une nouvelle tentative, ou « Abandonner » pour libérer ses lignes en vue d’une nouvelle expédition.",
-                "Sur une expédition dont l’étiquette est prête, « Marquer comme expédiée » une fois qu’elle a effectivement quitté l’entrepôt — c’est ce qui déplace le stock et met à jour « {{fulfilled}} expédiée(s) sur {{total}} » sur chaque ligne.",
+                "Sur une expédition dont l’étiquette est prête, « Marquer comme expédiée » une fois qu’elle a effectivement quitté l’entrepôt — c’est ce qui déplace le stock et met à jour « X expédiée(s) sur Y » sur chaque ligne.",
                 "« Annuler la commande » sur un brouillon à tout moment, ou sur une commande confirmée tant qu’aucune expédition n’existe encore."
             ],
             "rules": [

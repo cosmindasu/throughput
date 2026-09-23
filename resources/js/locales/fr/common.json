@@ -29,7 +29,7 @@
         "orders": "Commandes",
         "invoices": "Factures",
         "reports": "Rapports",
-        "imports": "Importations",
+        "imports": "Imports",
         "unassigned": "Non attribués",
         "activityLog": "Journal d’activité",
         "settings": "Paramètres",
@@ -83,10 +83,14 @@
         "renameError": "Impossible de renommer cette vue."
     },
     "demoBanner": {
-        "collapsed": "Application de démonstration — les données sont réinitialisées chaque jour.",
-        "full": "Application de démonstration — données fictives à des fins de portfolio uniquement. Il ne s’agit pas d’une entreprise réelle. Les données sont réinitialisées chaque jour.",
+        "collapsed": "Application de démonstration — les données sont réinitialisées chaque jour. Ne saisissez aucune donnée personnelle réelle.",
+        "full": "Application de démonstration — données fictives à des fins de portfolio uniquement. Il ne s’agit pas d’une entreprise réelle. Les données sont réinitialisées chaque jour. Les comptes sont partagés avec d’autres visiteurs — merci de ne saisir aucune donnée personnelle réelle.",
         "show": "Afficher la notice",
         "minimize": "Réduire"
+    },
+    "footer": {
+        "privacyLink": "Politique de confidentialité",
+        "termsLink": "Conditions d’utilisation"
     },
     "duplicateEmail": {
         "notice": "Cette adresse e-mail est déjà associée à <link>{{accountName}}</link>. Une personne peut légitimement travailler avec deux entreprises.",

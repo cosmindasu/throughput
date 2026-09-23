@@ -14,7 +14,6 @@
     "index": {
         "title": "Paramètres",
         "open": "Ouvrir",
-        "openAriaLabel": "Ouvrir {{title}}",
         "sections": {
             "members": {
                 "title": "Membres",
@@ -77,13 +76,10 @@
         "invitationPending": "Invité le {{invitedDate}} · expire le {{expiresDate}}",
         "deactivatedBy": "par {{name}}",
         "resendButton": "Renvoyer",
-        "resendAriaLabel": "Renvoyer l’invitation à {{email}}",
         "revokeButton": "Révoquer",
-        "revokeAriaLabel": "Révoquer l’invitation à {{email}}",
+        "invitationSrLabel": "l’invitation à {{email}}",
         "changeRoleButton": "Changer le rôle",
-        "changeRoleAriaLabel": "Changer le rôle de {{name}}",
         "deactivateButton": "Désactiver le membre",
-        "deactivateAriaLabel": "Désactiver {{name}}",
         "outcomes": {
             "deactivated": "{{name}} a été désactivé.",
             "deactivatedReassigning_one": "{{name}} a été désactivé ; réaffectation de {{count}} enregistrement…",
@@ -254,7 +250,6 @@
             "actions": "Actions"
         },
         "empty": "Aucun export n’a encore été demandé pour cet espace de travail.",
-        "downloadAriaLabel": "Télécharger l’export demandé le {{date}}",
         "downloadButton": "Télécharger le ZIP"
     },
     "sentEmails": {
@@ -279,7 +274,7 @@
         "recipientsTotal_other": "{{count}} destinataires au total (à/cc/cci)",
         "view": "Voir",
         "hide": "Masquer",
-        "detailAriaLabel": "{{action}} l’e-mail « {{subject}} » à {{recipient}}",
+        "detailSrLabel": "l’e-mail « {{subject}} » à {{recipient}}",
         "from": "De",
         "recipients": "Destinataires",
         "linkRedacted": "Lien masqué",
@@ -290,7 +285,7 @@
             "when": "Quand",
             "to": "À",
             "subject": "Objet",
-            "mailer": "Mailer",
+            "mailer": "Transport",
             "status": "Statut",
             "details": "Détails"
         },
@@ -307,8 +302,7 @@
         "save": "Enregistrer",
         "saveAndActivate": "Enregistrer et activer",
         "activate": "Activer",
-        "saving": "Enregistrement…",
-        "actionAriaLabel": "{{action}} {{label}}"
+        "saving": "Enregistrement…"
     },
     "webhooks": {
         "title": "État des webhooks",

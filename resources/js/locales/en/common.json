@@ -82,10 +82,14 @@
         "renameError": "Could not rename this view."
     },
     "demoBanner": {
-        "collapsed": "Demo application — data resets daily.",
-        "full": "Demo application — sample data for portfolio purposes only. Not a real business. Data resets daily.",
+        "collapsed": "Demo application — data resets daily. Don't enter real personal data.",
+        "full": "Demo application — sample data for portfolio purposes only. Not a real business. Data resets daily. Accounts are shared with other visitors — please don't enter real personal data.",
         "show": "Show notice",
         "minimize": "Minimize"
+    },
+    "footer": {
+        "privacyLink": "Privacy Policy",
+        "termsLink": "Terms of Use"
     },
     "duplicateEmail": {
         "notice": "This email is already linked to <link>{{accountName}}</link>. A person can legitimately work with two companies.",

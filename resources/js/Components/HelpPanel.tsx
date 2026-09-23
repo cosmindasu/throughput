@@ -329,6 +329,10 @@ function HelpPanelContent({ component, headingRef, onClose }: HelpPanelContentPr
                             className="font-medium text-accent-text underline-offset-2 hover:underline"
                         >
                             {topic.howItsBuilt.adr.id}: {topic.howItsBuilt.adr.title}
+                            {/* A11Y-11 (G201) — cheia trăiește în catalogul `help` (namespace deja
+                                încărcat de îndată ce ajunge aici, garantat de `catalogReady` mai sus),
+                                nu în `common`, ca să nu ating `common.json`. */}
+                            <span className="sr-only"> {t('help:externalLink.opensInNewTab')}</span>
                         </a>
                     </p>
                 )}

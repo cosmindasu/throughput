@@ -7,6 +7,7 @@ import EmptyState from '@/Components/EmptyState';
 import HistoryTab from '@/Components/History/HistoryTab';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
+import TableSkeleton from '@/Components/TableSkeleton';
 import AppLayout from '@/Layouts/AppLayout';
 import { useLocale } from '@/hooks/useLocale';
 import { getDateTimeFormat } from '@/lib/format';
@@ -39,14 +40,18 @@ export default function Show() {
     const base = workspace ? `/${workspace.slug}` : '';
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // FE-01 (audit) — dialogul se închide DOAR la succes; la eroare rămâne deschis, cu
+    // mesajul afișat în `role="alert"` chiar în el (`.ai/rules/frontend.md`, „Dialogul
+    // închis și la eroare”).
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const destroy = () => {
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`${base}/accounts/${account.id}`, {
-            onFinish: () => {
-                setDeleting(false);
-                setConfirmingDelete(false);
-            },
+            onSuccess: () => setConfirmingDelete(false),
+            onError: (errors) => setDeleteError(Object.values(errors)[0] ?? t('show.deleteDialog.error')),
+            onFinish: () => setDeleting(false),
         });
     };
 
@@ -150,7 +155,7 @@ export default function Show() {
 
                 <section aria-label={t('show.sections.activity')} className="flex flex-col gap-3">
                     <h2 className="text-sm font-medium text-text">{t('show.sections.activity')}</h2>
-                    <Deferred data="activity" fallback={<EmptyState message={t('show.empty.activityLoading')} />}>
+                    <Deferred data="activity" fallback={<TableSkeleton rows={3} columns={2} />}>
                         {activity && activity.length > 0 ? (
                             <ol className="flex flex-col divide-y divide-border-soft rounded-lg border border-border bg-surface">
                                 {activity.map((entry) => (
@@ -195,8 +200,16 @@ export default function Show() {
                 confirmVariant="danger"
                 confirmLabel={t('show.deleteDialog.confirm')}
                 processing={deleting}
-                onClose={() => setConfirmingDelete(false)}
+                onClose={() => {
+                    setConfirmingDelete(false);
+                    setDeleteError(null);
+                }}
             >
+                {deleteError && (
+                    <p role="alert" className="mb-2 rounded-md bg-danger-tint px-2 py-1.5 text-danger">
+                        {deleteError}
+                    </p>
+                )}
                 {/* `deletionBlockedReason` vine din server ca text OPAC (motivul exact al
                     blocajului) — nu trece prin `t()`, la fel ca `entry.description` de mai sus. */}
                 {deletionBlockedReason ?? t('show.deleteDialog.body')}

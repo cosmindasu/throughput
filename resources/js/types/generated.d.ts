@@ -1,5 +1,7 @@
 /**
- * Mirror MANUAL al claselor `App\Http\Resources\*`.
+ * NU e generat — mirror MANUAL al claselor `App\Http\Resources\*`, întreținut de mână
+ * (numele fișierului e istoric; vezi raportul FE-10 — nicio comandă `artisan ...:generate`
+ * nu-l produce sau verifică).
  *
  * Nu există generare automată în MVP — ar adăuga o dependință nevalidată
  * (plan-implementare.md §1.2 regula 5). În schimb:

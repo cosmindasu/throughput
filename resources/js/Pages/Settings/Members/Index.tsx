@@ -304,41 +304,44 @@ export default function MembersIndex() {
                                 </td>
                                 <td className="px-4 py-3">
                                     <div className="flex flex-wrap justify-end gap-2">
+                                        {/* Audit de accesibilitate (SC 2.5.3, Label in Name) — `aria-label`
+                                            ÎNLOCUIA textul vizibil în loc să-l prefixeze. Tiparul corect
+                                            (`.ai/rules/frontend.md`, „Focusul nu se pierde niciodată pe
+                                            `<body>`"): textul vizibil rămâne primul, discriminatorul e un
+                                            sufix `sr-only`. */}
                                         {member.canManageInvitation && (
                                             <>
-                                                <Button
-                                                    aria-label={t('settings:members.resendAriaLabel', { email: member.user.email })}
-                                                    onClick={() => resendInvitation(member)}
-                                                >
+                                                <Button onClick={() => resendInvitation(member)}>
                                                     {t('settings:members.resendButton')}
+                                                    <span className="sr-only">
+                                                        {' '}
+                                                        {t('settings:members.invitationSrLabel', { email: member.user.email })}
+                                                    </span>
                                                 </Button>
-                                                <Button
-                                                    variant="danger"
-                                                    aria-label={t('settings:members.revokeAriaLabel', { email: member.user.email })}
-                                                    onClick={() => revokeInvitation(member)}
-                                                >
+                                                <Button variant="danger" onClick={() => revokeInvitation(member)}>
                                                     {t('settings:members.revokeButton')}
+                                                    <span className="sr-only">
+                                                        {' '}
+                                                        {t('settings:members.invitationSrLabel', { email: member.user.email })}
+                                                    </span>
                                                 </Button>
                                             </>
                                         )}
                                         {member.canUpdateRole && (
                                             <Button
-                                                aria-label={t('settings:members.changeRoleAriaLabel', { name: member.user.name })}
                                                 onClick={() => {
                                                     setErrors({});
                                                     setRoleTarget(member);
                                                 }}
                                             >
                                                 {t('settings:members.changeRoleButton')}
+                                                <span className="sr-only"> {member.user.name}</span>
                                             </Button>
                                         )}
                                         {member.canDeactivate && (
-                                            <Button
-                                                variant="danger"
-                                                aria-label={t('settings:members.deactivateAriaLabel', { name: member.user.name })}
-                                                onClick={() => openDialogFor(member)}
-                                            >
+                                            <Button variant="danger" onClick={() => openDialogFor(member)}>
                                                 {t('settings:members.deactivateButton')}
+                                                <span className="sr-only"> {member.user.name}</span>
                                             </Button>
                                         )}
                                     </div>

@@ -5,6 +5,7 @@ import { ButtonLink } from '@/Components/Button';
 import DealCard, { dealCardDomId } from '@/Components/Deals/DealCard';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
+import { useAnnounce } from '@/hooks/useAnnounce';
 import AppLayout from '@/Layouts/AppLayout';
 import type { DealsBoardColumn, DealsKanbanPageProps, DealStage, DealSummary, LostReason } from '@/types/generated';
 
@@ -39,7 +40,12 @@ export default function Kanban() {
     }
 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [announcement, setAnnouncement] = useState('');
+    // FE-03 (audit) — `useAnnounce` garantează tranziția REALĂ `'' → text` la fiecare
+    // mutare, chiar dacă două anunțuri consecutive ar produce ACELAȘI șir (ex. două
+    // deal-uri cu titlu identic mutate consecutiv pe aceeași etapă) — vezi
+    // `.ai/rules/frontend.md`, „O regiune aria-live nu reacționează la setState, ci la
+    // mutația DOM-ului”.
+    const { announcement, announce } = useAnnounce();
     const [draggedDeal, setDraggedDeal] = useState<DealSummary | null>(null);
     const [pendingLostMove, setPendingLostMove] = useState<PendingLostMove | null>(null);
     const [dialogProcessing, setDialogProcessing] = useState(false);
@@ -96,7 +102,7 @@ export default function Kanban() {
                 },
                 onSuccess: () => {
                     setPendingLostMove(null);
-                    setAnnouncement(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
+                    announce(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
                     if (restoreFocus) {
                         requestFocus(deal.id);
                     }
@@ -107,7 +113,7 @@ export default function Kanban() {
     };
 
     const handleCardMoved = (deal: DealSummary, targetStage: DealStage) => {
-        setAnnouncement(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
+        announce(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
         requestFocus(deal.id);
     };
 

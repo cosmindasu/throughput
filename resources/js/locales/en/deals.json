@@ -18,7 +18,9 @@
             "selectAllOnPage": "Select all deals on this page",
             "selectRow": "Select {{title}}",
             "actions": "Actions",
-            "edit": "Edit"
+            "edit": "Edit",
+            "sortedAscending": "sorted ascending",
+            "sortedDescending": "sorted descending"
         },
         "columns": {
             "value": "Value",
@@ -140,7 +142,8 @@
         "delete": {
             "title": "Delete this deal?",
             "confirmLabel": "Delete",
-            "body": "This hides “{{title}}” from lists, the board, search and reports. Its stage history is kept, so stage reports stay correct."
+            "body": "This hides “{{title}}” from lists, the board, search and reports. Its stage history is kept, so stage reports stay correct.",
+            "error": "This deal could not be deleted."
         },
         "duration": {
             "days_one": "{{count}} day",
@@ -164,7 +167,8 @@
         "error": "Could not move this deal."
     },
     "card": {
-        "lost": "Lost — {{reason}}"
+        "lost": "Lost — {{reason}}",
+        "draggableRoleDescription": "Draggable deal card"
     },
     "lostReasonDialog": {
         "title": "Mark deal as Lost",
@@ -207,7 +211,8 @@
         "deleteDialog": {
             "title": "Delete \"{{name}}\"?",
             "confirmLabel": "Delete",
-            "body": "This cannot be undone."
+            "body": "This cannot be undone.",
+            "error": "This stage could not be deleted."
         },
         "form": {
             "nameLabel": "Name",

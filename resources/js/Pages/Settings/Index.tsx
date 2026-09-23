@@ -112,14 +112,11 @@ export default function SettingsIndex() {
                                 <div>
                                     {/* SC 2.4.4 / 4.1.2 — „Open" identic pe fiecare card ar da N linkuri cu
                                         același nume accesibil, fără context (.ai/rules/frontend.md, „Un nume
-                                        accesibil repetat pe fiecare rând..."); `aria-label` spune UNDE duce. */}
-                                    <ButtonLink
-                                        href={section.href(workspace.slug)}
-                                        variant="secondary"
-                                        prefetch
-                                        aria-label={t('settings:index.openAriaLabel', { title: section.title })}
-                                    >
+                                        accesibil repetat pe fiecare rând..."). Discriminatorul e un sufix
+                                        `sr-only`, nu `aria-label` (SC 2.5.3 — textul vizibil rămâne primul). */}
+                                    <ButtonLink href={section.href(workspace.slug)} variant="secondary" prefetch>
                                         {t('settings:index.open')}
+                                        <span className="sr-only"> {section.title}</span>
                                     </ButtonLink>
                                 </div>
                             )}
