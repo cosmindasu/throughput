@@ -123,5 +123,9 @@
         "title": "Accueil",
         "description": "Throughput est la console commerciale et opérationnelle des distributeurs en gros — comptes, affaires, commandes, stock et facturation au même endroit, pour l’équipe qui établit un devis le matin et l’expédie l’après-midi même.",
         "enterDemo": "Accéder à la démo"
+    },
+    "errorPage": {
+        "backToDashboard": "Retour au tableau de bord",
+        "backToHome": "Retour à l’accueil"
     }
 }

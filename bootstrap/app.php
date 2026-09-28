@@ -8,6 +8,7 @@ use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSessionContext;
+use App\Support\ErrorPageStatus;
 use App\Support\LocalePreference;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     // BUG DE FUNDAȚIE găsit la testarea lotului de abonament (Faza 5, specs.md §12.2),
@@ -192,5 +195,56 @@ return Application::configure(basePath: dirname(__DIR__))
             App::setLocale(LocalePreference::resolveForRequest($request));
 
             return null;
+        });
+
+        // ADR-024 — pe o cerere Inertia, vederile din `resources/views/errors/` ajung la
+        // client ca `text/html` FĂRĂ antetul `X-Inertia` (verificat pe live: 404 → 2914
+        // octeți de Blade, fără antet). `@inertiajs/react` nu le poate trata ca navigare,
+        // deci le afișează într-un modal — o pagină întreagă, albă, peste o aplicație
+        // închisă la culoare: vizitatorul vede un dreptunghi gol, fără mesaj.
+        //
+        // Doar cererile Inertia primesc pagina din aplicație. Restul (inclusiv o încărcare
+        // completă de pagină) păstrează vederile Blade NEATINSE — ele sunt singurele care se
+        // randează și când build-ul frontend lipsește, fiindcă nu folosesc `@vite(...)`
+        // (`resources/views/errors/layout.blade.php`). O cerere Inertia nu poate exista fără
+        // build, deci garanția aia nu se pierde nicăieri.
+        //
+        // `api/*` și orice `expectsJson()` sunt deja rutate spre JSON de
+        // `shouldRenderJsonWhen()` mai sus, care rulează înaintea acestui callback.
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
+            if (! $request->header('X-Inertia')) {
+                return $response;
+            }
+
+            $status = $response->getStatusCode();
+
+            // Exact statusurile care au vedere Blade proprie. Orice altceva trece mai
+            // departe neatins, în loc să fie înghițit de o pagină generică.
+            if (! ErrorPageStatus::supports($status)) {
+                return $response;
+            }
+
+            // Textele vin rezolvate de pe server, din ACELEAȘI chei `lang/{en,fr}.json` pe
+            // care le folosesc vederile Blade — pagina Inertia n-are catalog propriu, deci
+            // cele două randări nu pot diverge. Limba e deja fixată de pasul de locale de
+            // mai sus (ADR-022), care rulează înaintea acestui callback.
+            //
+            // `try` NU e prudență decorativă: `HandleInertiaRequests::share()` expune
+            // `auth.user`, `workspaces`, `navigation` și `subscription` ca închideri care
+            // INTEROGHEAZĂ baza, iar o randare completă (nu parțială) le rezolvă pe toate.
+            // Exact pe cauza cea mai probabilă a unui 500 — baza indisponibilă — pagina asta
+            // ar arunca a doua oară, din interiorul handler-ului de erori. Atunci cedăm locul
+            // vederii Blade, care nu depinde de nimic: un 404 corect afișat într-un modal e
+            // mai bun decât o excepție în timpul tratării unei excepții.
+            try {
+                return Inertia::render('Error', [
+                    'status' => $status,
+                    ...ErrorPageStatus::copyFor($status, $e->getMessage()),
+                ])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            } catch (Throwable) {
+                return $response;
+            }
         });
     })->create();
