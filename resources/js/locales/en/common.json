@@ -120,9 +120,7 @@
     },
     "welcome": {
         "title": "Home",
-        "description": "Sprint 0 scaffold. The design system — tokens for both themes, self-hosted typefaces, tabular numerals — is already in place, before any business module exists.",
-        "primaryAction": "Primary action",
-        "statusConfirmed": "confirmed",
-        "ordersToday": "Orders today:"
+        "description": "Throughput is the sales and operations console for wholesale distributors — accounts, deals, orders, stock and invoicing in one place, for the team that quotes an order in the morning and ships it the same afternoon.",
+        "enterDemo": "Enter the demo"
     }
 }

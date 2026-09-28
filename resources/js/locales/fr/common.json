@@ -121,9 +121,7 @@
     },
     "welcome": {
         "title": "Accueil",
-        "description": "Ébauche du Sprint 0. Le système de design — tokens pour les deux thèmes, polices auto-hébergées, chiffres tabulaires — est déjà en place, avant même l’existence d’un module métier.",
-        "primaryAction": "Action principale",
-        "statusConfirmed": "confirmée",
-        "ordersToday": "Commandes aujourd’hui :"
+        "description": "Throughput est la console commerciale et opérationnelle des distributeurs en gros — comptes, affaires, commandes, stock et facturation au même endroit, pour l’équipe qui établit un devis le matin et l’expédie l’après-midi même.",
+        "enterDemo": "Accéder à la démo"
     }
 }
