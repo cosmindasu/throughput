@@ -18,6 +18,19 @@ interface WorkspaceSwitcherProps {
  * (consecvență vizuală între roluri: demo.manager vede același control ca
  * demo.owner, doar cu o singură opțiune).
  *
+ * „Mereu" înseamnă „pentru orice rol AUTENTIFICAT", nu „și fără date". Criteriul compară
+ * demo.manager cu demo.owner — amândoi au cel puțin un workspace. Cazul cu ZERO n-a fost
+ * niciodată în domeniul lui, și e real: `AppLayout` îmbracă și pagina publică
+ * (`Welcome.tsx`), unde vizitatorul nu e autentificat și `workspaces` vine gol.
+ *
+ * Găsit la auditul din 2026-09-29, raportat ca „opțiunile se deschid în spate și nu se
+ * văd". Nu era stivuire — `elementFromPoint` confirma lista DEASUPRA tuturor, cu
+ * `z-20` intact și niciun context de stivuire pe lanțul de ascendenți. Lista avea
+ * `height: 10px` și zero `role="option"`: cei 10px erau `py-1` plus bordura, adică lista
+ * era GOALĂ, nu acoperită. Un control care nu poate selecta nimic și nu arată nimic nu e
+ * un control — pentru un vizitator anonim „Select workspace" promite ceva ce nici nu
+ * există încă.
+ *
  * Pattern „listbox button" din WAI-ARIA Authoring Practices, scris manual:
  * proiectul nu are (și nu instalează) o librărie de UI headless. Escape
  * închide și readuce focusul pe buton; săgețile/Home/End mută selecția
@@ -128,6 +141,13 @@ export default function WorkspaceSwitcher({ current, workspaces }: WorkspaceSwit
                 break;
         }
     };
+
+    // Nimic de comutat ȘI niciun workspace curent de arătat — vezi docblock. Garda stă AICI,
+    // după toate hook-urile, nu la începutul funcției: un `return` mai sus ar sări peste ele
+    // și ar încălca regulile hook-urilor în momentul în care lista se umple după autentificare.
+    if (workspaces.length === 0 && current === null) {
+        return null;
+    }
 
     return (
         <div className="relative">
