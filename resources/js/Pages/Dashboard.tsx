@@ -45,15 +45,39 @@ export default function Dashboard() {
                     {workspace?.industry && <span className="text-text-2"> — {workspace.industry}</span>}
                 </h1>
 
+                {/*
+                    Tenta celor două plăci de abatere se citește DIN VALOARE, nu e fixată:
+                    zero facturi restante e o veste bună și arată ca atare (`success`), nu ca
+                    o alarmă roșie permanentă. Primele două plăci raportează volum, nu o
+                    abatere, deci rămân pe tente neutre-de-brand (accent/info) indiferent de
+                    cifră — nu există prag de la care „multe comenzi" ar fi o problemă.
+                */}
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <KpiTile label={t('dashboard:kpis.openPipelineValue')} value={formatKpiMoney(kpis.openPipelineValue, currency, locale)} />
-                    <KpiTile label={t('dashboard:kpis.ordersThisMonth')} value={formatNumber(kpis.ordersThisMonth, locale)} />
+                    <KpiTile
+                        label={t('dashboard:kpis.openPipelineValue')}
+                        value={formatKpiMoney(kpis.openPipelineValue, currency, locale)}
+                        icon="money"
+                        tone="accent"
+                    />
+                    <KpiTile
+                        label={t('dashboard:kpis.ordersThisMonth')}
+                        value={formatNumber(kpis.ordersThisMonth, locale)}
+                        icon="orders"
+                        tone="info"
+                    />
                     <KpiTile
                         label={t('dashboard:kpis.overdueInvoices')}
                         value={formatNumber(kpis.overdueInvoices.count, locale)}
                         hint={formatKpiMoney(kpis.overdueInvoices.amount, currency, locale)}
+                        icon="clock"
+                        tone={kpis.overdueInvoices.count > 0 ? 'danger' : 'success'}
                     />
-                    <KpiTile label={t('dashboard:kpis.lowStockAlerts')} value={formatNumber(kpis.lowStockAlerts, locale)} />
+                    <KpiTile
+                        label={t('dashboard:kpis.lowStockAlerts')}
+                        value={formatNumber(kpis.lowStockAlerts, locale)}
+                        icon="alert"
+                        tone={kpis.lowStockAlerts > 0 ? 'warning' : 'success'}
+                    />
                 </div>
 
                 {activity !== null && (

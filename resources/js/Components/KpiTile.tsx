@@ -1,7 +1,19 @@
+import Icon, { type IconName } from '@/Components/Icon';
+import { type BadgeTone, toneClasses } from '@/Components/StatusBadge';
+
 interface KpiTileProps {
     label: string;
     value: string;
     hint?: string;
+    icon: IconName;
+    /**
+     * Tenta chip-ului de icon. NU e decor: pe plăcile care raportează o abatere
+     * (facturi restante, alerte de stoc) pagina o alege din VALOARE — `success` la zero,
+     * `danger`/`warning` peste — deci culoarea spune aceeași stare ca cifra. O tentă de
+     * alarmă fixă ar striga la fel și când nu e nimic de rezolvat, adică n-ar mai însemna
+     * nimic.
+     */
+    tone: BadgeTone;
 }
 
 /**
@@ -32,10 +44,22 @@ interface KpiTileProps {
  * de lungimea unei traduceri — adică s-ar rupe tăcut la următoarea revizie de
  * text, exact clasa de defect pe care valul ăsta o închide în altă parte.
  */
-export default function KpiTile({ label, value, hint }: KpiTileProps) {
+export default function KpiTile({ label, value, hint, icon, tone }: KpiTileProps) {
     return (
-        <div className="rounded-lg border border-border bg-surface p-4">
-            <p className="min-h-10 text-sm text-text-2">{label}</p>
+        <div className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-control">
+            {/*
+                Iconul stă PE RÂNDUL etichetei, nu deasupra ei: chip-ul (~30px) încape în cei
+                40px deja rezervați de `min-h-10`, deci placa nu crește cu niciun pixel și
+                dashboard-ul continuă să încapă fără scroll pe 1280×800 (cerința din
+                docblock-ul paginii). `items-start` îl ține lipit de sus când eticheta trece
+                pe două rânduri în franceză.
+            */}
+            <div className="flex items-start justify-between gap-3">
+                <p className="min-h-10 text-sm text-text-2">{label}</p>
+                <span className={`rounded-md p-1.5 ${toneClasses[tone]}`}>
+                    <Icon name={icon} size={18} />
+                </span>
+            </div>
             <p className="numeric mt-1 text-2xl font-semibold text-text">{value}</p>
             {hint && <p className="numeric mt-1 text-xs text-text-3">{hint}</p>}
         </div>

@@ -6,6 +6,7 @@ import DemoBanner from '@/Components/DemoBanner';
 import FlashMessages from '@/Components/FlashMessages';
 import GlobalSearch from '@/Components/GlobalSearch';
 import HelpPanel from '@/Components/HelpPanel';
+import Icon, { type IconName } from '@/Components/Icon';
 import ListUpdateAnnouncer from '@/Components/ListUpdateAnnouncer';
 import SubscriptionBanner from '@/Components/SubscriptionBanner';
 import ThemeToggle from '@/Components/ThemeToggle';
@@ -15,10 +16,14 @@ interface NavItem {
     label: string;
     permission: string;
     href: (workspaceSlug: string) => string;
+    icon: IconName;
 }
 
 /**
- * Etichete TEXT, nu iconițe fără text (specs.md §21.3, FR-DEMO-01). Fiecare
+ * Etichete TEXT, nu iconițe fără text (specs.md §21.3, FR-DEMO-01) — iconul de pe fiecare
+ * intrare ÎNSOȚEȘTE eticheta, nu o înlocuiește, deci cerința rămâne îndeplinită: este marcat
+ * `aria-hidden` în `Icon.tsx`, așa că numele accesibil al linkului rămâne exact textul vizibil
+ * (SC 2.5.3 Label in Name — vezi regula din `.ai/rules/frontend.md`). Fiecare
  * intrare e conditionată de `navigation` — un buton fără drept e ABSENT, nu
  * dezactivat (FR-RBAC-01, §7.3). Căile sunt literale (nu există Ziggy în
  * proiect — vezi nota din raport), construite după convenția de rute web din
@@ -29,27 +34,27 @@ interface NavItem {
  * mai jos.
  */
 const buildNavItems = (t: TFunction): NavItem[] => [
-    { label: t('common:nav.accounts'), permission: 'accounts.view', href: (w) => `/${w}/accounts` },
-    { label: t('common:nav.contacts'), permission: 'contacts.view', href: (w) => `/${w}/contacts` },
-    { label: t('common:nav.deals'), permission: 'deals.view', href: (w) => `/${w}/deals` },
-    { label: t('common:nav.products'), permission: 'products.view', href: (w) => `/${w}/products` },
-    { label: t('common:nav.orders'), permission: 'orders.view', href: (w) => `/${w}/orders` },
-    { label: t('common:nav.invoices'), permission: 'invoices.view', href: (w) => `/${w}/invoices` },
-    { label: t('common:nav.reports'), permission: 'reports.view', href: (w) => `/${w}/reports` },
+    { label: t('common:nav.accounts'), permission: 'accounts.view', href: (w) => `/${w}/accounts`, icon: 'accounts' },
+    { label: t('common:nav.contacts'), permission: 'contacts.view', href: (w) => `/${w}/contacts`, icon: 'contacts' },
+    { label: t('common:nav.deals'), permission: 'deals.view', href: (w) => `/${w}/deals`, icon: 'deals' },
+    { label: t('common:nav.products'), permission: 'products.view', href: (w) => `/${w}/products`, icon: 'products' },
+    { label: t('common:nav.orders'), permission: 'orders.view', href: (w) => `/${w}/orders`, icon: 'orders' },
+    { label: t('common:nav.invoices'), permission: 'invoices.view', href: (w) => `/${w}/invoices`, icon: 'invoices' },
+    { label: t('common:nav.reports'), permission: 'reports.view', href: (w) => `/${w}/reports`, icon: 'reports' },
     // §7.4, rândul „Import CSV": CRUD pentru Owner/Manager, „—" pentru Agent și Viewer —
     // singura intrare din navigație pe care Agentul NU o vede deloc, alături de Unassigned.
-    { label: t('common:nav.imports'), permission: 'imports.view', href: (w) => `/${w}/imports` },
+    { label: t('common:nav.imports'), permission: 'imports.view', href: (w) => `/${w}/imports`, icon: 'imports' },
     // FR-TEN-05 — Owner/Manager (`unassigned.view`, §6.4.1). Indicatorul numeric se
     // randează separat, mai jos, lângă acest link — `unassignedRecordsCount` e un prop
     // comun distinct, nu parte din `navigation`.
-    { label: t('common:nav.unassigned'), permission: 'unassigned.view', href: (w) => `/${w}/unassigned` },
+    { label: t('common:nav.unassigned'), permission: 'unassigned.view', href: (w) => `/${w}/unassigned`, icon: 'unassigned' },
     // FR-AUD-03, §17.3 — jurnalul la nivel de tenant. Permisiunea e una COMBINATĂ, calculată
     // server-side în `HandleInertiaRequests::navigationPermissions()`: Owner/Manager au
     // `activity_log.view` (tot tenantul), Agentul are `activity_log.view_own` (doar acțiunile
     // proprii), iar `NavItem` verifică o singură cheie per intrare. Viewer-ul n-are niciuna,
     // deci nu vede linkul (§7.4).
-    { label: t('common:nav.activityLog'), permission: 'activity_log.any_view', href: (w) => `/${w}/activity` },
-    { label: t('common:nav.settings'), permission: 'settings.view', href: (w) => `/${w}/settings` },
+    { label: t('common:nav.activityLog'), permission: 'activity_log.any_view', href: (w) => `/${w}/activity`, icon: 'activity' },
+    { label: t('common:nav.settings'), permission: 'settings.view', href: (w) => `/${w}/settings`, icon: 'settings' },
 ];
 
 /**
@@ -95,7 +100,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
     }, [navigationKey]);
 
     return (
-        <div className="min-h-screen bg-bg text-text">
+        // Coloană flex, nu doar `min-h-screen`: cu `min-h-screen` singur copiii curg normal,
+        // iar pe o pagină cu puțin conținut footer-ul urcă imediat sub `<main>` și lasă gol
+        // dedesubt. `flex-1` pe `<main>` îi dă restul înălțimii, deci footer-ul stă jos —
+        // fără `position: fixed`, care l-ar scoate din flux și l-ar suprapune peste conținut
+        // pe paginile lungi.
+        <div className="flex min-h-screen flex-col bg-bg text-text">
             {/* A11Y-08 — PRIMUL element focusabil al paginii, înaintea `DemoBanner`/
                 `SubscriptionBanner` (care randează, amândouă, propriile controale
                 focusabile pe fiecare pagină). Altfel un utilizator de tastatură are nevoie
@@ -170,17 +180,20 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                             ? t('common:nav.unassignedBadge', { label: item.label, count: unassignedRecordsCount })
                                             : undefined
                                     }
-                                    className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                                    className={`inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
                                         active
                                             ? 'border-accent-fill text-accent-text'
                                             : 'border-transparent text-text-2 hover:text-text'
                                     }`}
                                 >
+                                    <Icon name={item.icon} />
                                     {item.label}
                                     {showUnassignedBadge && (
                                         <span
                                             aria-hidden="true"
-                                            className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent-fill px-1.5 py-0.5 text-xs font-semibold text-accent-on numeric"
+                                            // Fără `ml-*`: de când linkul e `inline-flex`, `gap-2` de pe el dă deja distanța —
+                                            // o margine peste ea s-ar aduna la gap și ar dubla spațiul.
+                                            className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent-fill px-1.5 py-0.5 text-xs font-semibold text-accent-on numeric"
                                         >
                                             {unassignedRecordsCount}
                                         </span>
@@ -202,7 +215,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 id="main-content"
                 ref={mainRef}
                 tabIndex={-1}
-                className="mx-auto max-w-7xl px-4 py-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:px-6 lg:px-8"
+                className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:px-6 lg:px-8"
             >
                 <FlashMessages />
                 {children}
