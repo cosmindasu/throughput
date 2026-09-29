@@ -104,6 +104,11 @@ class DashboardTest extends TestCase
                 ->has('activity', 1)
                 ->where('activity.0.actor', $agent->name)
                 ->where('activity.0.description', 'Exported Account')
+                // Valoarea BRUTĂ a enum-ului, pe lângă fraza compusă: feed-ul o folosește
+                // pentru semnalul de culoare (`lib/activityTone`). Se verifică aici fiindcă
+                // regula din `types/generated.d.ts` cere ca orice schimbare de formă a unui
+                // Resource să fie prinsă ȘI de un test de contract, nu doar oglindită în tip.
+                ->where('activity.0.action', 'exported')
             );
 
         // `null`, nu listă goală: „No recent activity yet" ar afirma ceva fals despre workspace.

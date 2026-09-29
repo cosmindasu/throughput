@@ -95,6 +95,11 @@ export interface DashboardKpis {
 
 export interface ActivityItem {
     id: string;
+    // `App\Models\ActivityLog::ACTIONS` — valoarea brută a enum-ului, pe lângă
+    // `description` (fraza deja compusă și tradusă server-side). Aceeași pereche ca pe
+    // `HistoryEntry`. Folosită DOAR pentru semnalul vizual (`lib/activityTone`), niciodată
+    // pentru a reconstrui text.
+    action: string;
     description: string;
     actor: string;
     at: string;

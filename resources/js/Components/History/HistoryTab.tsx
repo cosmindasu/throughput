@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import ActivityDot from '@/Components/ActivityDot';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
@@ -179,7 +180,10 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                                 `App\Support\Activity\ActivityActionLabel` (`lang/{en,fr}/activity.php`,
                                 ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis. Nu-l
                                 reconstrui aici: locale-ul cererii curente, nu al clientului. */}
-                            <span className="font-medium text-text">{entry.actionLabel}</span>
+                            <span className="flex items-start gap-2.5 font-medium text-text">
+                                <ActivityDot action={entry.action} />
+                                {entry.actionLabel}
+                            </span>
                             <time
                                 dateTime={entry.createdAt ?? undefined}
                                 className="numeric shrink-0 text-xs text-text-3"

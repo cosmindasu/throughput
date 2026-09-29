@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import ActivityDot from '@/Components/ActivityDot';
 import Button from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
@@ -153,7 +154,7 @@ export default function Index() {
                 {entries.data.length === 0 ? (
                     <EmptyState message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')} />
                 ) : (
-                    <div className="overflow-hidden rounded-lg border border-border">
+                    <div className="data-table-scroll rounded-lg border border-border">
                         <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('index.title')}</caption>
                             <thead className="bg-raised text-text-2">
@@ -168,7 +169,9 @@ export default function Index() {
                                 {entries.data.map((entry) => (
                                     <tr key={entry.id}>
                                         <td className="px-4 py-2.5">
-                                            {/* `entry.actionLabel` vine GATA CONSTRUIT din
+                                            <span className="flex items-start gap-2.5">
+                                                <ActivityDot action={entry.action} />
+                                                {/* `entry.actionLabel` vine GATA CONSTRUIT din
                                                 `ActivityLogResource::toArray()`, tradus server-side prin
                                                 `App\Support\Activity\ActivityActionLabel` (`lang/{en,fr}/activity.php`,
                                                 ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis.
@@ -179,7 +182,8 @@ export default function Index() {
                                                 </a>
                                             ) : (
                                                 <span className="font-medium text-text">{entry.actionLabel}</span>
-                                            )}
+                                                )}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-2.5 text-text-2">{entry.actor?.name ?? t('entry.systemActor')}</td>
                                         <td className="px-4 py-2.5 text-xs text-text-3">

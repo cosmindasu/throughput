@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import ActivityDot from '@/Components/ActivityDot';
 import { useLocale } from '@/hooks/useLocale';
 import { getDateTimeFormat } from '@/lib/format';
 import type { ActivityItem } from '@/types/generated';
@@ -42,9 +43,12 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
                         `App\Http\Resources\ActivityEntryResource` (interpolare + `Str::headline()`),
                         fără trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu
                         le reconstrui aici (vezi raportul). */}
-                    <div className="min-w-0">
-                        <p className="truncate text-text">{item.description}</p>
-                        <p className="truncate text-xs text-text-3">{item.actor}</p>
+                    <div className="flex min-w-0 items-start gap-2.5">
+                        <ActivityDot action={item.action} />
+                        <div className="min-w-0">
+                            <p className="truncate text-text">{item.description}</p>
+                            <p className="truncate text-xs text-text-3">{item.actor}</p>
+                        </div>
                     </div>
                     <time dateTime={item.at} className="numeric shrink-0 text-xs text-text-3">
                         {getDateTimeFormat(locale, FEED_DATE_TIME_OPTIONS).format(new Date(item.at))}

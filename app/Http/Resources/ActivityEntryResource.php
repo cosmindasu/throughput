@@ -25,12 +25,18 @@ use Illuminate\Support\Str;
 class ActivityEntryResource extends JsonResource
 {
     /**
-     * @return array{id: string, description: string, actor: string, at: string|null}
+     * @return array{id: string, action: string, description: string, actor: string, at: string|null}
      */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
+            // Valoarea BRUTĂ din enum (`ActivityLog::ACTIONS`), pe lângă fraza deja compusă —
+            // exact ca `HistoryEntryResource`, care expune de mult `action` alături de
+            // `actionLabel`. Feed-ul o folosește ca să distingă vizual o ștergere de o
+            // creare; `description` rămâne singura sursă a TEXTULUI, nu se reconstruiește
+            // nimic din `action` în React.
+            'action' => $this->action,
             'description' => $this->description(),
             // FR-TEN-04 — placeholder „(deactivated)" pe autorul unei acțiuni dacă
             // membership-ul lui în tenantul curent a fost dezactivat între timp.
