@@ -31,6 +31,8 @@ Each ADR documents one architectural decision with long-term impact — **contex
 | [ADR-021](ADR-021-factura-abonament-dompdf-nu-spatie-laravel-pdf.md) | The subscription invoice stays on `DompdfInvoiceRenderer`, the Cashier default — not on `spatie/laravel-pdf` — partially supersedes [ADR-006](ADR-006-cashier-16-pentru-abonament.md) | Accepted | 2026-09-19 | Phase 5 |
 | [ADR-022](ADR-022-locale-en-fr-per-utilizator-nu-in-url.md) | The interface becomes bilingual (EN default + FR), language is a per-user preference (`users.locale`) — not a URL segment — amends [ADR-002](ADR-002-tenancy-pe-cale.md) | Accepted | 2026-09-20 | after Phase 5 |
 | [ADR-023](ADR-023-apeluri-stripe-sincrone-in-billing-exceptie-adr-013.md) | Two synchronous Stripe calls in `BillingController` (`portal()`, `invoiceHistory()`) stay in the HTTP request — a narrow, named exception to [ADR-013](ADR-013-apeluri-externe-in-cozi.md) | Accepted | 2026-09-23 | Phase 5 |
+| [ADR-024](ADR-024-erori-inertia-pagina-in-aplicatie-blade-ca-fallback.md) | Errors on Inertia requests render an in-app page; the Blade views stay as the non-Inertia fallback | Accepted | 2026-09-28 | Phase 5 |
+| [ADR-025](ADR-025-memoizarea-verificarilor-de-permisiune-fara-model.md) | Permission checks WITHOUT a model are memoised per `User` instance, keyed by tenant; checks carrying a model are never memoised | Accepted | 2026-09-29 | Phase 5 |
 
 ## Conventions
 
