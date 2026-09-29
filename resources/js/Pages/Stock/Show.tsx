@@ -43,7 +43,7 @@ export default function Show() {
                 />
 
                 <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-left text-sm">
+                    <table className="data-table w-full text-left text-sm">
                         {/* Convenția implicită de nume pentru un tabel fără heading propriu
                             deasupra: `<caption class="sr-only">` (tehnica H39), nu un
                             `aria-labelledby` către titlul PAGINII. Vezi `.ai/rules/frontend.md`. */}

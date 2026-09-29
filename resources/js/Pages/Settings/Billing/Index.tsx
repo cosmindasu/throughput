@@ -149,7 +149,7 @@ export default function BillingIndex() {
                            n-avea nici nume, nici `scope` pe celulele de antet: singurul din
                            aplicație cu `<th>` fără `scope="col"` (SC 1.3.1 — relația
                            antet/celulă e chiar ce cere criteriul). */
-                        <table className="w-full text-left text-sm" aria-labelledby="invoice-history-heading">
+                        <table className="data-table w-full text-left text-sm" aria-labelledby="invoice-history-heading">
                             <thead>
                                 <tr className="border-b border-border-soft text-text-2">
                                     <th scope="col" className="py-2 pr-4 font-medium">{t('settings:billing.columns.date')}</th>

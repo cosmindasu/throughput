@@ -307,7 +307,7 @@ function MappingStep({
             )}
 
             <div className="overflow-hidden rounded-md border border-border">
-                <table className="w-full text-left text-sm">
+                <table className="data-table w-full text-left text-sm">
                     {/* Al treilea tipar de nume de tabel („niciunul") — unificat pe cazul
                         implicit din `.ai/rules/frontend.md`. Headingul de deasupra e al PASULUI
                         („Step 2 — Map columns"), nu al tabelului. */}
@@ -453,7 +453,7 @@ function InvalidRowsTable({
         <div className="flex flex-col gap-2">
             <h4 id={headingId} className="text-sm font-semibold text-text">{t('imports:show.invalidRows.heading')}</h4>
             <div className="max-h-96 overflow-auto rounded-md border border-border">
-                <table className="w-full text-left text-sm" aria-labelledby={headingId}>
+                <table className="data-table w-full text-left text-sm" aria-labelledby={headingId}>
                     <thead className="sticky top-0 bg-raised text-text-2">
                         <tr>
                             <th scope="col" className="px-3 py-2 font-medium">{t('imports:show.invalidRows.columnRow')}</th>

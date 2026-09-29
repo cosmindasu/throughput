@@ -154,7 +154,7 @@ function InvoicesTable({ base, invoices }: { base: string; invoices: NonNullable
     return (
         <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-                <table className="w-full text-left text-sm">
+                <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('invoices:index.title')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
@@ -195,7 +195,7 @@ function InvoiceRow({ invoice, base }: { invoice: Invoice; base: string }) {
     const locale = useLocale();
 
     return (
-        <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
+        <tr className="border-b border-border-soft last:border-b-0">
             <td className="numeric px-4 py-2">
                 <Link href={`${base}/invoices/${invoice.id}`} className="font-medium text-text hover:underline">
                     {invoice.invoiceNumber ?? `#${invoice.id.slice(-8)}`}

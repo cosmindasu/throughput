@@ -87,7 +87,7 @@ export default function Show() {
                                 vizibil DEDICAT chiar deasupra, deci se leagă de el — o singură
                                 sursă de adevăr pentru nume, nu un caption invizibil care poate
                                 diverge de heading. Vezi `.ai/rules/frontend.md`. */}
-                            <table className="w-full text-left text-sm" aria-labelledby="variants-heading">
+                            <table className="data-table w-full text-left text-sm" aria-labelledby="variants-heading">
                                 <thead className="bg-raised text-text-2">
                                     <tr>
                                         <th scope="col" className="px-4 py-2 font-medium">
@@ -118,7 +118,7 @@ export default function Show() {
                                 <tbody className="divide-y divide-border-soft bg-surface">
                                     {product.variants.map((variant: VariantRow) => (
                                         <Fragment key={variant.id}>
-                                            <tr className="hover:bg-row-hover">
+                                            <tr>
                                                 <td className="px-4 py-2.5 font-medium text-text">{variant.sku}</td>
                                                 <td className="px-4 py-2.5 tabular-nums text-text-2">{formatDecimal(variant.price, locale)}</td>
                                                 {can.edit && (

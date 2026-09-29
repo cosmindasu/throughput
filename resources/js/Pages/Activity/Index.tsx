@@ -154,7 +154,7 @@ export default function Index() {
                     <EmptyState message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')} />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('index.title')}</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
@@ -166,7 +166,7 @@ export default function Index() {
                             </thead>
                             <tbody className="divide-y divide-border-soft bg-surface">
                                 {entries.data.map((entry) => (
-                                    <tr key={entry.id} className="hover:bg-row-hover">
+                                    <tr key={entry.id}>
                                         <td className="px-4 py-2.5">
                                             {/* `entry.actionLabel` vine GATA CONSTRUIT din
                                                 `ActivityLogResource::toArray()`, tradus server-side prin

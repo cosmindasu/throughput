@@ -121,7 +121,7 @@ export default function WebhookHealthIndex() {
                     <EmptyState message={t('settings:webhooks.empty')} />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('settings:webhooks.tableCaption')}</caption>
                             <thead>
                                 <tr className="border-b border-border-soft text-xs text-text-3">

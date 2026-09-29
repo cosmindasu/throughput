@@ -159,7 +159,7 @@ export default function Show() {
                 <OrderTimeline order={order} />
 
                 <section aria-label={t('show.lines.ariaLabel')} className="overflow-x-auto rounded-lg border border-border bg-surface">
-                    <table className="w-full text-left text-sm">
+                    <table className="data-table w-full text-left text-sm">
                         {/* Fără heading vizibil propriu deasupra -> cazul implicit, `<caption>`
                             (`.ai/rules/frontend.md`). Era al treilea tipar de nume de tabel din
                             aplicație: niciunul. */}

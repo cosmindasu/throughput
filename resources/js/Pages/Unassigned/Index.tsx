@@ -156,7 +156,7 @@ function UnassignedContent({
                         {t('dashboard:unassigned.openDealsHeading', { count: deals.data.length })}
                     </h2>
                     <div className="mt-2 overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-left text-sm" aria-labelledby="unassigned-deals-heading">
+                        <table className="data-table w-full text-left text-sm" aria-labelledby="unassigned-deals-heading">
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>
                                     <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.dealTitle')}</th>
@@ -186,7 +186,7 @@ function UnassignedContent({
                         {t('dashboard:unassigned.activeOrdersHeading', { count: orders.data.length })}
                     </h2>
                     <div className="mt-2 overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-left text-sm" aria-labelledby="unassigned-orders-heading">
+                        <table className="data-table w-full text-left text-sm" aria-labelledby="unassigned-orders-heading">
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>
                                     <th scope="col" className="px-4 py-2 font-medium">{t('dashboard:unassigned.columns.order')}</th>

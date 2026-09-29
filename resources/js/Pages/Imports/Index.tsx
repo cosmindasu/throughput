@@ -76,7 +76,7 @@ export default function Index() {
                     />
                 ) : (
                     <div className="overflow-hidden rounded-lg border border-border">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('imports:index.title')}</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
@@ -90,7 +90,7 @@ export default function Index() {
                             </thead>
                             <tbody className="divide-y divide-border-soft bg-surface">
                                 {imports.map((row) => (
-                                    <tr key={row.id} className="hover:bg-row-hover">
+                                    <tr key={row.id}>
                                         <td className="px-4 py-2.5">
                                             <a href={`${base}/imports/${row.id}`} className="font-medium text-accent-text hover:underline">
                                                 {row.originalFilename}

@@ -13,7 +13,12 @@ export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' 
  * arate aceeași stare cu aceleași două culori, iar o a doua hartă ar putea diverge tăcut.
  */
 export const toneClasses: Record<BadgeTone, string> = {
-    neutral: 'bg-raised text-text-2',
+    // Singurul ton fără semnal cromatic, deci primește unul geometric: pe tema deschisă
+    // `--raised` (#f6f9fb) e practic indistinct de `--surface` ȘI de dunga `--row-alt`
+    // (#f7fafc), așa că un chip „inactive" dispărea complet dintr-un tabel — vizibil în
+    // auditul din 2026-09-29, lângă „active"/„prospect" care se citeau imediat.
+    // `ring`, nu `border`: nu ocupă spațiu, deci toate chip-urile rămân de aceeași înălțime.
+    neutral: 'bg-raised text-text-2 ring-1 ring-inset ring-border',
     accent: 'bg-accent-tint text-accent-text',
     success: 'bg-success-tint text-success',
     warning: 'bg-warning-tint text-warning',

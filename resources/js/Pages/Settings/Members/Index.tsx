@@ -249,7 +249,7 @@ export default function MembersIndex() {
             )}
 
             <div className="mt-6 overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-left text-sm">
+                <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('settings:members.tableCaption')}</caption>
                     <thead className="border-b border-border bg-surface text-text-2">
                         <tr>

@@ -35,9 +35,9 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
     }
 
     return (
-        <ul className="divide-y divide-border-soft">
+        <ul className="data-rows divide-y divide-border-soft">
             {items.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-4 py-2 text-sm">
+                <li key={item.id} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
                     {/* `item.description`/`item.actor` vin GATA CONSTRUITE din
                         `App\Http\Resources\ActivityEntryResource` (interpolare + `Str::headline()`),
                         fără trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu

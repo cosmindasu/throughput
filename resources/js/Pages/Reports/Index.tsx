@@ -48,7 +48,7 @@ export default function Index() {
 
                 {reports.length > 0 ? (
                     <div className="overflow-hidden rounded-lg border border-border">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('reports:index.title')}</caption>
                             <thead className="bg-raised text-text-2">
                                 <tr>
@@ -74,7 +74,7 @@ export default function Index() {
                             </thead>
                             <tbody className="divide-y divide-border-soft bg-surface">
                                 {reports.map((report) => (
-                                    <tr key={report.id} className="hover:bg-row-hover">
+                                    <tr key={report.id}>
                                         <td className="px-4 py-2.5">
                                             {/* `report.name` e conținut scris de utilizator (FR-I18N-06) —
                                                 niciodată tradus, nici retradus la comutarea limbii. */}

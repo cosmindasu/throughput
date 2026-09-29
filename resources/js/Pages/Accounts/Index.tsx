@@ -201,7 +201,7 @@ export default function Index() {
                 <Deferred data="accounts" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
                     {accounts && accounts.data.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-border">
-                            <table className="w-full text-left text-sm">
+                            <table className="data-table w-full text-left text-sm">
                                 <caption className="sr-only">{t('index.title')}</caption>
                                 <thead className="bg-raised text-text-2">
                                     <tr>
@@ -227,7 +227,7 @@ export default function Index() {
                                 </thead>
                                 <tbody className="divide-y divide-border-soft bg-surface">
                                     {accounts.data.map((account: AccountRow) => (
-                                        <tr key={account.id} className="hover:bg-row-hover">
+                                        <tr key={account.id} data-selected={selection.isSelected(account.id) ? 'true' : undefined}>
                                             {can.bulkWrite && (
                                                 <td className="px-4 py-2.5">
                                                     <RowCheckbox

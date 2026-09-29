@@ -91,7 +91,7 @@ export default function OrderLinesEditor({
                 <p className="text-sm text-text-3">{t('linesEditor.empty')}</p>
             ) : (
                 <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-                    <table id={tableId} className="w-full text-left text-sm">
+                    <table id={tableId} className="data-table w-full text-left text-sm">
                         <caption className="sr-only">{t('linesEditor.table.caption')}</caption>
                         <thead>
                             <tr className="border-b border-border-soft text-xs text-text-3">

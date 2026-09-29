@@ -285,7 +285,7 @@ function DealsTable({
             )}
 
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-                <table className="w-full text-left text-sm">
+                <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('index.table.caption')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
@@ -380,7 +380,7 @@ function DealRow({
     const { t } = useTranslation('deals');
 
     return (
-        <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
+        <tr className="border-b border-border-soft last:border-b-0" data-selected={selected ? 'true' : undefined}>
             {showCheckbox && (
                 <td className="px-4 py-2">
                     <RowCheckbox aria-label={t('index.table.selectRow', { title: deal.title })} checked={selected} onChange={onToggle} />

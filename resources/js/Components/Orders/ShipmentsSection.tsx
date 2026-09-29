@@ -232,7 +232,7 @@ export default function ShipmentsSection({
                     )}
 
                     <div className="overflow-x-auto rounded-md border border-border-soft">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             {/* Headingul de deasupra („Shipments") e al SECȚIUNII, nu al acestui
                                 tabel — deci cazul implicit, `<caption>` (`.ai/rules/frontend.md`). */}
                             <caption className="sr-only">{t('shipments.form.table.caption')}</caption>

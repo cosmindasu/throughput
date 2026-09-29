@@ -338,7 +338,7 @@ function OrdersTable({
     return (
         <div className="flex flex-col gap-4">
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-                <table className="w-full text-left text-sm">
+                <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('index.table.caption')}</caption>
                     <thead>
                         <tr className="border-b border-border-soft text-xs text-text-3">
@@ -427,7 +427,7 @@ function OrderRow({
     const { t } = useTranslation('orders');
 
     return (
-        <tr className="border-b border-border-soft last:border-b-0 hover:bg-row-hover">
+        <tr className="border-b border-border-soft last:border-b-0" data-selected={selection.isSelected(order.id) ? 'true' : undefined}>
             {canBulk && (
                 <td className="px-4 py-2">
                     <RowCheckbox

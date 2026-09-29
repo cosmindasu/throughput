@@ -291,7 +291,7 @@ export default function ApiTokensIndex() {
 
                 {tokens.length > 0 ? (
                     <div className="overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-left text-sm">
+                        <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('settings:apiTokens.tableCaption')}</caption>
                             <thead className="border-b border-border bg-surface text-text-2">
                                 <tr>

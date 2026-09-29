@@ -36,6 +36,7 @@
     --overlay: #ffffff;
     --row-hover: #f5f6f6;
     --row-selected: #e9f3f5;
+    --row-alt: #f7fafc;
     --border: #dce4e9;
     --border-soft: #e7edf0;
     --control: #6a8494;
@@ -75,6 +76,7 @@
     --overlay: #1b2c37;
     --row-hover: #1a242b;
     --row-selected: #172d34;
+    --row-alt: #141f28;
     --border: #1e2e38;
     --border-soft: #17242c;
     --control: #6786a3;
@@ -115,6 +117,7 @@
     --color-raised: var(--raised);
     --color-overlay: var(--overlay);
     --color-row-hover: var(--row-hover);
+    --color-row-alt: var(--row-alt);
     --color-row-selected: var(--row-selected);
     --color-border: var(--border);
     --color-border-soft: var(--border-soft);
@@ -153,6 +156,83 @@ body {
     background-color: var(--color-bg);
     color: var(--color-text);
 }
+
+/*
+ * Starea vizuală a unui rând de tabel, într-un SINGUR loc.
+ *
+ * Aplicația are 25 de tabele scrise de mână, cu clase de rând care deja divergeau
+ * (`hover:bg-row-hover` pe unele, nimic pe altele, `border-b` în trei variante). Dungile
+ * alternante scrise per pagină ar fi însemnat a patra convenție. Aici, tabelul primește
+ * `data-table` și atât.
+ *
+ * **Ordinea regulilor e contractul**, nu o preferință: dungă < hover < selectat. Toate trei
+ * au aceeași specificitate (0,2,2), deci câștigă ULTIMA scrisă. Mutarea lor între ele
+ * schimbă comportamentul fără să schimbe nimic vizibil în cod — de-aia stau grupate.
+ *
+ * `@layer components`, deliberat: în cascada pe straturi utilitarele bat componentele, deci
+ * un `bg-*` pus explicit pe un rând continuă să câștige.
+ *
+ * Exact de-aia cele unsprezece `hover:bg-row-hover` de pe rânduri au FOST SCOASE, nu lăsate
+ * ca redundanță inofensivă: fiind utilitare, ar fi bătut regula de „selectat" de mai jos, iar
+ * un rând bifat și-ar fi pierdut culoarea taman când treci cu mouse-ul peste el — adică fix
+ * când te uiți la el.
+ *
+ * Contrastul celor patru tokens de text a fost măsurat pe `--row-alt` în ambele teme
+ * înainte de a fi ales (cel mai slab: `--text-3` la 5,38:1 pe deschis, 5,53:1 pe închis).
+ * Ordinea luminanței e păstrată în ambele teme: suprafață → dungă → hover e un drum
+ * monoton, deci hover-ul rămâne vizibil ȘI pe rândurile dungate, nu doar pe cele curate.
+ */
+@layer components {
+    .data-table tbody tr {
+        transition: background-color 120ms ease;
+    }
+
+    .data-table tbody tr:nth-child(even) {
+        background-color: var(--row-alt);
+    }
+
+    .data-table tbody tr:hover {
+        background-color: var(--row-hover);
+    }
+
+    /*
+     * `--row-selected` exista ca token din Faza 2 și nu era folosit NICĂIERI: bifai rânduri
+     * pentru o operație în masă și rândurile nu se schimbau deloc — singura confirmare era
+     * contorul din bara de jos. Selecția bate și hover-ul: starea e mai importantă decât
+     * poziția cursorului.
+     */
+    .data-table tbody tr[data-selected='true'],
+    .data-table tbody tr[data-selected='true']:hover {
+        background-color: var(--row-selected);
+    }
+
+    /*
+     * Aceleași reguli pentru listele care NU sunt tabele — feed-ul de activitate e un
+     * `<ul>`, dar vizual e tot un șir de rânduri, iar un dashboard cu 10 rânduri identice
+     * de gri e exact reproșul de la care a pornit lotul ăsta.
+     */
+    .data-rows > * {
+        transition: background-color 120ms ease;
+    }
+
+    .data-rows > *:nth-child(even) {
+        background-color: var(--row-alt);
+    }
+
+    .data-rows > *:hover {
+        background-color: var(--row-hover);
+    }
+
+    /* Tranziția e mișcare de culoare, nu de poziție, dar respectă aceeași preferință ca
+       pulsul din `TableSkeleton` — o singură convenție în tot proiectul. */
+    @media (prefers-reduced-motion: reduce) {
+        .data-table tbody tr,
+        .data-rows > * {
+            transition: none;
+        }
+    }
+}
+
 
 /*
  * SC 2.4.7 (Focus Visible) + SC 1.4.11 (Non-text Contrast) — plasă de siguranță, nu

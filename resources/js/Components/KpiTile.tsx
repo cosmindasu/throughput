@@ -1,6 +1,32 @@
 import Icon, { type IconName } from '@/Components/Icon';
 import { type BadgeTone, toneClasses } from '@/Components/StatusBadge';
 
+/**
+ * Bara de accent de pe muchia din stânga. Separată de `toneClasses` (care dă tenta de
+ * FUNDAL a chip-ului) fiindcă aici culoarea se folosește la intensitate plină, pe o
+ * suprafață de 4px — nu e text, deci nu intră în auditul de contrast, dar e singurul
+ * element din placă vizibil de la distanța de la care citești un dashboard.
+ */
+const toneValue: Record<BadgeTone, string> = {
+    neutral: 'text-text',
+    // `--accent-text`, NU `--accent-fill`: accentul are două trepte, iar umplerea
+    // (`#0e7c8c`) pică drept text pe fundal deschis — regula din `.ai/rules/frontend.md`.
+    accent: 'text-accent-text',
+    success: 'text-success',
+    warning: 'text-warning',
+    danger: 'text-danger',
+    info: 'text-info',
+};
+
+const toneEdge: Record<BadgeTone, string> = {
+    neutral: 'border-l-control',
+    accent: 'border-l-accent-fill',
+    success: 'border-l-success',
+    warning: 'border-l-warning',
+    danger: 'border-l-danger',
+    info: 'border-l-info',
+};
+
 interface KpiTileProps {
     label: string;
     value: string;
@@ -46,7 +72,9 @@ interface KpiTileProps {
  */
 export default function KpiTile({ label, value, hint, icon, tone }: KpiTileProps) {
     return (
-        <div className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-control">
+        <div
+            className={`rounded-lg border border-l-4 border-border bg-surface p-4 transition-colors hover:border-control ${toneEdge[tone]}`}
+        >
             {/*
                 Iconul stă PE RÂNDUL etichetei, nu deasupra ei: chip-ul (~30px) încape în cei
                 40px deja rezervați de `min-h-10`, deci placa nu crește cu niciun pixel și
@@ -60,7 +88,17 @@ export default function KpiTile({ label, value, hint, icon, tone }: KpiTileProps
                     <Icon name={icon} size={18} />
                 </span>
             </div>
-            <p className="numeric mt-1 text-2xl font-semibold text-text">{value}</p>
+            {/*
+                Cifra poartă tonul, eticheta rămâne neutră. Măsurat pe `--surface` înainte de
+                a fi ales, ambele teme: cel mai slab raport e 5,82:1 (`--success` pe deschis),
+                deci trece AA pentru text NORMAL, nu doar pentru text mare — placa nu depinde
+                de dimensiunea fontului ca să fie conformă.
+
+                Tot din măsurătoare a rezultat ce NU se face: un fundal tintat pe toată placa
+                ar fi coborât `--text-3` (hint-ul de dedesubt) la 4,34:1 pe tema închisă. Arăta
+                bine și pica AA.
+            */}
+            <p className={`numeric mt-1 text-2xl font-semibold ${toneValue[tone]}`}>{value}</p>
             {hint && <p className="numeric mt-1 text-xs text-text-3">{hint}</p>}
         </div>
     );

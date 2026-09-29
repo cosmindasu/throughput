@@ -152,7 +152,7 @@ function ContactsTable({ contacts }: { contacts: NonNullable<ContactsIndexPagePr
 
     return (
         <div className="flex flex-col gap-3">
-            <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-border bg-surface text-sm">
+            <table className="data-table w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-border bg-surface text-sm">
                 <caption className="sr-only">{t('index.title')}</caption>
                 <thead>
                     <tr className="text-left text-text-2">
@@ -175,7 +175,7 @@ function ContactsTable({ contacts }: { contacts: NonNullable<ContactsIndexPagePr
                 </thead>
                 <tbody>
                     {contacts.data.map((contact) => (
-                        <tr key={contact.id} className="hover:bg-row-hover">
+                        <tr key={contact.id}>
                             <td className="border-b border-border-soft px-4 py-2">
                                 <Link
                                     href={workspace ? `/${workspace.slug}/contacts/${contact.id}` : '#'}

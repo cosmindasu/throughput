@@ -229,7 +229,7 @@ export default function Show() {
                             <EmptyState message={t('reports:show.currentResult.empty')} />
                         ) : (
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <table className="w-full text-left text-sm">
+                                <table className="data-table w-full text-left text-sm">
                                     <caption className="sr-only">{t('reports:show.currentResult.tableCaption', { name: report.name })}</caption>
                                     <thead className="bg-raised text-text-2">
                                         <tr>
@@ -247,7 +247,7 @@ export default function Show() {
                                             // Rândurile agregate n-au id propriu — cheia e conținutul lor
                                             // (stabil între randări, unic per combinație pipeline/etapă
                                             // sau locație/categorie).
-                                            <tr key={row.join('|')} className="hover:bg-row-hover">
+                                            <tr key={row.join('|')}>
                                                 {row.map((cell, cellIndex) => (
                                                     <td
                                                         key={cellIndex}
@@ -276,7 +276,7 @@ export default function Show() {
                         <EmptyState message={t('reports:show.runHistory.empty')} />
                     ) : (
                         <div className="overflow-hidden rounded-lg border border-border">
-                            <table className="w-full text-left text-sm">
+                            <table className="data-table w-full text-left text-sm">
                                 <caption className="sr-only">{t('reports:show.runHistory.tableCaption', { name: report.name })}</caption>
                                 <thead className="bg-raised text-text-2">
                                     <tr>
@@ -299,7 +299,7 @@ export default function Show() {
                                 </thead>
                                 <tbody className="divide-y divide-border-soft bg-surface">
                                     {runs.map((run) => (
-                                        <tr key={run.id} className="hover:bg-row-hover">
+                                        <tr key={run.id}>
                                             <td className="px-4 py-2.5">
                                                 <StatusBadge tone={RUN_STATUS_TONES[run.status]}>
                                                     {t(`reports:runStatus.${run.status}`)}
