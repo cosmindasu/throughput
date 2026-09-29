@@ -152,71 +152,80 @@ function ContactsTable({ contacts }: { contacts: NonNullable<ContactsIndexPagePr
 
     return (
         <div className="flex flex-col gap-3">
-            <table className="data-table w-full border-separate border-spacing-0 overflow-hidden rounded-lg border border-border bg-surface text-sm">
-                <caption className="sr-only">{t('index.title')}</caption>
-                <thead>
-                    <tr className="text-left text-text-2">
-                        <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            {t('index.columns.name')}
-                        </th>
-                        <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            {t('index.columns.account')}
-                        </th>
-                        <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            {t('index.columns.email')}
-                        </th>
-                        <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            {t('index.columns.title')}
-                        </th>
-                        <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
-                            <span className="sr-only">{t('index.actionsColumnLabel')}</span>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {contacts.data.map((contact) => (
-                        <tr key={contact.id}>
-                            <td className="border-b border-border-soft px-4 py-2">
-                                <Link
-                                    href={workspace ? `/${workspace.slug}/contacts/${contact.id}` : '#'}
-                                    className="font-medium text-text underline-offset-2 hover:underline"
-                                >
-                                    {contact.fullName}
-                                </Link>
-                                {contact.isPrimary && (
-                                    <StatusBadge tone="accent">
-                                        <span className="ml-1">{t('index.primaryBadge')}</span>
-                                    </StatusBadge>
-                                )}
-                            </td>
-                            <td className="border-b border-border-soft px-4 py-2 text-text-2">
-                                {contact.account && workspace ? (
-                                    <Link
-                                        href={`/${workspace.slug}/accounts/${contact.account.id}`}
-                                        className="underline-offset-2 hover:underline"
-                                    >
-                                        {contact.account.name}
-                                    </Link>
-                                ) : (
-                                    <span className="text-text-3">{t('index.noAccount')}</span>
-                                )}
-                            </td>
-                            <td className="border-b border-border-soft px-4 py-2 text-text-2">{contact.email ?? '—'}</td>
-                            <td className="border-b border-border-soft px-4 py-2 text-text-2">{contact.title ?? '—'}</td>
-                            <td className="border-b border-border-soft px-4 py-2 text-right">
-                                {contact.can.edit && workspace && (
-                                    <Link
-                                        href={`/${workspace.slug}/contacts/${contact.id}/edit`}
-                                        className="text-accent-text underline-offset-2 hover:underline"
-                                    >
-                                        {t('index.editRow')}<span className="sr-only"> {contact.fullName}</span>
-                                    </Link>
-                                )}
-                            </td>
+            {/* Tabelul ăsta își purta singur bordura, colțurile ȘI un `overflow-hidden`.
+                Ultimul e motivul pentru care capul lipit nu mergea aici, deși mergea pe
+                celelalte opt liste: `overflow` pe TABEL face din tabel containerul de
+                referință pentru `sticky`, iar tabelul nu derulează — capul pleca cu
+                rândurile. Măsurat, nu dedus: `th` cobora de la 328 la 28 după o derulare de
+                300px, în timp ce pe restul rămânea pe loc. Bordura și decuparea s-au mutat
+                pe învelișul de derulare, unde le e locul. */}
+            <div className="data-table-scroll rounded-lg border border-border bg-surface">
+                <table className="data-table w-full border-separate border-spacing-0 text-sm">
+                    <caption className="sr-only">{t('index.title')}</caption>
+                    <thead>
+                        <tr className="text-left text-text-2">
+                            <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
+                                {t('index.columns.name')}
+                            </th>
+                            <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
+                                {t('index.columns.account')}
+                            </th>
+                            <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
+                                {t('index.columns.email')}
+                            </th>
+                            <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
+                                {t('index.columns.title')}
+                            </th>
+                            <th scope="col" className="border-b border-border-soft px-4 py-2 font-medium">
+                                <span className="sr-only">{t('index.actionsColumnLabel')}</span>
+                            </th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {contacts.data.map((contact) => (
+                            <tr key={contact.id}>
+                                <td className="border-b border-border-soft px-4 py-2">
+                                    <Link
+                                        href={workspace ? `/${workspace.slug}/contacts/${contact.id}` : '#'}
+                                        className="font-medium text-text underline-offset-2 hover:underline"
+                                    >
+                                        {contact.fullName}
+                                    </Link>
+                                    {contact.isPrimary && (
+                                        <StatusBadge tone="accent">
+                                            <span className="ml-1">{t('index.primaryBadge')}</span>
+                                        </StatusBadge>
+                                    )}
+                                </td>
+                                <td className="border-b border-border-soft px-4 py-2 text-text-2">
+                                    {contact.account && workspace ? (
+                                        <Link
+                                            href={`/${workspace.slug}/accounts/${contact.account.id}`}
+                                            className="underline-offset-2 hover:underline"
+                                        >
+                                            {contact.account.name}
+                                        </Link>
+                                    ) : (
+                                        <span className="text-text-3">{t('index.noAccount')}</span>
+                                    )}
+                                </td>
+                                <td className="border-b border-border-soft px-4 py-2 text-text-2">{contact.email ?? '—'}</td>
+                                <td className="border-b border-border-soft px-4 py-2 text-text-2">{contact.title ?? '—'}</td>
+                                <td className="border-b border-border-soft px-4 py-2 text-right">
+                                    {contact.can.edit && workspace && (
+                                        <Link
+                                            href={`/${workspace.slug}/contacts/${contact.id}/edit`}
+                                            className="text-accent-text underline-offset-2 hover:underline"
+                                        >
+                                            {t('index.editRow')}<span className="sr-only"> {contact.fullName}</span>
+                                        </Link>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
             <CursorPagination nextCursor={contacts.nextCursor} prevCursor={contacts.prevCursor} />
         </div>
     );

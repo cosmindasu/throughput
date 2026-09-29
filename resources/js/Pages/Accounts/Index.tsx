@@ -200,7 +200,7 @@ export default function Index() {
 
                 <Deferred data="accounts" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
                     {accounts && accounts.data.length > 0 ? (
-                        <div className="overflow-hidden rounded-lg border border-border">
+                        <div className="data-table-scroll rounded-lg border border-border">
                             <table className="data-table w-full text-left text-sm">
                                 <caption className="sr-only">{t('index.title')}</caption>
                                 <thead className="bg-raised text-text-2">

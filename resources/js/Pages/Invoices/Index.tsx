@@ -153,7 +153,7 @@ function InvoicesTable({ base, invoices }: { base: string; invoices: NonNullable
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+            <div className="data-table-scroll rounded-lg border border-border bg-surface">
                 <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('invoices:index.title')}</caption>
                     <thead>

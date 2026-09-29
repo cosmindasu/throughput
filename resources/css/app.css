@@ -223,6 +223,45 @@ body {
         background-color: var(--row-hover);
     }
 
+    /*
+     * Capul de tabel rămâne pe ecran cât derulezi rândurile.
+     *
+     * `position: sticky` se raportează la cel mai apropiat STRĂMOȘ care derulează, nu la
+     * fereastră — iar învelișurile de tabel din proiect sunt exact asta: `overflow-x-auto`
+     * face și `overflow-y` non-vizibil (regula CSS: dacă o axă nu e `visible`, cealaltă se
+     * calculează `auto`), deci capul s-ar „lipi" de un container care nu derulează niciodată
+     * pe verticală. Adică n-ar face nimic. De-aia containerul primește o înălțime maximă:
+     * fără ea, `sticky` e cod mort, nu o îmbunătățire discretă.
+     *
+     * Limita e DOAR de la `md` în sus. Pe telefon tabelul derulează deja pe orizontală în
+     * aceeași cutie; a adăuga și o derulare verticală înăuntru ar însemna două axe într-o
+     * casetă mică, peste derularea paginii — mai rău decât un cap care dispare pe un ecran
+     * unde oricum vezi puține rânduri odată.
+     */
+    .data-table-scroll {
+        overflow: auto;
+    }
+
+    @media (min-width: 48rem) {
+        .data-table-scroll {
+            max-height: min(70vh, 40rem);
+        }
+    }
+
+    /*
+     * Fundalul stă pe `th`, nu pe `thead`: un element `sticky` își ia cu el doar propriul
+     * fundal, iar `<thead className="bg-raised">` ar fi rămas pe loc în timp ce celulele
+     * plutesc transparent peste rânduri. Din același motiv linia de sub cap e `box-shadow`
+     * (se pictează cu celula), nu `border-b` pe `thead`.
+     */
+    .data-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background-color: var(--raised);
+        box-shadow: inset 0 -1px 0 var(--border);
+    }
+
     /* Tranziția e mișcare de culoare, nu de poziție, dar respectă aceeași preferință ca
        pulsul din `TableSkeleton` — o singură convenție în tot proiectul. */
     @media (prefers-reduced-motion: reduce) {

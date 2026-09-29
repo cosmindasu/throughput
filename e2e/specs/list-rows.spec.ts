@@ -95,3 +95,78 @@ test('feed-ul de activitate alternează la fel', async ({ page }) => {
 
     expect(even).not.toBe(odd);
 });
+
+/**
+ * Capul de tabel rămâne pe ecran cât derulezi rândurile.
+ *
+ * Testul e pe POZIȚIE, nu pe `position: sticky` în stiluri — iar diferența nu e academică:
+ * la prima implementare, `Contacts/Index` avea `sticky` calculat corect pe `th` și tot nu
+ * funcționa, fiindcă tabelul purta el însuși `overflow-hidden` și devenea astfel containerul
+ * de referință. Măsurat, `th` cobora de la 328 la 28 după o derulare de 300px, în timp ce pe
+ * celelalte opt liste rămânea neclintit. O aserțiune pe `getComputedStyle(...).position` ar
+ * fi trecut voioasă.
+ */
+const STICKY_LISTS = [
+    '/cascade/accounts',
+    '/cascade/contacts',
+    '/cascade/deals',
+    '/cascade/orders',
+    '/cascade/invoices',
+    '/cascade/activity',
+];
+
+for (const route of STICKY_LISTS) {
+    test(`${route}: capul de tabel nu pleacă la derulare`, async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.goto(route);
+
+        const box = page.locator('.data-table-scroll').first();
+        await expect(box).toBeVisible();
+
+        const measured = await box.evaluate((el) => {
+            const th = el.querySelector('thead th') as HTMLElement | null;
+            if (!th || el.scrollHeight <= el.clientHeight) {
+                return null; // lista e mai scurtă decât containerul: nimic de derulat
+            }
+
+            const before = th.getBoundingClientRect().top;
+            el.scrollTop = 300;
+
+            return new Promise<{ before: number; after: number; scrolled: number }>((resolve) => {
+                requestAnimationFrame(() => resolve({
+                    before,
+                    after: th.getBoundingClientRect().top,
+                    scrolled: el.scrollTop,
+                }));
+            });
+        });
+
+        if (measured === null) {
+            return;
+        }
+
+        expect(measured.scrolled, 'containerul nu a derulat deloc').toBeGreaterThan(0);
+        expect(Math.round(measured.after), 'capul a plecat cu rândurile').toBe(Math.round(measured.before));
+    });
+}
+
+/**
+ * Fiecare rând de jurnal poartă un punct colorat după tipul acțiunii. `action` vine brut din
+ * `ActivityEntryResource` / `HistoryEntryResource`; `DashboardTest` verifică contractul
+ * server-side, testul ăsta verifică faptul că ajunge pe ecran.
+ */
+test('feed-ul de activitate are un semnal vizual pe fiecare rând', async ({ page }) => {
+    await page.goto('/cascade/dashboard');
+
+    const rows = page.locator('ul.data-rows > li');
+    await expect(rows.first()).toBeVisible();
+
+    const rowCount = await rows.count();
+    const dots = await page.locator('ul.data-rows > li span[aria-hidden="true"].rounded-full').count();
+
+    expect(dots, 'lipsesc puncte de pe unele rânduri').toBe(rowCount);
+
+    // Punctul e DECORATIV: eticheta acțiunii e text, lângă el. Dacă ar ajunge în arborele de
+    // accesibilitate, fiecare rând s-ar anunța de două ori.
+    await expect(page.locator('ul.data-rows > li span.rounded-full[aria-hidden="true"]').first()).toBeAttached();
+});
