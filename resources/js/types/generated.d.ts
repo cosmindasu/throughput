@@ -31,6 +31,28 @@
  * `usePage<XPageProps>()`.
  */
 
+/**
+ * Un prop AMÂNAT server-side cu `Inertia::defer(...)`.
+ *
+ * **Lipsește din prima randare** — Inertia îl aduce într-o a doua cerere, după ce shell-ul
+ * paginii e deja pe ecran (FR-PERF-01). `T | undefined` nu e prudență, e forma reală a
+ * prop-ului la montare: cine îl citește fără să treacă întâi printr-un `<Deferred>` scrie
+ * un `undefined.ceva`.
+ *
+ * Marcajul ăsta a fost adăugat după auditul din 2026-09-29, unde `/…/unassigned` randa
+ * ECRAN ALB exact așa: pagina citea `deals.data.length` la prima randare, excepția urca
+ * prin React, React demonta tot arborele. Tipurile de atunci declarau prop-urile amânate
+ * NON-opționale, deci `tsc` trecea curat peste un acces garantat să crape.
+ *
+ * Forma corectă de citire e o componentă INTERIOARĂ, montată de `<Deferred>`, care își ia
+ * singură prop-urile — atunci sunt garantat prezente. Vezi `Invoices/Index.tsx`
+ * (tiparul original) și `Unassigned/Index.tsx` (cel reparat).
+ *
+ * Deci: dacă `tsc` se plânge aici, NU pune `!` și nu lărgi tipul. Mută citirea sub
+ * `<Deferred>` — plângerea e literalmente defectul pe care marcajul există să-l prindă.
+ */
+export type DeferredProp<T> = T | undefined;
+
 // Auth/Login — FR-PUB-02.
 export type DemoAccountRole = 'owner' | 'manager' | 'agent' | 'viewer';
 
@@ -178,13 +200,13 @@ export interface AccountActivityEntry {
 }
 
 export interface AccountsIndexPageProps {
-    accounts: CursorPage<AccountRow>;
+    accounts: DeferredProp<CursorPage<AccountRow>>;
     // Pachetul C („bulk"), §13.1 — numărul EXACT de rânduri pe care le-ar ATINGE
     // operația bulk pe filtrul curent (`App\Support\Bulk\BulkMatchingRowCount`, P2-003),
     // NU al filtrului brut: pentru un Agent (BR-BULK-02), restricția de proprietate e
     // deja aplicată aici, identic cu `DispatchBulkOperationAction`. Deferred, ca
     // `accounts`: un al doilea COUNT pe același filtru, nu blochează randarea rândurilor.
-    total: number;
+    total: DeferredProp<number>;
     list: ListState;
     // Selector de coloane (specs.md §15.1) — coloanele EFECTIVE (validate server-side prin
     // `App\Support\SavedViews\ListColumns`), în ordinea lor de afișare; NU în `ListState`
@@ -203,7 +225,7 @@ export interface AccountsShowPageProps {
     account: AccountDetail;
     contacts: AccountContactRow[];
     deals: AccountDealRow[];
-    activity: AccountActivityEntry[];
+    activity: DeferredProp<AccountActivityEntry[]>;
     deletionBlockedReason: string | null;
     can: { edit: boolean; delete: boolean; createDeal: boolean; createContact: boolean };
     [key: string]: unknown;
@@ -254,7 +276,7 @@ export interface Contact {
 }
 
 export interface ContactsIndexPageProps {
-    contacts: CursorPage<Contact>;
+    contacts: DeferredProp<CursorPage<Contact>>;
     list: ListState;
     can: {
         create: boolean;
@@ -373,9 +395,9 @@ export interface DealStageEvent {
 }
 
 export interface DealsIndexPageProps {
-    deals: CursorPage<DealSummary>;
+    deals: DeferredProp<CursorPage<DealSummary>>;
     // Pachetul C („bulk"), §13.1 — vezi `AccountsIndexPageProps.total`, aceeași formă.
-    total: number;
+    total: DeferredProp<number>;
     filters: ListState;
     // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
     columns: string[];
@@ -533,9 +555,9 @@ export interface ProductDetail {
 }
 
 export interface ProductsIndexPageProps {
-    products: CursorPage<ProductRow>;
+    products: DeferredProp<CursorPage<ProductRow>>;
     // Pachetul C („bulk"), lotul E — vezi `AccountsIndexPageProps.total`, aceeași formă.
-    total: number;
+    total: DeferredProp<number>;
     list: ListState;
     // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
     columns: string[];
@@ -611,7 +633,7 @@ export interface StockMovementRow {
 
 export interface StockHistoryPageProps {
     variant: { id: string; sku: string; productName: string };
-    movements: CursorPage<StockMovementRow>;
+    movements: DeferredProp<CursorPage<StockMovementRow>>;
     list: ListState;
     reasons: StockMovementReason[];
     [key: string]: unknown;
@@ -672,7 +694,7 @@ export interface SentEmailRow {
 }
 
 export interface SentEmailsIndexPageProps {
-    sentEmails: CursorPage<SentEmailRow>;
+    sentEmails: DeferredProp<CursorPage<SentEmailRow>>;
     list: ListState;
     statuses: SentEmailStatus[];
     [key: string]: unknown;
@@ -935,13 +957,13 @@ export interface OrderSummary {
 }
 
 export interface OrdersIndexPageProps {
-    orders: CursorPage<OrderSummary>;
+    orders: DeferredProp<CursorPage<OrderSummary>>;
     // Pachetul C („bulk"), lotul E — vezi `AccountsIndexPageProps.total`, aceeași formă:
     // N-ul EXACT pe care REASIGNAREA l-ar atinge pe filtrul curent.
-    total: number;
+    total: DeferredProp<number>;
     // Distinct de `total`: N-ul EXACT pe care ANULAREA ÎN MASĂ (doar `draft`, §13.5) l-ar
     // atinge — nu tot filtrul. Vezi `App\Support\Bulk\BulkChunkActions::narrowQuery()`.
-    draftTotal: number;
+    draftTotal: DeferredProp<number>;
     filters: ListState;
     // Selector de coloane (specs.md §15.1) — vezi nota din `AccountsIndexPageProps.columns`.
     columns: string[];
@@ -1077,8 +1099,8 @@ export interface AcceptInvitationPageProps {
 // deschise + comenzi active ale membrilor dezactivați, literal după Gherkin-ul US-TEN-03.
 
 export interface UnassignedIndexPageProps {
-    deals: CursorPage<DealSummary>;
-    orders: CursorPage<OrderSummary>;
+    deals: DeferredProp<CursorPage<DealSummary>>;
+    orders: DeferredProp<CursorPage<OrderSummary>>;
     can: {
         reassign: boolean;
     };
@@ -1357,7 +1379,7 @@ export interface Invoice {
 }
 
 export interface InvoicesIndexPageProps {
-    invoices: CursorPage<Invoice>;
+    invoices: DeferredProp<CursorPage<Invoice>>;
     filters: ListState;
     // FR-BILL-03 — §7.4 nota ³ / BR-BILL-03: exportul e o CITIRE, permisă inclusiv
     // Viewer-ului. Calculat server-side, ca orice alt `can`.

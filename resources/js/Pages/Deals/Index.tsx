@@ -1,4 +1,4 @@
-import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import type { TFunction } from 'i18next';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
+import DeferredData from '@/Components/DeferredData';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
 import RowCheckbox from '@/Components/Form/RowCheckbox';
@@ -192,16 +193,22 @@ export default function Index() {
                     </div>
                 </div>
 
-                <Deferred data="deals" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
-                    <DealsTable
-                        workspaceSlug={workspaceSlug}
-                        canCreate={can.create}
-                        columns={visibleColumns}
-                        sort={{ column: currentSort, direction: currentDirection }}
-                        onSort={toggleSort}
-                        bulkDispatchUrl={bulkDispatchUrl}
-                    />
-                </Deferred>
+                <DeferredData<DealsIndexPageProps, 'deals'>
+                    keys={['deals']}
+                    fallback={<TableSkeleton columns={skeletonColumnCount} />}
+                >
+                    {({ deals }) => (
+                        <DealsTable
+                            deals={deals}
+                            workspaceSlug={workspaceSlug}
+                            canCreate={can.create}
+                            columns={visibleColumns}
+                            sort={{ column: currentSort, direction: currentDirection }}
+                            onSort={toggleSort}
+                            bulkDispatchUrl={bulkDispatchUrl}
+                        />
+                    )}
+                </DeferredData>
             </div>
         </>
     );
@@ -227,7 +234,10 @@ function DealsTable({
     sort,
     onSort,
     bulkDispatchUrl,
+    deals,
 }: {
+    /** Predat de `<DeferredData>`, deci garantat sosit — vezi `Components/DeferredData.tsx`. */
+    deals: NonNullable<DealsIndexPageProps['deals']>;
     workspaceSlug: string;
     canCreate: boolean;
     /** Deja filtrate/rezolvate în `Index()` (`visibleColumns`) — nicio cheie necunoscută aici. */
@@ -237,7 +247,7 @@ function DealsTable({
     bulkDispatchUrl: string;
 }) {
     const { t } = useTranslation('deals');
-    const { deals, total, can, owners, bulkConfirmationThreshold, bulkRowCap } = usePage<DealsIndexPageProps>().props;
+    const { total, can, owners, bulkConfirmationThreshold, bulkRowCap } = usePage<DealsIndexPageProps>().props;
     const pageIds = deals.data.map((deal) => deal.id);
     const selection = useBulkSelection(pageIds);
 

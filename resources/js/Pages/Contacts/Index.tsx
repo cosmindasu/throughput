@@ -1,8 +1,9 @@
-import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import Button, { ButtonLink, buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
+import DeferredData from '@/Components/DeferredData';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
@@ -111,17 +112,21 @@ export default function ContactsIndex() {
                     </div>
                 </div>
 
-                <Deferred data="contacts" fallback={<TableSkeleton columns={5} />}>
-                    <ContactsTable />
-                </Deferred>
+                <DeferredData<ContactsIndexPageProps, 'contacts'>
+                    keys={['contacts']}
+                    fallback={<TableSkeleton columns={5} />}
+                >
+                    {({ contacts }) => <ContactsTable contacts={contacts} />}
+                </DeferredData>
             </div>
         </>
     );
 }
 
-function ContactsTable() {
+function ContactsTable({ contacts }: { contacts: NonNullable<ContactsIndexPageProps['contacts']> }) {
     const { t } = useTranslation('contacts');
-    const { contacts, list, can, workspace } = usePage<ContactsIndexPageProps>().props;
+    // `contacts` vine ca prop de la `<DeferredData>` (garantat sosit); restul nu e amânat.
+    const { list, can, workspace } = usePage<ContactsIndexPageProps>().props;
     const { setFilter } = useListFilters(list);
 
     // P2-002 (code review) — aliniat la `Pages/Accounts/Index.tsx`: o listă goală

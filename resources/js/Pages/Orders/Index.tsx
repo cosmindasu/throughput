@@ -1,4 +1,4 @@
-import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import type { TFunction } from 'i18next';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import BulkSelectionBar from '@/Components/BulkSelectionBar';
 import { ButtonLink, buttonClass } from '@/Components/Button';
 import ColumnSelector, { type ColumnDefinition } from '@/Components/ColumnSelector';
 import CursorPagination from '@/Components/CursorPagination';
+import DeferredData from '@/Components/DeferredData';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
 import RowCheckbox from '@/Components/Form/RowCheckbox';
@@ -264,17 +265,23 @@ export default function Index() {
                     />
                 )}
 
-                <Deferred data="orders" fallback={<TableSkeleton columns={skeletonColumnCount} />}>
-                    <OrdersTable
-                        workspaceSlug={workspaceSlug}
-                        canCreate={can.create}
-                        canBulk={canBulkAnything}
-                        selection={selection}
-                        columns={visibleColumns}
-                        sort={{ column: currentSort, direction: currentDirection }}
-                        onSort={toggleSort}
-                    />
-                </Deferred>
+                <DeferredData<OrdersIndexPageProps, 'orders'>
+                    keys={['orders']}
+                    fallback={<TableSkeleton columns={skeletonColumnCount} />}
+                >
+                    {({ orders }) => (
+                        <OrdersTable
+                            orders={orders}
+                            workspaceSlug={workspaceSlug}
+                            canCreate={can.create}
+                            canBulk={canBulkAnything}
+                            selection={selection}
+                            columns={visibleColumns}
+                            sort={{ column: currentSort, direction: currentDirection }}
+                            onSort={toggleSort}
+                        />
+                    )}
+                </DeferredData>
             </div>
         </>
     );
@@ -294,6 +301,7 @@ function OwnerFilterButton({ active, onClick, children }: { active: boolean; onC
 }
 
 function OrdersTable({
+    orders,
     workspaceSlug,
     canCreate,
     canBulk,
@@ -302,6 +310,8 @@ function OrdersTable({
     sort,
     onSort,
 }: {
+    /** Predat de `<DeferredData>`, deci garantat sosit — vezi `Components/DeferredData.tsx`. */
+    orders: NonNullable<OrdersIndexPageProps['orders']>;
     workspaceSlug: string;
     canCreate: boolean;
     canBulk: boolean;
@@ -312,7 +322,6 @@ function OrdersTable({
     onSort: (column: string) => void;
 }) {
     const { t } = useTranslation('orders');
-    const { orders } = usePage<OrdersIndexPageProps>().props;
 
     if (orders.data.length === 0) {
         // Text corectat (raportul E2E) — „or from an account page" trimitea la un link

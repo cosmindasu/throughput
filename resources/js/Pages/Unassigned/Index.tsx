@@ -2,10 +2,12 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import Button from '@/Components/Button';
+import DeferredData from '@/Components/DeferredData';
 import EmptyState from '@/Components/EmptyState';
 import Field, { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
 import StatusBadge from '@/Components/StatusBadge';
+import TableSkeleton from '@/Components/TableSkeleton';
 import AppLayout from '@/Layouts/AppLayout';
 import type { UnassignedIndexPageProps } from '@/types/generated';
 
@@ -18,7 +20,56 @@ import type { UnassignedIndexPageProps } from '@/types/generated';
  * selecție rând cu rând: vederea ÎNSĂȘI e deja setul care are nevoie de un owner nou.
  */
 export default function UnassignedIndex() {
-    const { deals, orders, can, activeMembers } = usePage<UnassignedIndexPageProps>().props;
+    const { t } = useTranslation('dashboard');
+
+    return (
+        <>
+            {/* SC 2.4.2 (Page Titled) — fără `<Head>`, titlul documentului rămâne cel al
+                paginii ANTERIOARE într-un SPA Inertia: cine navighează cu un cititor de
+                ecran aude titlul vechi la fiecare intrare aici. */}
+            <Head title={t('dashboard:unassigned.title')} />
+
+            <PageHeader title={t('dashboard:unassigned.title')} description={t('dashboard:unassigned.description')} />
+
+            {/*
+                `deals` și `orders` sunt AMÂNATE server-side (`UnassignedController`,
+                `Inertia::defer`), deci LIPSESC din prima randare. `<DeferredData>` le predă
+                mai departe abia după ce sosesc; `<Head>`/`<PageHeader>` de mai sus nu depind
+                de ele și apar instant, ca pe celelalte liste.
+
+                Fără garda asta pagina cădea cu `Cannot read properties of undefined
+                (reading 'data')` la prima randare, iar React demonta tot arborele: ecran
+                COMPLET alb, nu doar un tabel lipsă. Tipul le declara atunci non-opționale,
+                deci `tsc` trecea curat; de la același audit sunt `DeferredProp<...>`, iar
+                singura cale de a le citi ca prezente trece prin `<DeferredData>`.
+                `e2e/specs/routes-smoke.spec.ts` rămâne plasa de la rulare.
+            */}
+            <DeferredData<UnassignedIndexPageProps, 'deals' | 'orders'>
+                keys={['deals', 'orders']}
+                fallback={<div className="mt-6"><TableSkeleton columns={4} /></div>}
+            >
+                {({ deals, orders }) => <UnassignedContent deals={deals} orders={orders} />}
+            </DeferredData>
+        </>
+    );
+}
+
+/**
+ * Corpul care are nevoie de datele amânate. Le primește ca PROP-URI de la `<DeferredData>`,
+ * care îl montează abia după sosirea lor — de-aia sunt tipate `NonNullable` aici, fără cast.
+ *
+ * Stările formularului de reatribuire trăiesc aici, nu în shell: sunt ale lui, și oricum
+ * n-ar avea ce alege înainte să existe datele.
+ */
+function UnassignedContent({
+    deals,
+    orders,
+}: {
+    deals: NonNullable<UnassignedIndexPageProps['deals']>;
+    orders: NonNullable<UnassignedIndexPageProps['orders']>;
+}) {
+    // `can`/`activeMembers` NU sunt amânate — vin în shell, deci se citesc direct.
+    const { can, activeMembers } = usePage<UnassignedIndexPageProps>().props;
     const { t } = useTranslation('dashboard');
     const [newOwnerUserId, setNewOwnerUserId] = useState('');
     const [processing, setProcessing] = useState(false);
@@ -54,13 +105,6 @@ export default function UnassignedIndex() {
 
     return (
         <>
-            {/* SC 2.4.2 (Page Titled) — fără `<Head>`, titlul documentului rămâne cel al
-                paginii ANTERIOARE într-un SPA Inertia: cine navighează cu un cititor de
-                ecran aude titlul vechi la fiecare intrare aici. */}
-            <Head title={t('dashboard:unassigned.title')} />
-
-            <PageHeader title={t('dashboard:unassigned.title')} description={t('dashboard:unassigned.description')} />
-
             {!isEmpty && can.reassign && (
                 <div className="mt-4 flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
                     {generalError && (

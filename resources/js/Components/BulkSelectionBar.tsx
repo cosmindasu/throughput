@@ -6,6 +6,7 @@ import ConfirmDialog from '@/Components/ConfirmDialog';
 import { controlClass } from '@/Components/Form/Field';
 import { useBulkActionDispatch } from '@/hooks/useBulkActionDispatch';
 import { useLocale } from '@/hooks/useLocale';
+import type { DeferredProp } from '@/types/generated';
 import { formatNumber } from '@/lib/format';
 import type { AppLocale } from '@/lib/i18n';
 
@@ -101,11 +102,16 @@ interface BulkSelectionBarProps {
     /**
      * N-ul EXACT pe care operația l-ar atinge pe modul „select all matching filter"
      * (`App\Support\Bulk\BulkMatchingRowCount`, P2-003 — restricția Agentului aplicată).
-     * Prop DEFERRED (Inertia 3): poate să nu fi sosit încă la primul randaj, chiar dacă
-     * tipul din `generated.d.ts` îl declară mereu `number` — verificat aici cu
-     * `typeof`, nu presupus (P1-002, code review).
+     * Prop DEFERRED (Inertia 3): poate să nu fi sosit încă la primul randaj — bara se
+     * randează ÎNAINTE de `<Deferred>` pe Accounts/Orders/Products, deci chiar lipsește
+     * la prima trecere. Verificat mai jos cu `typeof`, nu presupus (P1-002, code review).
+     *
+     * Tipul spunea `number` și mințea; nota asta o semnala din P1-002, dar declarația a
+     * rămas. De la auditul din 2026-09-29 e `DeferredProp<number>` — aceeași informație,
+     * mutată acolo unde `tsc` o poate folosi. Garda cu `typeof` de mai jos NU e redundantă
+     * acum: ea e motivul pentru care tipul are voie să admită `undefined`.
      */
-    total: number;
+    total: DeferredProp<number>;
     /** Rândurile bifate explicit pe pagina curentă (`useBulkSelection`), NICIODATĂ tot filtrul. */
     selectedCount: number;
     allOnPageSelected: boolean;

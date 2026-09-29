@@ -1,8 +1,9 @@
-import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { buttonClass } from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
+import DeferredData from '@/Components/DeferredData';
 import EmptyState from '@/Components/EmptyState';
 import { controlClass } from '@/Components/Form/Field';
 import PageHeader from '@/Components/PageHeader';
@@ -121,9 +122,12 @@ export default function Index() {
                     </label>
                 </div>
 
-                <Deferred data="invoices" fallback={<TableSkeleton columns={6} />}>
-                    <InvoicesTable base={base} />
-                </Deferred>
+                <DeferredData<InvoicesIndexPageProps, 'invoices'>
+                    keys={['invoices']}
+                    fallback={<TableSkeleton columns={6} />}
+                >
+                    {({ invoices }) => <InvoicesTable base={base} invoices={invoices} />}
+                </DeferredData>
             </div>
         </>
     );
@@ -140,9 +144,8 @@ function buildExportHref(currentUrl: string, base: string, format: 'csv' | 'zip'
     return query ? `${exportPath}?${query}&format=${format}` : `${exportPath}?format=${format}`;
 }
 
-function InvoicesTable({ base }: { base: string }) {
+function InvoicesTable({ base, invoices }: { base: string; invoices: NonNullable<InvoicesIndexPageProps['invoices']> }) {
     const { t } = useTranslation('invoices');
-    const { invoices } = usePage<InvoicesIndexPageProps>().props;
 
     if (invoices.data.length === 0) {
         return <EmptyState message={t('invoices:index.empty')} />;
