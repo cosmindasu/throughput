@@ -91,6 +91,25 @@ services:
       - SERVICE_FQDN_NGINX_80=https://throughput.dbg.ro
     depends_on: { app: { condition: service_healthy } }
     networks: [internal]
+    # Traefik trebuie să știe PE CARE rețea să deschidă conexiunea — altfel o alege singur.
+    #
+    # Containerul ajunge pe DOUĂ rețele: `internal` (declarată mai jos, pentru `app:9000`) și
+    # rețeaua pe care Coolify o atașează ca să-l poată rula prin proxy. Traefik e doar pe a
+    # doua. Măsurat de pe `coolify-proxy`: 172.27.0.7 (rețeaua Coolify) răspunde, 172.28.0.5
+    # (`internal`) expiră. Fără eticheta asta, Traefik alege una dintre ele la fiecare
+    # rezolvare nouă, iar când nimerește a doua cererea cade în gol exact 30s — `dialTimeout`-ul
+    # lui implicit — și vizitatorul primește 504.
+    #
+    # Nu e teoretic: 3 din 13 cereri trimise după o perioadă de inactivitate au eșuat așa
+    # (auditul din 2026-09-29), toate la 30,03s, niciuna ajungând vreodată în logul nginx.
+    # Cât timp o conexiune e deja deschisă Traefik o refolosește, de-aia 20 de cereri în
+    # rafală treceau toate — inactivitatea nu provoacă defectul, doar forțează o rezolvare nouă.
+    #
+    # Valoarea e numele rețelei Coolify pentru ACEASTĂ aplicație (UUID-ul ei, stabil între
+    # deploy-uri). Specifică mediului, ca `SERVICE_FQDN_NGINX_80` de mai sus — fișierul ăsta
+    # e oricum descriptorul de deployment Coolify, nu unul portabil.
+    labels:
+      - traefik.docker.network=yy5kcf4ijq4eo754ejo9tbtn
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/up"]
       interval: 30s
