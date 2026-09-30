@@ -154,7 +154,7 @@ export default function Index() {
                 {entries.data.length === 0 ? (
                     <EmptyState message={hasFilters ? t('index.empty.filtered') : t('index.empty.none')} />
                 ) : (
-                    <div className="data-table-scroll rounded-lg border border-border">
+                    <div className="data-table-scroll rounded-lg border border-border" tabIndex={0}>
                         <table className="data-table w-full text-left text-sm">
                             <caption className="sr-only">{t('index.title')}</caption>
                             <thead className="bg-raised text-text-2">

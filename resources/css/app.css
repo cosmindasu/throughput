@@ -240,6 +240,30 @@ body {
      */
     .data-table-scroll {
         overflow: auto;
+
+        /*
+         * Fără asta, PAGINA derula lateral câteva sute de pixeli, în gol — pe orice ecran
+         * îngust, pe toate listele. Defect vechi, nu adus de capul lipit: măsurat și pe
+         * commit-ul dinaintea lui (Deals 914px la o fereastră de 375).
+         *
+         * `overflow: auto` de mai sus chiar decupează tabelul — învelișul are `clientWidth`
+         * 341 și `scrollWidth` 894, deci derulează pe dinăuntru, corect. Și totuși
+         * documentul creștea odată cu tabelul. Dovada că nu era o măsurătoare greșită:
+         * ascuns un SINGUR `<td>` dinăuntru, `document.scrollWidth` scădea cu exact lățimea
+         * lui — conținut aflat într-un container de derulare nu are voie să facă asta.
+         *
+         * Ce NU repară (toate încercate, toate confirmate aplicate):
+         * `overflow-x: hidden` pe `<html>`, pe `<body>` sau pe `<main>`; `overflow: clip`
+         * sau `contain: inline-size` pe însuși învelișul. Rămân toate la 898px și 523px de
+         * derulare. Decuparea nu oprește propagarea asta.
+         *
+         * `contain: paint` o oprește: îi spune motorului ce `overflow: auto` făcea deja —
+         * descendenții nu pictează în afara cutiei. Nu schimbă nimic vizual și nu atinge
+         * derularea orizontală dinăuntrul tabelului (verificat: rămâne activă). Singurul lui
+         * efect colateral real e că elementul devine bloc de referință pentru descendenți
+         * poziționați; înăuntru nu există decât `sr-only`-uri, pe toate cele nouă liste.
+         */
+        contain: paint;
     }
 
     @media (min-width: 48rem) {
@@ -247,6 +271,18 @@ body {
             max-height: min(70vh, 40rem);
         }
     }
+
+    /*
+     * Fiecare înveliș poartă `tabIndex={0}` în markup, și NU e decor: limita de mai sus îl
+     * face derulabil pe verticală, iar o zonă care derulează fără niciun element focusabil
+     * înăuntru e inaccesibilă de la tastatură — nu poți ajunge în ea ca s-o derulezi.
+     *
+     * Prins de axe-core (`scrollable-region-focusable`, impact „serious") pe Settings →
+     * Members, în ambele teme, DOAR pentru rolul Manager: acolo rândurile n-au butoane de
+     * acțiune, deci zona rămânea complet fără ținte de focus. Pentru Owner, aceleași rânduri
+     * au acțiuni și regula trecea — genul de defect care apare pe un singur rol și se
+     * strecoară dacă suita nu rulează pe toate.
+     */
 
     /*
      * Fundalul stă pe `th`, nu pe `thead`: un element `sticky` își ia cu el doar propriul

@@ -92,7 +92,7 @@ export default function History() {
 
                 <Deferred data="movements" fallback={<TableSkeleton columns={6} />}>
                     {movements && movements.data.length > 0 ? (
-                        <div className="data-table-scroll rounded-lg border border-border">
+                        <div className="data-table-scroll rounded-lg border border-border" tabIndex={0}>
                             <table className="data-table w-full text-left text-sm">
                                 <caption className="sr-only">{t('products:stock.history.tableCaption', { sku: variant.sku })}</caption>
                                 <thead className="bg-raised text-text-2">

@@ -120,7 +120,7 @@ export default function DataExportIndex() {
                     : t('settings:dataExport.retentionMessage', { count: retentionDays })}
             </p>
 
-            <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+            <div className="data-table-scroll mt-6 rounded-lg border border-border" tabIndex={0}>
                 <table className="data-table w-full text-left text-sm">
                     <caption className="sr-only">{t('settings:dataExport.tableCaption')}</caption>
                     <thead className="border-b border-border bg-surface text-text-2">

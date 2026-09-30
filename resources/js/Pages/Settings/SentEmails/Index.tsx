@@ -208,7 +208,7 @@ export default function SentEmailsIndex() {
 
                 <Deferred data="sentEmails" fallback={<TableSkeleton columns={6} />}>
                     {sentEmails && sentEmails.data.length > 0 ? (
-                        <div className="data-table-scroll rounded-lg border border-border">
+                        <div className="data-table-scroll rounded-lg border border-border" tabIndex={0}>
                             <table className="data-table w-full text-left text-sm">
                                 <caption className="sr-only">{t('settings:sentEmails.tableCaption')}</caption>
                                 <thead className="border-b border-border bg-surface text-text-2">

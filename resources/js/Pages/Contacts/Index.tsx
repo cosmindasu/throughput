@@ -159,7 +159,7 @@ function ContactsTable({ contacts }: { contacts: NonNullable<ContactsIndexPagePr
                 rândurile. Măsurat, nu dedus: `th` cobora de la 328 la 28 după o derulare de
                 300px, în timp ce pe restul rămânea pe loc. Bordura și decuparea s-au mutat
                 pe învelișul de derulare, unde le e locul. */}
-            <div className="data-table-scroll rounded-lg border border-border bg-surface">
+            <div className="data-table-scroll rounded-lg border border-border bg-surface" tabIndex={0}>
                 <table className="data-table w-full border-separate border-spacing-0 text-sm">
                     <caption className="sr-only">{t('index.title')}</caption>
                     <thead>
