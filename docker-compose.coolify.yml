@@ -149,7 +149,8 @@ services:
       APP_RUN_SEEDERS: "false"
       # Singurul serviciu care ridică `memory_limit` la 256M (vezi docker/app/Dockerfile,
       # stage-ul `base`). `app` și `scheduler` folosesc aceeași imagine și rămân la 128M —
-      # bugetele lor sunt 256m cu 4 copii FPM, respectiv 128m. Calea include și `conf.d`:
+      # bugetele lor de container sunt 256m amândouă (`app` cu 4 copii FPM, `scheduler` cu
+      # un proces per task scadent) — adică dublul lui `memory_limit`. Calea include și `conf.d`:
       # `PHP_INI_SCAN_DIR` ÎNLOCUIEȘTE directorul implicit, nu i se adaugă, deci fără el
       # extensiile și plafoanele de upload ar dispărea tăcut.
       PHP_INI_SCAN_DIR: "/usr/local/etc/php/conf.d:/usr/local/etc/php/horizon.d"
@@ -173,8 +174,17 @@ services:
     command: ["php", "artisan", "schedule:work"]
     restart: unless-stopped
     logging: *default-logging
-    mem_limit: 128m
-    memswap_limit: 128m
+    # Bugetul containerului TREBUIE sa depaseasca `memory_limit` din PHP, nu sa-l egaleze.
+    # Era 128m — exact cat are PHP (vezi nota de la `horizon` mai sus: `scheduler` ramane la
+    # 128M). Deci PHP avea voie sa aloce intreg bugetul containerului, fara spatiu pentru
+    # binar, extensii si procesele COPIL: `schedule:work` lanseaza cate un proces pe task
+    # scadent, iar la 00:00 sunt patru simultan (ResetDemoDataJob, DispatchScheduledReportsJob,
+    # FailStuckBulkOperationsJob, FailStuckImportsJob). Rezultat masurat: 3 OOM-uri in cgroup
+    # (1 si 30 sept 2026), ucise de kernel INAINTE ca PHP sa poata da o eroare curata.
+    # 256m aliniaza bugetul cu `app`, care ruleaza aceeasi imagine la acelasi `memory_limit`.
+    # `memswap_limit` egal = fara swap, ca la restul serviciilor din fisier.
+    mem_limit: 256m
+    memswap_limit: 256m
     environment:
       <<: *app-env
       APP_RUN_MIGRATIONS: "false"
