@@ -109,6 +109,15 @@ class DashboardTest extends TestCase
                 // regula din `types/generated.d.ts` cere ca orice schimbare de formă a unui
                 // Resource să fie prinsă ȘI de un test de contract, nu doar oglindită în tip.
                 ->where('activity.0.action', 'exported')
+                // `kind` — CE s-a întâmplat, derivat din `action` + `auditable_type` +
+                // `new_values` (`App\Support\Activity\ActivityKind`). Pentru un verb
+                // neambiguu ca `exported` e identic cu `action`; diferă doar la `updated`,
+                // unde acoperea deopotrivă o mutare de etapă, o factură plătită și o
+                // editare oarecare — vezi testul dedicat de mai jos.
+                ->where('activity.0.kind', 'exported')
+                // Numele propriu al înregistrării: `null` aici fiindcă rândul de test n-are
+                // `auditable_id`, deci nu exista entitate de citit.
+                ->where('activity.0.subjectName', null)
             );
 
         // `null`, nu listă goală: „No recent activity yet" ar afirma ceva fals despre workspace.

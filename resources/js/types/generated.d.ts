@@ -100,7 +100,16 @@ export interface ActivityItem {
     // `HistoryEntry`. Folosită DOAR pentru semnalul vizual (`lib/activityTone`), niciodată
     // pentru a reconstrui text.
     action: string;
+    // CE s-a întâmplat, derivat server-side din `action` + `auditable_type` + `new_values`
+    // (`App\Support\Activity\ActivityKind`). „Etapă mutată", „factură plătită" și
+    // „comandă expediată" sunt toate `updated` în coloană — diferența există doar aici.
+    // Feed-ul alege iconul și tenta din ASTA (`lib/activityKind`), nu din `action`.
+    kind: string;
     description: string;
+    // Numele PROPRIU al înregistrării atinse (titlul afacerii, numărul comenzii…), separat
+    // de fraza tradusă din `description` — FR-I18N-06. `null` dacă entitatea nu mai există
+    // sau tipul ei n-are un câmp de nume cunoscut.
+    subjectName: string | null;
     actor: string;
     at: string;
 }

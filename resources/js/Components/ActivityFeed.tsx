@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import ActivityDot from '@/Components/ActivityDot';
+import ToneIcon from '@/Components/ToneIcon';
+import { kindVisual } from '@/lib/activityKind';
 import { useLocale } from '@/hooks/useLocale';
 import { getDateTimeFormat } from '@/lib/format';
 import type { ActivityItem } from '@/types/generated';
@@ -43,11 +44,28 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
                         `App\Http\Resources\ActivityEntryResource` (interpolare + `Str::headline()`),
                         fără trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu
                         le reconstrui aici (vezi raportul). */}
+                    {/* Iconul vine din `item.kind` (derivat pe server), NU din `item.action`:
+                        enum-ul coloanei are 9 valori, dar o mutare de etapă, o factură plătită
+                        și o editare de titlu sunt toate `updated`. Culoarea spune CONSECINȚA,
+                        forma spune OBIECTUL — deci rândurile de rutină rămân neutre și doar ce
+                        contează iese în evidență. `ToneIcon` e `aria-hidden` + `rounded-full`,
+                        exact unul pe rând: contractul verificat de `list-rows.spec.ts`. */}
                     <div className="flex min-w-0 items-start gap-2.5">
-                        <ActivityDot action={item.action} />
+                        <ToneIcon size="sm" name={kindVisual(item.kind).icon} tone={kindVisual(item.kind).tone} />
                         <div className="min-w-0">
                             <p className="truncate text-text">{item.description}</p>
-                            <p className="truncate text-xs text-text-3">{item.actor}</p>
+                            {/* Numele înregistrării atinse, separat de fraza tradusă
+                                (FR-I18N-06). Fără el, zece rânduri „Updated Deal" nu spun
+                                CARE afacere. Autorul rămâne pe acelaşi rând, după un separator. */}
+                            <p className="truncate text-xs text-text-3">
+                                {item.subjectName ? (
+                                    <>
+                                        <span className="text-text-2">{item.subjectName}</span>
+                                        <span aria-hidden="true"> · </span>
+                                    </>
+                                ) : null}
+                                {item.actor}
+                            </p>
                         </div>
                     </div>
                     <time dateTime={item.at} className="numeric shrink-0 text-xs text-text-3">

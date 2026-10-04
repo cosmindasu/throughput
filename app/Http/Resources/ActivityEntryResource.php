@@ -2,8 +2,17 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Invoice;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\Variant;
+use Illuminate\Database\Eloquent\Model;
 use App\Models\Membership;
+use App\Support\Activity\ActivityKind;
 use App\Support\Activity\ActivityActionLabel;
 use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
@@ -37,7 +46,20 @@ class ActivityEntryResource extends JsonResource
             // creare; `description` rămâne singura sursă a TEXTULUI, nu se reconstruiește
             // nimic din `action` în React.
             'action' => $this->action,
+            // „Ce s-a întâmplat", derivat — `updated` acoperă deopotrivă o mutare de etapă,
+            // o factură plătită și o editare de titlu (vezi `ActivityKind`). Feed-ul alege
+            // iconul și tenta din ASTA, nu din `action`, ca rândurile de rutină să rămână
+            // neutre și doar consecințele reale să iasă în evidență.
+            'kind' => ActivityKind::of($this->resource),
             'description' => $this->description(),
+            // Numele entității atinse, ca al DOILEA câmp, nu interpolat în `description`:
+            // fraza rămâne tradusă întreagă (FR-I18N-06), iar conținutul scris de
+            // utilizator intră separat. `null` când entitatea nu mai există sau rândul
+            // n-are subiect (login, export în masă).
+            //
+            // GDPR-02: citim numele CURENT al modelului, deci un contact anonimizat apare
+            // cu placeholderul lui — feed-ul nu poate reînvia date șterse.
+            'subjectName' => $this->subjectName(),
             // FR-TEN-04 — placeholder „(deactivated)" pe autorul unei acțiuni dacă
             // membership-ul lui în tenantul curent a fost dezactivat între timp.
             'actor' => DeactivatedMemberNames::label($this->user?->name, $this->user_id) ?? __('activity.entries.system_actor'),
@@ -58,6 +80,18 @@ class ActivityEntryResource extends JsonResource
 
         $subject = $this->subjectLabel();
 
+        // Tipurile DERIVATE primesc fraza lor; restul cad pe verbul din enum.
+        $derived = match (ActivityKind::of($this->resource)) {
+            'stage_moved' => __('activity.entries.stage_moved', ['subject' => $subject]),
+            'invoice_paid' => __('activity.entries.invoice_paid', ['subject' => $subject]),
+            'order_shipped' => __('activity.entries.order_shipped', ['subject' => $subject]),
+            default => null,
+        };
+
+        if ($derived !== null) {
+            return $derived;
+        }
+
         return match ($this->action) {
             'created' => __('activity.entries.created', ['subject' => $subject]),
             'updated' => __('activity.entries.updated', ['subject' => $subject]),
@@ -73,6 +107,31 @@ class ActivityEntryResource extends JsonResource
             // (`ActivityActionLabel::resolve()`), ca să nu randeze niciodată o cheie brută.
             default => ActivityActionLabel::resolve($this->action),
         };
+    }
+
+    /**
+     * Numele PROPRIU al înregistrării atinse (titlul afacerii, numărul comenzii…), nu tipul ei.
+     * `null` dacă entitatea nu mai există sau tipul n-are un câmp de nume cunoscut.
+     */
+    private function subjectName(): ?string
+    {
+        $model = $this->auditable;
+
+        if (! $model instanceof Model) {
+            return null;
+        }
+
+        $name = match (true) {
+            $model instanceof Deal => $model->title,
+            $model instanceof Account, $model instanceof Product => $model->name,
+            $model instanceof Contact => trim($model->first_name.' '.$model->last_name),
+            $model instanceof Order => $model->order_number,
+            $model instanceof Invoice => $model->invoice_number,
+            $model instanceof Variant => $model->sku,
+            default => null,
+        };
+
+        return ($name === null || $name === '') ? null : $name;
     }
 
     /** Numele entității auditate, tradus — fallback pe `record` dacă tipul lipsește sau nu are cheie în catalog. */

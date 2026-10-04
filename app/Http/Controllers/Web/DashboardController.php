@@ -91,7 +91,11 @@ class DashboardController extends Controller
         return ActivityEntryResource::collection(
             ActivityLog::query()
                 ->when(! $seesWholeTenant, fn (Builder $query) => $query->where('user_id', $user->getKey()))
-                ->with('user')
+                // `auditable` eager, nu doar `user`: `ActivityEntryResource::subjectName()`
+                // citește numele înregistrării atinse, iar proiectul interzice lazy loading
+                // (`Model::preventLazyLoading`). MorphTo se încarcă GRUPAT pe tip, deci cel
+                // mult o interogare per tip de entitate pentru cele 10 rânduri, nu 10.
+                ->with(['user', 'auditable'])
                 // Departajare pe `id`, nu doar `created_at` (Faza 4, prins de un test care
                 // a devenit instabil când suita a crescut): două acțiuni din aceeași secundă
                 // — de pildă dezactivarea unui membru și scrierea care o urmează — ieșeau în

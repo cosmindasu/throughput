@@ -75,6 +75,14 @@ return [
         // applyDeactivation()` scrie `action = 'updated'` pe un `Membership` (enum-ul
         // Postgres al coloanei n-are o valoare dedicată), deci fraza generică „Updated
         // Membership" ar fi corectă, dar opacă pentru cine citește feed-ul.
+        // Tipuri DERIVATE (`App\Support\Activity\ActivityKind`): în baza de date sunt
+        // toate `updated`, fiindcă enum-ul coloanei e închis. Fraza proprie e singurul mod
+        // în care feed-ul poate spune ce s-a întâmplat de fapt. `:subject` rămâne TIPUL
+        // tradus; numele propriu al înregistrării vine separat, ca `subjectName`.
+        'stage_moved' => 'Moved :subject to another stage',
+        'invoice_paid' => 'Marked :subject as paid',
+        'order_shipped' => 'Shipped :subject',
+
         'member_deactivated' => 'Deactivated a member',
 
         // Actorul unei acțiuni de sistem (`user_id` null — job programat, webhook, §17.1).
