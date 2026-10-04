@@ -63,6 +63,25 @@
      * token, nu `bg-black/50` scris în componentă (regula „niciun cod de culoare literal").
      */
     --scrim: rgb(13 27 36 / 0.45);
+    /*
+     * Date-viz și identitate (NU semantică): șase serii categoriale + rampa de etape + grafic.
+     * Măsurat pe `--surface` și `--raised`: marcajele (`--series-N`) ≥ 3,95:1 (SC 1.4.11), textul
+     * `--series-N-text` pe `--series-N-tint` ≥ 5,30:1 (AA text normal). Tentele sunt tokens FIXE,
+     * nu `color-mix()` — aceeași regulă ca la chip-urile semantice.
+     */
+    --series-1: #0e7c8c; --series-1-text: #06697a; --series-1-tint: #e0eef0;
+    --series-2: #7357d8; --series-2-text: #5a3fc0; --series-2-tint: #ede9fa;
+    --series-3: #c4600f; --series-3-text: #9a4a07; --series-3-tint: #f7eae0;
+    --series-4: #c2347f; --series-4-text: #a3246a; --series-4-tint: #f7e5ee;
+    --series-5: #2f74d0; --series-5-text: #1f5cb0; --series-5-tint: #e4edf9;
+    --series-6: #6f8212; --series-6-text: #566610; --series-6-tint: #ecefe0;
+    /* Rampa etapelor deschise: mai închis = mai aproape de câștig (≥ 3,28:1 pe --raised). */
+    --stage-1: #4a94a3;
+    --stage-2: #2a869a;
+    --stage-3: #0e7c8c;
+    --stage-4: #085764;
+    --chart-grid: var(--border);
+    --chart-axis: var(--text-3);
 }
 
 /*
@@ -98,6 +117,19 @@
     --info-tint: #212c3f;
     --focus: #56d4e0;
     --scrim: rgb(0 0 0 / 0.6);
+    --series-1: #3ec3d1; --series-1-text: #56d4e0; --series-1-tint: #1a3f48;
+    --series-2: #a592f7; --series-2-text: #b9aaf9; --series-2-tint: #313450;
+    --series-3: #f0a05a; --series-3-text: #f5b87e; --series-3-tint: #41372e;
+    --series-4: #ee82b9; --series-4-text: #f4a0cc; --series-4-tint: #413142;
+    --series-5: #6ea6f2; --series-5-text: #93bef6; --series-5-tint: #25394f;
+    --series-6: #b7cc55; --series-6-text: #c9db7e; --series-6-tint: #35412c;
+    /* Pe tema închisă „mai intens" = mai luminos (≥ 3,79:1 pe --raised). */
+    --stage-1: #2f8696;
+    --stage-2: #3a9fb0;
+    --stage-3: #4fb9c9;
+    --stage-4: #7ad3de;
+    --chart-grid: var(--border);
+    --chart-axis: var(--text-3);
 }
 
 /*
@@ -140,6 +172,28 @@
     --color-info-tint: var(--info-tint);
     --color-focus: var(--focus);
     --color-scrim: var(--scrim);
+    --color-series-1: var(--series-1);
+    --color-series-1-text: var(--series-1-text);
+    --color-series-1-tint: var(--series-1-tint);
+    --color-series-2: var(--series-2);
+    --color-series-2-text: var(--series-2-text);
+    --color-series-2-tint: var(--series-2-tint);
+    --color-series-3: var(--series-3);
+    --color-series-3-text: var(--series-3-text);
+    --color-series-3-tint: var(--series-3-tint);
+    --color-series-4: var(--series-4);
+    --color-series-4-text: var(--series-4-text);
+    --color-series-4-tint: var(--series-4-tint);
+    --color-series-5: var(--series-5);
+    --color-series-5-text: var(--series-5-text);
+    --color-series-5-tint: var(--series-5-tint);
+    --color-series-6: var(--series-6);
+    --color-series-6-text: var(--series-6-text);
+    --color-series-6-tint: var(--series-6-tint);
+    --color-stage-1: var(--stage-1);
+    --color-stage-2: var(--stage-2);
+    --color-stage-3: var(--stage-3);
+    --color-stage-4: var(--stage-4);
 }
 
 /*
@@ -150,6 +204,31 @@
 @utility numeric {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Limbajul de mișcare — trei durate, o curbă, DOAR transform/opacity/culoare (nu `width`/`top`,
+ * care declanșează layout). Cu `motion-safe:` la locul de folosire, `prefers-reduced-motion`
+ * le oprește fără CSS suplimentar: starea finală e cea din markup.
+ */
+@theme {
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --animate-rise: rise-in 380ms var(--ease-out-quart) both;
+    --animate-grow: grow-x 700ms var(--ease-out-quart) both;
+    --animate-settle: settle 900ms ease-out;
+
+    @keyframes rise-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: none; }
+    }
+    @keyframes grow-x {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+    }
+    @keyframes settle {
+        0% { background-color: var(--accent-tint); }
+        100% { background-color: var(--surface); }
+    }
 }
 
 body {
