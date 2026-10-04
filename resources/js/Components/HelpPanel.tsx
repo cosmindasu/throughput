@@ -44,6 +44,8 @@ export default function HelpPanel() {
     const introHintDismissed = dismissedHints.includes(INTRO_HINT_KEY);
 
     const [open, setOpen] = useState(false);
+    // Esc ascunde tooltip-ul fără a muta focusul sau cursorul (WCAG 1.4.13, „dismissible").
+    const [hintSuppressed, setHintSuppressed] = useState(false);
     // Limba al cărei catalog de ajutor e încărcat. `null` = niciunul încă. Comparat cu
     // `locale` (nu un boolean): `LocaleToggle` comută limba fără încărcare completă de
     // pagină, deci „gata" înseamnă „gata PENTRU LIMBA CURENTĂ", nu „s-a încărcat cândva".
@@ -184,26 +186,38 @@ export default function HelpPanel() {
         return null;
     }
 
-    const introHintVisible = !open && !introHintDismissed;
+    // Indiciul NU mai e o bulă permanentă peste navigație. Două semnale, ambele necaptive:
+    //  - un punct pulsatoriu pe butonul „?" (decor, `aria-hidden`) cât timp indiciul n-a fost închis;
+    //  - textul, ca TOOLTIP real (`role="tooltip"` + `aria-describedby`), doar la hover/focus pe buton.
+    // WCAG 1.4.13: dismissible (Esc), hoverable (tooltip-ul e copil al aceluiași `group`) și persistent
+    // cât ține hover/focus. Nu mai stă în arborele de accesibilitate ca `role="status"` pe fiecare pagină.
+    const introHintVisible = !open && !introHintDismissed && !hintSuppressed;
+    const hintId = `${panelId}-hint`;
 
     return (
-        <div className="relative">
+        <div className="group relative">
             <button
                 ref={triggerRef}
                 type="button"
                 aria-expanded={open}
                 aria-controls={panelId}
+                aria-describedby={introHintVisible ? hintId : undefined}
                 onClick={() => (open ? close() : openPanel())}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-control text-sm font-medium text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                onKeyDown={(event) => event.key === 'Escape' && setHintSuppressed(true)}
+                className="relative flex h-8 w-8 items-center justify-center rounded-full border border-control text-sm font-medium text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
                 <span aria-hidden="true">?</span>
                 <span className="sr-only">{t('common:helpPanel.trigger')}</span>
+                {introHintVisible && (
+                    <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-accent-fill ring-2 ring-surface motion-safe:animate-pulse" />
+                )}
             </button>
 
             {introHintVisible && (
                 <div
-                    role="status"
-                    className="absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-border bg-overlay p-3 text-sm text-text shadow-lg"
+                    id={hintId}
+                    role="tooltip"
+                    className="invisible absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-border bg-overlay p-3 text-sm text-text opacity-0 shadow-lg transition-opacity duration-150 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 motion-reduce:transition-none"
                 >
                     <p>
                         <Trans
@@ -211,13 +225,6 @@ export default function HelpPanel() {
                             components={{ kbd: <kbd className="rounded border border-control px-1 font-mono text-xs" /> }}
                         />
                     </p>
-                    <button
-                        type="button"
-                        onClick={dismissIntroHint}
-                        className="mt-2 text-xs font-medium text-accent-text underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                    >
-                        {t('common:helpPanel.gotIt')}
-                    </button>
                 </div>
             )}
 
