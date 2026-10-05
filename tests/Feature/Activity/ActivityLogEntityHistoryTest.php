@@ -84,7 +84,22 @@ class ActivityLogEntityHistoryTest extends TestCase
         $response->assertJsonPath('data.0.subjectName', $this->account->name);
     }
 
+    /**
+     * `{type}` e restrâns la nivel de RUTĂ (`whereIn`, routes/web/activity.php), deci un alias
+     * necunoscut e 404 înainte de controller. `membership` e un model real, dar NU e în
+     * `AuditableResources::map()` — exact cazul de testat.
+     *
+     * Testul ăsta a fost o vreme vacuu: folosea `invoice`, care E în hartă de când facturile au
+     * tab de istoric, deci 404-ul venea din `findOrFail` (un id de Account), nu din
+     * constrângerea de rută. Trecea verde și dacă `whereIn` dispărea cu totul.
+     */
     public function test_an_unknown_entity_type_is_not_routable(): void
+    {
+        $this->actingAs($this->owner)->getJson("/marlin/activity/entity/membership/{$this->account->getKey()}")->assertNotFound();
+    }
+
+    /** Un alias CUNOSCUT cu un id de alt tip trece de rută și cade la `findOrFail` — altă cale, același 404. */
+    public function test_a_known_type_with_a_foreign_id_is_not_found(): void
     {
         $this->actingAs($this->owner)->getJson("/marlin/activity/entity/invoice/{$this->account->getKey()}")->assertNotFound();
     }
