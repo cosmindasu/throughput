@@ -105,6 +105,17 @@ final class DealVelocityReport implements BuiltInReport
                 $nextStage = $orderedStages->get($index + 1);
                 $conversion = null;
 
+                // O etapă TERMINALĂ n-are „etapă următoare" în sensul pâlniei, chiar dacă
+                // alta o urmează ca poziție. În pipeline-ul implicit, „Won" (poziția 5) e
+                // urmat de „Lost" (6), deci regula pe poziție dădea „conversie Won → Lost =
+                // 0,0%" — o cifră corect calculată despre o tranziție care nu există ca
+                // noțiune. Se vedea ca „0% advance to the next stage" sub rândul „Won" din
+                // graficele de pe `Reports`, și ca un „0.0" fără sens în CSV/XLSX/PDF.
+                // Fixtura testului avea „Won" pe ULTIMA poziție, deci nu atingea cazul.
+                if ($stage->is_won || $stage->is_lost) {
+                    $nextStage = null;
+                }
+
                 if ($nextStage !== null && $reached > 0) {
                     $transitioned = $transitions->get($stage->id)
                         ?->firstWhere('to_stage_id', $nextStage->id)

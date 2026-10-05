@@ -176,7 +176,9 @@
     },
     "card": {
         "lost": "Perdue — {{reason}}",
-        "draggableRoleDescription": "Carte d’affaire déplaçable"
+        "draggableRoleDescription": "Carte d’affaire déplaçable",
+        "overdue": "En retard",
+        "dueSoon": "Clôture prévue"
     },
     "lostReasonDialog": {
         "title": "Marquer l’affaire comme perdue",

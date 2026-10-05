@@ -15,7 +15,8 @@
     },
     "charts": {
         "roleDescription": "line chart",
-        "viewAsTable": "View as table"
+        "viewAsTable": "View as table",
+        "categoryColumn": "Month"
     },
     "pagination": {
         "label": "Pagination",

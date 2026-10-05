@@ -137,6 +137,11 @@ const MANAGER_TARGETS: AxeTarget[] = [
         goto: async (page) => {
             await page.goto(`${BASE}/dashboard`);
             await page.getByRole('region', { name: 'Recent activity' }).waitFor();
+            // „Recent activity" NU e amânat, deci așteptarea lui lăsa scanarea să prindă
+            // scheletele în locul graficelor și al listei de urgențe (`Inertia::defer`) —
+            // adică exact componentele adăugate în valul de UI nu erau niciodată auditate.
+            await page.getByRole('list', { name: 'Open pipeline by stage' }).waitFor();
+            await page.getByRole('region', { name: 'Needs attention' }).waitFor();
         },
     },
     {
@@ -198,6 +203,8 @@ const MANAGER_TARGETS: AxeTarget[] = [
         goto: async (page) => {
             await page.goto(`${BASE}/reports`);
             await page.getByRole('heading', { name: 'Reports', level: 1 }).waitFor();
+            // Idem: `insights` e amânat, deci titlul sosea cu mult înaintea graficelor.
+            await page.getByRole('list', { name: 'Deals reaching each stage' }).waitFor();
         },
     },
     {

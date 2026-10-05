@@ -72,6 +72,20 @@ export function formatDate(value: string | number | Date, locale: AppLocale): st
 }
 
 /** „Mar 14, 2026, 5:09 PM" / „14 mars 2026, 17:09". */
+/**
+ * O dată CALENDARISTICĂ („2026-10-12"), nu un moment. Diferența contează: `new Date('2026-10-12')`
+ * e miezul nopții UTC, iar `Intl` îl formatează în fusul local — la vest de Greenwich iese ziua
+ * precedentă. Măsurat: `America/New_York` afișa „Oct 11, 2026" pentru 12 octombrie.
+ *
+ * Coloanele `date` din Postgres (`expected_close_date`, `due_date`, `issue_date`) ajung în JSON
+ * exact în forma asta, deci ORICE afișare a lor trece pe aici, nu pe `formatDate`.
+ */
+export function formatCalendarDate(isoDate: string, locale: AppLocale): string {
+    const [year, month, day] = isoDate.split('-').map(Number);
+
+    return getDateTimeFormat(locale, DATE_MEDIUM).format(new Date(year, month - 1, day));
+}
+
 export function formatDateTime(value: string | number | Date, locale: AppLocale): string {
     return getDateTimeFormat(locale, DATE_TIME_MEDIUM).format(new Date(value));
 }

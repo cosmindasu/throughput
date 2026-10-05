@@ -6,7 +6,7 @@ import MoveStageMenu from '@/Components/Deals/MoveStageMenu';
 import Icon from '@/Components/Icon';
 import StatusBadge from '@/Components/StatusBadge';
 import { useLocale } from '@/hooks/useLocale';
-import { formatDate } from '@/lib/format';
+import { formatCalendarDate } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { relativeDays } from '@/lib/relativeTime';
 import type { DealStage, DealSummary } from '@/types/generated';
@@ -37,8 +37,11 @@ const MS_PER_DAY = 86_400_000;
 /**
  * `expectedCloseDate` e „YYYY-MM-DD", o dată CALENDARISTICĂ fără fus. Se construiește cu
  * `new Date(an, lună, zi)` — constructorul LOCAL — nu prin `new Date('2026-10-12')`, pe care
- * specificația îl interpretează ca UTC: la est de Greenwich asta dă miezul nopții UTC, adică
- * tot ziua precedentă local, și termenul iese cu o zi mai devreme.
+ * specificația îl interpretează ca UTC: la VEST de Greenwich asta cade în ziua precedentă
+ * locală, și termenul iese cu o zi mai devreme. Măsurat în `America/New_York`: „Oct 11" pentru
+ * 12 octombrie. Aceeași regulă e și motivul pentru care AFIȘAREA trece prin
+ * `formatCalendarDate`, nu prin `formatDate` — prima versiune a cardului o respecta la
+ * socoteală și o încălca la format, în același fișier.
  */
 function daysUntil(isoDate: string, today: number): number {
     const [year, month, day] = isoDate.split('-').map(Number);
@@ -95,13 +98,21 @@ export default function DealCard({ deal, stages, workspaceSlug, today, dragging 
                     <StatusBadge tone={dueTone}>
                         <Icon name={dueTone === 'danger' ? 'warn' : 'calendar'} size={12} className="mr-1" />
                         {/*
+                            Iconul e `aria-hidden`, iar tenta nu se aude: fără rândul ăsta,
+                            singurul lucru pe care îl primea un cititor de ecran era data
+                            („Sep 5, 2026"), fără niciun indiciu că e un TERMEN, cu atât mai
+                            puțin unul depășit. Forma relativă („acum 2 zile") sugerează ceva;
+                            cea absolută, de peste o săptămână, nu sugerează nimic.
+                        */}
+                        <span className="sr-only">{t(dueTone === 'danger' ? 'card.overdue' : 'card.dueSoon')}: </span>
+                        {/*
                             „în 3 zile" se citește mai repede decât o dată, dar doar în jurul
                             prezentului: la trei săptămâni distanță, „în 21 de zile" cere o
                             socoteală pe care data o scutește. `title` păstrează mereu data
                             exactă.
                         */}
-                        <time dateTime={deal.expectedCloseDate} title={formatDate(deal.expectedCloseDate, locale)}>
-                            {days > -7 && days < 8 ? relativeDays(days, locale) : formatDate(deal.expectedCloseDate, locale)}
+                        <time dateTime={deal.expectedCloseDate} title={formatCalendarDate(deal.expectedCloseDate, locale)}>
+                            {days > -7 && days < 8 ? relativeDays(days, locale) : formatCalendarDate(deal.expectedCloseDate, locale)}
                         </time>
                     </StatusBadge>
                 )}

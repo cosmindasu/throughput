@@ -274,7 +274,12 @@ class DashboardTest extends TestCase
      */
     private function partialReload(string $workspace, string $prop): TestResponse
     {
-        $version = $this->actingAs($this->owner)
+        return $this->partialReloadAs($this->owner, $workspace, $prop);
+    }
+
+    private function partialReloadAs(User $user, string $workspace, string $prop): TestResponse
+    {
+        $version = $this->actingAs($user)
             ->withHeaders([
                 'X-Inertia' => 'true',
                 'X-Inertia-Version' => 'warmup',
@@ -284,7 +289,7 @@ class DashboardTest extends TestCase
             ->get("/{$workspace}/dashboard")
             ->headers->get('x-inertia-version');
 
-        return $this->actingAs($this->owner)
+        return $this->actingAs($user)
             ->withHeaders([
                 'X-Inertia' => 'true',
                 'X-Inertia-Version' => $version,
@@ -389,6 +394,200 @@ class DashboardTest extends TestCase
             ->assertJsonPath('props.charts.orders.0', 1111.11);
     }
 
+    /**
+     * §7.4, litera „R*": îngustarea Agentului pe facturi e NECONDIȚIONATĂ — fără comutator
+     * „ale mele / toate", spre deosebire de afaceri. Lista „Needs attention" era singurul loc
+     * din aplicație care îi arăta numărul, clientul și suma unei facturi a altcuiva; linkul
+     * ducea apoi la 403, deci informația era și scursă, și inutilă.
+     *
+     * Testul verifică ȘI partea cealaltă: afacerile NU se îngustează (`DealPolicy::view` nu
+     * restrânge nimic, iar kanbanul îi dă Agentului „All deals"), ca o „simetrizare" bine
+     * intenționată să pice aici.
+     */
+    public function test_an_agent_only_sees_overdue_invoices_from_their_own_orders(): void
+    {
+        $agent = $this->makeMember($this->marlin, 'demo.agent@throughput.dev', Permissions::AGENT);
+
+        TenantContext::run($this->marlin, function () use ($agent): void {
+            $account = Account::query()->firstOrFail();
+
+            // Comandă A AGENTULUI, cu factura ei restantă.
+            $own = new Order([
+                'account_id' => $account->getKey(),
+                'owner_user_id' => $agent->getKey(),
+                'status' => Order::STATUS_CONFIRMED,
+                'grand_total' => 500.00,
+            ]);
+            $own->created_by = $agent->getKey();
+            $own->save();
+
+            $invoice = new Invoice(['status' => Invoice::STATUS_OVERDUE, 'total' => 500, 'balance_due' => 500, 'due_date' => now()->subDays(3)]);
+            $invoice->order_id = $own->getKey();
+            $invoice->save();
+        });
+        $this->clearDatabaseTenantContext();
+
+        // Owner-ul vede ambele facturi restante: a lui (din seed) și a agentului.
+        $this->partialReloadAs($this->owner, 'marlin', 'attention')
+            ->assertOk()
+            ->assertJsonCount(2, 'props.attention.overdueInvoices');
+
+        // Agentul, doar pe a lui — restanța de 3.410,20 din seed aparține comenzii owner-ului.
+        $this->partialReloadAs($agent, 'marlin', 'attention')
+            ->assertOk()
+            ->assertJsonCount(1, 'props.attention.overdueInvoices')
+            ->assertJsonPath('props.attention.overdueInvoices.0.amount', 500)
+            // …dar afacerile NU se îngustează: afacerea cu termen apropiat e a owner-ului și
+            // Agentul o vede, fiindcă asta spune matricea.
+            ->assertJsonCount(1, 'props.attention.closingSoon');
+    }
+
+    /**
+     * Seria „won deals" numără AFACERI, nu evenimente de etapă. Trei moduri distincte de a
+     * umfla cifra, toate reale în produs:
+     *
+     *  1. o afacere care iese din Won și reintră scrie DOUĂ evenimente — `MoveDealStageAction`
+     *     nu interzice ieșirea, iar meniul „Move to stage…" oferă orice etapă;
+     *  2. o afacere mutată înapoi în deschis rămâne cu evenimentul ei de câștig în jurnal;
+     *  3. o afacere ȘTEARSĂ (soft delete) dispare din liste, dar un `join` brut pe `deals` o
+     *     păstrează în agregare.
+     *
+     * Fixtura le pune pe toate trei, deci o revenire la numărarea evenimentelor pică aici.
+     */
+    public function test_won_deals_are_counted_once_each_and_only_while_still_won(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $account = Account::query()->firstOrFail();
+            $open = Stage::query()->where('name', 'Qualification')->firstOrFail();
+            $won = Stage::query()->where('name', 'Won')->firstOrFail();
+
+            // (1) Câștigată, întoarsă în deschis, câștigată iar: DOUĂ intrări în Won, o singură
+            //     afacere de 4.000. Contează ultima intrare.
+            // Momentele sunt ancorate de LUNĂ, nu de „acum minus N zile": `subDays(5)` cade în
+            // luna precedentă dacă testul rulează pe 5 ale lunii, iar aserțiunea de pe
+            // `wonDeals.11` ar pica o dată la câteva zile pe lună, din motive de calendar.
+            $twoMonthsAgo = now()->startOfMonth()->subMonths(2)->addDays(3);
+
+            $yoyo = $this->dealInStage($account, $won, 'Re-won deal', 4_000.00, Deal::STATUS_WON);
+            $this->stageEvent($yoyo, $open, $won, $twoMonthsAgo);
+            $this->stageEvent($yoyo, $open, $won, now());
+
+            // (2) Câștigată cândva, acum iar deschisă — nu mai e venit.
+            $reopened = $this->dealInStage($account, $open, 'Reopened deal', 50_000.00, Deal::STATUS_OPEN);
+            $this->stageEvent($reopened, $open, $won, now());
+
+            // (3) Câștigată și ȘTEARSĂ.
+            $deleted = $this->dealInStage($account, $won, 'Deleted deal', 90_000.00, Deal::STATUS_WON);
+            $this->stageEvent($deleted, $open, $won, now());
+            $deleted->delete();
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->partialReload('marlin', 'charts')
+            ->assertOk()
+            // Luna curentă: 7.000 din seed (`Pilot order`) + 4.000 ai afacerii reintrate.
+            // NU 8.000 (dublă numărare), NU 58.000 (cea redeschisă), NU 98.000 (cea ștearsă).
+            ->assertJsonPath('props.charts.wonDeals.11', 11000)
+            // …iar PRIMA intrare în câștig a afacerii reintrate nu lasă nimic în urmă: se
+            // numără ultima, nu fiecare.
+            ->assertJsonPath('props.charts.wonDeals.9', 0);
+    }
+
+    /**
+     * Cele două serii de pe grafic citesc COLOANE DIFERITE, deliberat: banii se numără pe
+     * `placed_at` (când a fost plasată comanda), numărul pe `created_at` (definiția plăcii de
+     * deasupra). În fixtura comună cele două sunt egale, deci o serie calculată pe coloana
+     * greșită ar da exact aceleași cifre — testul de mai jos le DESPARTE.
+     *
+     * Verifică și filtrul de status: un draft și o comandă anulată nu sunt venit, dar AMÂNDOUĂ
+     * se numără în placa de comenzi.
+     */
+    public function test_the_money_series_follows_placed_at_while_the_count_follows_created_at(): void
+    {
+        $twoMonthsAgo = now()->startOfMonth()->subMonths(2)->addDays(3);
+
+        TenantContext::run($this->marlin, function () use ($twoMonthsAgo): void {
+            $account = Account::query()->firstOrFail();
+
+            // Creată LUNA ASTA, plasată acum două luni: banii merg acolo, numărul rămâne aici.
+            $backdated = new Order([
+                'account_id' => $account->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'status' => Order::STATUS_CONFIRMED,
+                'grand_total' => 1_234.56,
+                'placed_at' => $twoMonthsAgo,
+            ]);
+            $backdated->created_by = $this->owner->getKey();
+            $backdated->save();
+
+            // ANULATĂ, plasată tot luna asta: se numără, dar nu e venit.
+            $cancelled = new Order([
+                'account_id' => $account->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'status' => Order::STATUS_CANCELLED,
+                'grand_total' => 99_000.00,
+                'placed_at' => now(),
+            ]);
+            $cancelled->created_by = $this->owner->getKey();
+            $cancelled->save();
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->partialReload('marlin', 'charts')
+            ->assertOk()
+            // Banii lunii curente: DOAR comanda confirmată din seed. Nu 5.452 (dacă seria ar
+            // citi `created_at`), nu 103.217 (dacă filtrul de status ar lipsi).
+            ->assertJsonPath('props.charts.orders.11', 4217.44)
+            // …iar comanda retrodatată apare acolo unde a fost PLASATĂ.
+            ->assertJsonPath('props.charts.orders.9', 1234.56)
+            // Numărul merge pe `created_at`: toate trei sunt create azi.
+            ->assertJsonPath('props.charts.ordersCount.11', 3)
+            ->assertJsonPath('props.charts.ordersCount.9', 0);
+    }
+
+    /**
+     * Feed-ul: NUMELE înregistrării atinse, ORDINEA și PLAFONUL. Niciuna dintre cele trei
+     * n-avea gardă — iar `subjectName` e chiar motivul pentru care feed-ul a fost schimbat
+     * („zece rânduri «Updated Deal» nu spun CARE afacere"), deci o implementare care întoarce
+     * mereu `null` ar fi trecut prin toată suita.
+     */
+    public function test_the_feed_names_the_record_and_shows_the_ten_most_recent_first(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $deal = Deal::query()->where('title', 'Annual fastener supply agreement')->firstOrFail();
+
+            // 12 intrări, cu timestamp-uri DISTINCTE și crescătoare, ca ordinea să fie
+            // verificabilă: cea mai veche are indicele 0 în inserare și trebuie să cadă în
+            // afara plafonului de 10.
+            foreach (range(1, 12) as $index) {
+                $row = ActivityLog::query()->create([
+                    'user_id' => $this->owner->getKey(),
+                    'action' => 'updated',
+                    'auditable_type' => Deal::class,
+                    'auditable_id' => $deal->getKey(),
+                    'new_values' => ['title' => "Revizia {$index}"],
+                    'ip_address' => '203.0.113.10',
+                    'user_agent' => 'DashboardTest',
+                ]);
+                $row->forceFill(['created_at' => now()->subMinutes(60 - $index * 5)])->saveQuietly();
+            }
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                // Plafonul de 10, nu toate cele 12.
+                ->has('activity', 10)
+                // Cea mai RECENTĂ prima: a 12-a inserată e cea mai nouă.
+                ->where('activity.0.description', 'Updated Deal')
+                // Numele propriu al afacerii, nu doar tipul ei — calea pozitivă a lui
+                // `subjectName()`, pe care nimic n-o atingea.
+                ->where('activity.0.subjectName', 'Annual fastener supply agreement')
+                ->where('activity.0.kind', 'updated')
+            );
+    }
+
     public function test_the_switcher_lists_every_workspace_the_user_belongs_to(): void
     {
         $this->actingAs($this->owner)->get('/marlin/dashboard')
@@ -449,6 +648,35 @@ class DashboardTest extends TestCase
                     return true;
                 })
             );
+    }
+
+    private function dealInStage(Account $account, Stage $stage, string $title, float $value, string $status): Deal
+    {
+        $deal = new Deal([
+            'account_id' => $account->getKey(),
+            'pipeline_id' => $stage->pipeline_id,
+            'stage_id' => $stage->getKey(),
+            'owner_user_id' => $this->owner->getKey(),
+            'title' => $title,
+            'value' => $value,
+            'status' => $status,
+        ]);
+        $deal->created_by = $this->owner->getKey();
+        $deal->save();
+
+        return $deal;
+    }
+
+    private function stageEvent(Deal $deal, Stage $from, Stage $to, Carbon $at): void
+    {
+        $event = new DealStageEvent([
+            'deal_id' => $deal->getKey(),
+            'from_stage_id' => $from->getKey(),
+            'to_stage_id' => $to->getKey(),
+            'changed_at' => $at,
+        ]);
+        $event->changed_by = $this->owner->getKey();
+        $event->save();
     }
 
     private function logActivity(User $user, string $action, ?string $auditableType = null): void
@@ -515,6 +743,10 @@ class DashboardTest extends TestCase
                 'title' => 'Pilot order — hex bolts',
                 'value' => 7_000.00,
                 'status' => Deal::STATUS_WON,
+                // Un termen în fereastra „closing soon", pe o afacere DEJA ÎNCHISĂ: fără el,
+                // filtrul `status = open` din `closingSoon` n-ar fi avut ce să excludă, deci
+                // scoaterea lui ar fi trecut neobservată.
+                'expected_close_date' => now()->subDays(2)->toDateString(),
             ]);
             $wonDeal->created_by = $this->owner->getKey();
             $wonDeal->save();
@@ -542,9 +774,12 @@ class DashboardTest extends TestCase
 
             // `order_id` nu e fillable pe Invoice (spre deosebire de `account_id` pe Order):
             // factura se emite dintr-o comandă, prin serviciu, nu din input de utilizator.
+            // `total` DIFERIT de `balance_due`: egale, fixtura n-ar fi putut distinge între
+            // „suma restantă" și „valoarea facturii", iar comentariul din controller care
+            // explică alegerea lui `balance_due` n-ar fi avut nicio gardă.
             $invoice = new Invoice([
                 'status' => Invoice::STATUS_OVERDUE,
-                'total' => $overdueBalance,
+                'total' => $overdueBalance + 1_500.00,
                 'balance_due' => $overdueBalance,
                 'due_date' => now()->subDays(14),
             ]);

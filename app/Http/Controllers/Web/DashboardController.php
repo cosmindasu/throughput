@@ -14,6 +14,7 @@ use App\Models\Pipeline;
 use App\Models\Stage;
 use App\Models\User;
 use App\Models\Variant;
+use App\Support\Permissions;
 use App\Support\Stock\LowStockRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,12 @@ class DashboardController extends Controller
     public function show(Request $request): Response
     {
         return Inertia::render('Dashboard', [
-            'kpis' => [
+            // CLOSURE, nu array: `PropsResolver` filtrează după `only` ÎNAINTE de a apela
+            // closure-urile, dar un array e deja calculat când ajunge aici. Cu valori gata
+            // făcute, fiecare reîncărcare parțială (`charts`, `attention`) refăcea cele cinci
+            // interogări de KPI și pe cele de jurnal doar ca să le arunce — măsurat: 10
+            // interogări din 30 și ~3 ms per cerere, pentru nimic.
+            'kpis' => fn () => [
                 'openPipelineValue' => (float) Deal::query()
                     ->where('status', Deal::STATUS_OPEN)
                     ->sum('value'),
@@ -82,9 +88,9 @@ class DashboardController extends Controller
             // doua, cu schelet în forma graficului. Dashboard-ul e prima pagină de după
             // login, deci ce se vede primul contează mai mult decât ce e complet.
             'charts' => Inertia::defer(fn () => $this->charts()),
-            'attention' => Inertia::defer(fn () => $this->attention()),
+            'attention' => Inertia::defer(fn () => $this->attention($request->user())),
 
-            'activity' => $this->recentActivity($request->user()),
+            'activity' => fn () => $this->recentActivity($request->user()),
         ]);
     }
 
@@ -157,12 +163,28 @@ class DashboardController extends Controller
         // Afacerile câștigate se numără pe luna în care au INTRAT în etapa de câștig
         // (evenimentul din `deal_stage_events`), nu pe `updated_at` — acela se mișcă la orice
         // editare ulterioară și ar muta retroactiv venitul dintr-o lună în alta.
-        $won = DealStageEvent::query()
+        //
+        // Interogarea pleacă din `Deal`, nu din jurnalul de evenimente, din trei motive care
+        // s-au văzut toate ca cifre umflate:
+        //  - un `sum()` peste EVENIMENTE numără de două ori o afacere care a ieșit din Won și
+        //    a reintrat (`MoveDealStageAction` nu interzice ieșirea, iar meniul „Move to
+        //    stage…" oferă orice etapă);
+        //  - o afacere mutată ÎNAPOI în deschis rămânea numărată ca încasată, la nesfârșit;
+        //  - un `join` brut pe `deals` ocolește `SoftDeletes`, deci o afacere ȘTEARSĂ
+        //    dispărea din liste dar continua să apară în grafic.
+        // Pornind din `Deal` vin și `deleted_at`, și `TenantScope`; subinterogarea reduce
+        // evenimentele la ULTIMA intrare în câștig, deci fiecare afacere contează o dată.
+        $wonEntries = DealStageEvent::query()
             ->join('stages', 'stages.id', '=', 'deal_stage_events.to_stage_id')
-            ->join('deals', 'deals.id', '=', 'deal_stage_events.deal_id')
             ->where('stages.is_won', true)
-            ->where('deal_stage_events.changed_at', '>=', $since)
-            ->selectRaw("to_char(date_trunc('month', deal_stage_events.changed_at), 'YYYY-MM') as month, sum(deals.value) as total")
+            ->selectRaw('deal_stage_events.deal_id, max(deal_stage_events.changed_at) as won_at')
+            ->groupBy('deal_stage_events.deal_id');
+
+        $won = Deal::query()
+            ->joinSub($wonEntries, 'won_entry', 'won_entry.deal_id', '=', 'deals.id')
+            ->where('deals.status', Deal::STATUS_WON)
+            ->where('won_entry.won_at', '>=', $since)
+            ->selectRaw("to_char(date_trunc('month', won_entry.won_at), 'YYYY-MM') as month, sum(deals.value) as total")
             ->groupBy('month')
             ->pluck('total', 'month');
 
@@ -224,7 +246,7 @@ class DashboardController extends Controller
      *
      * @return array{overdueInvoices: list<array<string, mixed>>, closingSoon: list<array<string, mixed>>, lowStock: list<array<string, mixed>>}
      */
-    private function attention(): array
+    private function attention(User $user): array
     {
         $today = today();
         // `absolute: false`: căile ajung în `<Link href>` pe client, unde o cale relativă e
@@ -232,8 +254,22 @@ class DashboardController extends Controller
         // Un URL absolut ar lega linkul de host-ul cererii care a generat răspunsul.
 
         return [
+            // Îngustarea Agentului e NECONDIȚIONATĂ pe facturi (§7.4, litera „R*"):
+            // `InvoiceList::applyFilters()` și `InvoicePolicy::view()` o aplică amândouă, fără
+            // comutator „ale mele / toate". Fără rândul de mai jos, placa asta era singurul
+            // loc din aplicație care arăta unui Agent numărul, clientul și suma unei facturi a
+            // altcuiva — iar linkul ducea la 403, deci defectul era și vizibil, și inutil.
+            //
+            // Celelalte două liste NU primesc aceeași îngustare, și nu e o scăpare:
+            // `DealPolicy::view()` nu restrânge nimic (Agentul are pe kanban un comutator
+            // explicit „All deals"), iar produsele și stocul sunt vizibile oricărui rol —
+            // singurul lucru ascuns acolo e `variants.cost`, pe care lista asta nu-l atinge.
             'overdueInvoices' => Invoice::query()
                 ->where('status', Invoice::STATUS_OVERDUE)
+                ->when(
+                    Permissions::restrictedToOwnRecords($user),
+                    fn (Builder $query) => $query->whereHas('order', fn (Builder $orders) => $orders->where('owner_user_id', $user->getKey())),
+                )
                 ->with('order.account:id,name')
                 ->orderByDesc('balance_due')
                 ->limit(4)
@@ -247,9 +283,14 @@ class DashboardController extends Controller
                     'url' => route('invoices.show', $invoice, absolute: false),
                 ])->all(),
 
+            // Fereastra include și trecutul APROPIAT, nu doar următoarele două săptămâni: o
+            // afacere încă deschisă al cărei termen a trecut e cel mai urgent lucru de pe
+            // listă, iar varianta inițială o scotea exact atunci. Marginea din urmă e la 30 de
+            // zile ca să nu urce în capul listei, pentru totdeauna, o afacere cu un termen
+            // uitat acum doi ani — aia e o problemă de igienă a datelor, nu de acțiune azi.
             'closingSoon' => Deal::query()
                 ->where('status', Deal::STATUS_OPEN)
-                ->whereBetween('expected_close_date', [$today, $today->copy()->addDays(14)])
+                ->whereBetween('expected_close_date', [$today->copy()->subDays(30), $today->copy()->addDays(14)])
                 ->with('account:id,name')
                 ->orderBy('expected_close_date')
                 ->limit(4)

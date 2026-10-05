@@ -52,13 +52,17 @@ final class ReportController extends Controller
         $this->authorize('viewAny', ReportDefinition::class);
         $user = $request->user();
 
-        $reports = ReportRecipients::scopeVisibleTo(
-            ReportDefinition::query()->with(['savedView', 'createdBy', 'latestRun']),
-            $user,
-        )->orderBy('name')->get();
-
         return Inertia::render('Reports/Index', [
-            'reports' => ReportDefinitionResource::collection($reports),
+            // Interogarea stă ÎN closure, nu înaintea lui: `PropsResolver` filtrează după
+            // `only` înainte de a apela closure-urile, dar un `->get()` scris mai sus ar fi
+            // rulat deja. Altfel lista se re-citea la fiecare reîncărcare parțială pentru
+            // `insights`, doar ca să fie aruncată.
+            'reports' => fn () => ReportDefinitionResource::collection(
+                ReportRecipients::scopeVisibleTo(
+                    ReportDefinition::query()->with(['savedView', 'createdBy', 'latestRun']),
+                    $user,
+                )->orderBy('name')->get()
+            ),
             // Lista spune CÂND pleacă rapoartele; graficele spun CE scrie în ele. Același
             // `DealVelocityReport` pe care pagina de detaliu îl randează ca tabel — aceleași
             // rânduri, aceeași interogare, doar prezentarea diferă.

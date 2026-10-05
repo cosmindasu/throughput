@@ -34,7 +34,14 @@ it('desparte `updated` dupa ce s-a schimbat de fapt', function (string $type, ar
     'mutare de etapa (cheie `stage_id`)' => [Deal::class, ['stage_id' => '01abc'], 'stage_moved'],
     'mutare de etapa (cheie `stage`)' => [Deal::class, ['stage' => 'Negotiation'], 'stage_moved'],
     'factura platita' => [Invoice::class, ['status' => Invoice::STATUS_PAID], 'invoice_paid'],
-    'comanda expediata' => [Order::class, ['shipment' => ['id' => '01x']], 'order_shipped'],
+    // Forma pe care o scrie EXPEDIEREA REALĂ (`MarkShipmentShippedAction` mută comanda în
+    // `fulfilled`/`partially_fulfilled` prin `save()`), nu o cheie `shipment` pe care o
+    // producea doar seed-ul demo.
+    'comanda expediata integral' => [Order::class, ['status' => 'fulfilled'], 'order_shipped'],
+    'comanda expediata partial' => [Order::class, ['status' => 'partially_fulfilled'], 'order_shipped'],
+    // Restul tranzițiilor de status ale unei comenzi NU sunt expedieri.
+    'comanda confirmata' => [Order::class, ['status' => 'confirmed'], 'updated'],
+    'comanda anulata' => [Order::class, ['status' => 'cancelled'], 'updated'],
     'membru dezactivat' => [Membership::class, ['status' => Membership::STATUS_DEACTIVATED], 'member_deactivated'],
 ]);
 

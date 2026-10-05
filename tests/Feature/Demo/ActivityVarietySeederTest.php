@@ -19,6 +19,7 @@ use App\Support\Permissions;
 use Database\Seeders\Demo\ActivityVarietySeeder;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -46,6 +47,13 @@ class ActivityVarietySeederTest extends TestCase
 
     /** @var array{owner_id: string, demo_agent_id: ?string, pool: list<array{id: string, role: string}>} */
     private array $staff;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     protected function setUp(): void
     {
@@ -99,14 +107,36 @@ class ActivityVarietySeederTest extends TestCase
         );
     }
 
-    public function test_no_entry_is_dated_in_the_future(): void
+    /**
+     * Trei afirmații, nu una. „Nimic în viitor" singur e o gardă slabă: o versiune care pune
+     * TOATE evenimentele la `now()` o trece — adică exact artefactul pentru care a fost scris
+     * `DemoClock` („opt evenimente din ultimele cinci minute, toate la minutul resetului").
+     *
+     * Ceasul e ÎNGHEȚAT pe o oră de dimineață: fără asta, puterea de detecție a primei
+     * aserțiuni depinde de ora la care rulează suita — o tragere din orele de birou e în
+     * viitor la 8 dimineața și în trecut la 20:00.
+     */
+    public function test_the_seeded_tail_is_in_the_past_spread_out_and_never_just_now(): void
     {
+        Carbon::setTestNow(Carbon::parse('2026-10-05 07:30:00'));
+
         $this->runSeederAndCollectKinds();
 
         TenantContext::run($this->tenant, function (): void {
-            $future = ActivityLog::query()->where('created_at', '>', now())->count();
+            $this->assertSame(0, ActivityLog::query()->where('created_at', '>', now())->count(), 'un jurnal descrie ce s-a întâmplat, nu ce urmează');
 
-            $this->assertSame(0, $future, 'un jurnal descrie ce s-a întâmplat, nu ce urmează');
+            // Marginea de o oră a lui `DemoClock`: nimic „chiar acum".
+            $this->assertSame(0, ActivityLog::query()->where('created_at', '>', now()->subMinutes(59))->count(), 'nimic nu se întâmplă chiar la minutul resetului');
+
+            // …și chiar se întinde: o coadă strânsă într-o zi ar trece primele două aserțiuni.
+            $oldest = ActivityLog::query()->min('created_at');
+            $newest = ActivityLog::query()->max('created_at');
+
+            $this->assertGreaterThan(
+                2 * 24 * 3600,
+                Carbon::parse($newest)->diffInSeconds(Carbon::parse($oldest), absolute: true),
+                'coada trebuie să acopere zile, nu minute',
+            );
         });
     }
 

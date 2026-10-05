@@ -126,6 +126,38 @@ class DealKanbanTest extends TestCase
             );
     }
 
+    /**
+     * Suma coloanei folosește ACELEAȘI filtre ca numărătoarea — inclusiv `owner=me`. E o a
+     * doua agregare pe același `GROUP BY` tocmai ca să nu poată diverge, dar nimic nu
+     * verifica asta: toate celelalte teste de board rulează pe `owner=all`.
+     */
+    public function test_the_column_value_total_respects_the_owner_filter(): void
+    {
+        $colleague = $this->makeMember($this->tenant, 'colleague@throughput.dev', Permissions::MANAGER);
+
+        TenantContext::run($this->tenant, function () use ($colleague): void {
+            $this->dealOn('New', $this->owner, 'Mine', 1_000.00);
+            $this->dealOn('New', $colleague, 'Theirs', 9_000.00);
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->get('/marlin/deals/board?owner=all')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('columns.0.total', 2)
+                ->where('columns.0.valueTotal', 10000)
+            );
+
+        $this->actingAs($this->owner)->get('/marlin/deals/board?owner=me')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('columns.0.total', 1)
+                // 1.000, nu 10.000: o sumă care ignoră filtrul ar raporta tot ce e în etapă.
+                ->where('columns.0.valueTotal', 1000)
+            );
+    }
+
     public function test_the_board_runs_a_constant_number_of_queries_regardless_of_stage_count(): void
     {
         TenantContext::run($this->tenant, function (): void {

@@ -15,7 +15,8 @@
     },
     "charts": {
         "roleDescription": "graphique en courbes",
-        "viewAsTable": "Afficher sous forme de tableau"
+        "viewAsTable": "Afficher sous forme de tableau",
+        "categoryColumn": "Mois"
     },
     "pagination": {
         "label": "Pagination",

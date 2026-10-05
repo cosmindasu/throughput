@@ -111,6 +111,32 @@ class DealVelocityReportTest extends TestCase
         $this->assertNull($wonRow[4], 'Terminal stage has no next stage to convert into.');
     }
 
+    /**
+     * Cazul pe care fixtura de mai sus NU îl atinge: „Won" urmat de „Lost" ca POZIȚIE, exact
+     * ordinea pipeline-ului implicit al produsului (`CreatesPipelines`, pozițiile 5 și 6).
+     * Regula care lua „etapa următoare" doar după poziție raporta atunci „conversie
+     * Won → Lost = 0,0%" — o cifră corectă despre o tranziție care nu există ca noțiune.
+     * Se vedea ca „0% advance to the next stage" sub rândul „Won" în graficele de pe
+     * `Reports` și ca un „0.0" fără sens în fișierele exportate.
+     */
+    public function test_a_terminal_stage_reports_no_conversion_even_when_another_stage_follows_it(): void
+    {
+        $fixture = $this->seedFixture();
+
+        TenantContext::run($this->marlin, function () use ($fixture): void {
+            // „Lost" DUPĂ „Won", ca în pipeline-ul implicit al produsului.
+            (new StageFactory)->create(['pipeline_id' => $fixture['pipeline']->id, 'name' => 'Lost', 'position' => 4, 'is_lost' => true]);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $byStage = TenantContext::run($this->marlin, fn () => collect((new DealVelocityReport)->rows())->keyBy(fn (array $row) => $row[1]));
+
+        $this->assertNull($byStage->get('Won')[4], 'Won e terminală: „Lost" o urmează ca poziție, nu ca etapă următoare a pâlniei.');
+        $this->assertNull($byStage->get('Lost')[4], 'Lost e terminală și ultima — null din ambele motive.');
+        // Restul pâlniei rămâne neatins.
+        $this->assertSame(50.0, $byStage->get('Qualified')[4]);
+    }
+
     public function test_run_now_shows_the_same_numbers_synchronously_in_the_page(): void
     {
         $this->seedFixture();

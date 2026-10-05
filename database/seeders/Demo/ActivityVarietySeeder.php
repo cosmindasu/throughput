@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Support\Permissions;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\DemoClock;
 use Database\Seeders\Support\DemoId;
@@ -87,13 +88,31 @@ final class ActivityVarietySeeder
 
         $command?->getOutput()->writeln('  <fg=cyan>›</> Activity log — recent tail');
 
-        /** @var list<array{0: string, 1: ?string, 2: ?string, 3: ?array<string, mixed>, 4: ?array<string, mixed>}> $events */
+        /** @var list<array{0: string, 1: ?string, 2: ?string, 3: ?array<string, mixed>, 4: ?array<string, mixed>, 5: ?list<string>}> $events */
         $events = [];
-        $add = function (string $action, ?string $type = null, ?string $id = null, ?array $newValues = null, ?array $oldValues = null) use (&$events): void {
-            $events[] = [$action, $type, $id, $newValues, $oldValues];
+        $add = function (string $action, ?string $type = null, ?string $id = null, ?array $newValues = null, ?array $oldValues = null, ?array $actorPool = null) use (&$events): void {
+            $events[] = [$action, $type, $id, $newValues, $oldValues, $actorPool];
         };
 
         $pick = fn (array $list): ?string => $list === [] ? null : (string) $list[array_rand($list)];
+
+        // Cine POATE face fiecare lucru. Un jurnal în care un Viewer schimbă roluri sau șterge
+        // înregistrări e un jurnal de evenimente imposibile — se citește ca date false exact
+        // pentru cineva care știe ce înseamnă matricea de permisiuni, adică pentru cumpărător.
+        $withRole = function (array $roles) use ($staff): array {
+            $ids = [];
+
+            foreach ($staff['pool'] as $member) {
+                if (in_array($member['role'], $roles, true)) {
+                    $ids[] = $member['id'];
+                }
+            }
+
+            return $ids !== [] ? $ids : array_column($staff['pool'], 'id');
+        };
+
+        $managers = $withRole([Permissions::OWNER, Permissions::MANAGER]);
+        $operators = $withRole([Permissions::OWNER, Permissions::MANAGER, Permissions::AGENT]);
 
         // Facturi încasate: ambele forme derivate (`invoice_paid`, `order_shipped`) sunt
         // `updated` în coloană, iar `ActivityKind` le distinge din `new_values` — deci forma
@@ -103,7 +122,7 @@ final class ActivityVarietySeeder
         // fiecare comandă expediată, datat pe expedierea reală. Dublat, ar fi o a doua
         // expediere a aceleiași comenzi, la altă oră.
         foreach (array_slice($invoices, 0, 6) as $invoiceId) {
-            $add('updated', Invoice::class, (string) $invoiceId, ['status' => Invoice::STATUS_PAID], ['status' => Invoice::STATUS_SENT]);
+            $add('updated', Invoice::class, (string) $invoiceId, ['status' => Invoice::STATUS_PAID], ['status' => Invoice::STATUS_SENT], $managers);
         }
 
         // Exporturi: lista pe care cineva a tras-o ca s-o ducă în altă parte. Fără subiect
@@ -118,35 +137,35 @@ final class ActivityVarietySeeder
         }
 
         for ($i = 0; $i < 3; $i++) {
-            $add('bulk_action', Account::class);
+            $add('bulk_action', Account::class, null, null, null, $managers);
         }
 
-        $add('role_changed');
+        $add('role_changed', null, null, null, null, $managers);
 
         // Ștergeri: `DemoId::next()` dă un id care nu corespunde niciunui rând, fiindcă ASTA
         // e starea de după o ștergere. `subjectName()` întoarce atunci `null`, iar feed-ul
         // nu promite un link către ceva ce nu mai există.
         for ($i = 0; $i < 2; $i++) {
-            $add('deleted', Contact::class, DemoId::next());
+            $add('deleted', Contact::class, DemoId::next(), null, null, $managers);
         }
-        $add('deleted', Deal::class, DemoId::next());
+        $add('deleted', Deal::class, DemoId::next(), null, null, $managers);
 
         // Creări și editări de rutină, pe înregistrări reale.
         foreach (array_slice(array_keys($accounts), 0, 4) as $accountId) {
-            $add('created', Account::class, (string) $accountId);
+            $add('created', Account::class, (string) $accountId, null, null, $operators);
         }
         foreach (array_slice($contacts, 0, 5) as $contactId) {
-            $add('created', Contact::class, (string) $contactId);
+            $add('created', Contact::class, (string) $contactId, null, null, $operators);
         }
         foreach (array_slice($deals, 0, 4) as $dealId) {
-            $add('created', Deal::class, (string) $dealId);
+            $add('created', Deal::class, (string) $dealId, null, null, $operators);
         }
 
         for ($i = 0; $i < 5; $i++) {
-            $add('updated', Account::class, $pick(array_keys($accounts)), ['industry' => 'Industrial Equipment']);
+            $add('updated', Account::class, $pick(array_keys($accounts)), ['industry' => 'Industrial Equipment'], null, $operators);
         }
         for ($i = 0; $i < 4; $i++) {
-            $add('updated', Product::class, $pick($products), ['is_active' => true]);
+            $add('updated', Product::class, $pick($products), ['is_active' => true], null, $managers);
         }
 
         // Autentificările se numără DUPĂ celelalte, ca proporție din ele, nu ca o constantă.
@@ -165,10 +184,14 @@ final class ActivityVarietySeeder
             $add('login_failed');
         }
 
-        foreach ($events as [$action, $type, $id, $newValues, $oldValues]) {
+        foreach ($events as [$action, $type, $id, $newValues, $oldValues, $actorPool]) {
+            // Autentificările și exporturile rămân pe tot personalul: oricine se
+            // autentifică, iar Viewer-ul chiar poate exporta liste (`bulk.export`, §7.4).
+            $pool = $actorPool ?? $actors;
+
             $activityLog->record(
                 $tenant->id,
-                $actors[array_rand($actors)],
+                $pool[array_rand($pool)],
                 $action,
                 $type,
                 $id,

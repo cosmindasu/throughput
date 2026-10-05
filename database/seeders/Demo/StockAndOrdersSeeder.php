@@ -239,8 +239,13 @@ final class StockAndOrdersSeeder
             $orderWriter->push($orderRow);
             $activityLog->record($tenant->id, $ownerId, 'created', Order::class, $orderId, $createdAt);
 
+            // PLASAREA comenzii: tranziția e draft → `confirmed`, nu draft → statusul FINAL.
+            // Rândul ăsta e datat pe `placed_at`, adică înainte de orice expediere — iar
+            // scriind direct `fulfilled` aici, `ActivityKind` (care derivă „comandă expediată"
+            // din exact acel status, ca în aplicația reală) ar fi citit plasarea ca pe o
+            // expediere. Drumul mai departe îl scriu rândurile de expediere, mai jos.
             if ($status !== Order::STATUS_DRAFT) {
-                $activityLog->record($tenant->id, $ownerId, 'updated', Order::class, $orderId, $placedAt, ['status' => 'draft'], ['status' => $status]);
+                $activityLog->record($tenant->id, $ownerId, 'updated', Order::class, $orderId, $placedAt, ['status' => Order::STATUS_DRAFT], ['status' => Order::STATUS_CONFIRMED]);
             }
 
             $shipmentLines = [];
@@ -296,7 +301,10 @@ final class StockAndOrdersSeeder
                 $shipmentRow['updated_at'] = $shipmentRow['delivered_at'] ?? $shippedAt;
 
                 $shipmentWriter->push($shipmentRow);
-                $activityLog->record($tenant->id, $ownerId, 'updated', Order::class, $orderId, $shippedAt, null, ['shipment' => 'shipped']);
+                // Aceeași formă pe care o scrie observerul la o expediere reală (vezi
+                // `ActivityKind::of()`), nu una inventată de seed: altfel demo-ul ar arăta un
+                // tip de eveniment pe care produsul nu-l produce niciodată.
+                $activityLog->record($tenant->id, $ownerId, 'updated', Order::class, $orderId, $shippedAt, ['status' => Order::STATUS_CONFIRMED], ['status' => $bucket === 'fulfilled' ? Order::STATUS_FULFILLED : Order::STATUS_PARTIALLY_FULFILLED]);
 
                 foreach ($shipmentLines as $line) {
                     $shipmentLineRow = $shipmentLineFactory->definition();

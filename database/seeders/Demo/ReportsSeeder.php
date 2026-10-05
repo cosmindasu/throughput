@@ -120,7 +120,11 @@ final class ReportsSeeder
         // `ofMany('created_at', 'max')`, iar istoricul se ordonează după `id` — ambele cer ca
         // ULID-urile (monoton crescătoare la generare) să urmeze ordinea cronologică.
         $this->runsFor($tenant, $weekly, $rowCount[ReportDefinition::TYPE_DEAL_VELOCITY], 6, fn (int $i) => now()->subWeeks(6 - $i)->next(Carbon::MONDAY)->setTime(7, 0, 0), failedAt: 2);
-        $this->runsFor($tenant, $monthly, $rowCount[ReportDefinition::TYPE_INVENTORY_VALUATION], 3, fn (int $i) => now()->subMonths(3 - $i)->startOfMonth()->setTime(6, 30, 0));
+        // `startOfMonth()` ÎNAINTE de `subMonths()`: invers, pe 31 mai, „acum 3 luni" și
+        // „acum 2 luni" cad amândouă pe 1 martie (28/31 februarie nu există), deci istoricul
+        // arăta două rulări la aceeași secundă și una lipsă. Aceeași capcană reparată în
+        // `DashboardController` — plecând din ziua 1, nicio lună nu dă pe dinafară.
+        $this->runsFor($tenant, $monthly, $rowCount[ReportDefinition::TYPE_INVENTORY_VALUATION], 3, fn (int $i) => now()->startOfMonth()->subMonths(3 - $i)->setTime(6, 30, 0));
         $this->runsFor($tenant, $paused, $rowCount[ReportDefinition::TYPE_DEAL_VELOCITY], 10, fn (int $i) => now()->subDays(31 - $i)->setTime(8, 0, 0));
     }
 

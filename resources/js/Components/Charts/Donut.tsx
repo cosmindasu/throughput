@@ -29,8 +29,11 @@ export default function Donut({ slices, center, centerLabel, formatValue, label,
     const segment = arc<{ startAngle: number; endAngle: number }>().innerRadius(radius * 0.66).outerRadius(radius - 2).cornerRadius(3);
     const arcs = pie<DonutSlice>().sort(null).padAngle(0.02).value((slice) => slice.value)(slices);
 
+    // Numele include TOTALUL din mijloc: el e desenat ca `<text>` într-un svg `aria-hidden` și
+    // nu apare ca text nicăieri altundeva, deci fără el cifra centrală — cea mai mare de pe
+    // grafic — lipsea complet pentru un cititor de ecran.
     return (
-        <div role="group" aria-label={label} className="flex flex-wrap items-center gap-6">
+        <div role="group" aria-label={`${label}: ${center} ${centerLabel}`} className="flex flex-wrap items-center gap-6">
             <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" focusable="false" className="shrink-0">
                 <g transform={`translate(${radius},${radius})`}>
                     {arcs.map((slice) => (
@@ -52,8 +55,11 @@ export default function Donut({ slices, center, centerLabel, formatValue, label,
                             {slice.label}
                         </span>
                         <span className="numeric text-text">
-                            {formatValue(slice.value)}
-                            <span className="ml-1.5 text-xs text-text-3">{total > 0 ? Math.round((slice.value / total) * 100) : 0}%</span>
+                            {/* `{' '}` explicit: `ml-1.5` e DOAR margine vizuală, deci fără el
+                                arborele de accesibilitate (și orice copiere de text) lipește
+                                cifrele — „4" urmat de „15%" se citea „415%". */}
+                            {formatValue(slice.value)}{' '}
+                            <span className="ml-1 text-xs text-text-3">{total > 0 ? Math.round((slice.value / total) * 100) : 0}%</span>
                         </span>
                     </li>
                 ))}

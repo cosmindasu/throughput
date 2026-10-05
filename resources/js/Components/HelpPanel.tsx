@@ -44,7 +44,9 @@ export default function HelpPanel() {
     const introHintDismissed = dismissedHints.includes(INTRO_HINT_KEY);
 
     const [open, setOpen] = useState(false);
-    // Esc ascunde tooltip-ul fără a muta focusul sau cursorul (WCAG 1.4.13, „dismissible").
+    // Esc ascunde indiciul fără a muta focusul sau cursorul (WCAG 1.4.13, „dismissible") —
+    // tratat în ascultătorul de pe `document`, mai jos. Starea e doar de sesiune: închiderea
+    // DEFINITIVĂ rămâne deschiderea panoului (`dismissIntroHint`), care o persistă pe server.
     const [hintSuppressed, setHintSuppressed] = useState(false);
     // Limba al cărei catalog de ajutor e încărcat. `null` = niciunul încă. Comparat cu
     // `locale` (nu un boolean): `LocaleToggle` comută limba fără încărcare completă de
@@ -143,6 +145,13 @@ export default function HelpPanel() {
                 if (isOpen) {
                     setOpen(false);
                     triggerRef.current?.focus();
+                } else if (!dismissed) {
+                    // WCAG 1.4.13 „dismissible" cere ca indiciul de hover/focus să se poată
+                    // închide FĂRĂ a muta cursorul sau focusul. Pe `document`, nu pe buton:
+                    // când tooltip-ul a apărut la hover, focusul e în altă parte, deci un
+                    // `onKeyDown` local n-ar fi primit niciodată tasta — exact cazul pentru
+                    // care criteriul există.
+                    setHintSuppressed(true);
                 }
                 return;
             }
@@ -203,7 +212,6 @@ export default function HelpPanel() {
                 aria-controls={panelId}
                 aria-describedby={introHintVisible ? hintId : undefined}
                 onClick={() => (open ? close() : openPanel())}
-                onKeyDown={(event) => event.key === 'Escape' && setHintSuppressed(true)}
                 className="relative flex h-8 w-8 items-center justify-center rounded-full border border-control text-sm font-medium text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
                 <span aria-hidden="true">?</span>

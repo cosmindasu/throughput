@@ -174,7 +174,9 @@
     },
     "card": {
         "lost": "Lost — {{reason}}",
-        "draggableRoleDescription": "Draggable deal card"
+        "draggableRoleDescription": "Draggable deal card",
+        "overdue": "Overdue",
+        "dueSoon": "Expected close"
     },
     "lostReasonDialog": {
         "title": "Mark deal as Lost",

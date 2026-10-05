@@ -21,8 +21,12 @@ use App\Models\Order;
  * reconstruită din coloane în componente. `resources/js/lib/activityKind.ts` îi dă fiecărei
  * valori un icon și o tentă; o valoare fără intrare acolo cade pe neutru, nu pe o excepție.
  *
- * Folosită de AMBELE resurse de activitate: `ActivityEntryResource` (feed-ul dashboard-ului)
- * și `Activity\ActivityLogResource` (pagina Activity Log), ca să nu poată diverge.
+ * Folosită azi DOAR de `ActivityEntryResource` (feed-ul dashboard-ului).
+ * `Activity\ActivityLogResource` (pagina Activity Log) NU trece prin ea, deci cele două
+ * ecrane chiar diverg: o mutare de etapă apare ca „Moved X to another stage" în feed și ca
+ * „Updated Deal" în jurnal. Diferența e cunoscută, nu accidentală — alinierea cere un câmp
+ * nou pe contractul acelei pagini și o revizie a propriilor ei teste, deci nu se strecoară
+ * într-un lot de UI.
  */
 final class ActivityKind
 {
@@ -45,8 +49,14 @@ final class ActivityKind
                 && (array_key_exists('stage_id', $new) || array_key_exists('stage', $new)) => 'stage_moved',
             $entry->auditable_type === Invoice::class
                 && ($new['status'] ?? null) === Invoice::STATUS_PAID => 'invoice_paid',
+            // Forma pe care o scrie EXPEDIEREA REALĂ: `MarkShipmentShippedAction` mută
+            // comanda în `fulfilled`/`partially_fulfilled` prin `$order->save()`, deci
+            // observerul înregistrează `{status: …}`. Prima versiune căuta o cheie
+            // `shipment`, pe care o producea DOAR seed-ul demo — adică feed-ul semănat
+            // spunea „Shipped ORD-123", iar o expediere adevărată spunea „Updated Order".
+            // Demo-ul promitea o distincție pe care produsul n-o făcea.
             $entry->auditable_type === Order::class
-                && array_key_exists('shipment', $new) => 'order_shipped',
+                && in_array($new['status'] ?? null, [Order::STATUS_FULFILLED, Order::STATUS_PARTIALLY_FULFILLED], true) => 'order_shipped',
             default => 'updated',
         };
     }

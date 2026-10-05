@@ -64,6 +64,10 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
                                         <span aria-hidden="true"> · </span>
                                     </>
                                 ) : null}
+                                {/* Separatorul e `aria-hidden`, deci pentru un cititor de ecran
+                                    el NU există: fără spațiul de aici, numele înregistrării și
+                                    al autorului se citeau lipite („Acme renewalMarcus Reyes"). */}
+                                {item.subjectName ? ' ' : ''}
                                 {item.actor}
                             </p>
                         </div>

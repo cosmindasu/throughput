@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useId, useState, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { areaPath, linePath, linear, niceMax } from './geometry';
 import { useContainerWidth } from './useContainerWidth';
@@ -34,7 +34,10 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
     const count = categories.length;
     const innerWidth = width - MARGIN.left - MARGIN.right;
     const innerHeight = height - MARGIN.top - MARGIN.bottom;
-    const top = niceMax(Math.max(...series.flatMap((s) => s.values), 1));
+    // Pragul de 4, nu de 1: pe un workspace nou, cu toate valorile zero, `niceMax(1)` dădea
+    // o axă de 0 / 0,3 / 0,5 / 0,8 / 1 — fracțiuni de unitate pe un grafic de venit, formatate
+    // compact și fără monedă. Patru trepte întregi se citesc ca o axă goală, ceea ce și este.
+    const top = niceMax(Math.max(...series.flatMap((s) => s.values), 4));
     const x = linear(0, Math.max(count - 1, 1), 0, innerWidth);
     const y = linear(0, top, innerHeight, 0);
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((fraction) => top * fraction);
@@ -47,24 +50,13 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
         return Math.min(Math.max(Math.round(ratio * (count - 1)), 0), count - 1);
     };
 
-    const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
-        const move = (delta: number) => setActive((current) => Math.min(Math.max((current ?? 0) + delta, 0), count - 1));
-
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            move(1);
-        } else if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            move(-1);
-        } else if (event.key === 'Escape') {
-            setActive(null);
-        }
-    };
-
     return (
         <figure className="flex flex-col gap-3">
-            <figcaption id={captionId} className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-text-2">
-                {caption}
+            <figcaption className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-text-2">
+                {/* `id` pe TEXTUL legendei, nu pe tot `figcaption`-ul: altfel numele accesibil
+                    al graficului devenea „…ultimele 12 luni Orders Won deals", cu etichetele
+                    legendei lipite la coadă. */}
+                <span id={captionId}>{caption}</span>
                 <ul className="flex gap-3 text-xs font-normal text-text-2">
                     {series.map((s, index) => (
                         <li key={s.id} className="flex items-center gap-1.5">
@@ -77,18 +69,36 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
                 </ul>
             </figcaption>
 
-            <div ref={ref} className="relative">
+            {/*
+                `width === 0` = containerul n-a fost încă măsurat (vezi `useContainerWidth`).
+                Se rezervă ÎNĂLȚIMEA, dar nu se desenează nimic: un svg randat la o lățime
+                ghicită depășește panoul pentru un cadru și împinge documentul lateral.
+            */}
+            <div ref={ref} className="relative" style={width === 0 ? { height } : undefined}>
+                {width > 0 && (
+                <>
+                {/*
+                    `role="img"` cu un nume, NU `role="group"` focalizabil cu săgeți.
+
+                    Varianta cu `tabIndex={0}` + ArrowLeft/Right arăta ca o alternativă de
+                    tastatură, dar nu era una: săgețile mutau DOAR un tooltip `aria-hidden`,
+                    fără nicio regiune live, deci un cititor de ecran nu primea nimic — iar în
+                    modul de navigare al cititoarelor săgețile nici nu ajung la handler. Pe
+                    deasupra, prima apăsare sărea peste prima lună (`(current ?? 0) + 1`), iar
+                    Escape funcționa doar cât timp svg-ul avea focus.
+                    
+                    Alternativa REALĂ există deja și e mai bună: tabelul „View as table" de mai
+                    jos, cu toate cifrele, parcurgibil normal. Tooltip-ul rămâne ce a fost
+                    mereu — o înlesnire pentru mouse.
+                */}
                 <svg
                     width={width}
                     height={height}
-                    role="group"
+                    role="img"
                     aria-labelledby={captionId}
                     aria-roledescription={t('common:charts.roleDescription')}
-                    tabIndex={0}
                     onPointerMove={(event) => setActive(indexFromPointer(event))}
                     onPointerLeave={() => setActive(null)}
-                    onKeyDown={onKeyDown}
-                    onBlur={() => setActive(null)}
                     className="overflow-visible rounded-md"
                 >
                     <defs>
@@ -98,6 +108,10 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
                         </linearGradient>
                     </defs>
                     <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+                        {/* Etichetele axelor sunt `<text>`, deci cititorul de ecran le înșira ca
+                            CONȚINUT al graficului („0 125K 250K … Nov Dec Jan"). Tabelul de mai
+                            jos le dă în formă citibilă; aici sunt decor. */}
+                        <g aria-hidden="true">
                         {ticks.map((tick) => (
                             <g key={tick} transform={`translate(0,${y(tick)})`}>
                                 <line x2={innerWidth} stroke="var(--chart-grid)" />
@@ -113,6 +127,7 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
                                 </text>
                             ) : null,
                         )}
+                        </g>
                         {series.map((s, index) => {
                             const points = s.values.map((value, i) => ({ x: x(i), y: y(value) }));
 
@@ -156,18 +171,30 @@ export default function AreaChart({ categories, series, formatValue, formatTick,
                         ))}
                     </div>
                 )}
+                </>
+                )}
             </div>
 
             {/* Alternativa textuală e VIZIBILĂ la cerere, nu ascunsă: același tabel servește cititorul de
                 ecran, tastatura și pe cine vrea cifrele exacte. */}
             <details className="text-xs text-text-2">
                 <summary className="w-fit cursor-pointer rounded-sm text-accent-text hover:underline">{t('common:charts.viewAsTable')}</summary>
-                <div className="mt-2 max-h-56 overflow-auto rounded-md border border-border">
+                {/*
+                    `tabIndex`/`role`/`aria-label`: un container derulabil fără ele e o regiune
+                    pe care tastatura n-o poate parcurge (axe `scrollable-region-focusable`,
+                    impact „serious") și pe care cititorul de ecran o anunță fără nume. Tiparul
+                    e cel deja folosit de tabelele proiectului (`data-table-scroll`).
+                */}
+                <div tabIndex={0} role="region" aria-label={caption} className="mt-2 max-h-56 overflow-auto rounded-md border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
                     <table className="w-full text-left">
                         <caption className="sr-only">{caption}</caption>
                         <thead className="bg-raised">
                             <tr>
-                                <th scope="col" className="px-3 py-1.5 font-medium" />
+                                <th scope="col" className="px-3 py-1.5 font-medium">
+                                    {/* Antet de coloană gol = axe `empty-table-header`. Coloana
+                                        ține eticheta axei X, deci numele ei e chiar asta. */}
+                                    <span className="sr-only">{t('common:charts.categoryColumn')}</span>
+                                </th>
                                 {series.map((s) => (
                                     <th key={s.id} scope="col" className="px-3 py-1.5 text-right font-medium">
                                         {s.label}

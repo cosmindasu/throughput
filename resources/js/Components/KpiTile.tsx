@@ -97,9 +97,14 @@ interface KpiTileProps {
  * Rândurile de sub valoare (procent, linie) rămân în afara zonei de text a linkului.
  */
 export default function KpiTile({ label, value, format, hint, icon, tone, href, trend, delta }: KpiTileProps) {
-    const direction = delta ? (delta.ratio >= 0 ? 'up' : 'down') : null;
+    // Tonul și săgeata se iau din cifra AFIȘATĂ, nu din raportul brut: `-0,003` se
+    // formatează „0%" (zero zecimale), dar `ratio < 0` ar fi dat o săgeată roșie în jos lângă
+    // un „0%" — 997 față de 1000 ajunge. `Number()` scoate din nou un număr din textul deja
+    // rotunjit, cu semn.
+    const shown = delta ? Number.parseFloat(delta.format(delta.ratio).replace(/[^\d.,+-]/g, '').replace(',', '.')) : 0;
+    const direction = delta ? (Number.isFinite(shown) && shown < 0 ? 'down' : 'up') : null;
     // Zero nu e nici bine, nici rău: o lună identică cu precedenta nu merită nici verde, nici roșu.
-    const deltaTone: BadgeTone = !delta || delta.ratio === 0 ? 'neutral' : direction === delta.goodWhen ? 'success' : 'danger';
+    const deltaTone: BadgeTone = !delta || !Number.isFinite(shown) || shown === 0 ? 'neutral' : direction === delta.goodWhen ? 'success' : 'danger';
 
     return (
         <div
@@ -157,9 +162,16 @@ export default function KpiTile({ label, value, format, hint, icon, tone, href, 
                         în franceză la 416px — 412px față de marginea de 400px a plăcii).
                         Procentul rămâne, fiindcă el e informația; linia doar o ilustrează.
                     */}
+                    {/*
+                        FĂRĂ `label`: `Sparkline` devine atunci decorativ (`aria-hidden`), cum
+                        îi spune propriul docblock. Cu etichetă, cititorul de ecran primea
+                        `img "Orders per month over the last 12 months"` și NICIO cifră —
+                        seria de 12 luni nu apare în niciun tabel de pe pagină. Procentul de
+                        lângă ea e informația; linia doar o ilustrează.
+                    */}
                     {trend && (
-                        <span className="hidden sm:block">
-                            <Sparkline values={trend.values} label={trend.label} className={TONE[tone].text} />
+                        <span className="hidden sm:block" title={trend.label}>
+                            <Sparkline values={trend.values} className={TONE[tone].text} />
                         </span>
                     )}
                 </div>

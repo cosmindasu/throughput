@@ -70,7 +70,7 @@ const statusKey = (status: string): string => status.replace(/_(.)/g, (_, char: 
  * (`Inertia::defer`), deci pagina se vede înainte ca agregările să se termine.
  */
 export default function Dashboard() {
-    const { workspace, kpis, activity, auth } = usePage<DashboardPageProps>().props;
+    const { workspace, kpis, activity, auth, charts } = usePage<DashboardPageProps>().props;
     const { t } = useTranslation(['dashboard', 'orders']);
     const locale = useLocale();
     // Dashboard-ul rulează mereu într-un workspace rezolvat (ruta are `{workspace}`), dar
@@ -138,47 +138,44 @@ export default function Dashboard() {
                         tone="accent"
                         href={`${base}/deals/board`}
                     />
-                    <DeferredData<DashboardPageProps, 'charts'>
-                        keys={['charts']}
-                        fallback={
-                            <KpiTile
-                                label={t('dashboard:kpis.ordersThisMonth')}
-                                value={kpis.ordersThisMonth}
-                                format={count}
-                                icon="orders"
-                                tone="info"
-                                href={`${base}/orders`}
-                            />
+                    {/*
+                        O SINGURĂ placă, nu una de rezervă și una rezolvată într-un
+                        `<DeferredData>`: cele două sunt elemente de tip diferit, deci React le
+                        demonta și remonta la sosirea `charts`, iar placa își renumăra cifra de
+                        la zero a doua oară. În plus, cea de rezervă n-avea rândul de variație,
+                        deci toate cele patru plăci creșteau cu ~34px când veneau datele — un
+                        salt de layout la fiecare încărcare. `charts` e opțional în tip
+                        (`Inertia::defer`), deci linia și procentul apar pur și simplu când
+                        sosesc.
+                    */}
+                    <KpiTile
+                        label={t('dashboard:kpis.ordersThisMonth')}
+                        value={kpis.ordersThisMonth}
+                        format={count}
+                        icon="orders"
+                        tone="info"
+                        href={`${base}/orders`}
+                        // `slice(0, -1)`: ULTIMA lună e în curs. Linia ar fi coborât abrupt pe
+                        // ea la fiecare început de lună, chiar lângă o insignă verde calculată
+                        // pe perioade comparabile — două afirmații contrare despre aceeași
+                        // cifră, la trei centimetri una de alta. Graficul mare își permite luna
+                        // parțială: are axă, etichete și un tabel dedesubt. O linie fără axă nu.
+                        trend={charts && { values: charts.ordersCount.slice(0, -1), label: t('dashboard:trends.ordersSeries') }}
+                        // Fără lună anterioară nu există variație de raportat — un „+100%"
+                        // față de zero e aritmetic, nu informativ.
+                        delta={
+                            charts && charts.ordersMonthToDate.previous !== 0
+                                ? {
+                                      ratio:
+                                          (charts.ordersMonthToDate.current - charts.ordersMonthToDate.previous) /
+                                          charts.ordersMonthToDate.previous,
+                                      format: percent,
+                                      goodWhen: 'up',
+                                      versus: t('dashboard:trends.versusLastMonth'),
+                                  }
+                                : undefined
                         }
-                    >
-                        {({ charts }) => {
-                            const { current, previous } = charts.ordersMonthToDate;
-
-                            return (
-                                <KpiTile
-                                    label={t('dashboard:kpis.ordersThisMonth')}
-                                    value={kpis.ordersThisMonth}
-                                    format={count}
-                                    icon="orders"
-                                    tone="info"
-                                    href={`${base}/orders`}
-                                    trend={{ values: charts.ordersCount, label: t('dashboard:trends.ordersSeries') }}
-                                    // Fără lună anterioară nu există variație de raportat — un
-                                    // „+100%" față de zero e aritmetic, nu informativ.
-                                    delta={
-                                        previous === 0
-                                            ? undefined
-                                            : {
-                                                  ratio: (current - previous) / previous,
-                                                  format: percent,
-                                                  goodWhen: 'up',
-                                                  versus: t('dashboard:trends.versusLastMonth'),
-                                              }
-                                    }
-                                />
-                            );
-                        }}
-                    </DeferredData>
+                    />
                     <KpiTile
                         label={t('dashboard:kpis.overdueInvoices')}
                         value={kpis.overdueInvoices.count}
@@ -198,7 +195,37 @@ export default function Dashboard() {
                     />
                 </div>
 
-                <DeferredData<DashboardPageProps, 'charts'> keys={['charts']} fallback={<ChartSkeleton height={292} />}>
+                {/*
+                    Scheletul OGLINDEȘTE structura reală — aceleași două rânduri de grid,
+                    aceleași `Panel`-uri cu aceleași titluri — nu un dreptunghi unic. Măsurat
+                    cu răspunsul parțial întârziat: un schelet de 292px în locul a 675px de
+                    conținut împingea „Recent activity" cu 403px în jos la sosirea datelor
+                    (CLS 0,03-0,08, față de 0,000 înainte de val). Cu panourile deja la locul
+                    lor, rămâne doar diferența de înălțime dinăuntru.
+                */}
+                <DeferredData<DashboardPageProps, 'charts'>
+                    keys={['charts']}
+                    fallback={
+                        <>
+                            <div className="grid gap-4 lg:grid-cols-3">
+                                <Panel title={t('dashboard:charts.revenue')} className="lg:col-span-2">
+                                    <ChartSkeleton height={252} />
+                                </Panel>
+                                <Panel title={t('dashboard:charts.pipeline')}>
+                                    <ChartSkeleton height={252} />
+                                </Panel>
+                            </div>
+                            <div className="grid gap-4 lg:grid-cols-3">
+                                <Panel title={t('dashboard:charts.ordersByStatus')}>
+                                    <ChartSkeleton height={172} />
+                                </Panel>
+                                <Panel title={t('dashboard:attention.title')} className="lg:col-span-2">
+                                    <ChartSkeleton height={172} />
+                                </Panel>
+                            </div>
+                        </>
+                    }
+                >
                     {({ charts }) => {
                         // Doar etapele deschise ajung aici (controllerul exclude Won/Lost), deci
                         // rampa `--stage-1…4` se aplică pe toate — de aceea `isWon`/`isLost` sunt

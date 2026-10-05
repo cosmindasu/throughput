@@ -161,6 +161,7 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
             <button
                 ref={triggerRef}
                 type="button"
+                title={variant === 'icon' ? t('moveStageMenu.trigger') : undefined}
                 aria-haspopup="menu"
                 aria-expanded={open}
                 aria-controls={open ? menuId : undefined}
@@ -184,6 +185,9 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                     `getByRole('button', { name: 'Move to stage…' })` — și care e, mai
                     important, singurul lucru care spune ce face butonul.
                 */}
+                {/* `title` pe varianta compactă: indiciul paginii („use «Move to stage…»")
+                    numește un control care, pe kanban, se vede ca „⋯". Numele accesibil îl
+                    avea deja; `title` îl face descoperibil și cu mouse-ul. */}
                 {variant === 'icon' && <Icon name="more" size={16} />}
                 <span className={variant === 'icon' ? 'sr-only' : undefined}>{t('moveStageMenu.trigger')}</span>
                 {dealTitle && <span className="sr-only"> {t('moveStageMenu.triggerFor', { title: dealTitle })}</span>}

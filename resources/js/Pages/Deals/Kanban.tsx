@@ -59,6 +59,7 @@ export default function Kanban() {
     // Separat de `draggedDeal`, deși amândouă descriu același gest: ăsta e DOAR aspectul
     // (cardul estompat), iar el singur se amână cu un cadru. Vezi `onDragStart` mai jos.
     const [dimmedDealId, setDimmedDealId] = useState<string | null>(null);
+    const dimFrame = useRef(0);
     const locale = useLocale();
     // Miezul nopții local, o singură dată pentru tot board-ul: `Date.now()` direct în corpul
     // componentei e impur (`react-hooks/purity`), iar per card ar fi și risipă.
@@ -247,6 +248,7 @@ export default function Kanban() {
                                 // Și estomparea: după un `drop` sintetic (sau pe unele căi de
                                 // drag asistiv) `dragend` nu mai vine, iar cardul ar rămâne
                                 // translucid la destinație.
+                                cancelAnimationFrame(dimFrame.current);
                                 setDimmedDealId(null);
                                 handleDrop(event, column.stage);
                             }}
@@ -319,9 +321,15 @@ export default function Kanban() {
                                         */
                                         onDragStart={(_event, draggedDealCard) => {
                                             setDraggedDeal(draggedDealCard);
-                                            requestAnimationFrame(() => setDimmedDealId(draggedDealCard.id));
+                                            // Id-ul cadrului se păstrează: dacă `dragend` vine
+                                            // ÎNAINTEA lui (drag foarte scurt, sau sintetic),
+                                            // fără anulare `setDimmedDealId(id)` ar rula după
+                                            // `setDimmedDealId(null)` și cardul ar rămâne
+                                            // translucid la nesfârșit.
+                                            dimFrame.current = requestAnimationFrame(() => setDimmedDealId(draggedDealCard.id));
                                         }}
                                         onDragEnd={() => {
+                                            cancelAnimationFrame(dimFrame.current);
                                             setDraggedDeal(null);
                                             setDimmedDealId(null);
                                             setOverStageId(null);
@@ -331,8 +339,11 @@ export default function Kanban() {
                                     />
                                 ))}
 
+                                {/* `text-text-2`, nu `text-text-3`: pe tenta de drop
+                                    (`--accent-tint`) al doilea dă 4,34:1 pe tema închisă — sub
+                                    pragul de 4,5:1 exact în starea în care textul contează. */}
                                 {column.deals.length === 0 && (
-                                    <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-text-3">
+                                    <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-text-2">
                                         {t('kanban.emptyStage')}
                                     </p>
                                 )}
@@ -368,9 +379,19 @@ export default function Kanban() {
  */
 function SummaryStat({ label, tone, children }: { label: string; tone: Tone; children: ReactNode }) {
     return (
-        <div className={`rounded-lg border border-l-4 border-border bg-surface px-4 py-3 ${TONE[tone].edge}`}>
-            <dt className="text-xs text-text-2">{label}</dt>
-            <dd className="numeric mt-0.5 text-lg font-semibold text-text">{children}</dd>
+        // `min-w-0` + `truncate`: o celulă de grid nu coboară sub lățimea conținutului ei, iar
+        // o sumă de pipeline cu cifre tabulare („$41.612.798") depășește cele ~170px pe care
+        // le are la 375px pe două coloane — împingea DOCUMENTUL lateral, nu doar celula.
+        // Defectul exista de la început, dar era ascuns: `AnimatedNumber` scria „$0" în DOM
+        // înainte de primul cadru, deci lățimea reală apărea abia la sfârșitul numărătorii,
+        // după ce testul măsurase. Odată pusă valoarea corectă în markup de la randare (ca un
+        // tab de fundal să n-o rateze), a ieșit la suprafață.
+        //
+        // Cifra scade și cu o treaptă de corp sub `sm`, ca trunchierea să rămână ultima plasă,
+        // nu mecanismul obișnuit — un total de bani tăiat la jumătate n-ar fi o informație.
+        <div className={`min-w-0 rounded-lg border border-l-4 border-border bg-surface px-4 py-3 ${TONE[tone].edge}`}>
+            <dt className="truncate text-xs text-text-2">{label}</dt>
+            <dd className="numeric mt-0.5 truncate text-base font-semibold text-text sm:text-lg">{children}</dd>
         </div>
     );
 }
