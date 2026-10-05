@@ -56,6 +56,9 @@ export default function Kanban() {
     // stare de business — niciuna nu influențează ce se trimite serverului.
     const [overStageId, setOverStageId] = useState<string | null>(null);
     const [lastMovedId, setLastMovedId] = useState<string | null>(null);
+    // Separat de `draggedDeal`, deși amândouă descriu același gest: ăsta e DOAR aspectul
+    // (cardul estompat), iar el singur se amână cu un cadru. Vezi `onDragStart` mai jos.
+    const [dimmedDealId, setDimmedDealId] = useState<string | null>(null);
     const locale = useLocale();
     // Miezul nopții local, o singură dată pentru tot board-ul: `Date.now()` direct în corpul
     // componentei e impur (`react-hooks/purity`), iar per card ar fi și risipă.
@@ -241,6 +244,10 @@ export default function Kanban() {
                             }}
                             onDrop={(event) => {
                                 setOverStageId(null);
+                                // Și estomparea: după un `drop` sintetic (sau pe unele căi de
+                                // drag asistiv) `dragend` nu mai vine, iar cardul ar rămâne
+                                // translucid la destinație.
+                                setDimmedDealId(null);
                                 handleDrop(event, column.stage);
                             }}
                             // Coloana de PLECARE nu se evidențiază: a lăsa cardul unde era nu e o mutare.
@@ -287,15 +294,36 @@ export default function Kanban() {
                                         stages={allStages}
                                         workspaceSlug={workspaceSlug}
                                         today={today}
-                                        dragging={draggedDeal?.id === deal.id}
+                                        dragging={dimmedDealId === deal.id}
                                         justMoved={lastMovedId === deal.id}
-                                        // Pe cadrul URMĂTOR: starea aplicată chiar în
-                                        // `dragstart` apucă să se „coacă" în imaginea pe care
-                                        // browserul o ia pentru drag, deci cardul ar fi tras
-                                        // deja semitransparent.
-                                        onDragStart={(_event, draggedDealCard) => requestAnimationFrame(() => setDraggedDeal(draggedDealCard))}
+                                        /*
+                                            Cardul tras se înregistrează SINCRON, estomparea
+                                            lui pe cadrul următor — două stări, fiindcă au
+                                            constrângeri contrare.
+
+                                            Amânarea există fiindcă browserul fotografiază
+                                            cardul pentru imaginea de drag la sfârșitul lui
+                                            `dragstart`: o clasă de opacitate aplicată acolo se
+                                            „coace" în fotografie, iar utilizatorul trage un
+                                            card deja translucid.
+
+                                            Dar `draggedDeal` NU poate aștepta: `handleDrop` îl
+                                            citește, iar o lăsare rapidă — sau un `drop`
+                                            sintetic, ca în `deals-pipeline.spec.ts` — ajunge
+                                            înaintea cadrului și găsește `null`, deci mutarea
+                                            se pierde în tăcere. Prins de suita e2e după ce
+                                            amânasem AMBELE: a doua mutare din trei pica.
+                                            Într-un tab de fundal, unde `requestAnimationFrame`
+                                            nu se execută deloc, nu s-ar fi mutat nimic
+                                            niciodată.
+                                        */
+                                        onDragStart={(_event, draggedDealCard) => {
+                                            setDraggedDeal(draggedDealCard);
+                                            requestAnimationFrame(() => setDimmedDealId(draggedDealCard.id));
+                                        }}
                                         onDragEnd={() => {
                                             setDraggedDeal(null);
+                                            setDimmedDealId(null);
                                             setOverStageId(null);
                                         }}
                                         onError={setErrorMessage}
