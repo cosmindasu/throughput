@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Activity\ActivityLogResource;
 use App\Models\ActivityLog;
+use App\Models\Invoice;
 use App\Models\Membership;
 use App\Support\Activity\ActivityActionLabel;
+use App\Support\Activity\ActivityVisibility;
 use App\Support\Activity\AuditableResources;
 use App\Support\Lists\CursorPage;
 use Carbon\CarbonImmutable;
@@ -42,7 +44,7 @@ final class ActivityLogController extends Controller
         $canViewAll = $user->can('activity_log.view');
 
         $query = ActivityLog::query()
-            ->with(['user:id,name', 'auditable'])
+            ->with(['user:id,name', 'auditable' => ActivityVisibility::eagerLoad(...)])
             ->orderByDesc('created_at')
             // Departajare pe ULID (crescător monoton la inserare) — același tipar ca
             // `DashboardController::recentActivity()`/`AccountActivityTimeline`: două
@@ -107,6 +109,19 @@ final class ActivityLogController extends Controller
         $entity = $modelClass::query()->findOrFail($id);
 
         Gate::authorize('view', $entity);
+
+        // `ActivityVisibility` decide pe `order.owner_user_id` când entitatea e o factură, iar
+        // aici relația nu vine prin `eagerLoad()` (vezi mai jos: entitatea e deja în memorie).
+        // `Gate::authorize()` de deasupra garantează deja accesul, dar decizia se ia în
+        // Resource, care nu știe asta — deci îi dăm contextul, nu o excepție.
+        //
+        // Pentru un Agent, `InvoicePolicy::isWithinOwnRecords()` a încărcat deja ACEEAȘI
+        // relație pe ACEEAȘI instanță, deci apelul e un no-op; pentru celelalte roluri masca
+        // nici nu o citește. Rămâne explicit pe amândouă: altfel singurul lucru care ține
+        // numele facturilor pe tab-ul History ar fi un efect secundar al policy-ului.
+        if ($entity instanceof Invoice) {
+            $entity->loadMissing('order:id,owner_user_id');
+        }
 
         $paginator = ActivityLog::query()
             ->where('auditable_type', $modelClass)

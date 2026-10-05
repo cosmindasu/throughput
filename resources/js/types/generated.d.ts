@@ -107,8 +107,9 @@ export interface ActivityItem {
     kind: string;
     description: string;
     // Numele PROPRIU al înregistrării atinse (titlul afacerii, numărul comenzii…), separat
-    // de fraza tradusă din `description` — FR-I18N-06. `null` dacă entitatea nu mai există
-    // sau tipul ei n-are un câmp de nume cunoscut.
+    // de fraza tradusă din `description` — FR-I18N-06. `null` dacă entitatea nu mai există,
+    // dacă tipul ei n-are un câmp de nume cunoscut, SAU dacă utilizatorul nu are voie să vadă
+    // înregistrarea (`App\Support\Activity\ActivityVisibility` — doar facturi, doar Agent).
     subjectName: string | null;
     actor: string;
     at: string;
@@ -1556,7 +1557,10 @@ export interface HistoryEntry {
     kind: string;
     // Fraza deja compusă și tradusă, plus numele PROPRIU al înregistrării atinse
     // (`App\Support\Activity\ActivityNarrative`). `subjectName` e `null` când entitatea nu
-    // mai există sau tipul ei n-are un câmp de nume cunoscut.
+    // mai există, când tipul ei n-are un câmp de nume cunoscut, sau când utilizatorul nu are
+    // voie să vadă înregistrarea (`ActivityVisibility` — doar facturi, doar Agent). `entityUrl`,
+    // `oldValues` și `newValues` sunt `null` în ACELAȘI caz: linkul ar duce la un 403, iar
+    // valorile ar fi purtat numărul facturii pe lângă masca de pe `subjectName`.
     description: string;
     subjectName: string | null;
     actor: { id: string; name: string } | null;

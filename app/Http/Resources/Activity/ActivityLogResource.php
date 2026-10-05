@@ -13,6 +13,7 @@ use App\Models\Variant;
 use App\Support\Activity\ActivityActionLabel;
 use App\Support\Activity\ActivityKind;
 use App\Support\Activity\ActivityNarrative;
+use App\Support\Activity\ActivityVisibility;
 use App\Support\Members\DeactivatedMemberNames;
 use App\Support\Permissions;
 use Illuminate\Http\Request;
@@ -32,10 +33,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * `Products/Show`, per raportul lotului) — `entityUrl` iese `null` pentru ea, deliberat:
  * un link către o rută inexistentă ar fi mai rău decât absența lui.
  *
- * Controller-ul e responsabil de eager-loading (`with(['user:id,name', 'auditable'])`) —
- * Resource-ul NU declanșează el însuși interogări suplimentare per rând. `auditable` e
- * OBLIGATORIU de când `subjectName` e în formă: proiectul interzice lazy loading, deci
- * absența lui ar arunca, nu ar încetini.
+ * Controller-ul e responsabil de eager-loading
+ * (`with(['user:id,name', 'auditable' => ActivityVisibility::eagerLoad(...)])`) — Resource-ul
+ * NU declanșează el însuși interogări suplimentare per rând. `auditable` e OBLIGATORIU de când
+ * `subjectName` e în formă: proiectul interzice lazy loading, deci absența lui ar arunca, nu ar
+ * încetini. `eagerLoad(...)` nu e opțional nici el: fără `order` adus odată cu factura, masca
+ * din `ActivityVisibility` cade ÎNCHIS și Agentul își pierde numele facturilor PROPRII.
  *
  * @mixin ActivityLog
  */
@@ -56,6 +59,10 @@ class ActivityLogResource extends JsonResource
         // Calculat O DATĂ și pasat mai departe — vezi `ActivityNarrative::describe()`.
         $kind = ActivityKind::of($this->resource);
 
+        // Fraza rămâne („Created Invoice"), numele, linkul ȘI valorile dispar — vezi
+        // `ActivityVisibility`. Pentru orice tip în afară de `Invoice` iese `true`.
+        $mayName = ActivityVisibility::mayNameSubject($this->resource, $request->user());
+
         return [
             'id' => $this->id,
             'action' => $this->action,
@@ -70,18 +77,22 @@ class ActivityLogResource extends JsonResource
             // sursă ca feed-ul (`ActivityNarrative`). Fără ele, pagina asta arăta
             // cincisprezece rânduri „Updated" la rând, fără să spună CARE afacere.
             'description' => ActivityNarrative::describe($this->resource, $kind),
-            'subjectName' => ActivityNarrative::subjectName($this->resource),
+            'subjectName' => $mayName ? ActivityNarrative::subjectName($this->resource) : null,
             // FR-TEN-04 — un membru dezactivat rămâne vizibil ca AUTOR al unei acțiuni
             // trecute („(deactivated)"), la fel ca peste tot unde numele unui membru apare
             // ca referință istorică (§7.4, ADR-011). `null` = acțiune de sistem (§17.1).
             'actor' => $this->user
                 ? ['id' => $this->user->id, 'name' => DeactivatedMemberNames::label($this->user->name, $this->user->id)]
                 : null,
-            'oldValues' => $this->visibleValues($this->old_values, $request),
-            'newValues' => $this->visibleValues($this->new_values, $request),
+            // Aceeași decizie ca la `subjectName`, și nu un detaliu: un rând `created` scris
+            // pe calea reală (`ActivityLogObserver` → `ChangedAttributes::snapshot()`) poartă
+            // instantaneul COMPLET — `invoice_number`, `total`, `balance_due`. Mascarea doar
+            // a numelui ar fi fost cosmetică, numărul plecând un nivel mai jos în payload.
+            'oldValues' => $mayName ? $this->visibleValues($this->old_values, $request) : null,
+            'newValues' => $mayName ? $this->visibleValues($this->new_values, $request) : null,
             'createdAt' => $this->created_at?->toIso8601String(),
             'bulkOperationId' => $this->bulk_operation_id,
-            'entityUrl' => $this->entityUrl(),
+            'entityUrl' => $mayName ? $this->entityUrl() : null,
         ];
     }
 

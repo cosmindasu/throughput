@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\ActivityLog;
 use App\Support\Activity\ActivityKind;
 use App\Support\Activity\ActivityNarrative;
+use App\Support\Activity\ActivityVisibility;
 use App\Support\Members\DeactivatedMemberNames;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -47,12 +48,15 @@ class ActivityEntryResource extends JsonResource
             'description' => ActivityNarrative::describe($this->resource, $kind),
             // Numele entității atinse, ca al DOILEA câmp, nu interpolat în `description`:
             // fraza rămâne tradusă întreagă (FR-I18N-06), iar conținutul scris de
-            // utilizator intră separat. `null` când entitatea nu mai există sau rândul
-            // n-are subiect (login, export în masă).
+            // utilizator intră separat. `null` când entitatea nu mai există, când rândul
+            // n-are subiect (login, export în masă), SAU când utilizatorul n-are voie să vadă
+            // înregistrarea (`ActivityVisibility` — doar facturi, doar Agent).
             //
             // GDPR-02: citim numele CURENT al modelului, deci un contact anonimizat apare
             // cu placeholderul lui — feed-ul nu poate reînvia date șterse.
-            'subjectName' => ActivityNarrative::subjectName($this->resource),
+            'subjectName' => ActivityVisibility::mayNameSubject($this->resource, $request->user())
+                ? ActivityNarrative::subjectName($this->resource)
+                : null,
             // FR-TEN-04 — placeholder „(deactivated)" pe autorul unei acțiuni dacă
             // membership-ul lui în tenantul curent a fost dezactivat între timp.
             'actor' => DeactivatedMemberNames::label($this->user?->name, $this->user_id) ?? __('activity.entries.system_actor'),

@@ -14,6 +14,7 @@ use App\Models\Pipeline;
 use App\Models\Stage;
 use App\Models\User;
 use App\Models\Variant;
+use App\Support\Activity\ActivityVisibility;
 use App\Support\Permissions;
 use App\Support\Stock\LowStockRule;
 use Illuminate\Database\Eloquent\Builder;
@@ -337,7 +338,7 @@ class DashboardController extends Controller
                 // citește numele înregistrării atinse, iar proiectul interzice lazy loading
                 // (`Model::preventLazyLoading`). MorphTo se încarcă GRUPAT pe tip, deci cel
                 // mult o interogare per tip de entitate pentru cele 10 rânduri, nu 10.
-                ->with(['user', 'auditable'])
+                ->with(['user', 'auditable' => ActivityVisibility::eagerLoad(...)])
                 // Departajare pe `id`, nu doar `created_at` (Faza 4, prins de un test care
                 // a devenit instabil când suita a crescut): două acțiuni din aceeași secundă
                 // — de pildă dezactivarea unui membru și scrierea care o urmează — ieșeau în
