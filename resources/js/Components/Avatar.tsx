@@ -44,7 +44,7 @@ interface AvatarProps {
 
 /**
  * `aria-hidden`: numele persoanei apare lângă el ca text (sau ca `sr-only`), deci avatarul e
- * redundant pentru tehnologiile asistive — aceeași regulă ca `Icon` și `ActivityDot`.
+ * redundant pentru tehnologiile asistive — aceeași regulă ca `Icon` și `ToneIcon`.
  */
 export default function Avatar({ id, name, size = 24 }: AvatarProps) {
     return (

@@ -42,7 +42,7 @@ final class ActivityLogController extends Controller
         $canViewAll = $user->can('activity_log.view');
 
         $query = ActivityLog::query()
-            ->with('user:id,name')
+            ->with(['user:id,name', 'auditable'])
             ->orderByDesc('created_at')
             // Departajare pe ULID (crescător monoton la inserare) — același tipar ca
             // `DashboardController::recentActivity()`/`AccountActivityTimeline`: două
@@ -111,7 +111,7 @@ final class ActivityLogController extends Controller
         $paginator = ActivityLog::query()
             ->where('auditable_type', $modelClass)
             ->where('auditable_id', $entity->getKey())
-            ->with('user:id,name')
+            ->with(['user:id,name', 'auditable'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->cursorPaginate(self::ENTITY_PER_PAGE);

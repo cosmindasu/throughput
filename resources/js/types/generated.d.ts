@@ -97,7 +97,7 @@ export interface ActivityItem {
     id: string;
     // `App\Models\ActivityLog::ACTIONS` — valoarea brută a enum-ului, pe lângă
     // `description` (fraza deja compusă și tradusă server-side). Aceeași pereche ca pe
-    // `HistoryEntry`. Folosită DOAR pentru semnalul vizual (`lib/activityTone`), niciodată
+    // `HistoryEntry`. Folosită DOAR pentru semnalul vizual (`lib/activityKind`), niciodată
     // pentru a reconstrui text.
     action: string;
     // CE s-a întâmplat, derivat server-side din `action` + `auditable_type` + `new_values`
@@ -1551,6 +1551,14 @@ export interface HistoryEntry {
     id: string;
     action: string;
     actionLabel: string;
+    // CE s-a întâmplat, derivat server-side din `action` + `auditable_type` + `new_values`
+    // (`App\Support\Activity\ActivityKind`) — aceeași pereche ca pe `ActivityItem`.
+    kind: string;
+    // Fraza deja compusă și tradusă, plus numele PROPRIU al înregistrării atinse
+    // (`App\Support\Activity\ActivityNarrative`). `subjectName` e `null` când entitatea nu
+    // mai există sau tipul ei n-are un câmp de nume cunoscut.
+    description: string;
+    subjectName: string | null;
     actor: { id: string; name: string } | null;
     oldValues: Record<string, unknown> | null;
     newValues: Record<string, unknown> | null;

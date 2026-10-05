@@ -50,7 +50,7 @@ export const KIND_VISUAL: Record<ActivityKind, KindVisual> = {
 
 const FALLBACK: KindVisual = { icon: 'activity', tone: 'neutral' };
 
-/** `kind` necunoscut (rând vechi, enum extins mai târziu) → neutru, nu excepție — ca `activityTone()`. */
+/** `kind` necunoscut (rând vechi, enum extins mai târziu) → neutru, nu excepție. */
 export function kindVisual(kind: string | undefined): KindVisual {
     return (kind && KIND_VISUAL[kind as ActivityKind]) || FALLBACK;
 }

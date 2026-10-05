@@ -1,6 +1,6 @@
 /**
  * O SINGURĂ hartă tentă → clase, în loc de patru (`StatusBadge.toneClasses`, `KpiTile.toneValue`,
- * `KpiTile.toneEdge`, `ActivityDot.toneDot`) care pot diverge. Fiecare șir e LITERAL (Tailwind
+ * `KpiTile.toneEdge`, punctul de status) care pot diverge. Fiecare șir e LITERAL (Tailwind
  * scanează sursa; `bg-${tone}-tint` nu s-ar genera) și folosește exclusiv tokeni.
  *
  * Contrastul, măsurat pe tokenii din `app.css`: fiecare tentă ca text/icon pe propria tentă

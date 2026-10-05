@@ -1,10 +1,11 @@
 import { usePage } from '@inertiajs/react';
-import ActivityDot from '@/Components/ActivityDot';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ToneIcon from '@/Components/ToneIcon';
 import Button from '@/Components/Button';
 import EmptyState from '@/Components/EmptyState';
 import { useLocale } from '@/hooks/useLocale';
+import { kindVisual } from '@/lib/activityKind';
 import { getDateTimeFormat } from '@/lib/format';
 import type { HistoryEntry } from '@/types/generated';
 
@@ -179,9 +180,15 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                                 `ActivityLogResource::toArray()`, tradus server-side prin
                                 `App\Support\Activity\ActivityActionLabel` (`lang/{en,fr}/activity.php`,
                                 ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis. Nu-l
-                                reconstrui aici: locale-ul cererii curente, nu al clientului. */}
+                                reconstrui aici: locale-ul cererii curente, nu al clientului.
+
+                                Rămâne `actionLabel`, nu `description`: tabul e MONTAT pe entitate, deci
+                                „Moved deal to another stage" ar repeta pe fiecare rând un subiect pe care
+                                pagina îl are deja în titlu. Iconul vine totuși din `kind`, ca pe celelalte
+                                două ecrane — altfel o mutare de etapă și o editare de titlu arată la fel,
+                                deși sunt lucruri diferite. */}
                             <span className="flex items-start gap-2.5 font-medium text-text">
-                                <ActivityDot action={entry.action} />
+                                <ToneIcon size="sm" name={kindVisual(entry.kind).icon} tone={kindVisual(entry.kind).tone} />
                                 {entry.actionLabel}
                             </span>
                             <time

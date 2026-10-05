@@ -17,7 +17,7 @@ interface ToneIconProps {
 
 /**
  * Iconul într-un chip tentat. DECORATIV prin construcție (`aria-hidden`), ca `Icon` și ca
- * `ActivityDot`: eticheta scrisă stă mereu lângă el. Dacă un icon rămâne singurul purtător al
+ * `Icon`: eticheta scrisă stă mereu lângă el. Dacă un icon rămâne singurul purtător al
  * sensului (buton fără text), numele accesibil se dă pe BUTON, ca `sr-only`, nu aici.
  */
 export default function ToneIcon({ tone, name, size = 'md', shape = 'round', className = '' }: ToneIconProps) {

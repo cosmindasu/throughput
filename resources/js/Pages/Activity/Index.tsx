@@ -1,13 +1,14 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import ActivityDot from '@/Components/ActivityDot';
 import Button from '@/Components/Button';
 import CursorPagination from '@/Components/CursorPagination';
 import EmptyState from '@/Components/EmptyState';
 import PageHeader from '@/Components/PageHeader';
+import ToneIcon from '@/Components/ToneIcon';
 import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { kindVisual } from '@/lib/activityKind';
 import { getDateTimeFormat } from '@/lib/format';
 import type { ActivityIndexPageProps } from '@/types/generated';
 
@@ -169,20 +170,34 @@ export default function Index() {
                                 {entries.data.map((entry) => (
                                     <tr key={entry.id}>
                                         <td className="px-4 py-2.5">
+                                            {/*
+                                                Iconul vine din `entry.kind`, nu din `entry.action`: enum-ul
+                                                coloanei are nouă valori, dar o mutare de etapă, o factură
+                                                încasată și o editare de titlu sunt TOATE `updated`. Aceeași
+                                                derivare ca feed-ul dashboard-ului (`ActivityKind` pe server,
+                                                `lib/activityKind` pentru icon și tentă).
+
+                                                `description` și `subjectName` vin GATA CONSTRUITE din
+                                                `ActivityLogResource::toArray()`, traduse server-side
+                                                (ADR-022/FR-I18N-04) — nu le reconstrui aici: contează
+                                                locale-ul cererii, nu al clientului. Pagina arăta până acum
+                                                `actionLabel`, adică „Updated" pe cincisprezece rânduri la
+                                                rând, fără să spună CARE înregistrare.
+                                            */}
                                             <span className="flex items-start gap-2.5">
-                                                <ActivityDot action={entry.action} />
-                                                {/* `entry.actionLabel` vine GATA CONSTRUIT din
-                                                `ActivityLogResource::toArray()`, tradus server-side prin
-                                                `App\Support\Activity\ActivityActionLabel` (`lang/{en,fr}/activity.php`,
-                                                ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis.
-                                                Nu-l reconstrui aici: locale-ul cererii curente, nu al clientului. */}
-                                            {entry.entityUrl ? (
-                                                <a href={entry.entityUrl} className="font-medium text-accent-text hover:underline">
-                                                    {entry.actionLabel}
-                                                </a>
-                                            ) : (
-                                                <span className="font-medium text-text">{entry.actionLabel}</span>
-                                                )}
+                                                <ToneIcon size="sm" name={kindVisual(entry.kind).icon} tone={kindVisual(entry.kind).tone} />
+                                                <span className="min-w-0">
+                                                    {entry.entityUrl ? (
+                                                        <a href={entry.entityUrl} className="font-medium text-accent-text hover:underline">
+                                                            {entry.description}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="font-medium text-text">{entry.description}</span>
+                                                    )}
+                                                    {entry.subjectName && (
+                                                        <span className="block truncate text-xs text-text-3">{entry.subjectName}</span>
+                                                    )}
+                                                </span>
                                             </span>
                                         </td>
                                         <td className="px-4 py-2.5 text-text-2">{entry.actor?.name ?? t('entry.systemActor')}</td>
