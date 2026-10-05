@@ -1,6 +1,6 @@
 /**
- * O SINGURĂ hartă tentă → clase, în loc de patru (`StatusBadge.toneClasses`, `KpiTile.toneValue`,
- * `KpiTile.toneEdge`, punctul de status) care pot diverge. Fiecare șir e LITERAL (Tailwind
+ * O SINGURĂ hartă tentă → clase, în loc de trei (`StatusBadge.toneClasses`, `KpiTile.toneValue`,
+ * `KpiTile.toneEdge`) care pot diverge. Fiecare șir e LITERAL (Tailwind
  * scanează sursa; `bg-${tone}-tint` nu s-ar genera) și folosește exclusiv tokeni.
  *
  * Contrastul, măsurat pe tokenii din `app.css`: fiecare tentă ca text/icon pe propria tentă
@@ -16,8 +16,6 @@ interface ToneStyle {
     text: string;
     /** Bara plină de pe muchia unei plăci. */
     edge: string;
-    /** Punct de status. */
-    dot: string;
     /** Pentru atribute SVG (`stroke`, `fill`), unde nu există clase. */
     css: string;
 }
@@ -34,10 +32,10 @@ interface ToneStyle {
  * ocupă spațiu, deci toate chip-urile rămân de aceeași înălțime.
  */
 export const TONE: Record<Tone, ToneStyle> = {
-    neutral: { chip: 'bg-raised text-text-2 ring-1 ring-inset ring-border', text: 'text-text-2', edge: 'border-l-control', dot: 'bg-control', css: 'var(--control)' },
-    accent: { chip: 'bg-accent-tint text-accent-text', text: 'text-accent-text', edge: 'border-l-accent-fill', dot: 'bg-accent-fill', css: 'var(--accent-text)' },
-    success: { chip: 'bg-success-tint text-success', text: 'text-success', edge: 'border-l-success', dot: 'bg-success', css: 'var(--success)' },
-    warning: { chip: 'bg-warning-tint text-warning', text: 'text-warning', edge: 'border-l-warning', dot: 'bg-warning', css: 'var(--warning)' },
-    danger: { chip: 'bg-danger-tint text-danger', text: 'text-danger', edge: 'border-l-danger', dot: 'bg-danger', css: 'var(--danger)' },
-    info: { chip: 'bg-info-tint text-info', text: 'text-info', edge: 'border-l-info', dot: 'bg-info', css: 'var(--info)' },
+    neutral: { chip: 'bg-raised text-text-2 ring-1 ring-inset ring-border', text: 'text-text-2', edge: 'border-l-control', css: 'var(--control)' },
+    accent: { chip: 'bg-accent-tint text-accent-text', text: 'text-accent-text', edge: 'border-l-accent-fill', css: 'var(--accent-text)' },
+    success: { chip: 'bg-success-tint text-success', text: 'text-success', edge: 'border-l-success', css: 'var(--success)' },
+    warning: { chip: 'bg-warning-tint text-warning', text: 'text-warning', edge: 'border-l-warning', css: 'var(--warning)' },
+    danger: { chip: 'bg-danger-tint text-danger', text: 'text-danger', edge: 'border-l-danger', css: 'var(--danger)' },
+    info: { chip: 'bg-info-tint text-info', text: 'text-info', edge: 'border-l-info', css: 'var(--info)' },
 };

@@ -194,8 +194,29 @@ export default function Index() {
                                                     ) : (
                                                         <span className="font-medium text-text">{entry.description}</span>
                                                     )}
+                                                    {/*
+                                                        `max-w-xs` lângă `truncate`, și nu e redundant: tabelul
+                                                        e `table-layout: auto`, iar acolo min-content-ul celulei
+                                                        decide lățimea coloanei. `truncate` înseamnă
+                                                        `white-space: nowrap`, deci min-content-ul e numele
+                                                        ÎNTREG — regula care duce minimul automat la 0 când
+                                                        `overflow` nu e vizibil se aplică elementelor de
+                                                        flex/grid, NU celulelor de tabel (măsurat izolat, pe un
+                                                        container de 300px: 630px cu `truncate` singur, 300px cu
+                                                        plafon).
+
+                                                        Efectul pe pagina REALĂ, măsurat cu nume de 70 de
+                                                        caractere pe fiecare rând: la 375px tabelul cere 715px
+                                                        fără plafon și 635px cu el; la 1280px, nicio diferență,
+                                                        fiindcă acolo tabelul are loc. Deci nu repară o pagină
+                                                        ruptă — scurtează derularea orizontală a tabelului pe
+                                                        telefon și oprește creșterea înainte să devină una.
+                                                        `title` păstrează numele întreg pentru cel tăiat.
+                                                    */}
                                                     {entry.subjectName && (
-                                                        <span className="block truncate text-xs text-text-3">{entry.subjectName}</span>
+                                                        <span className="block max-w-xs truncate text-xs text-text-3" title={entry.subjectName}>
+                                                            {entry.subjectName}
+                                                        </span>
                                                     )}
                                                 </span>
                                             </span>

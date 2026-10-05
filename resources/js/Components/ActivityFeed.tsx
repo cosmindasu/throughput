@@ -41,9 +41,11 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
             {items.map((item) => (
                 <li key={item.id} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
                     {/* `item.description`/`item.actor` vin GATA CONSTRUITE din
-                        `App\Http\Resources\ActivityEntryResource` (interpolare + `Str::headline()`),
-                        fără trecere prin catalog — backend, în afara celor 14 fișiere ale lotului. Nu
-                        le reconstrui aici (vezi raportul). */}
+                        `App\Http\Resources\ActivityEntryResource`, care le compune prin
+                        `App\Support\Activity\ActivityNarrative` — adică prin catalogul
+                        `lang/{en,fr}/activity.php` (ADR-022/FR-I18N-04), nu prin interpolare cu
+                        `Str::headline()`, cum făcea până la extragerea din 2026-10-05. Nu le
+                        reconstrui aici: contează locale-ul CERERII, nu al clientului. */}
                     {/* Iconul vine din `item.kind` (derivat pe server), NU din `item.action`:
                         enum-ul coloanei are 9 valori, dar o mutare de etapă, o factură plătită
                         și o editare de titlu sunt toate `updated`. Culoarea spune CONSECINȚA,

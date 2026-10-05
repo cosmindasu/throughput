@@ -182,14 +182,19 @@ export default function HistoryTab({ entityType, entityId }: HistoryTabProps) {
                                 ADR-022/FR-I18N-04) — golul semnalat în raportul Valului 3 e închis. Nu-l
                                 reconstrui aici: locale-ul cererii curente, nu al clientului.
 
-                                Rămâne `actionLabel`, nu `description`: tabul e MONTAT pe entitate, deci
-                                „Moved deal to another stage" ar repeta pe fiecare rând un subiect pe care
-                                pagina îl are deja în titlu. Iconul vine totuși din `kind`, ca pe celelalte
-                                două ecrane — altfel o mutare de etapă și o editare de titlu arată la fel,
-                                deși sunt lucruri diferite. */}
+                                `actionLabel` acolo unde `kind` nu aduce nimic peste `action`, altfel
+                                `description`. Prima versiune folosea `actionLabel` peste tot, pe motiv că
+                                tabul e montat pe entitate și fraza ar repeta un subiect pe care pagina îl
+                                are deja în titlu. Motivul era greșit de două ori: `:subject` din frază e
+                                TIPUL („deal"), nu titlul înregistrării, deci nu repetă nimic — iar pentru
+                                cele patru tipuri derivate (`stage_moved`, `invoice_paid`, `order_shipped`,
+                                `member_deactivated`) `actionLabel` spune doar „Updated", în timp ce iconul
+                                spune altceva. Cum `ToneIcon` e `aria-hidden`, distincția exista DOAR
+                                vizual: un cititor de ecran nu putea deosebi o mutare de etapă de o editare
+                                de titlu (SC 1.1.1/1.4.1). */}
                             <span className="flex items-start gap-2.5 font-medium text-text">
                                 <ToneIcon size="sm" name={kindVisual(entry.kind).icon} tone={kindVisual(entry.kind).tone} />
-                                {entry.actionLabel}
+                                {entry.kind === entry.action ? entry.actionLabel : entry.description}
                             </span>
                             <time
                                 dateTime={entry.createdAt ?? undefined}
@@ -260,12 +265,14 @@ function HistoryValueDiff({
     }
 
     return (
-        // `minmax(0,1fr)`, nu `1fr`: un `1fr` scris de mână are minimul `auto`, deci pista
-        // crește cât min-content-ul conținutului — iar `truncate` de pe `<dd>` înseamnă
-        // `white-space: nowrap`, deci min-content-ul lui e valoarea ÎNTREAGĂ, inclusiv un
-        // `JSON.stringify` de obiect. Aceeași clasă de defect ca `min-w-0` din
-        // `AttentionList`, dovedită acolo cu 670px de document pe un ecran de 375px.
-        // `grid-cols-1` de pe mobil era deja în regulă: Tailwind îl scrie `minmax(0, 1fr)`.
+        // `minmax(0,1fr)` e DEFENSIV, nu o reparație — iar comentariul dinainte susținea
+        // altceva, greșit. Un `1fr` scris de mână chiar are minimul `auto`, dar `<dd>` e
+        // element de grilă (`div.contents` nu creează cutie) ȘI are `overflow: hidden` prin
+        // `truncate`, iar un element de grilă cu overflow nevizibil are dimensiunea minimă
+        // automată 0. Măsurat izolat, container de 300px, copil cu text lung: `1fr` cu
+        // `overflow:hidden` → 300px, la fel ca `minmax(0,1fr)`; abia cu `overflow:visible`
+        // sare la 597px. Deci pista era deja în siguranță, iar schimbarea rămâne doar ca să
+        // nu devină periculoasă dacă trunchierea dispare de pe `<dd>`.
         <dl className="grid grid-cols-1 gap-x-4 gap-y-1 rounded-md bg-raised px-3 py-2 sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(0,1fr)]">
             {fields.map((field) => (
                 <div key={field} className="contents">
