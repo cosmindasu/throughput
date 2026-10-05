@@ -2,7 +2,11 @@
 
 namespace Tests\Feature\Activity;
 
+use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\Deal;
+use App\Models\Pipeline;
+use App\Models\Stage;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
@@ -56,6 +60,115 @@ class ActivityLogIndexTest extends TestCase
             ]);
         });
         $this->clearDatabaseTenantContext();
+    }
+
+    /**
+     * Contractul paginii: `kind`, `description` și `subjectName` (`generated.d.ts`, regula 2).
+     *
+     * Testul ăsta lipsea, și lipsa lui nu era inofensivă. Rândurile din `setUp()` au
+     * `auditable_id` ULID inventat, deci `subjectName` iese `null` pe toate — adică fix calea
+     * interesantă rămânea neexercitată. Mai grav, `with('auditable')` din controller putea fi
+     * scos fără ca niciun test să se înroșească: în producție `preventLazyLoading` e dezactivat
+     * (`AppServiceProvider` îl leagă de `! isProduction()`), deci acolo ar fi devenit un N+1
+     * tăcut, nu o excepție.
+     *
+     * De-aia rândurile de aici trimit către înregistrări REALE.
+     */
+    public function test_the_page_carries_the_derived_kind_the_phrase_and_the_subject_name(): void
+    {
+        $deal = null;
+
+        TenantContext::run($this->marlin, function () use (&$deal): void {
+            ActivityLog::query()->delete();
+
+            $account = new Account(['name' => 'Northgate Industrial Supply LLC']);
+            $account->created_by = $this->owner->getKey();
+            $account->save();
+
+            $deal = $this->dealFor($account);
+
+            $this->logRow('updated', Account::class, $account->getKey(), ['name' => 'Northgate Industrial Supply LLC']);
+            // `stage_id` în `new_values` e singurul lucru care deosebește o mutare de etapă de
+            // o editare de titlu — amândouă sunt `updated` în coloană.
+            $this->logRow('updated', Deal::class, $deal->getKey(), ['stage_id' => (string) Str::ulid()]);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($this->owner)->get('/marlin/activity');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('entries.data', 2)
+            // Ordinea e descrescătoare pe `created_at` + `id`, deci rândul cu deal-ul e primul.
+            ->where('entries.data.0.kind', 'stage_moved')
+            ->where('entries.data.0.description', 'Moved Deal to another stage')
+            ->where('entries.data.0.subjectName', $deal->title)
+            ->where('entries.data.1.kind', 'updated')
+            ->where('entries.data.1.description', 'Updated Account')
+            ->where('entries.data.1.subjectName', 'Northgate Industrial Supply LLC'));
+    }
+
+    /**
+     * Rândul de ȘTERGERE e singurul la care `auditable` e `null` prin construcție, deci
+     * singurul care nu putea spune CARE înregistrare — exact întrebarea pentru care există
+     * câmpul. Numele vine din instantaneul `old_values`, iar linkul trebuie să DISPARĂ:
+     * entitatea nu mai există, deci ar fi dus la 404.
+     */
+    public function test_a_deleted_row_keeps_its_name_from_the_snapshot_and_drops_the_link(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            ActivityLog::query()->delete();
+            $this->logRow('deleted', Account::class, (string) Str::ulid(), null, ['name' => 'Ashworth Bolt & Fastener Inc.']);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $response = $this->actingAs($this->owner)->get('/marlin/activity');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('entries.data.0.kind', 'deleted')
+            ->where('entries.data.0.subjectName', 'Ashworth Bolt & Fastener Inc.')
+            ->where('entries.data.0.entityUrl', null));
+    }
+
+    /** Un deal minim, fără evenimente de etapă: testul se uită la jurnal, nu la pipeline. */
+    private function dealFor(Account $account): Deal
+    {
+        $pipeline = Pipeline::query()->create(['name' => 'Sales', 'is_default' => true]);
+        $stage = Stage::query()->create([
+            'pipeline_id' => $pipeline->getKey(),
+            'name' => 'New',
+            'position' => 1,
+            'probability' => 10,
+        ]);
+
+        $deal = new Deal([
+            'account_id' => $account->getKey(),
+            'pipeline_id' => $pipeline->getKey(),
+            'stage_id' => $stage->getKey(),
+            'owner_user_id' => $this->owner->getKey(),
+            'title' => 'Annual Fittings supply agreement',
+            'value' => 5000.00,
+            'status' => Deal::STATUS_OPEN,
+        ]);
+        $deal->created_by = $this->owner->getKey();
+        $deal->save();
+
+        return $deal;
+    }
+
+    private function logRow(string $action, string $type, string $id, ?array $new = null, ?array $old = null): void
+    {
+        ActivityLog::query()->create([
+            'user_id' => $this->owner->getKey(),
+            'action' => $action,
+            'auditable_type' => $type,
+            'auditable_id' => $id,
+            'old_values' => $old,
+            'new_values' => $new,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PestTest/1.0',
+        ]);
     }
 
     public function test_owner_sees_every_row_in_the_tenant(): void

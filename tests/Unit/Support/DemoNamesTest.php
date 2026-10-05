@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Support;
 
+use Database\Seeders\DemoDatasetSeeder;
 use Database\Seeders\Support\DemoNames;
 use PHPUnit\Framework\TestCase;
 
@@ -28,8 +29,15 @@ class DemoNamesTest extends TestCase
 {
     private const DRAWS = 200;
 
-    /** `DemoDatasetSeeder::TENANTS['marlin']['accounts']` la scara 1.0 — plafonul real. */
-    private const LARGEST_TENANT_ACCOUNTS = 4000;
+    /**
+     * Entropia primului cuvânt, măsurată pe seed-ul complet ÎNAINTE de reparație: 90 de prime
+     * cuvinte distincte și 62 de conturi sub cel mai aglomerat. Pragurile sunt alese între
+     * valoarea veche și cea reală de azi (peste 894 distincte, grup maxim 9 pe 40 de rulări),
+     * deci au marjă în ambele sensuri.
+     */
+    private const MIN_DISTINCT_FIRST_WORDS = 500;
+
+    private const MAX_SAME_FIRST_WORD = 20;
 
     /** @var array<string, string> Verticala → industria engleză, ca în `DemoDatasetSeeder::TENANTS`. */
     private const VERTICALS = [
@@ -113,41 +121,75 @@ class DemoNamesTest extends TestCase
      */
     public function test_the_largest_tenant_draws_without_repeating_a_name_base(): void
     {
-        $legalSuffixes = ['Co.', 'Inc.', 'LLC', 'Ltd.', 'Group', 'Corp.', 'SARL', 'SAS', 'SA', 'SASU', 'et Cie', 'SNC'];
+        // Citite din SURSĂ, nu copiate: un tenant mai mare sau o formă juridică nouă ar fi
+        // lăsat testul verde pe un prag care nu mai corespunde realității.
+        $constanta = fn (string $class, string $name): mixed => (new \ReflectionClassConstant($class, $name))->getValue();
+        $trageri = max(array_column($constanta(DemoDatasetSeeder::class, 'TENANTS'), 'accounts'));
+        $sufixe = [...$constanta(DemoNames::class, 'LEGAL_SUFFIXES'), ...$constanta(DemoNames::class, 'LEGAL_SUFFIXES_FR')];
+        $tipar = '/ ('.implode('|', array_map('preg_quote', $sufixe)).')$/';
 
-        foreach (self::VERTICALS as $vertical => $englishIndustry) {
-            DemoNames::resetUniqueness();
+        try {
+            foreach (self::VERTICALS as $vertical => $englishIndustry) {
+                // DE DOUĂ ORI, fiindcă `ResetDemoDataJob` rulează `demo:reset` într-un worker
+                // Horizon de lungă durată: al doilea reset din ACELAȘI proces pornea cu pool-ul
+                // deja consumat dacă `resetUniqueness()` ar lipsi din seeder. Fără bucla asta,
+                // ștergerea acelui apel nu înroșea nimic.
+                foreach ([1, 2] as $seed) {
+                    DemoNames::resetUniqueness();
 
-            $bases = [];
+                    $bases = [];
 
-            for ($i = 0; $i < self::LARGEST_TENANT_ACCOUNTS; $i++) {
-                $name = DemoNames::account($vertical, $englishIndustry)['name'];
+                    for ($i = 0; $i < $trageri; $i++) {
+                        $name = DemoNames::account($vertical, $englishIndustry)['name'];
 
-                $this->assertDoesNotMatchRegularExpression(
-                    '/[#\x00-\x1f]/',
-                    $name,
-                    sprintf('"%s" conține un artificiu de unicitate — pool-ul s-a epuizat și a căzut pe o rezervă vizibilă.', $name)
-                );
+                        $this->assertDoesNotMatchRegularExpression(
+                            '/[#\x00-\x1f]/',
+                            $name,
+                            sprintf('"%s" conține un artificiu de unicitate — pool-ul s-a epuizat și a căzut pe o rezervă vizibilă.', $name)
+                        );
 
-                $bases[] = preg_replace('/ ('.implode('|', array_map('preg_quote', $legalSuffixes)).')$/', '', $name);
+                        $base = preg_replace($tipar, '', $name);
+
+                        $this->assertNotSame($name, $base, sprintf('"%s": forma juridică n-a fost recunoscută, deci baza ar părea mai unică decât e.', $name));
+
+                        $bases[] = $base;
+                    }
+
+                    $repetate = array_filter(array_count_values($bases), fn (int $n): bool => $n > 1);
+
+                    $this->assertSame(
+                        [],
+                        $repetate,
+                        sprintf(
+                            'Verticala "%s", seed-ul %d: %d baze repetate în %d trageri (de ex. %s) — pool-ul e mai mic decât cel mai mare tenant.',
+                            $vertical, $seed, count($repetate), $trageri, implode(', ', array_slice(array_keys($repetate), 0, 3))
+                        )
+                    );
+
+                    // Cerința care a motivat lotul nu e unicitatea, ci cum ARATĂ ecranul: lista
+                    // se sortează alfabetic, deci primul cuvânt decide cât de grupat e. Fără
+                    // aserțiunile astea, un pool mare construit DOAR din nume de familie trecea
+                    // testul și readucea zidul de omonime.
+                    $primeleCuvinte = array_count_values(array_map(fn (string $b): string => strtok($b, ' '), $bases));
+
+                    $this->assertGreaterThanOrEqual(
+                        self::MIN_DISTINCT_FIRST_WORDS,
+                        count($primeleCuvinte),
+                        sprintf('Verticala "%s": doar %d prime cuvinte distincte (erau 90 înainte de reparație).', $vertical, count($primeleCuvinte))
+                    );
+
+                    $this->assertLessThanOrEqual(
+                        self::MAX_SAME_FIRST_WORD,
+                        max($primeleCuvinte),
+                        sprintf('Verticala "%s": %d conturi sub același prim cuvânt (erau 62 înainte de reparație).', $vertical, max($primeleCuvinte))
+                    );
+                }
             }
-
-            $repetate = array_filter(array_count_values($bases), fn (int $n): bool => $n > 1);
-
-            $this->assertSame(
-                [],
-                $repetate,
-                sprintf(
-                    'Verticala "%s" a repetat %d baze de nume în %d trageri (de ex. %s) — pool-ul e mai mic decât cel mai mare tenant.',
-                    $vertical,
-                    count($repetate),
-                    self::LARGEST_TENANT_ACCOUNTS,
-                    implode(', ', array_slice(array_keys($repetate), 0, 3))
-                )
-            );
+        } finally {
+            // ȘI când o aserțiune pică: altfel pool-ul rămâne pe jumătate gol pentru testele
+            // care urmează în același proces.
+            DemoNames::resetUniqueness();
         }
-
-        DemoNames::resetUniqueness();
     }
 
     public function test_accented_company_names_produce_a_readable_domain(): void

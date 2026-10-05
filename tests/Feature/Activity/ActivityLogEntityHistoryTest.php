@@ -76,6 +76,12 @@ class ActivityLogEntityHistoryTest extends TestCase
         $response->assertJsonCount(1, 'data');
         $response->assertJsonPath('data.0.action', 'updated');
         $response->assertJsonPath('data.0.oldValues.name', 'Old name');
+        // Cheile adăugate de 858fa92 pe `ActivityLogResource`. Fără ele, ștergerea celor trei
+        // câmpuri din resursă — sau a lui `with('auditable')` din controller — nu înroșea nimic:
+        // `DashboardTest` le asertează pe ALTĂ resursă (`ActivityEntryResource`).
+        $response->assertJsonPath('data.0.kind', 'updated');
+        $response->assertJsonPath('data.0.description', 'Updated Account');
+        $response->assertJsonPath('data.0.subjectName', $this->account->name);
     }
 
     public function test_an_unknown_entity_type_is_not_routable(): void

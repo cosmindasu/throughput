@@ -121,7 +121,8 @@ class DashboardTest extends TestCase
                 ->where('activity.0.actor', $agent->name)
                 ->where('activity.0.description', 'Exported Account')
                 // Valoarea BRUTĂ a enum-ului, pe lângă fraza compusă: feed-ul o folosește
-                // pentru semnalul de culoare (`lib/activityTone`). Se verifică aici fiindcă
+                // pentru paritate cu celălalt ecran (semnalul vizual vine din `kind`, prin
+                // `lib/activityKind`). Se verifică aici fiindcă
                 // regula din `types/generated.d.ts` cere ca orice schimbare de formă a unui
                 // Resource să fie prinsă ȘI de un test de contract, nu doar oglindită în tip.
                 ->where('activity.0.action', 'exported')

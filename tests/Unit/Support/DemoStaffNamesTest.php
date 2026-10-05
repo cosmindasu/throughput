@@ -26,25 +26,44 @@ class DemoStaffNamesTest extends TestCase
         DemoStaffNames::reset();
     }
 
+    /** Pool-uri pe jumătate golite ar schimba tăcut rezultatul următorului fișier din proces. */
+    protected function tearDown(): void
+    {
+        DemoStaffNames::reset();
+        parent::tearDown();
+    }
+
     public function test_a_full_seed_repeats_neither_a_first_name_nor_a_surname(): void
     {
+        // Un CICLU ÎNTREG de pool, nu cele 15 trageri ale seed-ului de azi: la 15 dintr-un pool
+        // de 26, o tragere CU revenire mai nimerea verde în ~0,6% din rulări, iar un
+        // `$colleagueSpec` crescut peste mărimea pool-ului ar fi rămas neacoperit.
+        $constanta = fn (string $name): mixed => (new \ReflectionClassConstant(DemoStaffNames::class, $name))->getValue();
+        $ciclu = min(count($constanta('FIRST')), count($constanta('LAST')));
+
+        $this->assertGreaterThanOrEqual(
+            self::COLLEAGUES_PER_SEED,
+            $ciclu,
+            'Pool-ul e mai mic decât numărul de colegi semănați, deci o jumătate de nume se repetă la fiecare seed.'
+        );
+
         $names = [];
 
-        for ($i = 0; $i < self::COLLEAGUES_PER_SEED; $i++) {
+        for ($i = 0; $i < $ciclu; $i++) {
             $names[] = DemoStaffNames::next();
         }
 
         $firsts = array_map(fn (string $n): string => explode(' ', $n)[0], $names);
         $lasts = array_map(fn (string $n): string => explode(' ', $n)[1], $names);
 
-        $this->assertCount(self::COLLEAGUES_PER_SEED, array_unique($names));
+        $this->assertCount($ciclu, array_unique($names));
         $this->assertCount(
-            self::COLLEAGUES_PER_SEED,
+            $ciclu,
             array_unique($firsts),
             'Doi colegi cu același prenume într-o echipă de cinci se observă fără să-i cauți: '.implode(', ', $names)
         );
         $this->assertCount(
-            self::COLLEAGUES_PER_SEED,
+            $ciclu,
             array_unique($lasts),
             'Două nume de familie identice: '.implode(', ', $names)
         );
@@ -68,9 +87,20 @@ class DemoStaffNamesTest extends TestCase
         foreach (self::DEMO_PERSONAS as $persona) {
             [$first, $last] = explode(' ', $persona);
 
-            $this->assertFalse(
-                isset($firsts[$first]) && isset($lasts[$last]),
-                sprintf('"%s" e personaj demo — scoate-i prenumele sau numele din pool.', $persona)
+            // Fiecare JUMĂTATE separat, nu doar perechea completă. Sursa spune că cele patru
+            // prenume „lipsesc deliberat"; cu verificarea conjunctivă, adăugarea doar a lui
+            // „Olivia" trecea — iar „Olivia Weber" lângă „Olivia Sterling" în filtrul Owner e
+            // exact omonimia pe prenume pe care lotul o descrie ca „se observă fără s-o cauți".
+            $this->assertArrayNotHasKey(
+                $first,
+                $firsts,
+                sprintf('Prenumele „%s" e al personajului demo „%s": un coleg „%s Weber" ar sta lângă el în filtrul Owner.', $first, $persona, $first)
+            );
+
+            $this->assertArrayNotHasKey(
+                $last,
+                $lasts,
+                sprintf('Numele „%s" e al personajului demo „%s".', $last, $persona)
             );
         }
     }
