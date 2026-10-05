@@ -30,8 +30,15 @@ use Illuminate\Support\Str;
  */
 final class ActivityNarrative
 {
-    /** Fraza gata compusă și tradusă — „Moved deal to another stage", „Marked invoice as paid". */
-    public static function describe(ActivityLog $entry): string
+    /**
+     * Fraza gata compusă și tradusă — „Moved deal to another stage", „Marked invoice as paid".
+     *
+     * `$kind` îl dă apelantul care l-a calculat deja pentru câmpul omonim al resursei. Nu e
+     * microoptimizare gratuită: `ActivityKind::of()` citește `new_values`, care e cast `array`,
+     * iar Eloquent re-decodează JSON-ul la fiecare acces — al doilea apel costa 4,9 µs pe rând,
+     * adică 0,24 ms pe o pagină de 50. Omis, se calculează aici.
+     */
+    public static function describe(ActivityLog $entry, ?string $kind = null): string
     {
         // US-TEN-03 — `MembersController::applyDeactivation()` scrie `action = 'updated'`
         // pe un `Membership` (enum-ul Postgres al coloanei n-are o valoare dedicată,
@@ -45,7 +52,7 @@ final class ActivityNarrative
         $subject = self::subjectLabel($entry);
 
         // Tipurile DERIVATE primesc fraza lor; restul cad pe verbul din enum.
-        $derived = match (ActivityKind::of($entry)) {
+        $derived = match ($kind ?? ActivityKind::of($entry)) {
             'stage_moved' => __('activity.entries.stage_moved', ['subject' => $subject]),
             'invoice_paid' => __('activity.entries.invoice_paid', ['subject' => $subject]),
             'order_shipped' => __('activity.entries.order_shipped', ['subject' => $subject]),
@@ -80,28 +87,64 @@ final class ActivityNarrative
      * CITEȘTE relația `auditable`, deci apelantul trebuie s-o fi încărcat: proiectul
      * interzice lazy loading, iar fără `with('auditable')` asta ar arunca, nu ar încetini.
      *
-     * GDPR-02: numele e cel CURENT al modelului, deci un contact anonimizat apare cu
-     * placeholderul lui — jurnalul nu poate reînvia date șterse.
+     * GDPR-02: numele e cel CURENT al modelului, deci jurnalul nu poate reînvia date șterse.
+     * Pentru un contact anonimizat nu iese nici măcar placeholderul: `Contact` are
+     * `NotAnonymizedContactScope` global, deci morphTo nu-l mai găsește și rezultatul e `null`.
      */
     public static function subjectName(ActivityLog $entry): ?string
     {
         $model = $entry->auditable;
 
         if (! $model instanceof Model) {
-            return null;
+            return self::deletedSubjectName($entry);
         }
 
         $name = match (true) {
             $model instanceof Deal => $model->title,
             $model instanceof Account, $model instanceof Product => $model->name,
             $model instanceof Contact => trim($model->first_name.' '.$model->last_name),
-            $model instanceof Order => $model->order_number,
+            // `orders.order_number` e nullable: se atribuie la confirmare, deci o comandă în
+            // ciornă n-are niciunul, iar pe datele demo asta înseamnă 2.523 de rânduri de
+            // jurnal fără subiect. Același fallback ca `AccountActivityTimeline::build()`,
+            // ca cele două ecrane să numească la fel aceeași comandă.
+            $model instanceof Order => $model->order_number ?? '#'.Str::substr($model->getKey(), -8),
             $model instanceof Invoice => $model->invoice_number,
             $model instanceof Variant => $model->sku,
             default => null,
         };
 
         return ($name === null || $name === '') ? null : $name;
+    }
+
+    /**
+     * Numele dintr-un rând de ȘTERGERE, luat din instantaneul `old_values`.
+     *
+     * Tocmai aici lipsea cel mai tare: `auditable` e `null` prin construcție după o ștergere
+     * (fizică pentru Account/Contact/Order…, iar pentru `Deal` prin `SoftDeletingScope`), deci
+     * rândul care spune „Deleted account" era singurul care NU putea spune CARE cont — adică
+     * exact întrebarea pentru care există câmpul.
+     *
+     * `Contact` lipsește deliberat din listă: numele unei persoane șterse nu se re-afișează
+     * dintr-un instantaneu, oricât de legitim ar fi auditul (GDPR-02, §20.5).
+     */
+    private static function deletedSubjectName(ActivityLog $entry): ?string
+    {
+        if ($entry->action !== 'deleted') {
+            return null;
+        }
+
+        $old = $entry->old_values ?? [];
+
+        $name = match ($entry->auditable_type) {
+            Deal::class => $old['title'] ?? null,
+            Account::class, Product::class => $old['name'] ?? null,
+            Order::class => $old['order_number'] ?? null,
+            Invoice::class => $old['invoice_number'] ?? null,
+            Variant::class => $old['sku'] ?? null,
+            default => null,
+        };
+
+        return is_string($name) && $name !== '' ? $name : null;
     }
 
     /** Numele TIPULUI auditat, tradus — fallback pe `record` dacă lipsește din catalog. */

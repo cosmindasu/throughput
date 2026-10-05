@@ -21,12 +21,16 @@ use App\Models\Order;
  * reconstruită din coloane în componente. `resources/js/lib/activityKind.ts` îi dă fiecărei
  * valori un icon și o tentă; o valoare fără intrare acolo cade pe neutru, nu pe o excepție.
  *
- * Folosită azi DOAR de `ActivityEntryResource` (feed-ul dashboard-ului).
- * `Activity\ActivityLogResource` (pagina Activity Log) NU trece prin ea, deci cele două
- * ecrane chiar diverg: o mutare de etapă apare ca „Moved X to another stage" în feed și ca
- * „Updated Deal" în jurnal. Diferența e cunoscută, nu accidentală — alinierea cere un câmp
- * nou pe contractul acelei pagini și o revizie a propriilor ei teste, deci nu se strecoară
- * într-un lot de UI.
+ * Folosită de AMBELE resurse care expun jurnal — `ActivityEntryResource` (feed-ul
+ * dashboard-ului) și `Activity\ActivityLogResource` (pagina Activity Log) — plus, indirect,
+ * de `ActivityNarrative::describe()`, care alege fraza după tipul derivat.
+ *
+ * Până la 2026-10-05 trecea DOAR prin feed, iar cele două ecrane chiar divergeau: aceeași
+ * mutare de etapă apărea ca „Moved X to another stage" în feed și ca „Updated Deal" în
+ * jurnal. Alinierea cerea un câmp nou pe contractul paginii (`kind`, `description`,
+ * `subjectName`) și o revizie a testelor ei — s-a făcut, deci divergența NU mai există. Dacă
+ * adaugi un tip derivat aici, adaugă-i și intrarea în `resources/js/lib/activityKind.ts`:
+ * altfel ambele ecrane îl randează neutru, în tăcere.
  */
 final class ActivityKind
 {

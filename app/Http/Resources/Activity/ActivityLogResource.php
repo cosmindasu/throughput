@@ -9,10 +9,12 @@ use App\Models\Deal;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Variant;
 use App\Support\Activity\ActivityActionLabel;
 use App\Support\Activity\ActivityKind;
 use App\Support\Activity\ActivityNarrative;
 use App\Support\Members\DeactivatedMemberNames;
+use App\Support\Permissions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -51,6 +53,9 @@ class ActivityLogResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        // Calculat O DATĂ și pasat mai departe — vezi `ActivityNarrative::describe()`.
+        $kind = ActivityKind::of($this->resource);
+
         return [
             'id' => $this->id,
             'action' => $this->action,
@@ -60,11 +65,11 @@ class ActivityLogResource extends JsonResource
             // CE s-a întâmplat, derivat (`ActivityKind`) — `updated` acoperă deopotrivă o
             // mutare de etapă, o factură încasată și o editare de titlu. Ecranul alege iconul
             // și tenta din ASTA, ca feed-ul dashboard-ului.
-            'kind' => ActivityKind::of($this->resource),
+            'kind' => $kind,
             // Fraza compusă și tradusă, și numele PROPRIU al înregistrării atinse — aceeași
             // sursă ca feed-ul (`ActivityNarrative`). Fără ele, pagina asta arăta
             // cincisprezece rânduri „Updated" la rând, fără să spună CARE afacere.
-            'description' => ActivityNarrative::describe($this->resource),
+            'description' => ActivityNarrative::describe($this->resource, $kind),
             'subjectName' => ActivityNarrative::subjectName($this->resource),
             // FR-TEN-04 — un membru dezactivat rămâne vizibil ca AUTOR al unei acțiuni
             // trecute („(deactivated)"), la fel ca peste tot unde numele unui membru apare
@@ -72,17 +77,54 @@ class ActivityLogResource extends JsonResource
             'actor' => $this->user
                 ? ['id' => $this->user->id, 'name' => DeactivatedMemberNames::label($this->user->name, $this->user->id)]
                 : null,
-            'oldValues' => $this->old_values,
-            'newValues' => $this->new_values,
+            'oldValues' => $this->visibleValues($this->old_values, $request),
+            'newValues' => $this->visibleValues($this->new_values, $request),
             'createdAt' => $this->created_at?->toIso8601String(),
             'bulkOperationId' => $this->bulk_operation_id,
             'entityUrl' => $this->entityUrl(),
         ];
     }
 
+    /**
+     * §7.4 — `variants.cost` (marja) e ascunsă pentru Agent și Viewer „la nivel de
+     * `VariantResource`, nu doar în UI". Istoricul unei variante poartă ACEEAȘI coloană în
+     * `old_values`/`new_values`, care până acum plecau brute: `ExcludedAttributes` redactează
+     * parole și token-uri, nu coloane cu vizibilitate pe rol.
+     *
+     * Scurgerea e reală, nu teoretică: `VariantPolicy::view()` cere doar `products.view`, pe
+     * care Agent și Viewer îl au, iar `HistoryTab` e montat pe `Products/Show`. Un Viewer care
+     * citea `/activity/entity/variant/{id}` primea marja în `newValues.cost`. Nu e adusă de
+     * acest lot — `oldValues`/`newValues` plecau la fel și înainte — dar e găsită de auditul lui.
+     *
+     * @param  array<string, mixed>|null  $values
+     * @return array<string, mixed>|null
+     */
+    private function visibleValues(?array $values, Request $request): ?array
+    {
+        if ($values === null || $this->auditable_type !== Variant::class) {
+            return $values;
+        }
+
+        $user = $request->user();
+
+        if ($user !== null && Permissions::canViewCost($user)) {
+            return $values;
+        }
+
+        unset($values['cost']);
+
+        return $values === [] ? null : $values;
+    }
+
     private function entityUrl(): ?string
     {
-        if ($this->auditable_type === null || $this->auditable_id === null || ! app()->bound('tenant')) {
+        // `auditable === null` NU e redundant cu verificările de coloană: un rând de ȘTERGERE
+        // păstrează tipul și id-ul, dar înregistrarea nu mai există (fizic, sau ascunsă de
+        // `SoftDeletingScope`/`NotAnonymizedContactScope`). Fără verificarea asta, „Deleted
+        // account" era un link către un 404 — și de când rândul poartă fraza întreagă, nu mai
+        // e un „Deleted" discret, ci o propoziție subliniată la hover.
+        if ($this->auditable_type === null || $this->auditable_id === null
+            || $this->auditable === null || ! app()->bound('tenant')) {
             return null;
         }
 

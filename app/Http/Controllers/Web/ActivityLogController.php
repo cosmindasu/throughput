@@ -111,10 +111,18 @@ final class ActivityLogController extends Controller
         $paginator = ActivityLog::query()
             ->where('auditable_type', $modelClass)
             ->where('auditable_id', $entity->getKey())
-            ->with(['user:id,name', 'auditable'])
+            ->with('user:id,name')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->cursorPaginate(self::ENTITY_PER_PAGE);
+
+        // Toate rândurile sunt ALE lui `$entity` — e chiar filtrul de mai sus — iar entitatea
+        // e deja încărcată. `with('auditable')` ar fi repetat un `select * from <tabel> where
+        // id in (?)` pentru o înregistrare din memorie. Relația se leagă manual, altfel
+        // `ActivityNarrative::subjectName()` ar declanșa lazy loading, interzis în proiect.
+        $paginator->getCollection()->each(
+            fn (ActivityLog $row) => $row->setRelation('auditable', $entity)
+        );
 
         return response()->json(CursorPage::make($paginator, ActivityLogResource::class));
     }

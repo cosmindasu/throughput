@@ -18,8 +18,9 @@
  *    `order`, `invoice`), plus `membership` (scris manual în jurnal, fără tab de „History",
  *    §17.1 docblock `AuditableResources`) și fallback-ul `record` când `auditable_type` e
  *    `null` (export/import în masă, fără o entitate unică).
- *  - `entries.*` — frazele COMPUSE ale feed-ului de activitate recentă al dashboard-ului
- *    (`ActivityEntryResource`), interpolate cu `:subject` din registrul de mai sus.
+ *  - `entries.*` — frazele COMPUSE ale AMBELOR ecrane de jurnal (feed-ul dashboard-ului și
+ *    pagina Activity Log), prin `App\Support\Activity\ActivityNarrative`, interpolate cu
+ *    `:subject` din registrul de mai sus.
  *  - `timeline.*` — frazele cronologiei unui cont (`AccountActivityTimeline`): subiectul
  *    e FIX în fiecare cheie (o afacere, o comandă), nu interpolat din `subjects.*` — cele
  *    patru surse ale clasei nu au toate un `auditable_type` de mapat.
@@ -56,7 +57,7 @@ return [
         // „History" propriu) — scris manual aici, la fel cum e scris manual în jurnal.
         'membership' => 'Membership',
         // Litere mici, deliberat — identic cu literalul dinaintea acestui catalog
-        // (`ActivityEntryResource::description()`, fallback-ul lui `$subject`).
+        // (`ActivityNarrative::subjectLabel()`, fallback-ul lui `$subject`).
         'record' => 'record',
     ],
 
