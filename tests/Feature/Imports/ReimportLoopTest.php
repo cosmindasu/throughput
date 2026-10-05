@@ -101,7 +101,7 @@ class ReimportLoopTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('products.csv', $csvContent);
 
         $this->actingAs($this->owner)->post('/marlin/imports', ['resource_type' => 'variants', 'file' => $file]);
-        $import = TenantContext::run($this->marlin, fn () => Import::query()->latest()->firstOrFail());
+        $import = TenantContext::run($this->marlin, fn () => Import::query()->latest()->latest('id')->firstOrFail());
 
         if ($expectAutoMapErrorColumnToNull) {
             $this->actingAs($this->owner)

@@ -59,7 +59,10 @@ final class InvoiceController extends Controller
             'order:id,order_number,account_id,owner_user_id',
             'order.account:id,name',
             'order.owner:id,name',
-            'payments' => fn ($query) => $query->latest('paid_at'),
+            // `latest('id')` ca departajare: `payments.paid_at` e `timestamp(0)`, iar două
+            // încasări PARȚIALE pe aceeași factură pot cădea în aceeași secundă — atunci ordinea
+            // afișată nu mai e garantată. ULID-urile cresc monoton la inserare.
+            'payments' => fn ($query) => $query->latest('paid_at')->latest('id'),
             'payments.createdBy:id,name',
         ]);
 

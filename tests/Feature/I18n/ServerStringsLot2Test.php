@@ -257,7 +257,7 @@ class ServerStringsLot2Test extends TestCase
 
         $this->actingAs($owner)->post('/marlin/imports', ['resource_type' => 'variants', 'file' => $file]);
 
-        $import = TenantContext::run($this->marlin, fn () => Import::query()->latest('created_at')->firstOrFail());
+        $import = TenantContext::run($this->marlin, fn () => Import::query()->latest('created_at')->latest('id')->firstOrFail());
 
         $this->actingAs($owner)->post("/marlin/imports/{$import->getKey()}/mapping", [
             'mapping' => ['SKU' => 'sku', 'Product Name' => 'product_name', 'Price' => 'price', 'Cost' => 'cost'],

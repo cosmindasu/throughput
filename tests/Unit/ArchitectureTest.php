@@ -550,7 +550,16 @@ class ArchitectureTest extends TestCase
     {
         $offenders = [];
 
-        foreach ($this->phpFilesIn(__DIR__.'/../../app') as $file) {
+        // ȘI `tests/`: incidentul care a dus la extinderea regulii a fost chiar într-un test
+        // (`MoveDealStageActionTest`), iar o gardă care nu se uită unde s-a produs defectul a
+        // învățat lecția pe jumătate. `array_merge`, nu `+`: pe chei numerice `+` păstrează
+        // primul operand și ar fi aruncat aproape tot `tests/`, în tăcere.
+        $files = array_merge(
+            $this->phpFilesIn(__DIR__.'/../../app'),
+            $this->phpFilesIn(__DIR__.'/../../tests'),
+        );
+
+        foreach ($files as $file) {
             $relative = $this->relative($file);
             $code = file_get_contents($file->getPathname());
 
@@ -638,6 +647,11 @@ class ArchitectureTest extends TestCase
                 {
                     return DealStageEvent::query()->where('deal_id', $id)->latest('changed_at')->first();
                 }
+
+                public function badOnAnyOtherAtColumn()
+                {
+                    return Payment::query()->latest('paid_at')->first();
+                }
             }
             PHP;
 
@@ -667,13 +681,27 @@ class ArchitectureTest extends TestCase
 
                 public function unrelatedColumnIsNotInScope()
                 {
-                    return Invoice::query()->latest('sent_at')->first();
+                    return Invoice::query()->latest('number')->first();
                 }
             }
             PHP;
 
         $offendingHits = $this->createdAtOrderingHitsIn($offending);
-        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat cazurile clar ofensatoare — garda ar fi verde din greșeală.');
+        // Se verifică CE a semnalat, nu doar câte: la o simplă numărătoare, un hit pierdut și
+        // altul dublat se anulează reciproc și testul rămâne verde. Numerele de linie ar fi
+        // fost și mai precise, dar se schimbă la orice editare a fixture-ului de mai sus.
+        $descrieri = array_column($offendingHits, 'description');
+
+        foreach (['pe `created_at`', 'fără `id` printre coloanele de ordonare', 'pe `changed_at`', 'pe `paid_at`'] as $asteptat) {
+            $this->assertSame(
+                1,
+                count(array_filter($descrieri, fn (string $d): bool => str_contains($d, $asteptat))),
+                sprintf('Detectorul trebuia să semnaleze exact o dată „%s"; a semnalat: %s', $asteptat, implode(' | ', $descrieri))
+            );
+        }
+
+        $this->assertCount(4, $offendingHits);
+        $this->assertSame($lines = array_column($offendingHits, 'line'), array_unique($lines), 'Două hituri pe aceeași linie.');
 
         $this->assertSame([], $this->createdAtOrderingHitsIn($safe), 'Detectorul a semnalat fals-pozitiv un lanț cu tiebreaker pe id deja prezent (sau o coloană din afara domeniului regulii).');
     }
@@ -771,10 +799,13 @@ class ArchitectureTest extends TestCase
 
                 $column = $this->orderedColumn($node, $method);
 
-                // `changed_at` intră în domeniu de la 2026-10-05: e `timestamp(0)` pe
-                // `deal_stage_events`, exact aceeași precizie ca `created_at`, iar bug-ul a
-                // fost OBSERVAT (vezi docblock-ul testului) — nu e o extindere speculativă.
-                if (! in_array($column, ['created_at', 'changed_at'], true)) {
+                // Domeniul e PROPRIETATEA, nu istoricul bug-urilor: `$table->timestamp('…')`
+                // creează pe Postgres `timestamp(0)`, deci ORICE coloană `*_at` din migrațiile
+                // proiectului se trunchiază la secundă și poate produce egalități. Prima
+                // versiune acoperea doar `created_at`, a doua a adăugat `changed_at` fiindcă
+                // acolo s-a văzut un eșec — dar a aștepta un eșec per coloană înseamnă a aștepta
+                // un bug per coloană.
+                if ($column === null || preg_match('/(^|\.)[a-z_]+_at$/', $column) !== 1) {
                     return null;
                 }
 

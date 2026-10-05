@@ -36,6 +36,7 @@ class PasswordResetEmailInterceptionTest extends TestCase
         $sent = SentEmail::withoutGlobalScope(TenantScope::class)
             ->where('subject', 'like', '%Reset%')
             ->latest('created_at')
+            ->latest('id')
             ->firstOrFail();
 
         $this->assertNull($sent->tenant_id, 'Un email fără tenant (recuperare parolă) nu trebuie atribuit niciunui workspace.');
