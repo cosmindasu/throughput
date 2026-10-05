@@ -1,11 +1,18 @@
 import { router } from '@inertiajs/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import Icon from '@/Components/Icon';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
 import { buttonClass } from '@/Components/Button';
 import type { DealStage, LostReason } from '@/types/generated';
 
 interface MoveStageMenuProps {
+    /**
+     * `icon`: declanșator compact, pentru kanban — un buton cu etichetă completă pe fiecare
+     * card ar ocupa mai mult decât afacerea însăși. Numele accesibil rămâne „Move to stage…",
+     * textul doar devine `sr-only`.
+     */
+    variant?: 'text' | 'icon';
     workspaceSlug: string;
     dealId: string;
     currentStageId: string;
@@ -32,7 +39,7 @@ interface MoveStageMenuProps {
  * O etapă `isLost` cere întâi motivul (`LostReasonDialog`, FR-DEAL-03) înainte de a trimite
  * cererea — atât de pe kanban, cât și din `Deals/Show`.
  */
-export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, stages, onError, onMoved, dealTitle }: MoveStageMenuProps) {
+export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, stages, onError, onMoved, dealTitle, variant = 'text' }: MoveStageMenuProps) {
     const { t } = useTranslation('deals');
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -162,12 +169,23 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                     setOpen((value) => !value);
                 }}
                 onKeyDown={onTriggerKeyDown}
-                className={`${buttonClass('secondary')} text-xs`}
+                className={
+                    variant === 'icon'
+                        ? 'inline-flex size-7 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-row-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
+                        : `${buttonClass('secondary')} text-xs`
+                }
             >
                 {/* Discriminatorul e `sr-only` DUPĂ textul vizibil, nu un `aria-label` care
                     l-ar înlocui: numele accesibil tot ÎNCEPE cu „Move to stage…" (SC 2.5.3
                     Label in Name) și rămâne găsibil după textul vizibil. */}
-                {t('moveStageMenu.trigger')}
+                {/*
+                    Textul devine `sr-only`, NU dispare: numele accesibil al declanșatorului
+                    rămâne „Move to stage…", pe care `deals-pipeline.spec.ts` îl caută cu
+                    `getByRole('button', { name: 'Move to stage…' })` — și care e, mai
+                    important, singurul lucru care spune ce face butonul.
+                */}
+                {variant === 'icon' && <Icon name="more" size={16} />}
+                <span className={variant === 'icon' ? 'sr-only' : undefined}>{t('moveStageMenu.trigger')}</span>
                 {dealTitle && <span className="sr-only"> {t('moveStageMenu.triggerFor', { title: dealTitle })}</span>}
             </button>
 
@@ -177,7 +195,7 @@ export default function MoveStageMenu({ workspaceSlug, dealId, currentStageId, s
                     role="menu"
                     aria-label={t('moveStageMenu.ariaLabel')}
                     onKeyDown={onMenuKeyDown}
-                    className="absolute z-10 mt-1 w-48 rounded-md border border-border bg-overlay py-1 shadow-lg"
+                    className={`absolute z-10 mt-1 w-48 rounded-md border border-border bg-overlay py-1 shadow-lg ${variant === 'icon' ? 'right-0' : ''}`}
                 >
                     {options.map((stage, index) => (
                         <li key={stage.id} role="none">

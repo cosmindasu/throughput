@@ -1,12 +1,17 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import AnimatedNumber from '@/Components/AnimatedNumber';
 import { ButtonLink } from '@/Components/Button';
 import DealCard, { dealCardDomId } from '@/Components/Deals/DealCard';
 import LostReasonDialog from '@/Components/Deals/LostReasonDialog';
 import ViewSwitcher from '@/Components/Deals/ViewSwitcher';
 import { useAnnounce } from '@/hooks/useAnnounce';
+import { useLocale } from '@/hooks/useLocale';
 import AppLayout from '@/Layouts/AppLayout';
+import { formatMoney } from '@/lib/money';
+import { stageColors, summarizePipeline } from '@/lib/stageColor';
+import { TONE, type Tone } from '@/lib/tone';
 import type { DealsBoardColumn, DealsKanbanPageProps, DealStage, DealSummary, LostReason } from '@/types/generated';
 
 interface PendingLostMove {
@@ -47,6 +52,18 @@ export default function Kanban() {
     // mutația DOM-ului”.
     const { announcement, announce } = useAnnounce();
     const [draggedDeal, setDraggedDeal] = useState<DealSummary | null>(null);
+    // Coloana peste care se află cardul tras și cardul tocmai aterizat: feedback VIZUAL, nu
+    // stare de business — niciuna nu influențează ce se trimite serverului.
+    const [overStageId, setOverStageId] = useState<string | null>(null);
+    const [lastMovedId, setLastMovedId] = useState<string | null>(null);
+    const locale = useLocale();
+    // Miezul nopții local, o singură dată pentru tot board-ul: `Date.now()` direct în corpul
+    // componentei e impur (`react-hooks/purity`), iar per card ar fi și risipă.
+    const [today] = useState(() => new Date().setHours(0, 0, 0, 0));
+    const colors = useMemo(() => stageColors(columns.map((column) => column.stage)), [columns]);
+    const summary = useMemo(() => summarizePipeline(columns), [columns]);
+    const boardCurrency = workspace?.currency ?? 'USD';
+    const money = useMemo(() => (value: number) => formatMoney(value, boardCurrency, locale, { maximumFractionDigits: 0 }), [boardCurrency, locale]);
     const [pendingLostMove, setPendingLostMove] = useState<PendingLostMove | null>(null);
     const [dialogProcessing, setDialogProcessing] = useState(false);
     // Id-ul cardului al cărui focus trebuie restaurat explicit, ODATĂ ce coloanele
@@ -102,6 +119,9 @@ export default function Kanban() {
                 },
                 onSuccess: () => {
                     setPendingLostMove(null);
+                    // Cardul tocmai aterizat primește animația de așezare — se vede UNDE a
+                    // ajuns, nu doar că lista s-a schimbat.
+                    setLastMovedId(deal.id);
                     announce(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
                     if (restoreFocus) {
                         requestFocus(deal.id);
@@ -113,6 +133,7 @@ export default function Kanban() {
     };
 
     const handleCardMoved = (deal: DealSummary, targetStage: DealStage) => {
+        setLastMovedId(deal.id);
         announce(t('kanban.moved', { title: deal.title, stage: targetStage.name }));
         requestFocus(deal.id);
     };
@@ -181,18 +202,81 @@ export default function Kanban() {
                     {announcement}
                 </p>
 
+                {/*
+                    Sinteza se calculează din ACELEAȘI coloane pe care pagina le desenează
+                    (`summarizePipeline`), nu dintr-o a doua interogare: n-are cum să
+                    divergă de ce se vede, și se actualizează singură după o mutare
+                    optimistă, înainte ca serverul să confirme.
+                */}
+                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <SummaryStat label={t('kanban.summary.open')} tone="accent">
+                        <AnimatedNumber value={summary.openValue} format={money} />
+                    </SummaryStat>
+                    <SummaryStat label={t('kanban.summary.weighted')} tone="info">
+                        <AnimatedNumber value={summary.weightedValue} format={money} />
+                    </SummaryStat>
+                    <SummaryStat label={t('kanban.summary.deals')} tone="neutral">
+                        {summary.openCount}
+                    </SummaryStat>
+                    {/* `null` = nu s-a închis încă nimic; „0%" ar afirma că se pierde tot. */}
+                    <SummaryStat label={t('kanban.summary.winRate')} tone={summary.winRate !== null && summary.winRate >= 0.5 ? 'success' : 'warning'}>
+                        {summary.winRate === null ? '—' : `${Math.round(summary.winRate * 100)}%`}
+                    </SummaryStat>
+                </dl>
+
                 <div className="flex gap-4 overflow-x-auto pb-4">
                     {columns.map((column) => (
                         <section
                             key={column.stage.id}
                             aria-label={column.stage.name}
                             onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => handleDrop(event, column.stage)}
-                            className="flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-border bg-raised p-3"
+                            onDragEnter={() => setOverStageId(column.stage.id)}
+                            // `dragleave` se declanșează și la trecerea peste COPII, nu doar
+                            // la ieșirea din coloană: fără verificarea de conținere, evidența
+                            // zonei de drop ar clipi la fiecare card survolat.
+                            onDragLeave={(event) => {
+                                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                    setOverStageId(null);
+                                }
+                            }}
+                            onDrop={(event) => {
+                                setOverStageId(null);
+                                handleDrop(event, column.stage);
+                            }}
+                            // Coloana de PLECARE nu se evidențiază: a lăsa cardul unde era nu e o mutare.
+                            data-over={overStageId === column.stage.id && draggedDeal?.stage.id !== column.stage.id ? true : undefined}
+                            className="flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-border border-t-[3px] bg-raised p-3 transition-colors duration-150 motion-reduce:transition-none data-[over]:border-accent-fill data-[over]:bg-accent-tint"
+                            style={{ borderTopColor: colors.get(column.stage.id) }}
                         >
-                            <header className="flex items-center justify-between gap-2">
-                                <h2 className="text-sm font-semibold text-text">{column.stage.name}</h2>
-                                <span className="numeric text-xs text-text-3">{column.total}</span>
+                            <header className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-2">
+                                    <h2 className="text-sm font-semibold text-text">{column.stage.name}</h2>
+                                    <span className="numeric rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-2 ring-1 ring-inset ring-border">{column.total}</span>
+                                </div>
+                                {/*
+                                    Suma e pe TOATĂ etapa, nu pe cardurile vizibile (plafonate
+                                    la 50) — altfel antetul ar descrie fereastra, nu etapa.
+                                    Ponderarea cu probabilitatea stă lângă ea fiindcă asta e
+                                    întrebarea reală a unui pipeline: nu „cât e pe masă", ci
+                                    „cât se așteaptă să intre".
+                                */}
+                                <p className="numeric text-sm font-medium text-text">
+                                    {money(column.valueTotal)}
+                                    {!column.stage.isWon && !column.stage.isLost && column.stage.probability !== null && (
+                                        <span className="ml-2 text-xs font-normal text-text-3">
+                                            {column.stage.probability}% · {money((column.valueTotal * column.stage.probability) / 100)}
+                                        </span>
+                                    )}
+                                </p>
+                                {/* Cota coloanei din pipeline-ul deschis — DECOR: valoarea e deja text, deasupra. */}
+                                {!column.stage.isWon && !column.stage.isLost && summary.openValue > 0 && (
+                                    <span aria-hidden="true" className="block h-1 overflow-hidden rounded-full bg-border-soft">
+                                        <span
+                                            className="block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
+                                            style={{ width: `${(column.valueTotal / summary.openValue) * 100}%`, backgroundColor: colors.get(column.stage.id) }}
+                                        />
+                                    </span>
+                                )}
                             </header>
 
                             <div className="flex flex-col gap-2">
@@ -202,7 +286,18 @@ export default function Kanban() {
                                         deal={deal}
                                         stages={allStages}
                                         workspaceSlug={workspaceSlug}
-                                        onDragStart={(_event, draggedDealCard) => setDraggedDeal(draggedDealCard)}
+                                        today={today}
+                                        dragging={draggedDeal?.id === deal.id}
+                                        justMoved={lastMovedId === deal.id}
+                                        // Pe cadrul URMĂTOR: starea aplicată chiar în
+                                        // `dragstart` apucă să se „coacă" în imaginea pe care
+                                        // browserul o ia pentru drag, deci cardul ar fi tras
+                                        // deja semitransparent.
+                                        onDragStart={(_event, draggedDealCard) => requestAnimationFrame(() => setDraggedDeal(draggedDealCard))}
+                                        onDragEnd={() => {
+                                            setDraggedDeal(null);
+                                            setOverStageId(null);
+                                        }}
                                         onError={setErrorMessage}
                                         onMoved={(stage) => handleCardMoved(deal, stage)}
                                     />
@@ -238,6 +333,20 @@ export default function Kanban() {
     );
 }
 
+/**
+ * O placă din banda de sinteză. Aceeași gramatică vizuală ca `KpiTile` de pe dashboard (muchie
+ * tentată, etichetă mică, cifră mare), dar `<dt>`/`<dd>` într-un `<dl>`: aici perechile
+ * etichetă-valoare sunt chiar structura, nu patru carduri independente.
+ */
+function SummaryStat({ label, tone, children }: { label: string; tone: Tone; children: ReactNode }) {
+    return (
+        <div className={`rounded-lg border border-l-4 border-border bg-surface px-4 py-3 ${TONE[tone].edge}`}>
+            <dt className="text-xs text-text-2">{label}</dt>
+            <dd className="numeric mt-0.5 text-lg font-semibold text-text">{children}</dd>
+        </div>
+    );
+}
+
 function OwnerToggleLink({ href, active, children }: { href: string; active: boolean; children: ReactNode }) {
     return (
         <Link
@@ -260,11 +369,11 @@ function applyOptimisticMove(columns: DealsBoardColumn[], deal: DealSummary, tar
 
     return columns.map((column) => {
         if (column.stage.id === deal.stage.id) {
-            return { ...column, deals: column.deals.filter((item) => item.id !== deal.id), total: Math.max(column.total - 1, 0) };
+            return { ...column, deals: column.deals.filter((item) => item.id !== deal.id), total: Math.max(column.total - 1, 0), valueTotal: Math.max(column.valueTotal - (deal.value ?? 0), 0) };
         }
 
         if (column.stage.id === target.id) {
-            return { ...column, deals: [movedDeal, ...column.deals], total: column.total + 1 };
+            return { ...column, deals: [movedDeal, ...column.deals], total: column.total + 1, valueTotal: column.valueTotal + (deal.value ?? 0) };
         }
 
         return column;
@@ -293,11 +402,11 @@ function revertOptimisticMove(columns: DealsBoardColumn[], deal: DealSummary, ta
 
     return columns.map((column) => {
         if (column.stage.id === targetStage.id) {
-            return { ...column, deals: column.deals.filter((item) => item.id !== deal.id), total: Math.max(column.total - 1, 0) };
+            return { ...column, deals: column.deals.filter((item) => item.id !== deal.id), total: Math.max(column.total - 1, 0), valueTotal: Math.max(column.valueTotal - (deal.value ?? 0), 0) };
         }
 
         if (column.stage.id === deal.stage.id) {
-            return { ...column, deals: [deal, ...column.deals], total: column.total + 1 };
+            return { ...column, deals: [deal, ...column.deals], total: column.total + 1, valueTotal: column.valueTotal + (deal.value ?? 0) };
         }
 
         return column;

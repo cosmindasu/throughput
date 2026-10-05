@@ -87,6 +87,45 @@ class DealKanbanTest extends TestCase
      * marjă peste cele 15 măsurate, dar rămâne mult sub vechiul comportament
      * proporțional cu numărul de etape.
      */
+    /**
+     * Antetul fiecărei coloane arată suma etapei, iar banda de sinteză o derivă din aceleași
+     * coloane. Două invariante, ambele ușor de rupt tăcut:
+     *
+     *  - suma e pe TOATĂ etapa, nu pe cardurile trimise (plafonate la 50). Dacă cineva o
+     *    calculează vreodată din `deals`, antetul ar descrie fereastra, nu etapa — iar pe o
+     *    coloană de 52 de carduri diferența e invizibilă fără un test;
+     *  - afacerile FĂRĂ valoare contează la `total`, dar adaugă zero la sumă (`coalesce`):
+     *    un pipeline cu oportunități neevaluate arată multe carduri și o sumă mică, ceea ce
+     *    e adevărat.
+     */
+    public function test_each_column_reports_the_value_of_the_whole_stage_not_of_the_cards_sent(): void
+    {
+        TenantContext::run($this->tenant, function (): void {
+            // 52 × 5.000 = 260.000, din care doar 50 de carduri ajung pe client.
+            for ($i = 0; $i < 52; $i++) {
+                $this->dealOn('New', $this->owner, sprintf('Deal %02d', $i));
+            }
+
+            $this->dealOn('Qualified', $this->owner, 'Evaluated', 1_250.50);
+            $this->dealOn('Qualified', $this->owner, 'Not evaluated yet', null);
+        });
+
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)->get('/marlin/deals/board?owner=all')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('columns.0.total', 52)
+                ->has('columns.0.deals', 50)
+                ->where('columns.0.valueTotal', 260000)
+                // Două carduri, o singură valoare.
+                ->where('columns.1.total', 2)
+                ->where('columns.1.valueTotal', 1250.5)
+                // Etapă goală: zero, nu `null` — clientul însumează fără verificări.
+                ->where('columns.2.valueTotal', 0)
+            );
+    }
+
     public function test_the_board_runs_a_constant_number_of_queries_regardless_of_stage_count(): void
     {
         TenantContext::run($this->tenant, function (): void {
@@ -168,7 +207,7 @@ class DealKanbanTest extends TestCase
             );
     }
 
-    private function dealOn(string $stageName, User $owner, string $title): Deal
+    private function dealOn(string $stageName, User $owner, string $title, float|int|null $value = 5000): Deal
     {
         $stage = $this->stages[$stageName];
 
@@ -178,7 +217,7 @@ class DealKanbanTest extends TestCase
             'stage_id' => $stage->getKey(),
             'owner_user_id' => $owner->getKey(),
             'title' => $title,
-            'value' => 5000,
+            'value' => $value,
             'status' => Deal::STATUS_OPEN,
         ]);
         $deal->created_by = $owner->getKey();

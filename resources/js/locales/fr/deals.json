@@ -158,6 +158,12 @@
     "kanban": {
         "title": "Tableau du pipeline",
         "hint": "Faites glisser une carte vers une autre étape, ou utilisez « Déplacer vers l’étape… ».",
+        "summary": {
+            "open": "Pipeline ouvert",
+            "weighted": "Pondéré",
+            "deals": "Affaires ouvertes",
+            "winRate": "Taux de réussite"
+        },
         "owner": {
             "mine": "Mes affaires",
             "all": "Toutes les affaires"

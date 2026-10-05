@@ -156,6 +156,12 @@
     "kanban": {
         "title": "Pipeline board",
         "hint": "Drag a card to another stage, or use “Move to stage…”.",
+        "summary": {
+            "open": "Open pipeline",
+            "weighted": "Weighted",
+            "deals": "Open deals",
+            "winRate": "Win rate"
+        },
         "owner": {
             "mine": "My deals",
             "all": "All deals"

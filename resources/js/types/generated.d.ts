@@ -500,6 +500,9 @@ export interface DealsBoardColumn {
     stage: DealStage;
     deals: DealSummary[];
     total: number;
+    // Suma pe TOATĂ etapa, nu pe cardurile trimise (plafonate la 50): antetul nu descrie ce se
+    // vede, descrie ce e acolo. Afacerile fără valoare adaugă zero, dar contează la `total`.
+    valueTotal: number;
     hasMore: boolean;
 }
 

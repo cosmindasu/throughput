@@ -324,13 +324,19 @@ class DealController extends Controller
         $stages = Stage::query()->where('pipeline_id', $pipeline->getKey())->orderBy('position')->get();
         $stageIds = $stages->pluck('id');
 
-        // 1 interogare pentru TOATE totalurile (nu una per coloană).
+        // 1 interogare pentru TOATE totalurile (nu una per coloană). Suma de valoare intră ca
+        // A DOUA AGREGARE pe același `GROUP BY`, nu ca interogare separată: are exact aceleași
+        // filtre, deci o a doua le-ar putea desincroniza tăcut la prima modificare a uneia.
+        //
+        // Suma e pe TOATĂ etapa, iar cardurile trimise sunt plafonate la 50 (`stage_rank`) —
+        // deci antetul nu minte niciodată despre ce nu se vede, iar `hasMore` spune că există.
         $totals = Deal::query()
             ->whereIn('stage_id', $stageIds)
             ->when($ownerFilter === 'me', fn ($query) => $query->where('owner_user_id', $user->getKey()))
-            ->selectRaw('stage_id, count(*) as aggregate')
+            ->selectRaw('stage_id, count(*) as aggregate, coalesce(sum(value), 0) as value_sum')
             ->groupBy('stage_id')
-            ->pluck('aggregate', 'stage_id');
+            ->get()
+            ->keyBy('stage_id');
 
         // Rămâne pe query builder-ul lui `Deal` (nu `DB::table`), ca global scope-ul de
         // tenant să se aplice ca pe orice altă interogare Eloquent — RLS, pe aceeași
@@ -358,12 +364,17 @@ class DealController extends Controller
 
         $columns = $stages->map(function (Stage $stage) use ($totals, $deals) {
             $stageDeals = $deals->get($stage->getKey(), collect());
-            $total = (int) $totals->get($stage->getKey(), 0);
+            $row = $totals->get($stage->getKey());
+            $total = (int) ($row?->aggregate ?? 0);
 
             return [
                 'stage' => DealStageResource::make($stage),
                 'deals' => DealSummaryResource::collection($stageDeals),
                 'total' => $total,
+                // Afacerile fără valoare contează la `total`, dar adaugă zero aici
+                // (`coalesce`) — un pipeline cu zece oportunități neevaluate arată zece
+                // carduri și o sumă mică, ceea ce e adevărat.
+                'valueTotal' => (float) ($row?->value_sum ?? 0),
                 'hasMore' => $total > $stageDeals->count(),
             ];
         });
