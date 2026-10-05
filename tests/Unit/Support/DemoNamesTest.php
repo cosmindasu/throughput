@@ -28,6 +28,9 @@ class DemoNamesTest extends TestCase
 {
     private const DRAWS = 200;
 
+    /** `DemoDatasetSeeder::TENANTS['marlin']['accounts']` la scara 1.0 — plafonul real. */
+    private const LARGEST_TENANT_ACCOUNTS = 4000;
+
     /** @var array<string, string> Verticala → industria engleză, ca în `DemoDatasetSeeder::TENANTS`. */
     private const VERTICALS = [
         'fasteners' => 'Industrial Fasteners Distributor',
@@ -88,6 +91,63 @@ class DemoNamesTest extends TestCase
                 );
             }
         }
+    }
+
+    /**
+     * Pool-ul trebuie să acopere cel mai mare tenant FĂRĂ să repete baza unui nume și fără
+     * să cadă pe vreun artificiu de unicitate.
+     *
+     * Testul ăsta există pentru că prima încercare de a mări varietatea numelor a eșuat
+     * exact aici: `compose()` trăgea la întâmplare și reîncerca de patruzeci de ori la
+     * coliziune, ceea ce merge până pe ultima treime a pool-ului și apoi nu mai merge —
+     * 405 din 2.500 de conturi ieșeau cu „#2019" lipit la coadă. Al doilea defect era mai
+     * subtil: un pool mare construit pe numele ÎNTREG (pereche × formă juridică) dădea
+     * nume tehnic distincte, dar „Ardmore Foodservice Corp." stătea în listă chiar lângă
+     * „Ardmore Foodservice Group", de 1.098 de ori. De aceea unitatea de unicitate
+     * verificată aici e BAZA numelui, nu numele complet.
+     *
+     * 4.000 e numărul de conturi al tenantului `marlin` din `DemoDatasetSeeder::TENANTS`,
+     * la scara 1.0 — adică plafonul real, nu o cifră rotundă aleasă comod. Se trage pe
+     * fiecare verticală, nu doar pe una, pentru că pool-ul e separat per verticală și per
+     * limbă: un singur pool subdimensionat ar fi trecut un test care se uită la totaluri.
+     */
+    public function test_the_largest_tenant_draws_without_repeating_a_name_base(): void
+    {
+        $legalSuffixes = ['Co.', 'Inc.', 'LLC', 'Ltd.', 'Group', 'Corp.', 'SARL', 'SAS', 'SA', 'SASU', 'et Cie', 'SNC'];
+
+        foreach (self::VERTICALS as $vertical => $englishIndustry) {
+            DemoNames::resetUniqueness();
+
+            $bases = [];
+
+            for ($i = 0; $i < self::LARGEST_TENANT_ACCOUNTS; $i++) {
+                $name = DemoNames::account($vertical, $englishIndustry)['name'];
+
+                $this->assertDoesNotMatchRegularExpression(
+                    '/[#\x00-\x1f]/',
+                    $name,
+                    sprintf('"%s" conține un artificiu de unicitate — pool-ul s-a epuizat și a căzut pe o rezervă vizibilă.', $name)
+                );
+
+                $bases[] = preg_replace('/ ('.implode('|', array_map('preg_quote', $legalSuffixes)).')$/', '', $name);
+            }
+
+            $repetate = array_filter(array_count_values($bases), fn (int $n): bool => $n > 1);
+
+            $this->assertSame(
+                [],
+                $repetate,
+                sprintf(
+                    'Verticala "%s" a repetat %d baze de nume în %d trageri (de ex. %s) — pool-ul e mai mic decât cel mai mare tenant.',
+                    $vertical,
+                    count($repetate),
+                    self::LARGEST_TENANT_ACCOUNTS,
+                    implode(', ', array_slice(array_keys($repetate), 0, 3))
+                )
+            );
+        }
+
+        DemoNames::resetUniqueness();
     }
 
     public function test_accented_company_names_produce_a_readable_domain(): void

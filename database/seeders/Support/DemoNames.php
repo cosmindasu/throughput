@@ -62,6 +62,26 @@ final class DemoNames
     private const LEGAL_SUFFIXES = ['Co.', 'Inc.', 'LLC', 'Ltd.', 'Group', 'Corp.'];
 
     /**
+     * Numele de LOCALITATE, compuse din două jumătăți în loc de enumerate: 21 × 20 dau 420 de
+     * variante plauzibile („Northgate", „Cedarridge", „Riverbrook") din patru rânduri de cod. Un
+     * distribuitor industrial poartă la fel de des numele locului ca pe al fondatorului, deci
+     * nu e un artificiu ca să umplem pool-ul.
+     *
+     * Rostul lor e PRIMUL CUVÂNT. Lista de conturi se sortează alfabetic, deci entropia
+     * primului token decide cât de grupat arată ecranul. Măsurat pe seed-ul complet (8.000 de
+     * conturi): cu numele de familie singure, 90 de prime cuvinte distincte și 62 de conturi
+     * sub cel mai aglomerat dintre ele — primul ecran al listei era un zid de omonime. Cu
+     * localitățile adăugate, 924 de prime cuvinte distincte și cel mai mare grup de 19.
+     */
+    private const PLACE_HEADS = ['North', 'South', 'East', 'West', 'New', 'Old', 'Fair', 'River', 'Lake', 'Oak', 'Cedar', 'Iron', 'Stone', 'Summit', 'Granite', 'Pine', 'Birch', 'Mill', 'High', 'Clear', 'Red'];
+
+    private const PLACE_TAILS = ['gate', 'port', 'ton', 'side', 'view', 'field', 'brook', 'wood', 'dale', 'ridge', 'crest', 'bury', 'haven', 'mere', 'stead', 'march', 'burn', 'ford', 'hill', 'bank'];
+
+    private const PLACE_HEADS_FR = ['Val', 'Mont', 'Bois', 'Pont', 'Roche', 'Champ', 'Beau', 'Haute', 'Clair', 'Grand', 'Saint-', 'Fonte', 'Plaine', 'Vieux', 'Pierre', 'Belle', 'Longue', 'Noire', 'Haut', 'Fresne', 'Orme'];
+
+    private const PLACE_TAILS_FR = ['mont', 'val', 'bourg', 'ville', 'fort', 'lieu', 'rive', 'champ', 'pré', 'cour', 'roche', 'fontaine', 'cluse', 'sierre', 'garde', 'vigne', 'clos', 'puits', 'sault', 'brousse'];
+
+    /**
      * Formele juridice reale din Franța. „Groupe" lipsește deliberat, deși ar fi fost
      * traducerea directă a lui „Group": în franceză stă ÎNAINTEA numelui („Groupe
      * Bouvier"), nu după, iar tiparul „[Nume] [Industrie] [Formă]" e comun ambelor
@@ -72,16 +92,16 @@ final class DemoNames
 
     /** @var array<string, list<string>> */
     private const VERTICAL_NOUNS = [
-        'fasteners' => ['Fasteners', 'Industrial Supply', 'Hardware', 'Bolt & Fastener', 'Fabrication', 'Metal Works'],
-        'hydraulics' => ['Hydraulics', 'Fluid Power', 'Hose & Fitting', 'Pump Systems', 'Hydraulic Supply', 'Motion Systems'],
-        'foodservice' => ['Restaurant Supply', 'Foodservice', 'Catering Equipment', 'Kitchen Systems', 'Food Equipment', 'Culinary Supply'],
+        'fasteners' => ['Fasteners', 'Industrial Supply', 'Hardware', 'Bolt & Fastener', 'Fabrication', 'Metal Works', 'Industrial Fasteners', 'Supply Partners', 'Engineered Hardware'],
+        'hydraulics' => ['Hydraulics', 'Fluid Power', 'Hose & Fitting', 'Pump Systems', 'Hydraulic Supply', 'Motion Systems', 'Hydraulic Components', 'Power Transmission', 'Fluid Systems'],
+        'foodservice' => ['Restaurant Supply', 'Foodservice', 'Catering Equipment', 'Kitchen Systems', 'Food Equipment', 'Culinary Supply', 'Hospitality Supply', 'Kitchen Partners', 'Catering Systems'],
     ];
 
     /** @var array<string, list<string>> */
     private const VERTICAL_NOUNS_FR = [
-        'fasteners' => ['Fixations', 'Fournitures Industrielles', 'Quincaillerie', 'Boulonnerie', 'Visserie', 'Métallerie'],
-        'hydraulics' => ['Hydraulique', 'Transmissions Fluides', 'Flexibles et Raccords', 'Systèmes de Pompage', 'Oléohydraulique', 'Composants Hydrauliques'],
-        'foodservice' => ['Équipement CHR', 'Restauration Professionnelle', 'Matériel de Cuisine', 'Grandes Cuisines', 'Fournitures Alimentaires', 'Équipement Culinaire'],
+        'fasteners' => ['Fixations', 'Fournitures Industrielles', 'Quincaillerie', 'Boulonnerie', 'Visserie', 'Métallerie', 'Fixations Industrielles', 'Assemblage Mécanique', 'Serrurerie Industrielle'],
+        'hydraulics' => ['Hydraulique', 'Transmissions Fluides', 'Flexibles et Raccords', 'Systèmes de Pompage', 'Oléohydraulique', 'Composants Hydrauliques', 'Énergie Fluide', 'Vérins et Pompes', 'Hydraulique Industrielle'],
+        'foodservice' => ['Équipement CHR', 'Restauration Professionnelle', 'Matériel de Cuisine', 'Grandes Cuisines', 'Fournitures Alimentaires', 'Équipement Culinaire', 'Froid Professionnel', 'Hôtellerie Équipement', 'Cuisines Collectives'],
     ];
 
     /**
@@ -109,27 +129,103 @@ final class DemoNames
     {
         if (! Rand::bool(self::FRENCH_SHARE_PERCENT)) {
             return [
-                'name' => self::compose(self::SURNAME_LIKE, self::VERTICAL_NOUNS[$vertical], self::LEGAL_SUFFIXES),
+                'name' => self::compose(self::SURNAME_LIKE, self::VERTICAL_NOUNS[$vertical], self::LEGAL_SUFFIXES, self::PLACE_HEADS, self::PLACE_TAILS),
                 'industry' => $englishIndustry,
             ];
         }
 
         return [
-            'name' => self::compose(self::SURNAME_LIKE_FR, self::VERTICAL_NOUNS_FR[$vertical], self::LEGAL_SUFFIXES_FR),
+            'name' => self::compose(self::SURNAME_LIKE_FR, self::VERTICAL_NOUNS_FR[$vertical], self::LEGAL_SUFFIXES_FR, self::PLACE_HEADS_FR, self::PLACE_TAILS_FR),
             'industry' => self::VERTICAL_INDUSTRY_FR[$vertical],
         ];
     }
 
     /**
+     * Numele complet: perechea „primul cuvânt + substantiv" trasă FĂRĂ REVENIRE dintr-un pool
+     * amestecat o singură dată, plus o formă juridică la întâmplare.
+     *
+     * Perechea e unitatea de unicitate, nu numele întreg, și asta e o alegere, nu o scurtătură.
+     * Un pool construit pe numele întreg (pereche × formă juridică) ar fi avut 25.110 intrări
+     * distincte, dar dădea 1.098 de grupuri de felul „Ardmore Foodservice Corp." lângă „Ardmore
+     * Foodservice Group" — tehnic nume diferite, citite în listă ca o greșeală de seed. Pe
+     * pereche, cele 464 de prime cuvinte × 9 substantive dau 4.176 de combinații per verticală
+     * și per limbă, peste cele ~2.800 de trageri engleze ale celui mai mare tenant (4.000 de
+     * conturi × 70%), deci nicio bază de nume nu se repetă.
+     *
+     * Varianta anterioară, cu patruzeci de reîncercări aleatoare și un contor la final, eșua
+     * exact pe coada densă a pool-ului: 405 din 2.500 de conturi ieșeau cu sufix numeric vizibil
+     * („Ardmore Fluid Power Co. #2019"), mai rău decât defectul reparat.
+     *
      * @param  list<string>  $surnames
      * @param  list<string>  $nouns
      * @param  list<string>  $suffixes
+     * @param  list<string>  $placeHeads
+     * @param  list<string>  $placeTails
      */
-    private static function compose(array $surnames, array $nouns, array $suffixes): string
+    private static function compose(array $surnames, array $nouns, array $suffixes, array $placeHeads, array $placeTails): string
     {
-        return $surnames[array_rand($surnames)]
-            .' '.$nouns[array_rand($nouns)]
-            .' '.$suffixes[array_rand($suffixes)];
+        // Verticala și limba determină `$nouns`, deci și cheia; `$surnames` o separă pe limbă
+        // chiar dacă două verticale ar ajunge vreodată să împartă substantivele.
+        $cheie = md5(implode('|', $surnames).'#'.implode('|', $nouns));
+
+        // Ramura de reumplere e pentru un seed viitor mai mare decât pool-ul: atunci o bază de
+        // nume reapare cu altă formă juridică — două societăți înrudite, plauzibil — în loc să
+        // se întoarcă un contor vizibil.
+        if ((self::$pooluri[$cheie] ?? []) === []) {
+            self::$pooluri[$cheie] = self::buildPool($surnames, $nouns, $placeHeads, $placeTails);
+        }
+
+        [$lead, $noun] = explode(self::SEP, array_pop(self::$pooluri[$cheie]));
+
+        return $lead.' '.$noun.' '.$suffixes[array_rand($suffixes)];
+    }
+
+    /**
+     * Perechile, împachetate ca un singur string: la 4.176 de intrări per pool, un array de
+     * array-uri costă de câteva ori mai multă memorie decât un array de string-uri, iar
+     * seeder-ul le ține pe toate în viață cât durează un tenant.
+     *
+     * @param  list<string>  $surnames
+     * @param  list<string>  $nouns
+     * @param  list<string>  $placeHeads
+     * @param  list<string>  $placeTails
+     * @return list<string>
+     */
+    private static function buildPool(array $surnames, array $nouns, array $placeHeads, array $placeTails): array
+    {
+        $leads = $surnames;
+
+        foreach ($placeHeads as $head) {
+            foreach ($placeTails as $tail) {
+                $leads[] = $head.$tail;
+            }
+        }
+
+        $perechi = [];
+
+        // „Eastwood" e în ambele liste: nume de familie ȘI „East" + „wood". Fără dedupe,
+        // perechile lui ar fi stat de două ori în pool și ar fi putut fi trase de două ori.
+        foreach (array_unique($leads) as $lead) {
+            foreach ($nouns as $noun) {
+                $perechi[] = $lead.self::SEP.$noun;
+            }
+        }
+
+        shuffle($perechi);
+
+        return $perechi;
+    }
+
+    /** Separator imposibil într-un nume de firmă, deci sigur pentru `explode()`. */
+    private const SEP = "\x1f";
+
+    /** @var array<string, list<string>> perechile încă neconsumate, per limbă și verticală */
+    private static array $pooluri = [];
+
+    /** Seed-ul rulează per tenant: altfel al doilea tenant ar porni cu pool-ul deja consumat. */
+    public static function resetUniqueness(): void
+    {
+        self::$pooluri = [];
     }
 
     /** Domeniu plauzibil, unic prin sufixul numeric furnizat de apelant (nu Faker::unique()). */

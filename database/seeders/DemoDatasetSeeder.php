@@ -18,6 +18,7 @@ use Database\Seeders\Demo\TenantsSeeder;
 use Database\Seeders\Demo\UsersAndMembershipsSeeder;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
+use Database\Seeders\Support\DemoNames;
 use Illuminate\Database\Seeder;
 
 /**
@@ -140,6 +141,11 @@ class DemoDatasetSeeder extends Seeder
                 );
 
                 (new CarrierSettingsSeeder)->run($tenant, $config);
+
+                // Unicitatea numelor de companie se ține PER TENANT: altfel al doilea demo ar
+                // porni cu pool-ul deja consumat de primul și ar cădea pe sufixe numerice,
+                // deși are propriul lui set de clienți.
+                DemoNames::resetUniqueness();
 
                 $catalog = (new CatalogSeeder)->run($tenant, $config);
 
