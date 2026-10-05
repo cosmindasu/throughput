@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
 use Database\Factories\MembershipFactory;
+use Database\Seeders\Support\DemoStaffNames;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -30,6 +31,10 @@ final class UsersAndMembershipsSeeder
     public function run(array $tenants, array $configs): array
     {
         $password = Hash::make('password');
+
+        // Pool-ul de nume se ține pe TOT seed-ul, nu per tenant: Owner-ul e membru în toate
+        // trei și comută între ele din bara de sus.
+        DemoStaffNames::reset();
 
         $owner = User::updateOrCreate(['email' => 'demo.owner@throughput.dev'], ['name' => 'Olivia Sterling', 'password' => $password, 'email_verified_at' => now()]);
         $manager = User::updateOrCreate(['email' => 'demo.manager@throughput.dev'], ['name' => 'Marcus Reyes', 'password' => $password, 'email_verified_at' => now()]);
@@ -67,7 +72,9 @@ final class UsersAndMembershipsSeeder
                 foreach ($colleagueSpec as $role => $count) {
                     for ($k = 1; $k <= $count; $k++) {
                         $n++;
-                        $name = fake()->name();
+                        // NU `fake()->name()`: lipea titluri („Prof. Keegan Wilderman III"),
+                        // iar numele astea stau lângă cele patru personaje demo scrise de mână.
+                        $name = DemoStaffNames::next();
                         $local = strtolower((string) preg_replace('/[^a-z]+/', '.', strtolower($name)));
                         $local = trim($local, '.');
                         $email = "{$local}.{$n}@{$slug}.internal";
