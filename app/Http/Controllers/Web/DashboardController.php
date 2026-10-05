@@ -6,15 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ActivityEntryResource;
 use App\Models\ActivityLog;
 use App\Models\Deal;
+use App\Models\DealStageEvent;
 use App\Models\InventoryLevel;
 use App\Models\Invoice;
 use App\Models\Membership;
 use App\Models\Order;
+use App\Models\Pipeline;
+use App\Models\Stage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,6 +74,13 @@ class DashboardController extends Controller
                     ->count(),
             ],
 
+            // AMÂNATE (`Inertia::defer`, ca în AccountController/InvoiceController): shell-ul,
+            // KPI-urile și feed-ul apar la prima cerere; agregările pentru grafice vin în a
+            // doua, cu schelet în forma graficului. Dashboard-ul e prima pagină de după
+            // login, deci ce se vede primul contează mai mult decât ce e complet.
+            'charts' => Inertia::defer(fn () => $this->charts()),
+            'attention' => Inertia::defer(fn () => $this->attention()),
+
             'activity' => $this->recentActivity($request->user()),
         ]);
     }
@@ -80,6 +91,180 @@ class DashboardController extends Controller
      * (`activity_log.view_own`), Viewer-ul nimic. Cine n-are acces primește `null`, nu o listă
      * goală: „No recent activity yet" ar afirma ceva fals despre workspace.
      */
+    /**
+     * Seriile pentru graficele dashboard-ului: 12 luni de venit și de afaceri câștigate, plus
+     * pipeline-ul pe etape deschise.
+     *
+     * Agregarea se face în SQL, nu în PHP: `deals` și `orders` au zeci de mii de rânduri în
+     * setul demo, iar încărcarea lor ca modele doar ca să fie însumate ar fi cel mai scump
+     * lucru de pe pagină. `TenantScope` + RLS se ocupă de izolare (plan §7.2) — niciun
+     * `where tenant_id` manual.
+     *
+     * @return array{months: list<string>, orders: list<float>, ordersCount: list<int>, ordersMonthToDate: array{current: int, previous: int}, wonDeals: list<float>, ordersByStatus: array<string, int>, pipeline: list<array<string, mixed>>}
+     */
+    private function charts(): array
+    {
+        $months = collect(range(11, 0))->map(fn (int $back) => now()->startOfMonth()->subMonths($back)->format('Y-m'));
+        $since = Carbon::createFromFormat('Y-m', $months->first())->startOfMonth();
+
+        // Doar comenzi CONFIRMATE sau mai departe: un draft și o comandă anulată nu sunt venit.
+        $orders = Order::query()
+            ->whereIn('status', [Order::STATUS_CONFIRMED, Order::STATUS_PARTIALLY_FULFILLED, Order::STATUS_FULFILLED])
+            ->where('placed_at', '>=', $since)
+            ->selectRaw("to_char(date_trunc('month', placed_at), 'YYYY-MM') as month, sum(grand_total) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
+        // A DOUA interogare pe `orders`, nu `count(*)` lângă `sum()` în prima: numărătoarea
+        // trebuie să aibă EXACT definiția KPI-ului de deasupra liniei — `created_at`, fără
+        // filtru de status (vezi `show()`) — iar seria de bani are alta (`placed_at`, doar
+        // comenzi confirmate). Împachetate într-o singură interogare, ultimul punct al liniei
+        // ar fi contrazis cifra din propria placă. `DashboardTest` ține egalitatea asta.
+        $ordersCount = Order::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw("to_char(date_trunc('month', created_at), 'YYYY-MM') as month, count(*) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
+        // Variația lunară de pe placa de comenzi se calculează pe perioade COMPARABILE: luna
+        // curentă până azi față de luna trecută până în aceeași zi. Altfel, pe 5 ale lunii,
+        // cinci zile s-ar compara cu treizeci și una, iar placa ar afișa o prăbușire roșie în
+        // prima săptămână a FIECĂREI luni — o cifră corect calculată și complet falsă ca
+        // afirmație. `subMonth()` pe 31 martie dă 28/29 februarie (Carbon fixează ziua la
+        // ultima validă), ceea ce e tot ce se poate face corect pe o lună mai scurtă.
+        $lunaCurenta = now()->startOfMonth();
+        $acelasiPunctLunaTrecuta = now()->subMonthNoOverflow();
+        $monthToDate = Order::query()
+            ->where('created_at', '>=', $acelasiPunctLunaTrecuta->copy()->startOfMonth())
+            ->selectRaw('count(*) filter (where created_at >= ?) as current', [$lunaCurenta])
+            ->selectRaw('count(*) filter (where created_at < ?) as previous', [$acelasiPunctLunaTrecuta])
+            ->first();
+
+        // Afacerile câștigate se numără pe luna în care au INTRAT în etapa de câștig
+        // (evenimentul din `deal_stage_events`), nu pe `updated_at` — acela se mișcă la orice
+        // editare ulterioară și ar muta retroactiv venitul dintr-o lună în alta.
+        $won = DealStageEvent::query()
+            ->join('stages', 'stages.id', '=', 'deal_stage_events.to_stage_id')
+            ->join('deals', 'deals.id', '=', 'deal_stage_events.deal_id')
+            ->where('stages.is_won', true)
+            ->where('deal_stage_events.changed_at', '>=', $since)
+            ->selectRaw("to_char(date_trunc('month', deal_stage_events.changed_at), 'YYYY-MM') as month, sum(deals.value) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
+        // Distribuția pe status e un instantaneu al registrului ÎNTREG, nu al ultimelor 12
+        // luni: donutul răspunde la „ce am pe masă acum", iar o comandă din urmă cu doi ani
+        // încă nelivrată e tocmai ce trebuie să se vadă.
+        $ordersByStatus = Order::query()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->map(fn (int|string $total) => (int) $total)
+            ->all();
+
+        $pipeline = Pipeline::query()->where('is_default', true)->first()
+            ?? Pipeline::query()->oldest('created_at')->oldest('id')->first();
+
+        $byStage = Deal::query()
+            ->where('status', Deal::STATUS_OPEN)
+            ->selectRaw('stage_id, count(*) as deals, coalesce(sum(value), 0) as value')
+            ->groupBy('stage_id')
+            ->get()
+            ->keyBy('stage_id');
+
+        // Doar etapele DESCHISE: „Won" și „Lost" sunt terminale, iar includerea lor ar face ca
+        // un pipeline sănătos să arate ca unul blocat la capăt.
+        $stages = Stage::query()
+            ->where('pipeline_id', $pipeline?->getKey())
+            ->where('is_won', false)
+            ->where('is_lost', false)
+            ->orderBy('position')
+            ->get()
+            ->map(fn (Stage $stage) => [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'probability' => (int) $stage->probability,
+                'deals' => (int) ($byStage->get($stage->id)?->deals ?? 0),
+                'value' => (float) ($byStage->get($stage->id)?->value ?? 0),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'months' => $months->all(),
+            'orders' => $months->map(fn (string $month) => (float) ($orders[$month] ?? 0))->all(),
+            'ordersCount' => $months->map(fn (string $month) => (int) ($ordersCount[$month] ?? 0))->all(),
+            'ordersMonthToDate' => [
+                'current' => (int) ($monthToDate->current ?? 0),
+                'previous' => (int) ($monthToDate->previous ?? 0),
+            ],
+            'wonDeals' => $months->map(fn (string $month) => (float) ($won[$month] ?? 0))->all(),
+            'ordersByStatus' => $ordersByStatus,
+            'pipeline' => $stages,
+        ];
+    }
+
+    /**
+     * „Ce cere acțiune acum" — cele trei liste din spatele KPI-urilor. Un KPI spune CÂTE;
+     * lista spune CARE, cu link, ca numărul să devină acționabil în loc să rămână decor.
+     *
+     * @return array{overdueInvoices: list<array<string, mixed>>, closingSoon: list<array<string, mixed>>, lowStock: list<array<string, mixed>>}
+     */
+    private function attention(): array
+    {
+        $today = today();
+        // `absolute: false`: căile ajung în `<Link href>` pe client, unde o cale relativă e
+        // exact ce așteaptă Inertia — la fel ca `${base}/deals/...` scris de mână în pagini.
+        // Un URL absolut ar lega linkul de host-ul cererii care a generat răspunsul.
+
+        return [
+            'overdueInvoices' => Invoice::query()
+                ->where('status', Invoice::STATUS_OVERDUE)
+                ->with('order.account:id,name')
+                ->orderByDesc('balance_due')
+                ->limit(4)
+                ->get()
+                ->map(fn (Invoice $invoice) => [
+                    'id' => $invoice->id,
+                    'label' => $invoice->invoice_number,
+                    'account' => $invoice->order?->account?->name,
+                    'amount' => (float) $invoice->balance_due,
+                    'daysOverdue' => (int) ($invoice->due_date?->diffInDays($today) ?? 0),
+                    'url' => route('invoices.show', $invoice, absolute: false),
+                ])->all(),
+
+            'closingSoon' => Deal::query()
+                ->where('status', Deal::STATUS_OPEN)
+                ->whereBetween('expected_close_date', [$today, $today->copy()->addDays(14)])
+                ->with('account:id,name')
+                ->orderBy('expected_close_date')
+                ->limit(4)
+                ->get()
+                ->map(fn (Deal $deal) => [
+                    'id' => $deal->id,
+                    'label' => $deal->title,
+                    'account' => $deal->account?->name,
+                    'amount' => $deal->value !== null ? (float) $deal->value : null,
+                    'closesOn' => $deal->expected_close_date?->toDateString(),
+                    'url' => route('deals.show', $deal, absolute: false),
+                ])->all(),
+
+            'lowStock' => InventoryLevel::query()
+                ->whereRaw('(on_hand - reserved) <= ?', [5])
+                ->with(['variant:id,product_id,sku', 'variant.product:id,name'])
+                ->orderByRaw('(on_hand - reserved)')
+                ->limit(4)
+                ->get()
+                ->map(fn (InventoryLevel $level) => [
+                    'id' => $level->id,
+                    'label' => $level->variant?->sku,
+                    'product' => $level->variant?->product?->name,
+                    'available' => (int) ($level->on_hand - $level->reserved),
+                    'url' => $level->variant !== null ? route('stock.show', $level->variant, absolute: false) : null,
+                ])->all(),
+        ];
+    }
+
     private function recentActivity(User $user): ?AnonymousResourceCollection
     {
         $seesWholeTenant = $user->can('activity_log.view');

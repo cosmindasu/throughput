@@ -68,9 +68,9 @@ return [
 
         // Types DÉRIVÉS (`App\Support\Activity\ActivityKind`) — voir la note côté `en`.
         // Formulation NATIVE, nominale, comme les autres entrées du flux.
-        'stage_moved' => 'Changement d’étape : :subject',
-        'invoice_paid' => 'Paiement enregistré : :subject',
-        'order_shipped' => 'Expédition : :subject',
+        'stage_moved' => 'Changement d’étape : :subject',
+        'invoice_paid' => 'Paiement enregistré : :subject',
+        'order_shipped' => 'Expédition : :subject',
 
         'member_deactivated' => 'Membre désactivé',
 

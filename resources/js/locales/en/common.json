@@ -13,6 +13,10 @@
         "loading": "Loading…",
         "loadingLabel": "Loading"
     },
+    "charts": {
+        "roleDescription": "line chart",
+        "viewAsTable": "View as table"
+    },
     "pagination": {
         "label": "Pagination",
         "previous": "Previous",

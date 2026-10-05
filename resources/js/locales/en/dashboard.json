@@ -7,6 +7,39 @@
         "lowStockAlerts": "Low stock alerts"
     },
     "recentActivity": "Recent activity",
+    "greeting": "Here’s where {{name}} stands today.",
+    "quickActions": {
+        "newDeal": "New deal"
+    },
+    "charts": {
+        "revenue": "Revenue and won deals",
+        "revenueCaption": "Confirmed order value and won deal value, by month, over the last 12 months",
+        "seriesOrders": "Orders",
+        "seriesWon": "Won deals",
+        "pipeline": "Open pipeline by stage",
+        "pipelineHint_one": "{{count}} deal · {{probability}}% to close",
+        "pipelineHint_other": "{{count}} deals · {{probability}}% to close",
+        "openBoard": "Open board",
+        "ordersByStatus": "Orders by status",
+        "ordersUnit": "orders",
+        "empty": "No data for this period yet."
+    },
+    "trends": {
+        "ordersSeries": "Orders per month over the last 12 months",
+        "versusLastMonth": "compared with the same point last month"
+    },
+    "attention": {
+        "title": "Needs attention",
+        "overdueInvoices": "Overdue invoices",
+        "closingSoon": "Closing soon",
+        "lowStock": "Low stock",
+        "overdueBy_one": "{{account}} · {{count}} day late",
+        "overdueBy_other": "{{account}} · {{count}} days late",
+        "available_one": "{{count}} left",
+        "available_other": "{{count}} left",
+        "none": "Nothing here.",
+        "allClear": "Nothing needs attention right now."
+    },
     "unassigned": {
         "title": "Unassigned",
         "description": "Open deals and active orders left behind by deactivated members (ADR-011) — nothing here was lost, it just needs a new owner.",

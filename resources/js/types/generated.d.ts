@@ -114,10 +114,74 @@ export interface ActivityItem {
     at: string;
 }
 
+// Seriile pentru graficele dashboard-ului. Lunile sunt `YYYY-MM` și sunt mereu 12, în
+// ordine cronologică; `orders` și `wonDeals` au EXACT aceeași lungime și același index —
+// contractul pe care `DashboardTest` îl verifică, ca graficele să nu trebuiască să alinieze
+// două liste de lungimi diferite în client.
+export interface DashboardCharts {
+    months: string[];
+    orders: number[];
+    // Numărul de comenzi per lună, cu EXACT definiția lui `kpis.ordersThisMonth` (`created_at`,
+    // fără filtru de status) — de unde și invariantul: ultimul punct == cifra din placă.
+    ordersCount: number[];
+    // Perioade COMPARABILE pentru variația de pe placă: luna curentă până azi vs luna trecută
+    // până în aceeași zi. NU `ordersCount[11]` vs `ordersCount[10]` — acolo o lună parțială se
+    // compară cu una întreagă.
+    ordersMonthToDate: { current: number; previous: number };
+    wonDeals: number[];
+    // Instantaneu al registrului întreg, nu al ultimelor 12 luni. Cheile sunt valorile brute
+    // ale enum-ului (`partially_fulfilled`), deci traducerea se face în pagină.
+    ordersByStatus: Record<string, number>;
+    // Doar etapele DESCHISE ale pipeline-ului implicit, în ordinea `position`: „Won" și
+    // „Lost" sunt terminale și lipsesc deliberat.
+    pipeline: {
+        id: string;
+        name: string;
+        probability: number;
+        deals: number;
+        value: number;
+    }[];
+}
+
+/**
+ * „Ce cere acțiune acum" — maximum 4 rânduri per listă, ordonate după urgență (sumă
+ * restantă, dată de închidere, stoc rămas). Un KPI spune CÂTE; asta spune CARE, cu link.
+ */
+export interface DashboardAttention {
+    overdueInvoices: {
+        id: string;
+        label: string;
+        account: string | null;
+        amount: number;
+        daysOverdue: number;
+        url: string;
+    }[];
+    closingSoon: {
+        id: string;
+        label: string;
+        account: string | null;
+        amount: number | null;
+        closesOn: string | null;
+        url: string;
+    }[];
+    lowStock: {
+        id: string;
+        label: string | null;
+        product: string | null;
+        available: number;
+        url: string | null;
+    }[];
+}
+
 export interface DashboardPageProps {
     kpis: DashboardKpis;
     // `null` când rolul nu citește jurnalul de activitate (Viewer, specs §7.4).
     activity: ActivityItem[] | null;
+    // AMÂNATE prin `Inertia::defer` — `undefined` la prima randare, până vine a doua
+    // cerere. Opționalitatea din tip NU e cosmetică: componentele TREBUIE să randeze un
+    // schelet pe `undefined`, altfel pagina se rupe la primul paint.
+    charts?: DashboardCharts;
+    attention?: DashboardAttention;
     [key: string]: unknown;
 }
 

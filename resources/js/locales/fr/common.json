@@ -13,6 +13,10 @@
         "loading": "Chargement…",
         "loadingLabel": "Chargement"
     },
+    "charts": {
+        "roleDescription": "graphique en courbes",
+        "viewAsTable": "Afficher sous forme de tableau"
+    },
     "pagination": {
         "label": "Pagination",
         "previous": "Précédent",

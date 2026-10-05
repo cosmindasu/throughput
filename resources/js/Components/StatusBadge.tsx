@@ -1,30 +1,24 @@
 import type { ReactNode } from 'react';
-
-export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
+import { TONE, type Tone } from '@/lib/tone';
 
 /**
- * Tentele de chip sunt TOKENS FIXE, nu `color-mix()` peste suprafața curentă (regula din
- * `.ai/rules/frontend.md`): amestecată per context, tenta de eroare cobora de la 4,74:1
- * la 4,17:1 pe `--raised`.
+ * Alias istoric. Insigna a fost primul consumator al tentelor, deci numele a rămas în
+ * ~40 de situri de apel; tipul însuși e acum `Tone` (`lib/tone.ts`), unde stă și harta.
  */
+export type BadgeTone = Tone;
+
 /**
- * Perechea „tentă de fundal + culoare de text" pentru fiecare tentă. Exportată fiindcă o
- * folosește și `KpiTile`: chip-ul de icon al unei plăci și un badge de status trebuie să
- * arate aceeași stare cu aceleași două culori, iar o a doua hartă ar putea diverge tăcut.
+ * Perechea „tentă de fundal + culoare de text", DERIVATĂ din `TONE` — nu o a doua copie.
+ * Versiunea anterioară repeta aceleași șase rânduri literale aici, iar comentariul care le
+ * însoțea avertiza exact despre riscul pe care îl crea: „o a doua hartă ar putea diverge
+ * tăcut". Exportată în continuare fiindcă `KpiTile` și câteva pagini o cer pe nume.
+ *
+ * `Object.fromEntries` pierde tipul cheilor, de unde `as` — singurul din fișier, pe o valoare
+ * construită chiar aici din `TONE`, care e deja `Record<Tone, …>`.
  */
-export const toneClasses: Record<BadgeTone, string> = {
-    // Singurul ton fără semnal cromatic, deci primește unul geometric: pe tema deschisă
-    // `--raised` (#f6f9fb) e practic indistinct de `--surface` ȘI de dunga `--row-alt`
-    // (#f7fafc), așa că un chip „inactive" dispărea complet dintr-un tabel — vizibil în
-    // auditul din 2026-09-29, lângă „active"/„prospect" care se citeau imediat.
-    // `ring`, nu `border`: nu ocupă spațiu, deci toate chip-urile rămân de aceeași înălțime.
-    neutral: 'bg-raised text-text-2 ring-1 ring-inset ring-border',
-    accent: 'bg-accent-tint text-accent-text',
-    success: 'bg-success-tint text-success',
-    warning: 'bg-warning-tint text-warning',
-    danger: 'bg-danger-tint text-danger',
-    info: 'bg-info-tint text-info',
-};
+export const toneClasses = Object.fromEntries(
+    (Object.entries(TONE) as [Tone, (typeof TONE)[Tone]][]).map(([tone, style]) => [tone, style.chip]),
+) as Record<BadgeTone, string>;
 
 export default function StatusBadge({ tone = 'neutral', children }: { tone?: BadgeTone; children: ReactNode }) {
     return (

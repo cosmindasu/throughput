@@ -5,14 +5,20 @@ namespace Tests\Feature;
 use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\Deal;
+use App\Models\DealStageEvent;
+use App\Models\InventoryLevel;
 use App\Models\Invoice;
+use App\Models\Location;
 use App\Models\Order;
 use App\Models\Pipeline;
+use App\Models\Product;
 use App\Models\Stage;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Variant;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -126,6 +132,156 @@ class DashboardTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('activity', null));
     }
 
+    /**
+     * Graficele și lista de urgențe sunt AMÂNATE (`Inertia::defer`): absența lor din primul
+     * răspuns nu e un detaliu de implementare, e contractul pe care se sprijină scheletele din
+     * pagină. Dacă într-o zi ar ajunge sincrone, aserțiunea de mai jos pică — ȘI trebuie să
+     * pice, fiindcă atunci prima vopsea a dashboard-ului ar aștepta șase agregări.
+     */
+    public function test_the_charts_and_the_attention_lists_are_deferred_out_of_the_first_response(): void
+    {
+        $this->actingAs($this->owner)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('kpis')
+                ->has('activity')
+                ->missing('charts')
+                ->missing('attention')
+            );
+    }
+
+    public function test_the_deferred_charts_aggregate_the_current_workspace_only(): void
+    {
+        $thisMonth = now()->format('Y-m');
+
+        $this->partialReload('marlin', 'charts')
+            ->assertOk()
+            // 12 luni, în ordine cronologică, ultima fiind luna curentă — forma pe care
+            // `AreaChart` o presupune fără s-o verifice.
+            ->assertJsonCount(12, 'props.charts.months')
+            ->assertJsonPath('props.charts.months.11', $thisMonth)
+            ->assertJsonCount(12, 'props.charts.orders')
+            ->assertJsonCount(12, 'props.charts.ordersCount')
+            ->assertJsonCount(12, 'props.charts.wonDeals')
+            // Comanda confirmată, pe luna lui `placed_at`.
+            ->assertJsonPath('props.charts.orders.11', 4217.44)
+            // Afacerea câștigată, pe luna EVENIMENTULUI de etapă. `7000`, nu `7000.0`:
+            // `json_encode` scrie un float fără parte fracționară ca întreg (n-avem
+            // `JSON_PRESERVE_ZERO_FRACTION`), iar `assertJsonPath` compară strict.
+            ->assertJsonPath('props.charts.wonDeals.11', 7000)
+            ->assertJsonPath('props.charts.ordersByStatus.confirmed', 1)
+            // Perioadele comparabile ale plăcii: comanda din seed e de azi, deci intră în
+            // „current"; luna trecută n-are niciuna.
+            ->assertJsonPath('props.charts.ordersMonthToDate.current', 1)
+            ->assertJsonPath('props.charts.ordersMonthToDate.previous', 0)
+            // O singură bară: etapa „Won" e terminală și e exclusă deliberat.
+            ->assertJsonCount(1, 'props.charts.pipeline')
+            ->assertJsonPath('props.charts.pipeline.0.name', 'Qualification')
+            ->assertJsonPath('props.charts.pipeline.0.probability', 25)
+            ->assertJsonPath('props.charts.pipeline.0.deals', 1)
+            ->assertJsonPath('props.charts.pipeline.0.value', 12500.75);
+
+        // Aceeași sesiune, alt workspace: cifrele absurd de mari ale celui de-al doilea tenant
+        // ar fi imposibil de confundat cu o coincidență dacă ar apărea aici.
+        $this->partialReload('cascade', 'charts')
+            ->assertOk()
+            ->assertJsonPath('props.charts.pipeline.0.value', 999999.99);
+    }
+
+    /**
+     * Invariantul pe care îl presupune linia de pe placa „Orders this month": ultimul punct al
+     * seriei ESTE cifra din placă. Seria trebuie deci numărată cu definiția KPI-ului
+     * (`created_at`, fără filtru de status), nu cu cea a seriei de bani (`placed_at`, doar
+     * comenzi confirmate) — două interogări separate în controller, exact din motivul ăsta.
+     *
+     * Testul e construit ca să PICE dacă cineva le unifică pentru eficiență: comanda de mai
+     * jos e un `draft` fără `placed_at`, deci intră în numărătoare și NU în bani.
+     */
+    public function test_the_order_count_series_ends_on_the_same_number_the_kpi_tile_shows(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $account = Account::query()->firstOrFail();
+
+            $draft = new Order([
+                'account_id' => $account->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'status' => Order::STATUS_DRAFT,
+                'grand_total' => 1_000.00,
+            ]);
+            $draft->created_by = $this->owner->getKey();
+            $draft->save();
+        });
+        $this->clearDatabaseTenantContext();
+
+        $kpi = $this->actingAs($this->owner)->get('/marlin/dashboard')
+            ->assertOk()
+            ->viewData('page')['props']['kpis']['ordersThisMonth'];
+
+        $this->assertSame(2, $kpi, 'draft-ul trebuie să intre în KPI — altfel premisa testului s-a schimbat');
+
+        $this->partialReload('marlin', 'charts')
+            ->assertOk()
+            ->assertJsonPath('props.charts.ordersCount.11', $kpi)
+            // …iar banii NU s-au mișcat: draft-ul nu e venit.
+            ->assertJsonPath('props.charts.orders.11', 4217.44);
+    }
+
+    public function test_the_attention_lists_name_the_records_behind_the_kpi_numbers(): void
+    {
+        $this->partialReload('marlin', 'attention')
+            ->assertOk()
+            ->assertJsonCount(1, 'props.attention.overdueInvoices')
+            ->assertJsonPath('props.attention.overdueInvoices.0.account', 'Northwind Industrial Supply LLC')
+            ->assertJsonPath('props.attention.overdueInvoices.0.amount', 3410.2)
+            // `due_date` e cast la `date`, deci diferența e în zile calendaristice întregi.
+            ->assertJsonPath('props.attention.overdueInvoices.0.daysOverdue', 14)
+            // Cale RELATIVĂ, nu URL absolut — vezi nota din `attention()`.
+            ->assertJsonPath('props.attention.overdueInvoices.0.url', fn (?string $url) => is_string($url) && str_starts_with($url, '/marlin/invoices/'))
+
+            // Afacerea cu termen în 3 zile — doar cea deschisă, cea câștigată n-are termen.
+            ->assertJsonCount(1, 'props.attention.closingSoon')
+            ->assertJsonPath('props.attention.closingSoon.0.label', 'Annual fastener supply agreement')
+            ->assertJsonPath('props.attention.closingSoon.0.closesOn', now()->addDays(3)->toDateString())
+
+            // 6 pe stoc − 4 rezervate = 2 disponibile. Numele produsului vine prin
+            // `variant.product`, deci rândul ăsta e și garda pentru eager loading.
+            ->assertJsonCount(1, 'props.attention.lowStock')
+            ->assertJsonPath('props.attention.lowStock.0.label', 'HEX-M8-50')
+            ->assertJsonPath('props.attention.lowStock.0.product', 'Hex bolt M8')
+            ->assertJsonPath('props.attention.lowStock.0.available', 2);
+    }
+
+    /**
+     * Un reload parțial pe un singur prop amânat. `assertInertia()` nu e folosibil aici: pe o
+     * cerere parțială Inertia răspunde JSON brut, nu view-ul Blade cu `page`, iar
+     * `AssertableInertia::fromTestResponse()` caută `assertViewHas('page')` — aceeași notă ca
+     * în `tests/Feature/Products/ProductLowStockCountTest.php`.
+     *
+     * Versiunea se citește dintr-un prim răspuns, nu se inventează: una greșită întoarce 409
+     * (cerere de reîncărcare completă), deci testul ar măsura altceva.
+     */
+    private function partialReload(string $workspace, string $prop): TestResponse
+    {
+        $version = $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => 'warmup',
+                'X-Inertia-Partial-Component' => 'Dashboard',
+                'X-Inertia-Partial-Data' => $prop,
+            ])
+            ->get("/{$workspace}/dashboard")
+            ->headers->get('x-inertia-version');
+
+        return $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => $version,
+                'X-Inertia-Partial-Component' => 'Dashboard',
+                'X-Inertia-Partial-Data' => $prop,
+            ])
+            ->get("/{$workspace}/dashboard");
+    }
+
     public function test_the_switcher_lists_every_workspace_the_user_belongs_to(): void
     {
         $this->actingAs($this->owner)->get('/marlin/dashboard')
@@ -211,6 +367,17 @@ class DashboardTest extends TestCase
                 'pipeline_id' => $pipeline->getKey(),
                 'name' => 'Qualification',
                 'position' => 1,
+                'probability' => 25,
+            ]);
+            // Etapa terminală există ca să se poată verifica faptul că NU apare în graficul de
+            // pipeline — o bară „Won" acolo ar face ca orice pipeline sănătos să arate ca unul
+            // înțepenit la capăt, iar absența ei e o decizie, deci se testează.
+            $won = Stage::query()->create([
+                'pipeline_id' => $pipeline->getKey(),
+                'name' => 'Won',
+                'position' => 2,
+                'is_won' => true,
+                'probability' => 100,
             ]);
 
             $deal = new Deal([
@@ -221,15 +388,47 @@ class DashboardTest extends TestCase
                 'title' => 'Annual fastener supply agreement',
                 'value' => $dealValue,
                 'status' => Deal::STATUS_OPEN,
+                // În fereastra de 14 zile a listei „la care se cere acțiune". Dat pe afacerea
+                // EXISTENTĂ, nu pe una nouă: o a doua afacere deschisă ar muta
+                // `kpis.openPipelineValue`, iar testul de izolare de mai sus se sprijină pe
+                // cifra exactă.
+                'expected_close_date' => now()->addDays(3)->toDateString(),
             ]);
             $deal->created_by = $this->owner->getKey();
             $deal->save();
+
+            // Afacere câștigată + evenimentul de etapă: seria „won" se numără pe luna
+            // EVENIMENTULUI, nu pe `updated_at`, deci fără rândul din `deal_stage_events`
+            // graficul ar rămâne pe zero oricât de multe afaceri câștigate ar exista.
+            $wonDeal = new Deal([
+                'account_id' => $account->getKey(),
+                'pipeline_id' => $pipeline->getKey(),
+                'stage_id' => $won->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'title' => 'Pilot order — hex bolts',
+                'value' => 7_000.00,
+                'status' => Deal::STATUS_WON,
+            ]);
+            $wonDeal->created_by = $this->owner->getKey();
+            $wonDeal->save();
+
+            $event = new DealStageEvent([
+                'deal_id' => $wonDeal->getKey(),
+                'from_stage_id' => $stage->getKey(),
+                'to_stage_id' => $won->getKey(),
+                'changed_at' => now(),
+            ]);
+            $event->changed_by = $this->owner->getKey();
+            $event->save();
 
             $order = new Order([
                 'account_id' => $account->getKey(),
                 'owner_user_id' => $this->owner->getKey(),
                 'status' => 'confirmed',
                 'grand_total' => 4_217.44,
+                // Seria de bani se numără pe `placed_at` (momentul în care comanda a fost
+                // plasată), nu pe `created_at` — fără el comanda nu intră în grafic.
+                'placed_at' => now(),
             ]);
             $order->created_by = $this->owner->getKey();
             $order->save();
@@ -244,6 +443,24 @@ class DashboardTest extends TestCase
             ]);
             $invoice->order_id = $order->getKey();
             $invoice->save();
+
+            // Stoc sub prag — există mai ales ca să se parcurgă lanțul `variant.product` din
+            // `attention()`: proiectul interzice lazy loading (`Model::preventLazyLoading`),
+            // deci un `with()` lipsă acolo ar arunca, nu ar încetini.
+            $location = Location::query()->create(['name' => 'Main warehouse', 'is_default' => true]);
+            $product = Product::query()->create(['name' => 'Hex bolt M8', 'unit_of_measure' => 'each']);
+            $variant = Variant::query()->create([
+                'product_id' => $product->getKey(),
+                'sku' => 'HEX-M8-50',
+                'price' => 0.42,
+                'cost' => 0.19,
+            ]);
+            InventoryLevel::query()->create([
+                'variant_id' => $variant->getKey(),
+                'location_id' => $location->getKey(),
+                'on_hand' => 6,
+                'reserved' => 4,
+            ]);
         });
     }
 }

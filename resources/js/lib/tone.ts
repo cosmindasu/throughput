@@ -22,6 +22,17 @@ interface ToneStyle {
     css: string;
 }
 
+/**
+ * Tentele de chip sunt TOKENS FIXE, nu `color-mix()` peste suprafața curentă (regula din
+ * `.ai/rules/frontend.md`): amestecată per context, tenta de eroare cobora de la 4,74:1
+ * la 4,17:1 pe `--raised`.
+ *
+ * `neutral.chip` e singurul ton fără semnal cromatic, deci primește unul geometric: pe tema
+ * deschisă `--raised` (#f6f9fb) e practic indistinct de `--surface` ȘI de dunga `--row-alt`
+ * (#f7fafc), așa că un chip „inactive" dispărea complet dintr-un tabel — vizibil în auditul
+ * din 2026-09-29, lângă „active"/„prospect" care se citeau imediat. `ring`, nu `border`: nu
+ * ocupă spațiu, deci toate chip-urile rămân de aceeași înălțime.
+ */
 export const TONE: Record<Tone, ToneStyle> = {
     neutral: { chip: 'bg-raised text-text-2 ring-1 ring-inset ring-border', text: 'text-text-2', edge: 'border-l-control', dot: 'bg-control', css: 'var(--control)' },
     accent: { chip: 'bg-accent-tint text-accent-text', text: 'text-accent-text', edge: 'border-l-accent-fill', dot: 'bg-accent-fill', css: 'var(--accent-text)' },

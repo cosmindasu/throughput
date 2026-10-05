@@ -1,35 +1,35 @@
+import { Link } from '@inertiajs/react';
+import AnimatedNumber from '@/Components/AnimatedNumber';
 import Icon, { type IconName } from '@/Components/Icon';
-import { type BadgeTone, toneClasses } from '@/Components/StatusBadge';
+import Sparkline from '@/Components/Charts/Sparkline';
+import { type BadgeTone } from '@/Components/StatusBadge';
+import ToneIcon from '@/Components/ToneIcon';
+import { TONE } from '@/lib/tone';
 
-/**
- * Bara de accent de pe muchia din stânga. Separată de `toneClasses` (care dă tenta de
- * FUNDAL a chip-ului) fiindcă aici culoarea se folosește la intensitate plină, pe o
- * suprafață de 4px — nu e text, deci nu intră în auditul de contrast, dar e singurul
- * element din placă vizibil de la distanța de la care citești un dashboard.
- */
-const toneValue: Record<BadgeTone, string> = {
-    neutral: 'text-text',
-    // `--accent-text`, NU `--accent-fill`: accentul are două trepte, iar umplerea
-    // (`#0e7c8c`) pică drept text pe fundal deschis — regula din `.ai/rules/frontend.md`.
-    accent: 'text-accent-text',
-    success: 'text-success',
-    warning: 'text-warning',
-    danger: 'text-danger',
-    info: 'text-info',
-};
-
-const toneEdge: Record<BadgeTone, string> = {
-    neutral: 'border-l-control',
-    accent: 'border-l-accent-fill',
-    success: 'border-l-success',
-    warning: 'border-l-warning',
-    danger: 'border-l-danger',
-    info: 'border-l-info',
-};
+export interface KpiDelta {
+    /** Variația relativă față de perioada anterioară: `0.12` = +12%. */
+    ratio: number;
+    /** Formatarea procentului, cu semn — vine din pagină (`Intl.NumberFormat`, `signDisplay`). */
+    format: (ratio: number) => string;
+    /**
+     * ÎNCOTRO e bine. O creștere de comenzi e o veste bună, o creștere de facturi restante nu —
+     * tenta chip-ului nu se poate deduce din semn, deci se declară.
+     */
+    goodWhen: 'up' | 'down';
+    /** „față de luna trecută" — citit de cititorul de ecran, ca procentul singur să nu fie orfan. */
+    versus: string;
+}
 
 interface KpiTileProps {
     label: string;
-    value: string;
+    /**
+     * Cifra BRUTĂ, nu textul ei. Placa o numără de la zero la montare, deci are nevoie de
+     * valorile intermediare; formatarea (monedă, separatori, limbă) rămâne a paginii, care
+     * singură știe moneda workspace-ului și locala.
+     */
+    value: number;
+    /** Memoizat în pagină (`useMemo`) — altfel numărătoarea repornește la fiecare randare. */
+    format: (value: number) => string;
     hint?: string;
     icon: IconName;
     /**
@@ -40,6 +40,18 @@ interface KpiTileProps {
      * nimic.
      */
     tone: BadgeTone;
+    /**
+     * Unde duce placa. Un KPI spune CÂT; linkul e singura cale de la cifră la înregistrările
+     * din spatele ei, și e motivul pentru care un dashboard e un punct de plecare, nu un afiș.
+     */
+    href?: string;
+    /**
+     * Seria care a dus la cifră. Se dă DOAR unde există una reală: trei din patru plăci
+     * raportează un instantaneu (valoare de pipeline, facturi restante, stoc), nu o evoluție,
+     * iar o linie inventată din altă serie ar fi minciună cu aparență de date.
+     */
+    trend?: { values: number[]; label: string };
+    delta?: KpiDelta;
 }
 
 /**
@@ -69,24 +81,47 @@ interface KpiTileProps {
  * retraducere), iar scurtarea etichetei franceze ar face alinierea să depindă
  * de lungimea unei traduceri — adică s-ar rupe tăcut la următoarea revizie de
  * text, exact clasa de defect pe care valul ăsta o închide în altă parte.
+ *
+ * **Numărătoarea de la zero** e singurul motiv pentru care placa primește cifra brută în loc
+ * de textul gata formatat. E oprită de `prefers-reduced-motion` și nu e o animație „de
+ * decor" care să ascundă informația: valoarea finală e în markup de la prima randare (vezi
+ * `AnimatedNumber`), deci cititorul de ecran și testele care caută textul văd cifra reală,
+ * nu un cadru intermediar.
+ *
+ * **Rădăcina rămâne un `div`, chiar când placa e clicabilă.** Linkul e „întins"
+ * peste placă cu `after:absolute after:inset-0` din interiorul etichetei, nu prin
+ * transformarea rădăcinii în `<a>`. Două motive, ambele reale: `i18n-layout.spec.ts`
+ * numără plăcile cu `main .grid.grid-cols-2 > div`, și — mai important — o ancoră
+ * care învelește toată placa ar da cititorului de ecran un singur nume compus din
+ * etichetă + cifră + hint + procent, în loc de o etichetă scurtă și acționabilă.
+ * Rândurile de sub valoare (procent, linie) rămân în afara zonei de text a linkului.
  */
-export default function KpiTile({ label, value, hint, icon, tone }: KpiTileProps) {
+export default function KpiTile({ label, value, format, hint, icon, tone, href, trend, delta }: KpiTileProps) {
+    const direction = delta ? (delta.ratio >= 0 ? 'up' : 'down') : null;
+    // Zero nu e nici bine, nici rău: o lună identică cu precedenta nu merită nici verde, nici roșu.
+    const deltaTone: BadgeTone = !delta || delta.ratio === 0 ? 'neutral' : direction === delta.goodWhen ? 'success' : 'danger';
+
     return (
         <div
-            className={`rounded-lg border border-l-4 border-border bg-surface p-4 transition-colors hover:border-control ${toneEdge[tone]}`}
+            className={`relative flex flex-col rounded-lg border border-l-4 border-border bg-surface p-4 transition-[border-color,box-shadow] hover:border-control ${href ? 'hover:shadow-md' : ''} ${TONE[tone].edge}`}
         >
             {/*
-                Iconul stă PE RÂNDUL etichetei, nu deasupra ei: chip-ul (~30px) încape în cei
-                40px deja rezervați de `min-h-10`, deci placa nu crește cu niciun pixel și
-                dashboard-ul continuă să încapă fără scroll pe 1280×800 (cerința din
-                docblock-ul paginii). `items-start` îl ține lipit de sus când eticheta trece
-                pe două rânduri în franceză.
+                Iconul stă PE RÂNDUL etichetei, nu deasupra ei: chip-ul (32px) încape în cei
+                40px deja rezervați de `min-h-10`, deci rândul etichetei nu crește cu niciun
+                pixel. `items-start` îl ține lipit de sus când eticheta trece pe două rânduri
+                în franceză.
             */}
             <div className="flex items-start justify-between gap-3">
-                <p className="min-h-10 text-sm text-text-2">{label}</p>
-                <span className={`rounded-md p-1.5 ${toneClasses[tone]}`}>
-                    <Icon name={icon} size={18} />
-                </span>
+                <p className="min-h-10 text-sm text-text-2">
+                    {href ? (
+                        <Link href={href} prefetch className="rounded-sm after:absolute after:inset-0 after:rounded-lg">
+                            {label}
+                        </Link>
+                    ) : (
+                        label
+                    )}
+                </p>
+                <ToneIcon tone={tone} name={icon} size="md" shape="square" />
             </div>
             {/*
                 Cifra poartă tonul, eticheta rămâne neutră. Măsurat pe `--surface` înainte de
@@ -98,8 +133,37 @@ export default function KpiTile({ label, value, hint, icon, tone }: KpiTileProps
                 ar fi coborât `--text-3` (hint-ul de dedesubt) la 4,34:1 pe tema închisă. Arăta
                 bine și pica AA.
             */}
-            <p className={`numeric mt-1 text-2xl font-semibold ${toneValue[tone]}`}>{value}</p>
+            <p className={`numeric mt-1 text-2xl font-semibold ${tone === 'neutral' ? 'text-text' : TONE[tone].text}`}>
+                <AnimatedNumber value={value} format={format} />
+            </p>
             {hint && <p className="numeric mt-1 text-xs text-text-3">{hint}</p>}
+
+            {(delta || trend) && (
+                // `mt-auto` împinge rândul la baza plăcii: plăcile unui rând de grid au aceeași
+                // înălțime, deci procentul și linia stau aliniate între ele chiar dacă una din
+                // etichete s-a rupt pe două rânduri.
+                <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+                    {delta && direction && (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${TONE[deltaTone].chip}`}>
+                            {/* Săgeata dublează semnul procentului — direcția nu depinde de culoare (SC 1.4.1). */}
+                            <Icon name={direction === 'up' ? 'arrowUpRight' : 'arrowDownRight'} size={12} />
+                            <span className="numeric">{delta.format(delta.ratio)}</span>
+                            <span className="sr-only"> {delta.versus}</span>
+                        </span>
+                    )}
+                    {/*
+                        Sub 640px grila e pe DOUĂ coloane, deci o placă are ~184px: insigna de
+                        variație plus 96px de linie nu încap, iar linia ieșea din card (măsurat
+                        în franceză la 416px — 412px față de marginea de 400px a plăcii).
+                        Procentul rămâne, fiindcă el e informația; linia doar o ilustrează.
+                    */}
+                    {trend && (
+                        <span className="hidden sm:block">
+                            <Sparkline values={trend.values} label={trend.label} className={TONE[tone].text} />
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

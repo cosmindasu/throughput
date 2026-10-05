@@ -7,6 +7,42 @@
         "lowStockAlerts": "Alertes de stock bas"
     },
     "recentActivity": "Activité récente",
+    "greeting": "Voici où en est {{name}} aujourd’hui.",
+    "quickActions": {
+        "newDeal": "Nouvelle affaire"
+    },
+    "charts": {
+        "revenue": "Chiffre d’affaires et affaires gagnées",
+        "revenueCaption": "Montant des commandes confirmées et des affaires gagnées, par mois, sur les 12 derniers mois",
+        "seriesOrders": "Commandes",
+        "seriesWon": "Affaires gagnées",
+        "pipeline": "Pipeline ouvert par étape",
+        "pipelineHint_one": "{{count}} affaire · {{probability}} % de conclusion",
+        "pipelineHint_many": "{{count}} d’affaires · {{probability}} % de conclusion",
+        "pipelineHint_other": "{{count}} affaires · {{probability}} % de conclusion",
+        "openBoard": "Ouvrir le tableau",
+        "ordersByStatus": "Commandes par statut",
+        "ordersUnit": "commandes",
+        "empty": "Aucune donnée pour cette période."
+    },
+    "trends": {
+        "ordersSeries": "Commandes par mois sur les 12 derniers mois",
+        "versusLastMonth": "par rapport à la même période le mois dernier"
+    },
+    "attention": {
+        "title": "À traiter",
+        "overdueInvoices": "Factures en retard",
+        "closingSoon": "Échéances proches",
+        "lowStock": "Stock faible",
+        "overdueBy_one": "{{account}} · {{count}} jour de retard",
+        "overdueBy_many": "{{account}} · {{count}} de jours de retard",
+        "overdueBy_other": "{{account}} · {{count}} jours de retard",
+        "available_one": "{{count}} restant",
+        "available_many": "{{count}} de restants",
+        "available_other": "{{count}} restants",
+        "none": "Rien ici.",
+        "allClear": "Rien à traiter pour le moment."
+    },
     "unassigned": {
         "title": "Non attribué",
         "description": "Affaires ouvertes et commandes actives laissées par des membres désactivés (ADR-011) — rien n’a été perdu ici, il faut juste un nouveau propriétaire.",
