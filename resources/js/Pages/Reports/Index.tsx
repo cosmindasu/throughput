@@ -2,8 +2,11 @@ import { Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ButtonLink } from '@/Components/Button';
+import ChartSkeleton from '@/Components/Charts/ChartSkeleton';
 import EmptyState from '@/Components/EmptyState';
+import DeferredData from '@/Components/DeferredData';
 import PageHeader from '@/Components/PageHeader';
+import ReportInsights from '@/Components/Reports/ReportInsights';
 import StatusBadge, { type BadgeTone } from '@/Components/StatusBadge';
 import AppLayout from '@/Layouts/AppLayout';
 import type { ReportRunStatus, ReportsIndexPageProps } from '@/types/generated';
@@ -27,7 +30,7 @@ const RUN_STATUS_TONES: Record<ReportRunStatus, BadgeTone> = {
  */
 export default function Index() {
     const { t } = useTranslation('reports');
-    const { reports, can, workspace } = usePage<ReportsIndexPageProps>().props;
+    const { reports, can, insights, workspace } = usePage<ReportsIndexPageProps>().props;
     const base = workspace ? `/${workspace.slug}` : '';
 
     return (
@@ -45,6 +48,18 @@ export default function Index() {
                         )
                     }
                 />
+
+                {/*
+                    Graficele stau DEASUPRA listei: lista spune când pleacă rapoartele, ele
+                    spun ce scrie în ele — iar a doua întrebare e cea pentru care intră cineva
+                    pe „Reports". `null` pentru Agent (vezi controllerul), caz în care nu se
+                    randează nimic, nici măcar scheletul.
+                */}
+                {insights !== null && (
+                    <DeferredData<ReportsIndexPageProps, 'insights'> keys={['insights']} fallback={<ChartSkeleton height={220} />}>
+                        {({ insights: resolved }) => <ReportInsights velocity={resolved.velocity} />}
+                    </DeferredData>
+                )}
 
                 {reports.length > 0 ? (
                     <div className="overflow-hidden rounded-lg border border-border">

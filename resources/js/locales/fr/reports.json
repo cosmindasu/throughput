@@ -52,6 +52,15 @@
         },
         "createFirst": "Créer votre premier rapport"
     },
+    "insights": {
+        "funnel": "Affaires atteignant chaque étape",
+        "timeInStage": "Temps moyen par étape",
+        "advance": "{{formatted}} % passent à l’étape suivante",
+        "days_one": "{{formatted}} jour",
+        "days_many": "{{formatted}} de jours",
+        "days_other": "{{formatted}} jours",
+        "empty": "Historique d’étapes encore insuffisant."
+    },
     "create": {
         "title": "Nouveau rapport"
     },

@@ -12,6 +12,7 @@ use Database\Seeders\Demo\CarrierSettingsSeeder;
 use Database\Seeders\Demo\CatalogSeeder;
 use Database\Seeders\Demo\DealsSeeder;
 use Database\Seeders\Demo\ImportFixtureSeeder;
+use Database\Seeders\Demo\ReportsSeeder;
 use Database\Seeders\Demo\StockAndOrdersSeeder;
 use Database\Seeders\Demo\TenantsSeeder;
 use Database\Seeders\Demo\UsersAndMembershipsSeeder;
@@ -149,6 +150,10 @@ class DemoDatasetSeeder extends Seeder
                 $orderSummaries = (new StockAndOrdersSeeder)->run($tenant, $config, $catalog, $accountsResult, $dealsResult, $staff, $this->command, $activityLog);
 
                 (new BillingSeeder)->run($tenant, $config, $orderSummaries, $accountsResult, $this->command, $activityLog);
+
+                // Rapoartele își citesc numărul de rânduri din rapoartele REALE, deci au
+                // nevoie de catalog, stoc și afaceri deja scrise.
+                (new ReportsSeeder)->run($tenant, $staff, $this->command);
 
                 // ULTIMUL: citește id-uri din tabelele deja scrise, deci are nevoie de toate
                 // seederele de entități înaintea lui.

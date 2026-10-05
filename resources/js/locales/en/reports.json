@@ -52,6 +52,14 @@
         },
         "createFirst": "Create your first report"
     },
+    "insights": {
+        "funnel": "Deals reaching each stage",
+        "timeInStage": "Average time in stage",
+        "advance": "{{formatted}}% advance to the next stage",
+        "days_one": "{{formatted}} day",
+        "days_other": "{{formatted}} days",
+        "empty": "Not enough stage history yet."
+    },
     "create": {
         "title": "New report"
     },

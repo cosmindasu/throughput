@@ -73,15 +73,35 @@ final class DealsSeeder
             $toStage = $openStages[0];
             $events[] = ['from' => null, 'to' => $toStage, 'at' => $currentTime->copy()];
 
-            if ($outcome === 'open') {
-                $hops = random_int(0, min(2, count($openStages) - 1));
-                for ($h = 0; $h < $hops; $h++) {
-                    $stageIndex++;
-                    $fromStage = $toStage;
-                    $toStage = $openStages[$stageIndex];
-                    $currentTime = DemoClock::shortlyAfter($currentTime, 48, 24 * 21);
-                    $events[] = ['from' => $fromStage, 'to' => $toStage, 'at' => $currentTime->copy()];
-                }
+            // Drumul prin etapele DESCHISE, pentru TOATE afacerile — nu doar pentru cele
+            // rămase deschise, cum era până acum. Varianta anterioară muta doar afacerile
+            // deschise, cu cel mult două salturi, iar cele câștigate/pierdute săreau direct
+            // din prima etapă în cea terminală. Trei consecințe vizibile, toate în ecrane
+            // diferite, toate arătând ca defecte ale PRODUSULUI:
+            //
+            //  - ultima etapă deschisă („Negotiation", a patra) nu era atinsă NICIODATĂ:
+            //    kanbanul avea permanent o coloană goală;
+            //  - raportul „Deal velocity" arăta 1375 → 451 → 211 → 0 → Won 509, adică o
+            //    pâlnie în care mai multe afaceri ies decât intră pe penultima treaptă;
+            //  - nicio afacere nu PĂRĂSEA vreodată „Proposal Sent", deci durata medie în
+            //    etapă era nulă acolo, iar graficul de timp avea doar două bare din patru.
+            //
+            // Afacerile câștigate ajung mai departe decât cele pierdute, iar cele încă
+            // deschise sunt împrăștiate pe tot traseul: un pipeline real are mai multe
+            // oportunități la început decât la sfârșit.
+            $lastOpenStage = count($openStages) - 1;
+            $hops = match ($outcome) {
+                'won' => random_int(max($lastOpenStage - 1, 0), $lastOpenStage),
+                'lost' => random_int(0, $lastOpenStage),
+                default => Rand::weightedKey([0 => 40, 1 => 30, 2 => 20, 3 => 10]),
+            };
+
+            for ($h = 0; $h < min((int) $hops, $lastOpenStage); $h++) {
+                $stageIndex++;
+                $fromStage = $toStage;
+                $toStage = $openStages[$stageIndex];
+                $currentTime = DemoClock::shortlyAfter($currentTime, 48, 24 * 21);
+                $events[] = ['from' => $fromStage, 'to' => $toStage, 'at' => $currentTime->copy()];
             }
 
             $finalStage = $toStage;

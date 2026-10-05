@@ -59,6 +59,25 @@ final class ReportController extends Controller
 
         return Inertia::render('Reports/Index', [
             'reports' => ReportDefinitionResource::collection($reports),
+            // Lista spune CÂND pleacă rapoartele; graficele spun CE scrie în ele. Același
+            // `DealVelocityReport` pe care pagina de detaliu îl randează ca tabel — aceleași
+            // rânduri, aceeași interogare, doar prezentarea diferă.
+            //
+            // AMÂNAT: lista e tot ce trebuie să apară imediat, iar agregarea citește
+            // `deal_stage_events` pe tot tenantul.
+            //
+            // Ascuns pentru rolurile îngustate la propriile înregistrări (Agentul, §7.4):
+            // graficele sunt o agregare pe TOT pipeline-ul, iar listele Agentului se opresc la
+            // înregistrările lui — un raport deschis la care e destinatar e o excepție
+            // acordată explicit, pagina de index nu e.
+            //
+            // Condiția e `restrictedToOwnRecords`, nu `can.create`, fiindcă asta descrie
+            // motivul: „vede tot tenantul", nu „poate crea rapoarte". Pe ecranul ăsta cele
+            // două coincid azi (Viewer-ul primește 403 pe tot modulul, §7.4), dar prima
+            // rămâne adevărată dacă matricea se schimbă.
+            'insights' => Permissions::restrictedToOwnRecords($user)
+                ? null
+                : Inertia::defer(fn () => ['velocity' => BuiltInReports::resolve(ReportDefinition::TYPE_DEAL_VELOCITY)->rows()]),
             'can' => [
                 'create' => $user->can('create', ReportDefinition::class),
             ],

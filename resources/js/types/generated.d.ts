@@ -1262,8 +1262,22 @@ export interface ReportBuiltInOption {
     label: string;
 }
 
+/**
+ * Un rând al raportului „Deal velocity" (`App\Support\Reports\DealVelocityReport::rows()`) —
+ * un TUPLU pozițional, nu un obiect, fiindcă aceleași rânduri merg direct în CSV/XLSX/PDF,
+ * unde ordinea coloanelor e contractul. `null` înseamnă „nu se poate calcula încă": nicio
+ * afacere n-a părăsit etapa (durată), sau nu există etapă următoare (conversie).
+ */
+export type DealVelocityRow = [pipeline: string, stage: string, avgDaysInStage: number | null, dealsReached: number, conversionToNext: number | null];
+
 export interface ReportsIndexPageProps {
     reports: ReportDefinitionRow[];
+    /**
+     * `null` pentru rolurile îngustate la propriile înregistrări (Agentul, §7.4): raportul e o
+     * agregare pe TOT pipeline-ul. Altfel AMÂNAT (`Inertia::defer`), deci `undefined` la prima
+     * randare — lista e tot ce trebuie să apară imediat.
+     */
+    insights?: { velocity: DealVelocityRow[] } | null;
     can: {
         create: boolean;
     };

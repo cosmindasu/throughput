@@ -7,6 +7,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\CreatesPipelines;
 use Tests\TestCase;
 
 /**
@@ -16,6 +18,8 @@ use Tests\TestCase;
  */
 class ReportRbacTest extends TestCase
 {
+    use CreatesPipelines;
+
     private Tenant $marlin;
 
     private User $owner;
@@ -53,6 +57,58 @@ class ReportRbacTest extends TestCase
             'is_active' => true,
             'created_by' => $this->owner->getKey(),
         ], $overrides)));
+    }
+
+    /**
+     * Graficele de pe `Reports/Index` randează `DealVelocityReport` — o agregare pe TOT
+     * pipeline-ul tenantului. Un Agent vede în liste doar propriile înregistrări (§7.4), deci
+     * nu are ce căuta la ea: dreptul lui de „R pe rapoartele unde e destinatar" e o excepție
+     * acordată per raport, nu un acces la agregatul întreg.
+     *
+     * Prop-ul e `null` pentru el — nu amânat-și-gol, ci absent: pagina nu randează nici măcar
+     * scheletul. Pentru ceilalți e AMÂNAT, deci lipsește din PRIMUL răspuns și apare la
+     * reîncărcarea parțială; ambele jumătăți se verifică, fiindcă „lipsește" arată identic
+     * dacă te uiți doar la primul.
+     */
+    public function test_the_index_charts_are_hidden_from_agents_and_deferred_for_everyone_else(): void
+    {
+        $this->makeReport(['recipients' => ['demo.agent@throughput.dev']]);
+        // Raportul citește etapele pipeline-ului implicit: fără ele, `velocity` e gol și
+        // testul n-ar verifica forma rândurilor, ci absența lor.
+        TenantContext::run($this->marlin, fn () => $this->makeDefaultPipeline($this->marlin));
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->agent)->get('/marlin/reports')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('insights', null));
+
+        foreach ([$this->owner, $this->manager] as $user) {
+            // `withHeaders()` se ACUMULEAZĂ pe clientul de test, nu se aplică unei singure
+            // cereri: fără golire, a doua trecere prin buclă ar moșteni `X-Inertia` de la
+            // reîncărcarea parțială de mai jos și ar primi JSON în loc de view-ul Blade —
+            // „Not a valid Inertia response", la o linie care n-are nicio legătură cu cauza.
+            $this->flushHeaders();
+
+            $this->actingAs($user)->get('/marlin/reports')
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->missing('insights'));
+
+            $version = $this->actingAs($user)
+                ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => 'warmup', 'X-Inertia-Partial-Component' => 'Reports/Index', 'X-Inertia-Partial-Data' => 'insights'])
+                ->get('/marlin/reports')
+                ->headers->get('x-inertia-version');
+
+            $this->actingAs($user)
+                ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Inertia-Partial-Component' => 'Reports/Index', 'X-Inertia-Partial-Data' => 'insights'])
+                ->get('/marlin/reports')
+                ->assertOk()
+                // Un rând per etapă a pipeline-ului implicit, în forma pozițională pe care o
+                // consumă și exportul: [pipeline, etapă, zile medii, afaceri, conversie].
+                ->assertJsonPath('props.insights.velocity.0.1', 'New')
+                ->assertJsonCount(5, 'props.insights.velocity.0');
+        }
+
+        $this->flushHeaders();
     }
 
     public function test_viewer_is_refused_everywhere(): void
