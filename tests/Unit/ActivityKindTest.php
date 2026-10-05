@@ -18,7 +18,7 @@ use App\Support\Activity\ActivityKind;
  * `auditable_type` + cheile din `new_values`, și că NU se desparte când n-are de ce.
  * Fără bază de date — `ActivityKind::of()` citește doar atribute.
  */
-function activitate(string $action, ?string $type = null, array $new = []): ActivityLog
+function entry(string $action, ?string $type = null, array $new = []): ActivityLog
 {
     $entry = new ActivityLog;
     $entry->action = $action;
@@ -28,8 +28,8 @@ function activitate(string $action, ?string $type = null, array $new = []): Acti
     return $entry;
 }
 
-it('desparte `updated` dupa ce s-a schimbat de fapt', function (string $type, array $new, string $asteptat) {
-    expect(ActivityKind::of(activitate('updated', $type, $new)))->toBe($asteptat);
+it('desparte `updated` dupa ce s-a schimbat de fapt', function (string $type, array $new, string $expected) {
+    expect(ActivityKind::of(entry('updated', $type, $new)))->toBe($expected);
 })->with([
     'mutare de etapa (cheie `stage_id`)' => [Deal::class, ['stage_id' => '01abc'], 'stage_moved'],
     'mutare de etapa (cheie `stage`)' => [Deal::class, ['stage' => 'Negotiation'], 'stage_moved'],
@@ -40,7 +40,7 @@ it('desparte `updated` dupa ce s-a schimbat de fapt', function (string $type, ar
 
 it('lasa `updated` neschimbat cand nu are de ce sa se desparta', function (string $label, ?string $type, array $new) {
     expect($label)->toBeString()
-        ->and(ActivityKind::of(activitate('updated', $type, $new)))->toBe('updated');
+        ->and(ActivityKind::of(entry('updated', $type, $new)))->toBe('updated');
 })->with([
     'editare oarecare pe o afacere' => ['titlu schimbat', Deal::class, ['title' => 'Nou']],
     'factura trecuta in alt status decat platit' => ['anulata', Invoice::class, ['status' => 'void']],
@@ -49,5 +49,5 @@ it('lasa `updated` neschimbat cand nu are de ce sa se desparta', function (strin
 ]);
 
 it('lasa verbele neambigue exact cum sunt', function (string $action) {
-    expect(ActivityKind::of(activitate($action, Deal::class, ['stage_id' => '01abc'])))->toBe($action);
+    expect(ActivityKind::of(entry($action, Deal::class, ['stage_id' => '01abc'])))->toBe($action);
 })->with(['created', 'deleted', 'login', 'login_failed', 'exported', 'imported', 'bulk_action', 'role_changed']);

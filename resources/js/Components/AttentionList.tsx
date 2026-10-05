@@ -82,9 +82,12 @@ export default function AttentionList({ data, currency }: { data: DashboardAtten
             tone: 'warning',
             rows: data.lowStock.map((level) => ({
                 key: level.id,
-                title: level.label ?? '—',
+                title: level.label,
                 detail: level.product ?? '—',
-                trailing: t('dashboard:attention.available', { count: level.available }),
+                // Disponibilul SINGUR nu spune cât de rău e: 3 bucăți e o criză pentru un
+                // articol cu prag 20 și o zi obișnuită pentru unul cu prag 4. Pragul e chiar
+                // ce face rândul să fie acolo, deci apare lângă cifră.
+                trailing: t('dashboard:attention.available', { count: level.available, threshold: level.threshold }),
                 href: level.url,
             })),
         },

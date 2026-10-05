@@ -35,8 +35,8 @@
         "lowStock": "Low stock",
         "overdueBy_one": "{{account}} · {{count}} day late",
         "overdueBy_other": "{{account}} · {{count}} days late",
-        "available_one": "{{count}} left",
-        "available_other": "{{count}} left",
+        "available_one": "{{count}} left of {{threshold}}",
+        "available_other": "{{count}} left of {{threshold}}",
         "none": "Nothing here.",
         "allClear": "Nothing needs attention right now."
     },

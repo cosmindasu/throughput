@@ -59,7 +59,10 @@ final class DealsSeeder
             // `created_at` al contului e timestamp, nu Carbon — vezi AccountsAndContactsSeeder.
             $createdAt = DemoClock::historicalDate(24);
             if ($createdAt->getTimestamp() < $account['created_at']) {
-                $createdAt = Carbon::createFromTimestamp($account['created_at'], 'UTC')->addDays(random_int(0, 5));
+                // `DemoClock::shortlyAfter`, nu `addDays()`: funcția plafonează la prezent.
+                // Un cont creat alaltăieri plus „0-5 zile" dă o dată din VIITOR, iar comanda
+                // ajunge în „Recent activity" datată peste o săptămână.
+                $createdAt = DemoClock::shortlyAfter(Carbon::createFromTimestamp($account['created_at'], 'UTC'), 0, 24 * 5);
             }
 
             $outcome = Rand::weightedKey(['won' => 35, 'lost' => 15, 'open' => 50]);

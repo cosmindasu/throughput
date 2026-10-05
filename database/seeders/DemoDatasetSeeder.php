@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\ActivityLog;
+use App\Observers\ActivityLogObserver;
 use App\Services\Tenancy\TenantContext;
 use Database\Seeders\Demo\AccountsAndContactsSeeder;
+use Database\Seeders\Demo\ActivityVarietySeeder;
 use Database\Seeders\Demo\BillingSeeder;
 use Database\Seeders\Demo\CarrierSettingsSeeder;
 use Database\Seeders\Demo\CatalogSeeder;
@@ -124,7 +126,12 @@ class DemoDatasetSeeder extends Seeder
             $tenant = $tenants[$slug];
             $staff = $usersByTenant[$slug];
 
-            TenantContext::run($tenant, function () use ($tenant, $config, $staff): void {
+            // Instrumentarea LIVE oprită pe tot blocul: seed-ul își scrie singur jurnalul,
+            // cu date istorice (`ActivityLogRecorder`). `CatalogSeeder` creează produsele și
+            // variantele prin Eloquent, deci observerul adăuga ~80 de rânduri `created` per
+            // tenant, toate la minutul rulării — cele mai recente din tabelă, deci exact cele
+            // care umpleau feed-ul „Recent activity" al dashboard-ului.
+            ActivityLogObserver::withoutRecording(fn () => TenantContext::run($tenant, function () use ($tenant, $config, $staff): void {
                 $this->command?->info("Tenant: {$config['name']} ({$config['accounts']} accounts / {$config['orders']} orders)");
 
                 $activityLog = new ActivityLogRecorder(
@@ -143,8 +150,12 @@ class DemoDatasetSeeder extends Seeder
 
                 (new BillingSeeder)->run($tenant, $config, $orderSummaries, $accountsResult, $this->command, $activityLog);
 
+                // ULTIMUL: citește id-uri din tabelele deja scrise, deci are nevoie de toate
+                // seederele de entități înaintea lui.
+                (new ActivityVarietySeeder)->run($tenant, $staff, $this->command, $activityLog);
+
                 $activityLog->flush();
-            });
+            }));
         }
 
         $elapsed = round(microtime(true) - $start, 1);

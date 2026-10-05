@@ -62,13 +62,54 @@ use Illuminate\Support\Facades\Auth;
  */
 final class ActivityLogObserver
 {
+    private static bool $paused = false;
+
+    /**
+     * Rulează `$callback` cu instrumentarea live OPRITĂ.
+     *
+     * Există pentru seed-ul demo, care își scrie SINGUR jurnalul de activitate, cu date
+     * istorice împrăștiate pe 24 de luni (`Database\Seeders\Support\ActivityLogRecorder`).
+     * Majoritatea seederelor inserează în bloc, deci nu trec pe lângă observer — dar
+     * `CatalogSeeder` creează produsele și variantele prin Eloquent, așa că observerul mai
+     * adăuga ~80 de rânduri `created` per tenant, toate ștampilate la MINUTUL rulării
+     * seed-ului. Fiind cele mai recente din tabelă, ele ocupau tot feed-ul „Recent activity":
+     * dashboard-ul deschis după un reset arăta de opt ori „Created Variant", la același minut.
+     *
+     * NU e un comutator de configurare și nu se citește din mediu: singurul apelant e
+     * seeder-ul demo, iar steagul se stinge și pe excepție (`finally`), ca o eroare la seed
+     * să nu lase aplicația fără audit.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    public static function withoutRecording(callable $callback): mixed
+    {
+        self::$paused = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$paused = false;
+        }
+    }
+
     public function created(Model $model): void
     {
+        if (self::$paused) {
+            return;
+        }
+
         $this->record($model, 'created', null, ChangedAttributes::snapshot($model->getAttributes()));
     }
 
     public function updated(Model $model): void
     {
+        if (self::$paused) {
+            return;
+        }
+
         $changedKeys = array_keys($model->getChanges());
 
         if ($changedKeys === []) {
@@ -109,6 +150,10 @@ final class ActivityLogObserver
 
     public function deleted(Model $model): void
     {
+        if (self::$paused) {
+            return;
+        }
+
         $oldValues = ChangedAttributes::snapshot($model->getAttributes());
 
         // GDPR-02 — un `Contact` nu are altă cale de ștergere fizică decât

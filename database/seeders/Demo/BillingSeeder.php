@@ -10,6 +10,7 @@ use Database\Factories\InvoiceFactory;
 use Database\Factories\PaymentFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
+use Database\Seeders\Support\DemoClock;
 use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\Rand;
 use Illuminate\Console\Command;
@@ -158,7 +159,9 @@ final class BillingSeeder
             $amount = $n === $splits ? $remaining : round($amountPaid * (random_int(40, 60) / 100), 2);
             $remaining = round($remaining - $amount, 2);
 
-            $paidAt = $issueDate->copy()->addDays(random_int(1, max(2, $termDays + 10)));
+            // Plafonat la prezent: o factură emisă săptămâna trecută cu termen de 30 de zile
+            // ar fi primit altfel o plată datată peste trei săptămâni.
+            $paidAt = DemoClock::shortlyAfter($issueDate, 24, 24 * max(2, $termDays + 10));
 
             $row = $factory->definition();
             $row['id'] = DemoId::next();

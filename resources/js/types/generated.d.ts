@@ -164,12 +164,15 @@ export interface DashboardAttention {
         closesOn: string | null;
         url: string;
     }[];
+    // `LowStockRule` — variante ACTIVE sub pragul PROPRIU, `available` agregat pe toate
+    // locațiile. Aceeași regulă ca `kpis.lowStockAlerts`, deci lista nu poate contrazice cifra.
     lowStock: {
         id: string;
-        label: string | null;
+        label: string;
         product: string | null;
         available: number;
-        url: string | null;
+        threshold: number;
+        url: string;
     }[];
 }
 

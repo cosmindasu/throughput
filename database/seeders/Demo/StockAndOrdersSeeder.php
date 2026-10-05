@@ -111,7 +111,10 @@ final class StockAndOrdersSeeder
 
             $createdAt = DemoClock::historicalDate(24);
             if ($createdAt->getTimestamp() < $account['created_at']) {
-                $createdAt = Carbon::createFromTimestamp($account['created_at'], 'UTC')->addDays(random_int(0, 5));
+                // `DemoClock::shortlyAfter`, nu `addDays()`: funcția plafonează la prezent.
+                // Un cont creat alaltăieri plus „0-5 zile" dă o dată din VIITOR, iar comanda
+                // ajunge în „Recent activity" datată peste o săptămână.
+                $createdAt = DemoClock::shortlyAfter(Carbon::createFromTimestamp($account['created_at'], 'UTC'), 0, 24 * 5);
             }
 
             $bucket = Rand::weightedKey([
@@ -203,7 +206,8 @@ final class StockAndOrdersSeeder
             $discountTotal = round($discountTotal, 2);
             $grandTotal = round($subtotal - $discountTotal + $shippingTotal, 2);
 
-            $placedAt = $status === Order::STATUS_DRAFT ? null : $createdAt->copy()->addMinutes(random_int(5, 360));
+            // Idem: până la 6 ore după creare, dar niciodată după acum.
+            $placedAt = $status === Order::STATUS_DRAFT ? null : DemoClock::shortlyAfter($createdAt, 0, 6);
             $orderNumberValue = $status === Order::STATUS_DRAFT ? null : "{$config['code']}-".($orderNumber++);
 
             $dealId = null;

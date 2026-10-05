@@ -243,12 +243,14 @@ class DashboardTest extends TestCase
             ->assertJsonPath('props.attention.closingSoon.0.label', 'Annual fastener supply agreement')
             ->assertJsonPath('props.attention.closingSoon.0.closesOn', now()->addDays(3)->toDateString())
 
-            // 6 pe stoc − 4 rezervate = 2 disponibile. Numele produsului vine prin
-            // `variant.product`, deci rândul ăsta e și garda pentru eager loading.
+            // 6 pe stoc − 4 rezervate = 2 disponibile, sub pragul de 10 al variantei. Numele
+            // produsului vine prin relația `product`, deci rândul e și garda pentru eager
+            // loading (proiectul interzice lazy loading).
             ->assertJsonCount(1, 'props.attention.lowStock')
             ->assertJsonPath('props.attention.lowStock.0.label', 'HEX-M8-50')
             ->assertJsonPath('props.attention.lowStock.0.product', 'Hex bolt M8')
-            ->assertJsonPath('props.attention.lowStock.0.available', 2);
+            ->assertJsonPath('props.attention.lowStock.0.available', 2)
+            ->assertJsonPath('props.attention.lowStock.0.threshold', 10);
     }
 
     /**
@@ -280,6 +282,60 @@ class DashboardTest extends TestCase
                 'X-Inertia-Partial-Data' => $prop,
             ])
             ->get("/{$workspace}/dashboard");
+    }
+
+    /**
+     * Placa „Low stock alerts" și lista de sub ea trebuie să numere ACELAȘI lucru.
+     *
+     * Dashboard-ul avea până acum o definiție proprie — `inventory_levels` cu
+     * `(on_hand - reserved) <= 5` — care diferea de `LowStockRule` pe patru axe: prag fix în
+     * loc de cel al variantei, pe rând de LOCAȚIE (o variantă ținută în două depozite se
+     * număra de două ori), fără condiția `is_active`, și `<=` în loc de `<`. Fixtura de mai
+     * jos e construită ca fiecare dintre cele patru să producă un număr diferit dacă regula
+     * se desparte iar.
+     */
+    public function test_the_low_stock_tile_and_list_count_the_same_thing(): void
+    {
+        TenantContext::run($this->marlin, function (): void {
+            $product = Product::query()->firstOrFail();
+            $second = Location::query()->create(['name' => 'Overflow yard']);
+
+            // (a) Varianta din seed e în DOUĂ locații: `available` se agregă (2 + 1 = 3 < 10),
+            //     deci rămâne UN singur rând de alertă, nu două.
+            InventoryLevel::query()->create([
+                'variant_id' => Variant::query()->where('sku', 'HEX-M8-50')->value('id'),
+                'location_id' => $second->getKey(),
+                'on_hand' => 1,
+                'reserved' => 0,
+            ]);
+
+            // (b) Prag NUL — stoc 0, dar varianta nu cere reaprovizionare. Regula veche ar fi
+            //     numărat-o (0 <= 5).
+            $untracked = Variant::query()->create(['product_id' => $product->getKey(), 'sku' => 'NO-THRESHOLD', 'price' => 1, 'cost' => 1]);
+            InventoryLevel::query()->create(['variant_id' => $untracked->getKey(), 'location_id' => $second->getKey(), 'on_hand' => 0, 'reserved' => 0]);
+
+            // (c) Variantă INACTIVĂ sub prag: scoasă din catalog, deci nu e un semnal.
+            $inactive = Variant::query()->create(['product_id' => $product->getKey(), 'sku' => 'RETIRED', 'price' => 1, 'cost' => 1, 'low_stock_threshold' => 8, 'is_active' => false]);
+            InventoryLevel::query()->create(['variant_id' => $inactive->getKey(), 'location_id' => $second->getKey(), 'on_hand' => 1, 'reserved' => 0]);
+
+            // (d) Exact PE prag: `<`, nu `<=` — 5 din 5 nu e încă sub prag.
+            $atThreshold = Variant::query()->create(['product_id' => $product->getKey(), 'sku' => 'AT-THRESHOLD', 'price' => 1, 'cost' => 1, 'low_stock_threshold' => 5]);
+            InventoryLevel::query()->create(['variant_id' => $atThreshold->getKey(), 'location_id' => $second->getKey(), 'on_hand' => 5, 'reserved' => 0]);
+        });
+        $this->clearDatabaseTenantContext();
+
+        $kpi = $this->actingAs($this->owner)->get('/marlin/dashboard')
+            ->assertOk()
+            ->viewData('page')['props']['kpis']['lowStockAlerts'];
+
+        $this->assertSame(1, $kpi, 'doar HEX-M8-50 e sub pragul propriu — vezi cele patru capcane din fixtură');
+
+        $this->partialReload('marlin', 'attention')
+            ->assertOk()
+            ->assertJsonCount($kpi, 'props.attention.lowStock')
+            ->assertJsonPath('props.attention.lowStock.0.label', 'HEX-M8-50')
+            // Agregat pe AMBELE locații: 2 + 1.
+            ->assertJsonPath('props.attention.lowStock.0.available', 3);
     }
 
     public function test_the_switcher_lists_every_workspace_the_user_belongs_to(): void
@@ -454,6 +510,9 @@ class DashboardTest extends TestCase
                 'sku' => 'HEX-M8-50',
                 'price' => 0.42,
                 'cost' => 0.19,
+                // `LowStockRule`: prag NUL = fără alertă, niciodată „low" prin comparație
+                // implicită cu 0. Fără rândul ăsta varianta n-ar apărea deloc în listă.
+                'low_stock_threshold' => 10,
             ]);
             InventoryLevel::query()->create([
                 'variant_id' => $variant->getKey(),

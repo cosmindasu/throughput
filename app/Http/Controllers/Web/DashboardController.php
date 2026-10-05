@@ -7,13 +7,14 @@ use App\Http\Resources\ActivityEntryResource;
 use App\Models\ActivityLog;
 use App\Models\Deal;
 use App\Models\DealStageEvent;
-use App\Models\InventoryLevel;
 use App\Models\Invoice;
 use App\Models\Membership;
 use App\Models\Order;
 use App\Models\Pipeline;
 use App\Models\Stage;
 use App\Models\User;
+use App\Models\Variant;
+use App\Support\Stock\LowStockRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,9 +70,12 @@ class DashboardController extends Controller
                     'amount' => (float) Invoice::query()->where('status', Invoice::STATUS_OVERDUE)->sum('balance_due'),
                 ],
 
-                'lowStockAlerts' => (int) InventoryLevel::query()
-                    ->whereRaw('(on_hand - reserved) <= ?', [5])
-                    ->count(),
+                // `LowStockRule`, nu o comparație proprie: regula are un prag PER VARIANTĂ
+                // (`low_stock_threshold`), exclude variantele inactive și agregă `available`
+                // pe toate locațiile. Placa număra până acum rânduri de `inventory_levels`
+                // sub un prag fix de 5 — alt număr decât cel din „Products", pe același
+                // workspace, iar lista de sub placă îl face verificabil.
+                'lowStockAlerts' => (int) LowStockRule::lowVariants()->count(),
             ],
 
             // AMÂNATE (`Inertia::defer`, ca în AccountController/InvoiceController): shell-ul,
@@ -130,14 +134,18 @@ class DashboardController extends Controller
         // curentă până azi față de luna trecută până în aceeași zi. Altfel, pe 5 ale lunii,
         // cinci zile s-ar compara cu treizeci și una, iar placa ar afișa o prăbușire roșie în
         // prima săptămână a FIECĂREI luni — o cifră corect calculată și complet falsă ca
-        // afirmație. `subMonth()` pe 31 martie dă 28/29 februarie (Carbon fixează ziua la
-        // ultima validă), ceea ce e tot ce se poate face corect pe o lună mai scurtă.
-        $lunaCurenta = now()->startOfMonth();
-        $acelasiPunctLunaTrecuta = now()->subMonthNoOverflow();
+        // afirmație.
+        //
+        // `subMonthNoOverflow()`, nu `subMonth()`: pe 31 martie, al doilea dă 3 MARTIE (31
+        // februarie nu există, deci Carbon dă pe dinafară în luna următoare) — adică ar
+        // compara luna curentă cu primele trei zile ale ei înseși. Varianta „no overflow"
+        // fixează ziua la ultima validă a lunii-țintă, 28 sau 29 februarie.
+        $currentMonthStart = now()->startOfMonth();
+        $samePointLastMonth = now()->subMonthNoOverflow();
         $monthToDate = Order::query()
-            ->where('created_at', '>=', $acelasiPunctLunaTrecuta->copy()->startOfMonth())
-            ->selectRaw('count(*) filter (where created_at >= ?) as current', [$lunaCurenta])
-            ->selectRaw('count(*) filter (where created_at < ?) as previous', [$acelasiPunctLunaTrecuta])
+            ->where('created_at', '>=', $samePointLastMonth->copy()->startOfMonth())
+            ->selectRaw('count(*) filter (where created_at >= ?) as current', [$currentMonthStart])
+            ->selectRaw('count(*) filter (where created_at < ?) as previous', [$samePointLastMonth])
             ->first();
 
         // Afacerile câștigate se numără pe luna în care au INTRAT în etapa de câștig
@@ -249,18 +257,20 @@ class DashboardController extends Controller
                     'url' => route('deals.show', $deal, absolute: false),
                 ])->all(),
 
-            'lowStock' => InventoryLevel::query()
-                ->whereRaw('(on_hand - reserved) <= ?', [5])
-                ->with(['variant:id,product_id,sku', 'variant.product:id,name'])
-                ->orderByRaw('(on_hand - reserved)')
+            // Aceeași regulă ca placa de deasupra (`LowStockRule`), deci lista nu poate
+            // contrazice numărul. `available` vine deja calculat de ea, agregat pe toate
+            // locațiile, iar ordonarea e cea mai urgentă întâi.
+            'lowStock' => LowStockRule::lowVariants()
+                ->with('product:id,name')
                 ->limit(4)
                 ->get()
-                ->map(fn (InventoryLevel $level) => [
-                    'id' => $level->id,
-                    'label' => $level->variant?->sku,
-                    'product' => $level->variant?->product?->name,
-                    'available' => (int) ($level->on_hand - $level->reserved),
-                    'url' => $level->variant !== null ? route('stock.show', $level->variant, absolute: false) : null,
+                ->map(fn (Variant $variant) => [
+                    'id' => $variant->id,
+                    'label' => $variant->sku,
+                    'product' => $variant->product?->name,
+                    'available' => (int) $variant->available,
+                    'threshold' => (int) $variant->low_stock_threshold,
+                    'url' => route('stock.show', $variant, absolute: false),
                 ])->all(),
         ];
     }

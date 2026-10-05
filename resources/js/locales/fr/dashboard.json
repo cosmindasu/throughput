@@ -37,9 +37,9 @@
         "overdueBy_one": "{{account}} · {{count}} jour de retard",
         "overdueBy_many": "{{account}} · {{count}} de jours de retard",
         "overdueBy_other": "{{account}} · {{count}} jours de retard",
-        "available_one": "{{count}} restant",
-        "available_many": "{{count}} de restants",
-        "available_other": "{{count}} restants",
+        "available_one": "{{count}} sur {{threshold}}",
+        "available_many": "{{count}} sur {{threshold}}",
+        "available_other": "{{count}} sur {{threshold}}",
         "none": "Rien ici.",
         "allClear": "Rien à traiter pour le moment."
     },

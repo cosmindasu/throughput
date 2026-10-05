@@ -37,6 +37,33 @@ final class LowStockRule
     }
 
     /**
+     * Variantele ACTIVE aflate sub pragul PROPRIU, cu `available` deja calculat și cele mai
+     * urgente întâi — a TREIA formă a aceleiași reguli, pentru contextele care au nevoie de
+     * LISTĂ sau de NUMĂR pe tot tenantul, nu per produs (dashboard: placa „Low stock alerts"
+     * și lista din „Needs attention" de sub ea).
+     *
+     * Exista fiindcă dashboard-ul inventase o a patra definiție, în afara acestui fișier:
+     * `inventory_levels` cu `(on_hand - reserved) <= 5`. Diferă de regulă pe patru axe
+     * deodată — prag fix în loc de cel al variantei, pe RÂND DE LOCAȚIE (deci o variantă
+     * ținută în trei depozite se număra de trei ori), fără condiția `is_active`, și cu `<=`
+     * în loc de `<`. Trecea neobservată cât timp placa arăta doar o cifră; lista de sub ea
+     * pune numele lângă număr, unde contradicția cu pagina de produs devine verificabilă.
+     *
+     * `->count()` pe builderul ăsta e sigur: `Builder::setAggregate()` șterge ordonarea când
+     * nu există `GROUP BY`, deci subinterogarea din `ORDER BY` nu ajunge lângă agregat.
+     */
+    public static function lowVariants(): Builder
+    {
+        return Variant::query()
+            ->select('variants.*')
+            ->selectRaw(self::availableSql().' as available')
+            ->where('variants.is_active', true)
+            ->whereNotNull('variants.low_stock_threshold')
+            ->whereRaw(self::availableSql().' < variants.low_stock_threshold')
+            ->orderByRaw(self::availableSql());
+    }
+
+    /**
      * Subinterogare scalară: numărul de variante ACTIVE „low" ale unui produs. De folosit
      * DOAR pe o interogare care are deja `products` ca FROM (`whereColumn` se leagă de
      * `products.id` din query-ul exterior) — vezi `ProductList::baseQuery()`.
