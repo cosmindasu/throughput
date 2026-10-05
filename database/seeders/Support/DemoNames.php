@@ -62,8 +62,9 @@ final class DemoNames
     private const LEGAL_SUFFIXES = ['Co.', 'Inc.', 'LLC', 'Ltd.', 'Group', 'Corp.'];
 
     /**
-     * Numele de LOCALITATE, compuse din două jumătăți în loc de enumerate: 21 × 20 dau 420 de
-     * variante plauzibile („Northgate", „Cedarridge", „Riverbrook") din patru rânduri de cod. Un
+     * Numele de LOCALITATE, compuse din două jumătăți în loc de enumerate: 21 × 20 dau până la
+     * 420 de variante plauzibile („Northgate", „Cedarridge", „Riverbrook") din patru rânduri de
+     * cod — „până la", fiindcă `buildPool()` aruncă perechile care s-ar dubla („Valval"). Un
      * distribuitor industrial poartă la fel de des numele locului ca pe al fondatorului, deci
      * nu e un artificiu ca să umplem pool-ul.
      *
@@ -129,13 +130,13 @@ final class DemoNames
     {
         if (! Rand::bool(self::FRENCH_SHARE_PERCENT)) {
             return [
-                'name' => self::compose(self::SURNAME_LIKE, self::VERTICAL_NOUNS[$vertical], self::LEGAL_SUFFIXES, self::PLACE_HEADS, self::PLACE_TAILS),
+                'name' => self::compose('en:'.$vertical, self::SURNAME_LIKE, self::VERTICAL_NOUNS[$vertical], self::LEGAL_SUFFIXES, self::PLACE_HEADS, self::PLACE_TAILS),
                 'industry' => $englishIndustry,
             ];
         }
 
         return [
-            'name' => self::compose(self::SURNAME_LIKE_FR, self::VERTICAL_NOUNS_FR[$vertical], self::LEGAL_SUFFIXES_FR, self::PLACE_HEADS_FR, self::PLACE_TAILS_FR),
+            'name' => self::compose('fr:'.$vertical, self::SURNAME_LIKE_FR, self::VERTICAL_NOUNS_FR[$vertical], self::LEGAL_SUFFIXES_FR, self::PLACE_HEADS_FR, self::PLACE_TAILS_FR),
             'industry' => self::VERTICAL_INDUSTRY_FR[$vertical],
         ];
     }
@@ -148,25 +149,27 @@ final class DemoNames
      * Un pool construit pe numele întreg (pereche × formă juridică) ar fi avut 25.110 intrări
      * distincte, dar dădea 1.098 de grupuri de felul „Ardmore Foodservice Corp." lângă „Ardmore
      * Foodservice Group" — tehnic nume diferite, citite în listă ca o greșeală de seed. Pe
-     * pereche, cele 464 de prime cuvinte × 9 substantive dau 4.176 de combinații per verticală
-     * și per limbă, peste cele ~2.800 de trageri engleze ale celui mai mare tenant (4.000 de
-     * conturi × 70%), deci nicio bază de nume nu se repetă.
+     * pereche, cele 464 de prime cuvinte englezești × 9 substantive dau 4.176 de combinații per
+     * verticală (458 și 4.122 pe franceză, unde patru capete de localitate se dedubleză cu
+     * cozile și două cu numele de familie). Peste cele ~2.800 de trageri engleze ale celui mai
+     * mare tenant (4.000 de conturi × 70%), deci nicio bază de nume nu se repetă.
      *
      * Varianta anterioară, cu patruzeci de reîncercări aleatoare și un contor la final, eșua
      * exact pe coada densă a pool-ului: 405 din 2.500 de conturi ieșeau cu sufix numeric vizibil
      * („Ardmore Fluid Power Co. #2019"), mai rău decât defectul reparat.
      *
+     * @param  string  $cheie  `{limbă}:{verticală}` — dat de apelant, nu derivat din conținutul
+     *                         listelor. Varianta cu `md5(implode(...))` recalcula amprenta a
+     *                         285 de nume la FIECARE cont: 1,49 µs × 8.000 = 11,9 ms, adică
+     *                         aproape tot costul pe care lotul îl adăuga seed-ului.
      * @param  list<string>  $surnames
      * @param  list<string>  $nouns
      * @param  list<string>  $suffixes
      * @param  list<string>  $placeHeads
      * @param  list<string>  $placeTails
      */
-    private static function compose(array $surnames, array $nouns, array $suffixes, array $placeHeads, array $placeTails): string
+    private static function compose(string $cheie, array $surnames, array $nouns, array $suffixes, array $placeHeads, array $placeTails): string
     {
-        // Verticala și limba determină `$nouns`, deci și cheia; `$surnames` o separă pe limbă
-        // chiar dacă două verticale ar ajunge vreodată să împartă substantivele.
-        $cheie = md5(implode('|', $surnames).'#'.implode('|', $nouns));
 
         // Ramura de reumplere e pentru un seed viitor mai mare decât pool-ul: atunci o bază de
         // nume reapare cu altă formă juridică — două societăți înrudite, plauzibil — în loc să
@@ -181,7 +184,7 @@ final class DemoNames
     }
 
     /**
-     * Perechile, împachetate ca un singur string: la 4.176 de intrări per pool, un array de
+     * Perechile, împachetate ca un singur string: la peste 4.100 de intrări per pool, un array de
      * array-uri costă de câteva ori mai multă memorie decât un array de string-uri, iar
      * seeder-ul le ține pe toate în viață cât durează un tenant.
      *
@@ -197,7 +200,17 @@ final class DemoNames
 
         foreach ($placeHeads as $head) {
             foreach ($placeTails as $tail) {
-                $leads[] = $head.$tail;
+                // Două jumătăți identice dau „Valval", „Montmont", „Rocheroche", „Champchamp" —
+                // patru nume care nu există în nicio limbă.
+                if (strcasecmp($head, $tail) === 0) {
+                    continue;
+                }
+
+                // După cratimă urmează MAJUSCULĂ: „Saint-Mont", nu „Saint-mont". Singurul cap cu
+                // cratimă e „Saint-", dar el singur producea douăzeci din cele douăzeci și patru
+                // de nume stricate — iar un cititor francofon vede exact aici că datele sunt
+                // generate, adică fix semnalul pe care pool-ul ăsta există ca să-l șteargă.
+                $leads[] = $head.(str_ends_with($head, '-') ? ucfirst($tail) : $tail);
             }
         }
 

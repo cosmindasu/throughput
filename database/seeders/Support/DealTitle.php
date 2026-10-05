@@ -36,10 +36,13 @@ final class DealTitle
         'Spare :category stocking programme',
     ];
 
+    /** Cota titlurilor care primesc și o perioadă, în procente. */
+    private const PERIOD_SHARE_PERCENT = 45;
+
     /**
      * Perioada se ia din DATA afacerii, nu la întâmplare: o oportunitate din 2025 care spune
-     * „FY27" se citește imediat ca date inventate. Se adaugă doar pe o parte din titluri —
-     * pusă pe toate, ar deveni ea însăși un tipar.
+     * „FY27" se citește imediat ca date inventate. Se adaugă doar pe 45% din titluri — pusă pe
+     * toate, ar deveni ea însăși un tipar.
      *
      * @param  list<string>  $categories  categoriile catalogului ACESTUI tenant
      */
@@ -48,16 +51,25 @@ final class DealTitle
         $category = $categories === [] ? 'supplies' : $categories[array_rand($categories)];
         $title = str_replace(':category', $category, self::SHAPES[array_rand(self::SHAPES)]);
 
-        if (random_int(1, 100) > 45) {
+        if (! Rand::bool(self::PERIOD_SHARE_PERCENT)) {
             return $title;
         }
 
         $year = (int) $at->format('Y');
-
-        return $title.' — '.match (random_int(1, 3)) {
+        $period = match (random_int(1, 3)) {
             1 => 'Q'.$at->quarter.' '.$year,
             2 => 'FY'.substr((string) ($year + 1), 2),
             default => (string) $year,
         };
+
+        // Trei dintre cele douăsprezece forme conțin DEJA o cratimă lungă („Framework agreement
+        // — :category"). Lipind perioada tot cu una, ieșea „Framework agreement — Screws — Q1
+        // 2025": 501 din cele 4.400 de afaceri semănate, adică 11%, cu două cratime în același
+        // titlu. Nicio ofertă reală nu se scrie așa, deci era exact semnalul „generat" pe care
+        // clasa asta există ca să-l șteargă. Pe formele care au deja una, perioada intră în
+        // paranteze — se citește la fel de firesc și nu mai poate ieși un lanț.
+        return str_contains($title, ' — ')
+            ? $title.' ('.$period.')'
+            : $title.' — '.$period;
     }
 }

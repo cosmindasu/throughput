@@ -41,7 +41,7 @@ use Illuminate\Console\Command;
  * exportată, un import, o reatribuire în masă.
  *
  * Fiecare rând trimite la o înregistrare REALĂ (`auditable_id` citit din tabelele deja
- * semănate), ca `ActivityEntryResource::subjectName()` să aibă ce rezolva. Singura excepție
+ * semănate), ca `ActivityNarrative::subjectName()` să aibă ce rezolva. Singura excepție
  * e `deleted`, care primește un id inexistent — exact ce rămâne în urma unei ștergeri, și
  * singura cale ca feed-ul să nu promită un link către un contact care încă există.
  */

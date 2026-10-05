@@ -84,6 +84,7 @@ final class CatalogSeeder
      *   stages: list<array{id: string, name: string, position: int, is_won: bool, is_lost: bool, probability: int}>,
      *   locations: array{main: string, overflow: string},
      *   variants: list<array{id: string, product_id: string, name: string, sku: string, price: float, cost: float}>,
+     *   categories: list<string>,
      * }
      */
     public function run(Tenant $tenant, array $config): array
