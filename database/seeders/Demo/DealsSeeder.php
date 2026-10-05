@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use Database\Factories\DealFactory;
 use Database\Seeders\Support\ActivityLogRecorder;
 use Database\Seeders\Support\ChunkedWriter;
+use Database\Seeders\Support\DealTitle;
 use Database\Seeders\Support\DemoClock;
 use Database\Seeders\Support\DemoId;
 use Database\Seeders\Support\Rand;
@@ -23,11 +24,12 @@ final class DealsSeeder
 {
     /**
      * @param  list<array{id: string, name: string, position: int, is_won: bool, is_lost: bool, probability: int}>  $stages
+     * @param  list<string>  $categories  categoriile catalogului, pentru titluri (`DealTitle`)
      * @param  array{accounts: list<array>, contacts_by_account: array<string, list<string>>}  $accountsResult
      * @param  array{owner_id: string, demo_agent_id: ?string, pool: list<array{id: string, role: string}>}  $staff
      * @return array{won_deal_ids_by_account: array<string, list<string>>}
      */
-    public function run(Tenant $tenant, array $config, string $pipelineId, array $stages, array $accountsResult, array $staff, ?Command $command, ActivityLogRecorder $activityLog): array
+    public function run(Tenant $tenant, array $config, string $pipelineId, array $stages, array $categories, array $accountsResult, array $staff, ?Command $command, ActivityLogRecorder $activityLog): array
     {
         $accounts = $accountsResult['accounts'];
         if ($accounts === []) {
@@ -128,6 +130,10 @@ final class DealsSeeder
             $contactId = $accountsResult['contacts_by_account'][$account['id']][0] ?? null;
 
             $row = $dealFactory->definition();
+            // Titlul se compune din categoriile ACESTUI tenant, nu se ia din cele opt șiruri
+            // fixe ale factory-ului: acolo, la 1.375 de afaceri, fiecare titlu se repeta de
+            // ~172 de ori și se vedeau șase identice pe un singur ecran de listă.
+            $row['title'] = DealTitle::compose($categories, $createdAt);
             $row['id'] = $dealId;
             $row['tenant_id'] = $tenant->id;
             $row['account_id'] = $account['id'];

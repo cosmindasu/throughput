@@ -145,7 +145,7 @@ class DemoDatasetSeeder extends Seeder
 
                 $accountsResult = (new AccountsAndContactsSeeder)->run($tenant, $config, $staff, $this->command, $activityLog);
 
-                $dealsResult = (new DealsSeeder)->run($tenant, $config, $catalog['pipeline_id'], $catalog['stages'], $accountsResult, $staff, $this->command, $activityLog);
+                $dealsResult = (new DealsSeeder)->run($tenant, $config, $catalog['pipeline_id'], $catalog['stages'], $catalog['categories'], $accountsResult, $staff, $this->command, $activityLog);
 
                 $orderSummaries = (new StockAndOrdersSeeder)->run($tenant, $config, $catalog, $accountsResult, $dealsResult, $staff, $this->command, $activityLog);
 

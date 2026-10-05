@@ -173,6 +173,10 @@ final class CatalogSeeder
             'stages' => $stages,
             'locations' => ['main' => $main->id, 'overflow' => $overflow->id],
             'variants' => $variants,
+            // Categoriile ACESTUI tenant, în ordinea catalogului: `DealsSeeder` compune din
+            // ele titlurile afacerilor, ca să fie potrivite pe fiecare demo în parte
+            // („Hose" la hidraulică, „Bolts" la elemente de fixare) în loc de opt șiruri fixe.
+            'categories' => array_values(array_unique(array_column($archetypes, 'category'))),
         ];
     }
 }
