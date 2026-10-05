@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Icon, { type IconName } from '@/Components/Icon';
 import ToneIcon from '@/Components/ToneIcon';
@@ -43,7 +44,10 @@ export default function AttentionList({ data, currency }: { data: DashboardAtten
     // Miezul de noapte LOCAL, nu `Date.now()`: diferența până la o dată calendaristică se
     // numără în zile de calendar, iar scăderea din ora curentă ar da „în 0 zile" pentru mâine
     // dimineață și „în 1 zi" pentru aceeași dată citită seara.
-    const today = new Date().setHours(0, 0, 0, 0);
+    //
+    // În `useState`, nu direct în corp: `new Date()` citește ceasul, deci e impur în randare
+    // (`react-hooks/purity`) — aceeași regulă pentru care `Deals/Kanban` îl ține la fel.
+    const [today] = useState(() => new Date().setHours(0, 0, 0, 0));
 
     const groups: Group[] = [
         {

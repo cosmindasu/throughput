@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -108,8 +107,15 @@ class DashboardController extends Controller
      */
     private function charts(): array
     {
-        $months = collect(range(11, 0))->map(fn (int $back) => now()->startOfMonth()->subMonths($back)->format('Y-m'));
-        $since = Carbon::createFromFormat('Y-m', $months->first())->startOfMonth();
+        // `$since` se DERIVĂ din aceeași expresie care produce lista, nu se re-parsează din
+        // eticheta ei. Varianta anterioară făcea `Carbon::createFromFormat('Y-m', '2025-11')`,
+        // iar formatul fără zi lasă ziua de AZI: pe 31 octombrie ieșea „31 noiembrie 2025",
+        // adică 1 decembrie, deci filtrul tăia prima lună a ferestrei și graficul arăta zero
+        // pe ea. Tăcut, și doar în 7-8 zile pe an (31 ian/mar/mai/aug/oct, 29-31 ian) — exact
+        // clasa de defect pentru care `ordersMonthToDate` de mai jos folosește
+        // `subMonthNoOverflow()`. Pornind din ziua 1, nicio lună n-are cum să dea pe dinafară.
+        $since = now()->startOfMonth()->subMonths(11);
+        $months = collect(range(0, 11))->map(fn (int $ahead) => $since->copy()->addMonths($ahead)->format('Y-m'));
 
         // Doar comenzi CONFIRMATE sau mai departe: un draft și o comandă anulată nu sunt venit.
         $orders = Order::query()

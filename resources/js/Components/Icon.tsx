@@ -50,8 +50,6 @@ export type IconName =
     | 'close'
     | 'warn'
     | 'info'
-    | 'chevronDown'
-    | 'chevronUp'
     | 'arrowUpRight'
     | 'arrowDownRight'
     | 'more'
@@ -131,8 +129,6 @@ const PATHS: Record<IconName, string[]> = {
     close: ['M18 6 6 18', 'm6 6 12 12'],
     warn: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', 'M12 8L12 12', 'M12 16L12.01 16'],
     info: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', 'M12 16v-4', 'M12 8h.01'],
-    chevronDown: ['m6 9 6 6 6-6'],
-    chevronUp: ['m18 15-6-6-6 6'],
     arrowUpRight: ['M7 7h10v10', 'M7 17 17 7'],
     arrowDownRight: ['m7 7 10 10', 'M17 7v10H7'],
     more: ['M13 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z', 'M20 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z', 'M6 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z'],

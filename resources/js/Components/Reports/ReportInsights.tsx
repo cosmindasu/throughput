@@ -23,8 +23,13 @@ export default function ReportInsights({ velocity }: { velocity: Velocity }) {
     const { t } = useTranslation('reports');
     const locale = useLocale();
 
-    const reached: BarListItem[] = velocity.map(([, stage, , dealsReached, conversion], index) => ({
-        id: `reached-${stage}`,
+    // Cheia include PIPELINE-ul: `DealVelocityReport::rows()` parcurge toate pipeline-urile
+    // tenantului (de aceea are și o coloană „Pipeline"), iar două pipeline-uri pot avea
+    // amândouă o etapă „New". Doar numele etapei ar da chei React duplicate — azi
+    // nereproductibil, fiindcă nimic din aplicație nu creează un al doilea pipeline, dar
+    // raportul e scris pentru mai multe.
+    const reached: BarListItem[] = velocity.map(([pipeline, stage, , dealsReached, conversion], index) => ({
+        id: `reached-${pipeline}-${stage}`,
         label: stage,
         value: dealsReached,
         display: formatNumber(dealsReached, locale),
@@ -37,8 +42,8 @@ export default function ReportInsights({ velocity }: { velocity: Velocity }) {
 
     const days: BarListItem[] = velocity
         .filter((row) => row[2] !== null)
-        .map(([, stage, avgDays], index) => ({
-            id: `days-${stage}`,
+        .map(([pipeline, stage, avgDays], index) => ({
+            id: `days-${pipeline}-${stage}`,
             label: stage,
             value: avgDays ?? 0,
             display: t('reports:insights.days', { count: avgDays ?? 0, formatted: formatNumber(avgDays ?? 0, locale) }),

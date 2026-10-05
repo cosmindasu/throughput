@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\Variant;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Permissions;
+use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
@@ -53,6 +54,15 @@ class DashboardTest extends TestCase
         $this->seedBusinessData($this->cascade, dealValue: 999_999.99, overdueBalance: 888_888.88);
 
         $this->clearDatabaseTenantContext();
+    }
+
+    protected function tearDown(): void
+    {
+        // Altfel ceasul fixat de testul de mai jos scurge în orice test care rulează după el
+        // în ACELAȘI proces — iar simptomul ar apărea la alt fișier.
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_the_dashboard_shows_kpis_computed_from_the_current_workspace_only(): void
@@ -336,6 +346,47 @@ class DashboardTest extends TestCase
             ->assertJsonPath('props.attention.lowStock.0.label', 'HEX-M8-50')
             // Agregat pe AMBELE locații: 2 + 1.
             ->assertJsonPath('props.attention.lowStock.0.available', 3);
+    }
+
+    /**
+     * Fereastra de 12 luni trebuie să înceapă exact la prima lună a seriei, inclusiv în zilele
+     * în care ziua curentă NU EXISTĂ în luna-țintă.
+     *
+     * Varianta inițială re-parsa eticheta lunii (`Carbon::createFromFormat('Y-m', '2025-11')`),
+     * iar un format fără zi lasă ziua de AZI: pe 31 octombrie rezulta „31 noiembrie", adică
+     * 1 decembrie, deci filtrul `where placed_at >= $since` tăia prima lună a propriei
+     * ferestre. Graficul arăta zero pe ea — tăcut, și doar 7-8 zile pe an.
+     *
+     * 31 OCTOMBRIE e ales deliberat: luna de la care pleacă fereastra e noiembrie, cu 30 de
+     * zile. Pe 5 octombrie testul trece și cu codul defect.
+     */
+    public function test_the_twelve_month_window_starts_correctly_on_a_day_that_the_target_month_lacks(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-31 12:00:00'));
+
+        $firstMonth = now()->startOfMonth()->subMonths(11);
+
+        TenantContext::run($this->marlin, function () use ($firstMonth): void {
+            $order = new Order([
+                'account_id' => Account::query()->value('id'),
+                'owner_user_id' => $this->owner->getKey(),
+                'status' => Order::STATUS_CONFIRMED,
+                'grand_total' => 1_111.11,
+                // În PRIMA lună a ferestrei — singurul rând pe care o margine greșită îl pierde.
+                'placed_at' => $firstMonth->copy()->addDays(9),
+            ]);
+            $order->created_by = $this->owner->getKey();
+            $order->save();
+        });
+        $this->clearDatabaseTenantContext();
+
+        $this->partialReload('marlin', 'charts')
+            ->assertOk()
+            ->assertJsonPath('props.charts.months.0', $firstMonth->format('Y-m'))
+            ->assertJsonPath('props.charts.months.11', now()->format('Y-m'))
+            ->assertJsonCount(12, 'props.charts.months')
+            // Rândul din prima lună e NUMĂRAT, nu tăiat de o margine mutată cu o lună.
+            ->assertJsonPath('props.charts.orders.0', 1111.11);
     }
 
     public function test_the_switcher_lists_every_workspace_the_user_belongs_to(): void
