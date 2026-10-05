@@ -530,10 +530,16 @@ class ArchitectureTest extends TestCase
      * apoi coboară prin `->var` al fiecărui `MethodCall`, colectând fiecare verigă — exact
      * ce ar citi un developer cu ochiul, mecanic.
      *
-     * **Ce NU verifică, deliberat**: o coloană diferită de `created_at` (`->latest('sent_at')`,
-     * `->orderByDesc('changed_at')`) — acelea nu sunt clasa de bug documentată (alte coloane
-     * pot avea altă precizie sau altă garanție de unicitate) și extinderea regulii la „orice
-     * coloană" ar cere o listă albă mult mai mare, fără dovadă că bug-ul chiar există acolo.
+     * **`changed_at` a intrat în domeniu la 2026-10-05**, când dovada a apărut. Regula cerea
+     * „dovadă că bug-ul chiar există acolo", iar o rulare completă a suitei a dat-o:
+     * `MoveDealStageActionTest::test_moving_to_a_different_stage_records_an_event_with_the_previous_stage`
+     * a picat cu `from_stage_id` null, pentru că `deal_stage_events.changed_at` e
+     * `timestamp(0)` (verificat în `information_schema`), iar crearea dealului și mutarea cad
+     * în aceeași secundă — deci sunt EGALE la ordonare. Testul trecea de sute de ori și a
+     * picat o dată: exact profilul pe care o gardă îl prinde și o rulare nu.
+     *
+     * **Ce NU verifică, deliberat**: orice altă coloană (`->latest('sent_at')`) — acelea n-au
+     * încă dovada, iar extinderea la „orice coloană" ar cere o listă albă mult mai mare.
      *
      * **Baseline, nu listă neagră**: fișierele din `createdAtOrderingBaseline()` sunt debit
      * cunoscut, verificat individual (linie exactă, nu doar fișier) — vezi
@@ -627,6 +633,11 @@ class ArchitectureTest extends TestCase
                 {
                     return Invoice::query()->latestOfMany(['created_at']);
                 }
+
+                public function badOnChangedAt()
+                {
+                    return DealStageEvent::query()->where('deal_id', $id)->latest('changed_at')->first();
+                }
             }
             PHP;
 
@@ -649,6 +660,11 @@ class ArchitectureTest extends TestCase
                     return $this->hasOne(Invoice::class)->latestOfMany(['created_at', 'id']);
                 }
 
+                public function goodOnChangedAt()
+                {
+                    return DealStageEvent::query()->orderByDesc('changed_at')->orderByDesc('id')->first();
+                }
+
                 public function unrelatedColumnIsNotInScope()
                 {
                     return Invoice::query()->latest('sent_at')->first();
@@ -657,7 +673,7 @@ class ArchitectureTest extends TestCase
             PHP;
 
         $offendingHits = $this->createdAtOrderingHitsIn($offending);
-        $this->assertCount(2, $offendingHits, 'Detectorul n-a semnalat cazurile clar ofensatoare — garda ar fi verde din greșeală.');
+        $this->assertCount(3, $offendingHits, 'Detectorul n-a semnalat cazurile clar ofensatoare — garda ar fi verde din greșeală.');
 
         $this->assertSame([], $this->createdAtOrderingHitsIn($safe), 'Detectorul a semnalat fals-pozitiv un lanț cu tiebreaker pe id deja prezent (sau o coloană din afara domeniului regulii).');
     }
@@ -755,7 +771,10 @@ class ArchitectureTest extends TestCase
 
                 $column = $this->orderedColumn($node, $method);
 
-                if ($column !== 'created_at') {
+                // `changed_at` intră în domeniu de la 2026-10-05: e `timestamp(0)` pe
+                // `deal_stage_events`, exact aceeași precizie ca `created_at`, iar bug-ul a
+                // fost OBSERVAT (vezi docblock-ul testului) — nu e o extindere speculativă.
+                if (! in_array($column, ['created_at', 'changed_at'], true)) {
                     return null;
                 }
 
@@ -763,9 +782,10 @@ class ArchitectureTest extends TestCase
                     $this->found[] = [
                         'line' => $node->getStartLine(),
                         'description' => sprintf(
-                            '->%s(%s) pe `created_at` fără id în același lanț',
+                            '->%s(%s) pe `%s` fără id în același lanț',
                             $method,
-                            isset($node->args[0]) ? "'created_at', ..." : '',
+                            isset($node->args[0]) ? sprintf("'%s', ...", $column) : '',
+                            $column,
                         ),
                     ];
                 }

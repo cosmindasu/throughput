@@ -64,7 +64,12 @@ final class AccountActivityTimeline
         DealStageEvent::query()
             ->whereHas('deal', fn (Builder $query) => $query->where('account_id', $account->getKey()))
             ->with(['deal:id,title', 'toStage:id,name'])
+            // `changed_at` e `timestamp(0)` (vezi migrația `create_deal_stage_events_table`),
+            // deci două mutări din aceeași secundă sunt EGALE la ordonare. Fără departajare,
+            // `limit()` de mai jos poate tăia arbitrar una dintre ele. Același tiebreaker pe
+            // ULID ca `DealController::show()`.
             ->orderByDesc('changed_at')
+            ->orderByDesc('id')
             ->limit(self::LIMIT)
             ->get()
             ->each(function (DealStageEvent $event) use ($entries, $workspace): void {

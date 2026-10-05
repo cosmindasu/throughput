@@ -62,7 +62,11 @@ class MoveDealStageActionTest extends TestCase
             $this->assertSame($this->stages['Qualified']->getKey(), $moved->stage_id);
             $this->assertSame(Deal::STATUS_OPEN, $moved->status);
 
-            $event = DealStageEvent::query()->where('deal_id', $deal->getKey())->latest('changed_at')->first();
+            // `->latest('id')` nu e decorativ: `changed_at` e `timestamp(0)`, iar crearea
+            // dealului și mutarea de mai sus cad în aceeași secundă, deci sunt EGALE la
+            // ordonare. Fără departajare, interogarea putea întoarce evenimentul de creare
+            // (cu `from_stage_id` null) — a și făcut-o, o dată, într-o rulare completă.
+            $event = DealStageEvent::query()->where('deal_id', $deal->getKey())->latest('changed_at')->latest('id')->first();
             $this->assertSame($this->stages['New']->getKey(), $event->from_stage_id);
             $this->assertSame($this->stages['Qualified']->getKey(), $event->to_stage_id);
         });
