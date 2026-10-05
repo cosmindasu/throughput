@@ -109,7 +109,22 @@ export default function AttentionList({ data, currency }: { data: DashboardAtten
     return (
         <div className="grid gap-x-6 gap-y-5 sm:grid-cols-3">
             {groups.map((group) => (
-                <section key={group.key} aria-label={group.heading}>
+                /*
+                    `min-w-0` pe ELEMENTUL de grilă, nu pe ceva dinăuntru. `min-width: auto`
+                    (implicitul unui grid item) face ca pista `auto` să fie cel puțin cât
+                    min-content-ul conținutului, iar min-content-ul unui rând de aici e textul
+                    NETRUNCHIAT: `truncate` pune `white-space: nowrap`, deci min-content-ul lui
+                    e lățimea întregului șir. `min-w-0` de pe `<span>`-ul din rând nu ajută la
+                    asta — `min-width` e un PLAFON DE JOS, nu de sus: scoate minimul automat
+                    când elementul e strâns, dar nu-i micșorează min-content-ul când pista se
+                    dimensionează după el.
+                    Măsurat la 375px: cu un nume de cont lung („Granitehaven Hydraulic
+                    Components Group · 397 days late"), min-content-ul secțiunii ajungea 371px
+                    într-o pistă de 309px, iar documentul creștea cu până la 29px — adică
+                    pagina derula lateral pe telefon. Apare doar pe anumite seturi de date, deci
+                    `mobile-width.spec.ts` îl prindea o dată din șase.
+                */
+                <section key={group.key} aria-label={group.heading} className="min-w-0">
                     <h3 className="flex items-center gap-2 text-xs font-medium tracking-wide text-text-2 uppercase">
                         <ToneIcon tone={group.tone} name={group.icon} size="sm" />
                         {group.heading}

@@ -260,7 +260,13 @@ function HistoryValueDiff({
     }
 
     return (
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 rounded-md bg-raised px-3 py-2 sm:grid-cols-[minmax(0,auto)_1fr_1fr]">
+        // `minmax(0,1fr)`, nu `1fr`: un `1fr` scris de mână are minimul `auto`, deci pista
+        // crește cât min-content-ul conținutului — iar `truncate` de pe `<dd>` înseamnă
+        // `white-space: nowrap`, deci min-content-ul lui e valoarea ÎNTREAGĂ, inclusiv un
+        // `JSON.stringify` de obiect. Aceeași clasă de defect ca `min-w-0` din
+        // `AttentionList`, dovedită acolo cu 670px de document pe un ecran de 375px.
+        // `grid-cols-1` de pe mobil era deja în regulă: Tailwind îl scrie `minmax(0, 1fr)`.
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 rounded-md bg-raised px-3 py-2 sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(0,1fr)]">
             {fields.map((field) => (
                 <div key={field} className="contents">
                     <dt className="text-xs font-medium text-text-2 sm:col-span-1">{field}</dt>

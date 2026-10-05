@@ -85,6 +85,59 @@ for (const route of ROUTES) {
 }
 
 /**
+ * Panoul „Needs attention" cu date lungi — DETERMINIST, spre deosebire de rutele de mai sus.
+ *
+ * Testul de pe `/cascade/dashboard` a picat o dată la șase rulări, cu documentul crescut cu
+ * 4-29px, și a trecut la celelalte cinci: semănarea e aleatoare, deci numele de cont și
+ * titlurile de afacere au altă lungime la fiecare rulare, iar defectul apărea doar când
+ * nimereau destul de lungi. Un gate care depinde de zaruri nu e un gate — de-aia rândurile de
+ * aici primesc un șir lung PRIN DOM, nu prin noroc.
+ *
+ * Ce prinde, exact: `min-width: auto` (implicitul oricărui element de grilă) face ca pista
+ * `auto` să fie cel puțin cât min-content-ul conținutului, iar min-content-ul unui rând de
+ * atenție e textul NETRUNCHIAT — `truncate` înseamnă `white-space: nowrap`, deci min-content-ul
+ * lui e șirul întreg. `min-w-0` de pe `<span>`-ul dinăuntrul rândului NU ajută: `min-width` e
+ * plafon de jos, nu de sus. Trebuie pe SECȚIUNE, care e elementul de grilă.
+ *
+ * Măsurat cu `min-w-0` scos: 670px de document pe un ecran de 375px. Cu el: 375px fix.
+ */
+test('panoul de atenție nu lățește pagina nici cu nume de cont absurd de lungi', async ({ page }) => {
+    await page.goto('/cascade/dashboard');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading' })).toHaveCount(0, { timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
+
+    const randuriLungite = await page.evaluate(() => {
+        const grid = document.querySelector('main .grid.gap-x-6.gap-y-5');
+        if (grid === null) {
+            return 0;
+        }
+
+        let n = 0;
+        for (const detail of Array.from(grid.querySelectorAll('li span.min-w-0 > span'))) {
+            detail.textContent = 'Granitehaven Hydraulic Components Group International Holdings Limited · 397 days late';
+            n++;
+        }
+
+        return n;
+    });
+
+    // Dacă panoul e gol (seed fără facturi restante, fără stoc mic), testul n-a măsurat nimic
+    // și trebuie să SPUNĂ asta — altfel ar fi încă un gate verde care nu poate pica.
+    expect(randuriLungite, 'panoul de atenție n-avea niciun rând de lungit').toBeGreaterThan(0);
+
+    const scrolledTo = await page.evaluate(() => {
+        window.scrollTo(900, 0);
+        const x = window.scrollX;
+        window.scrollTo(0, 0);
+
+        return x;
+    });
+
+    expect(scrolledTo, 'pagina s-a mutat lateral cu date lungi în panoul de atenție').toBe(0);
+});
+
+/**
  * Reversul: repararea de mai sus NU trebuie să fi omorât derularea orizontală DINĂUNTRUL
  * tabelului. Un tabel lat pe un ecran îngust trebuie să rămână accesibil prin glisare —
  * altfel „fără derulare laterală" s-ar fi obținut ascunzând coloane, ceea ce ar fi mai rău
