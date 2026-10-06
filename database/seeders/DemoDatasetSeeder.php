@@ -136,8 +136,15 @@ class DemoDatasetSeeder extends Seeder
             ActivityLogObserver::withoutRecording(fn () => TenantContext::run($tenant, function () use ($tenant, $config, $staff): void {
                 $this->command?->info("Tenant: {$config['name']} ({$config['accounts']} accounts / {$config['orders']} orders)");
 
+                // Estimarea barei de progres, nu un plafon: `ChunkedWriter` scrie oricâte rânduri
+                // primește (flush la 1000, deci memoria rămâne plafonată indiferent). `orders * 2`
+                // era însă de 2,5 ori sub realitate — bara ajungea la 100% și apoi își creștea
+                // singură maximul, rând cu rând, umplând logul resetului cu „36078/36078",
+                // „36079/36079". Măsurat pe setul complet: 5,0–5,5 rânduri per comandă (comanda
+                // însăși plus tranzițiile ei, factura cu ciclul ei de viață, afacerile,
+                // conturile și coada de varietate).
                 $activityLog = new ActivityLogRecorder(
-                    new ChunkedWriter(ActivityLog::class, 1000, $this->command, 'Activity log', $config['orders'] * 2)
+                    new ChunkedWriter(ActivityLog::class, 1000, $this->command, 'Activity log', $config['orders'] * 5)
                 );
 
                 (new CarrierSettingsSeeder)->run($tenant, $config);
