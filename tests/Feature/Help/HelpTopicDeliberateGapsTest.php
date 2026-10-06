@@ -53,7 +53,7 @@ class HelpTopicDeliberateGapsTest extends TestCase
         $missing = array_values(array_diff($this->pageComponents(), $this->mappedComponents(), array_keys(self::WITHOUT_TOPIC)));
 
         $this->assertSame([], $missing, 'Pagini fără subiect de ajutor ȘI fără motiv consemnat: '
-            .implode(', ', $missing).". Adaugă un subiect în resources/js/help/index.ts, sau un rând în WITHOUT_TOPIC cu motivul.");
+            .implode(', ', $missing).'. Adaugă un subiect în resources/js/help/index.ts, sau un rând în WITHOUT_TOPIC cu motivul.');
     }
 
     public function test_the_exemption_list_does_not_rot(): void
