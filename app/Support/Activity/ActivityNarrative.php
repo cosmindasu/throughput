@@ -55,6 +55,20 @@ final class ActivityNarrative
         $derived = match ($kind ?? ActivityKind::of($entry)) {
             'stage_moved' => __('activity.entries.stage_moved', ['subject' => $subject]),
             'invoice_paid' => __('activity.entries.invoice_paid', ['subject' => $subject]),
+            // Cele trei de mai jos LIPSEAU, deși `ActivityKind::DERIVED` le producea deja,
+            // `lang/{en,fr}/activity.php` le avea traduse și `activityKind.ts` le dădea icon
+            // și tentă (lotul din 2026-10-06). Efectul: iconul și culoarea rândului se
+            // schimbau, dar fraza cădea pe ramura generică `updated` — „Updated Invoice",
+            // exact ce lotul acela venise să elimine. Traducerile erau șiruri morte.
+            //
+            // De ce n-a prins-o nimic: testul de acoperire a traducerilor verifica, prin
+            // `Lang::get(..., fallback: false)`, că CHEIA există în fiecare catalog — nu că
+            // `describe()` o folosește. O gardă pe existența cheii nu e o gardă pe ieșire.
+            // `ActivityNarrativeDerivedKindsTest` acoperă acum ieșirea, pentru toate kind-urile
+            // din `DERIVED`, nu doar pentru cele adăugate aici.
+            'invoice_sent' => __('activity.entries.invoice_sent', ['subject' => $subject]),
+            'invoice_overdue' => __('activity.entries.invoice_overdue', ['subject' => $subject]),
+            'invoice_void' => __('activity.entries.invoice_void', ['subject' => $subject]),
             'order_shipped' => __('activity.entries.order_shipped', ['subject' => $subject]),
             default => null,
         };
