@@ -83,7 +83,6 @@ final class ActivityVarietySeeder
         $accounts = Account::query()->limit(40)->pluck('name', 'id')->all();
         $contacts = Contact::query()->limit(40)->pluck('id')->all();
         $deals = Deal::query()->limit(40)->pluck('id')->all();
-        $invoices = Invoice::query()->where('status', Invoice::STATUS_PAID)->limit(40)->pluck('id')->all();
         $products = Product::query()->limit(40)->pluck('id')->all();
 
         $command?->getOutput()->writeln('  <fg=cyan>›</> Activity log — recent tail');
@@ -114,16 +113,17 @@ final class ActivityVarietySeeder
         $managers = $withRole([Permissions::OWNER, Permissions::MANAGER]);
         $operators = $withRole([Permissions::OWNER, Permissions::MANAGER, Permissions::AGENT]);
 
-        // Facturi încasate: ambele forme derivate (`invoice_paid`, `order_shipped`) sunt
-        // `updated` în coloană, iar `ActivityKind` le distinge din `new_values` — deci forma
-        // de mai jos nu e decor, e chiar ce citește derivarea.
+        // Nici `order_shipped`, nici `invoice_paid` NU se scriu aici, din același motiv:
+        // seederele de business le produc deja pentru FIECARE înregistrare, datate pe
+        // evenimentul real — expedierea în `StockAndOrdersSeeder`, încasarea în
+        // `BillingSeeder`. Dublate aici, ar fi o a doua expediere a aceleiași comenzi sau o a
+        // doua plată a aceleiași facturi, la altă oră.
         //
-        // `order_shipped` NU se scrie aici: `StockAndOrdersSeeder` îl produce deja pentru
-        // fiecare comandă expediată, datat pe expedierea reală. Dublat, ar fi o a doua
-        // expediere a aceleiași comenzi, la altă oră.
-        foreach (array_slice($invoices, 0, 6) as $invoiceId) {
-            $add('updated', Invoice::class, (string) $invoiceId, ['status' => Invoice::STATUS_PAID], ['status' => Invoice::STATUS_SENT], $managers);
-        }
+        // Pentru facturi, regula a intrat în vigoare când `BillingSeeder` a început să scrie
+        // ciclul de viață complet. Până atunci o factură avea un singur rând (`created`), deci
+        // „plata" inventată aici era singura; de atunci, cele șase facturi atinse ajungeau cu
+        // DOUĂ tranziții „paid", iar coada fiind RECENTĂ, a doua cădea uneori înaintea
+        // propriei creări a facturii. Prins de `DemoSeedScaleTest`, o dată din ~25 de rulări.
 
         // Exporturi: lista pe care cineva a tras-o ca s-o ducă în altă parte. Fără subiect
         // individual — un export e despre o listă, nu despre un rând.

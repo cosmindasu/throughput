@@ -65,7 +65,11 @@ final class BillingSeeder
         $estimatedInvoices = (int) (count($eligible) * 0.7);
 
         $invoiceWriter = new ChunkedWriter(Invoice::class, 1000, $command, 'Invoices', max(1, $estimatedInvoices));
-        $paymentWriter = (new ChunkedWriter(Payment::class, 1000, $command, 'Payments', max(1, (int) ($estimatedInvoices * 0.8))))
+        // 1,1 plăți per factură estimată, nu 0,8: o factură plătită integral se desface în două
+        // tranșe în 25% din cazuri, iar o parte dintre cele `sent`/`overdue` au deja o încasare
+        // parțială. Măsurat pe setul complet, vechea cifră era cu ~27% sub realitate la toți
+        // trei tenanții, deci bara trecea de 100% și își creștea plafonul rând cu rând.
+        $paymentWriter = (new ChunkedWriter(Payment::class, 1000, $command, 'Payments', max(1, (int) ($estimatedInvoices * 1.1))))
             ->dependsOn($invoiceWriter);   // FK payments.invoice_id
 
         $invoiceFactory = new InvoiceFactory;
@@ -96,9 +100,13 @@ final class BillingSeeder
 
             $statusBucket = Rand::weightedKey(['draft' => 3, 'void' => 2, 'paid' => 67, 'sent' => 18, 'overdue' => 10]);
 
-            // Suprascriere de siguranță: "overdue" cere `due_date` deja trecut — o comandă
-            // recentă cu termen lung nu poate fi încă restantă.
-            if ($statusBucket === 'overdue' && $dueDate->greaterThan($now)) {
+            // Suprascriere de siguranță: „overdue" cere o scadență trecută de cel puțin DOUĂ
+            // zile, nu doar trecută. Jobul care marchează restanțele rulează o dată pe zi, deci
+            // o factură scadentă acum trei ore n-a fost încă atinsă de el — iar momentul în
+            // care AR fi fost marcată (`scadență + 1 zi, 03:00`) ar cădea în viitor, adică n-ar
+            // exista un timestamp onest pentru rândul de jurnal. Prins de `DemoSeedScaleTest`
+            // în CI, nu local: depinde de ceasul rulării.
+            if ($statusBucket === 'overdue' && $dueDate->greaterThan($now->copy()->subDays(2))) {
                 $statusBucket = 'sent';
             }
 
@@ -160,7 +168,7 @@ final class BillingSeeder
                 ? $this->recordPayments($tenant, $invoiceId, $amountPaid, $issueDate, $termDays, $order['owner_user_id'], $paymentFactory, $paymentWriter, $paidStatus === Invoice::STATUS_PAID)
                 : null;
 
-            $this->recordLifecycle($tenant->id, $order['owner_user_id'], $invoiceId, $paidStatus, $issueDate, $dueDate, $lastPaidAt, $voidedAt, $voidReason, $now, $activityLog);
+            $this->recordLifecycle($tenant->id, $order['owner_user_id'], $invoiceId, $paidStatus, $issueDate, $dueDate, $lastPaidAt, $voidedAt, $voidReason, $activityLog);
         }
 
         $invoiceWriter->flush();
@@ -242,7 +250,6 @@ final class BillingSeeder
         ?Carbon $paidAt,
         ?Carbon $voidedAt,
         ?string $voidReason,
-        Carbon $now,
         ActivityLogRecorder $activityLog,
     ): void {
         // O factură rămasă în draft n-a plecat nicăieri: `created` E tot istoricul ei.
@@ -250,10 +257,26 @@ final class BillingSeeder
             return;
         }
 
+        // Momentul în care jobul zilnic ar fi marcat restanța. Fix, derivat din scadență — nu
+        // tras la sorți: asta îl face comparabil cu încasarea.
+        $marcareRestanta = $dueDate->copy()->addDay()->startOfDay()->addHours(3);
+
+        // O factură plătită cu întârziere A TRECUT prin „restantă" — jobul o marchează la
+        // scadență, independent de faptul că între timp a fost încasată. Comparația e cu
+        // MOMENTUL MARCĂRII, nu cu scadența: o factură plătită a doua zi dimineața, înaintea
+        // rulării jobului, n-a fost niciodată restantă.
+        $aFostRestanta = $status === Invoice::STATUS_OVERDUE
+            || ($status === Invoice::STATUS_PAID && $paidAt !== null && $paidAt->greaterThan($marcareRestanta));
+
         // Fereastră mai strâmtă decât cea a încasărilor (minimum 24 h), ca trimiterea să cadă
-        // mereu ÎNAINTEA plății — altfel istoricul ar spune că factura a fost plătită înainte
-        // de a fi trimisă.
+        // mereu ÎNAINTEA plății. Pentru o factură care devine restantă trebuie să încapă și
+        // înaintea marcării: la termen `prepaid` scadența E ziua emiterii, deci cele până la
+        // 20 h ale trimiterii puteau sări peste „ziua următoare, 03:00".
         $sentAt = DemoClock::shortlyAfter($issueDate, 1, 20);
+
+        if ($aFostRestanta && $sentAt->greaterThanOrEqualTo($marcareRestanta)) {
+            $sentAt = $marcareRestanta->copy()->subHour();
+        }
 
         $activityLog->record(
             $tenantId, $actorId, 'updated', Invoice::class, $invoiceId, $sentAt,
@@ -261,26 +284,23 @@ final class BillingSeeder
             ['status' => Invoice::STATUS_SENT],
         );
 
-        // O factură plătită cu întârziere A TRECUT prin „restantă" — jobul o marchează la
-        // scadență, independent de faptul că între timp a fost încasată.
-        $aFostRestanta = $status === Invoice::STATUS_OVERDUE
-            || ($status === Invoice::STATUS_PAID && $paidAt !== null && $paidAt->greaterThan($dueDate));
-
         if ($aFostRestanta) {
-            $overdueAt = $dueDate->copy()->addDay()->startOfDay()->addHours(3);
-
-            if ($overdueAt->greaterThan($sentAt) && $overdueAt->lessThanOrEqualTo($now)) {
-                $activityLog->record(
-                    $tenantId, null, 'updated', Invoice::class, $invoiceId, $overdueAt,
-                    ['status' => Invoice::STATUS_SENT],
-                    ['status' => Invoice::STATUS_OVERDUE],
-                );
-            }
+            $activityLog->record(
+                $tenantId, null, 'updated', Invoice::class, $invoiceId, $marcareRestanta,
+                ['status' => Invoice::STATUS_SENT],
+                ['status' => Invoice::STATUS_OVERDUE],
+            );
         }
 
-        if ($status === Invoice::STATUS_PAID && $paidAt !== null) {
+        if ($status === Invoice::STATUS_PAID) {
+            // `$paidAt` lipsește doar dacă factura e „plătită" cu total zero, deci fără nicio
+            // încasare de înregistrat. Rândul tot trebuie scris: altfel ecranul spune „paid",
+            // iar istoricul se oprește la „sent".
+            $incasatLa = $paidAt ?? DemoClock::shortlyAfter($sentAt, 1, 24 * 10);
+
             $activityLog->record(
-                $tenantId, $actorId, 'updated', Invoice::class, $invoiceId, $this->after($paidAt, $sentAt),
+                $tenantId, $actorId, 'updated', Invoice::class, $invoiceId,
+                $this->after($incasatLa, $aFostRestanta ? $marcareRestanta : $sentAt),
                 ['status' => $aFostRestanta ? Invoice::STATUS_OVERDUE : Invoice::STATUS_SENT],
                 ['status' => Invoice::STATUS_PAID],
             );

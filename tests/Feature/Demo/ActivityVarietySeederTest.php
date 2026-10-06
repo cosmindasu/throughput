@@ -80,14 +80,18 @@ class ActivityVarietySeederTest extends TestCase
     {
         $kinds = $this->runSeederAndCollectKinds();
 
-        // Cele nouă valori ale enum-ului, plus felurile DERIVATE, minus două absențe
+        // Cele nouă valori ale enum-ului, plus felurile DERIVATE, minus TREI absențe
         // deliberate: `member_deactivated` (setul demo n-are niciun membru dezactivat, iar o
-        // intrare fără membership în spate ar fi o afirmație falsă) și `order_shipped`, pe
-        // care `StockAndOrdersSeeder` îl scrie deja pentru fiecare comandă expediată, datat
-        // pe expedierea reală — dublat aici, ar fi o a doua expediere a aceleiași comenzi.
-        $expected = ['login', 'login_failed', 'exported', 'imported', 'bulk_action', 'role_changed', 'deleted', 'created', 'updated', 'invoice_paid'];
+        // intrare fără membership în spate ar fi o afirmație falsă), `order_shipped` și
+        // `invoice_paid`, pe care seederele de business le scriu deja pentru FIECARE
+        // înregistrare, datate pe evenimentul real — expedierea în `StockAndOrdersSeeder`,
+        // încasarea în `BillingSeeder`. Dublate aici, ar fi o a doua expediere a aceleiași
+        // comenzi sau o a doua plată a aceleiași facturi, la altă oră.
+        $expected = ['login', 'login_failed', 'exported', 'imported', 'bulk_action', 'role_changed', 'deleted', 'created', 'updated'];
 
-        $this->assertArrayNotHasKey('order_shipped', $kinds, 'expedierile vin din lanțul de comenzi, nu din coada de varietate');
+        foreach (['order_shipped' => 'expedierile vin din lanțul de comenzi', 'invoice_paid' => 'încasările vin din lanțul de facturare'] as $absent => $motiv) {
+            $this->assertArrayNotHasKey($absent, $kinds, "{$motiv}, nu din coada de varietate");
+        }
 
         foreach ($expected as $kind) {
             $this->assertArrayHasKey($kind, $kinds, "felul `{$kind}` lipsește din coada semănată — feed-ul îl pierde");

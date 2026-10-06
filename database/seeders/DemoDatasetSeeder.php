@@ -140,11 +140,13 @@ class DemoDatasetSeeder extends Seeder
                 // primește (flush la 1000, deci memoria rămâne plafonată indiferent). `orders * 2`
                 // era însă de 2,5 ori sub realitate — bara ajungea la 100% și apoi își creștea
                 // singură maximul, rând cu rând, umplând logul resetului cu „36078/36078",
-                // „36079/36079". Măsurat pe setul complet: 5,0–5,5 rânduri per comandă (comanda
-                // însăși plus tranzițiile ei, factura cu ciclul ei de viață, afacerile,
-                // conturile și coada de varietate).
+                // „36079/36079" — o linie per rând, fiindcă fiecare depășire forțează o
+                // redesenare. Măsurat pe setul complet: 5,04 rânduri per comandă la cascade,
+                // 5,13 la marlin, 5,59 la northgate (tenantul mic plătește coada de varietate,
+                // care are dimensiune fixă). Factorul de mai jos e DELIBERAT peste: o bară care
+                // se oprește la 85% e mai bună într-un log decât una care trece de 100%.
                 $activityLog = new ActivityLogRecorder(
-                    new ChunkedWriter(ActivityLog::class, 1000, $this->command, 'Activity log', $config['orders'] * 5)
+                    new ChunkedWriter(ActivityLog::class, 1000, $this->command, 'Activity log', $config['orders'] * 6)
                 );
 
                 (new CarrierSettingsSeeder)->run($tenant, $config);
