@@ -49,12 +49,12 @@
             "whatIsThis": "Un historique à l’échelle de l’espace de travail de qui a changé quoi et quand — chaque création, modification et suppression sur les comptes, contacts, affaires, produits, variantes, commandes et factures, plus les opérations groupées (une ligne par enregistrement touché) et les changements parmi les membres : invitations envoyées, acceptées ou révoquées, rôles modifiés, membres désactivés.",
             "whatCanYouDo": [
                 "Filtrez par type d’action (« Créé », « Mis à jour », « Supprimé », « Action groupée », « Rôle modifié »…), par « Membre », et par une plage de dates « Du »/« Au ».",
-                "Cliquez sur le nom de l’action d’une ligne pour accéder à l’enregistrement modifié — les variantes font exception, puisqu’elles n’ont pas de page propre ; leur historique se trouve sur le produit.",
+                "Cliquez sur la description d’une ligne pour accéder à l’enregistrement modifié. Deux sortes de lignes ne portent aucun lien : une variante, qui n’a pas de page propre (son historique se trouve sur le produit), et une facture qu’un Commercial n’a pas le droit d’ouvrir — la phrase demeure, le nom et le lien disparaissent.",
                 "Ouvrez le lien « Voir dans le journal d’activité » d’une opération groupée (depuis sa page de progression) pour voir chaque ligne qu’elle a touchée, filtrée sur cette seule opération.",
                 "Voyez quels champs un changement a touchés dans la colonne « Modifications » — les anciennes et nouvelles valeurs elles-mêmes sont affichées côte à côte dans la section « Historique » propre à l’enregistrement, à un clic de distance."
             ],
             "rules": [
-                "Propriétaire et Gestionnaire voient chaque action de l’espace de travail. Un Commercial n’y voit que ses propres actions — tout le monde peut néanmoins voir l’historique complet dans l’onglet « Historique » propre à l’enregistrement, quel que soit l’auteur du changement.",
+                "Propriétaire et Gestionnaire voient chaque action de l’espace de travail. Un Commercial n’y voit que ses propres actions — et dans l’onglet « Historique » propre à l’enregistrement, chacun voit l’historique complet de tout enregistrement qu’il a le droit d’ouvrir, quel que soit l’auteur du changement. L’exception est une facture rattachée à la commande d’un autre, qu’un Commercial ne peut pas ouvrir du tout.",
                 "Observateur n’a aucun accès à cet écran (§7.4) — l’onglet « Historique » au niveau de l’enregistrement lui reste visible, puisqu’il fait partie de la consultation de l’enregistrement lui-même.",
                 "Les mots de passe, jetons de connexion persistante et identifiants stockés n’apparaissent jamais ici, même partiellement — un champ modifié portant l’un de ces noms est simplement absent du changement enregistré, pas masqué.",
                 "Les lignes de plus de 36 mois ont leurs anciennes et nouvelles valeurs remplacées par « [anonymisé] » pour les contacts et les utilisateurs — la ligne elle-même, et le champ qui a changé, restent à des fins statistiques ; la valeur, elle, ne reste pas."
@@ -204,7 +204,7 @@
             "rules": [
                 "Chaque chiffre de cette page appartient à l’espace de travail dans lequel vous êtes actuellement — changez d’espace de travail et les quatre tuiles changent, rien ne se reporte du précédent.",
                 "« Valeur du pipeline ouvert » additionne uniquement la valeur des affaires ouvertes ; les affaires gagnées et perdues sont exclues, tout comme les affaires ouvertes sans valeur pour l’instant.",
-                "« Alertes de stock bas » compte les niveaux de stock — une variante à un emplacement — où le stock en main moins le stock réservé est égal ou inférieur à 5 unités, si bien qu’une variante en stock bas à deux emplacements compte deux fois.",
+                "« Alertes de stock bas » compte les variantes actives dotées de leur propre seuil de stock bas, lorsque le stock en main moins le stock réservé — cumulé sur tous les emplacements — est passé sous ce seuil. Une variante compte une seule fois, quel que soit le nombre de ses emplacements, et une variante sans seuil défini ne compte jamais.",
                 "« Factures en retard » indique le nombre de factures en retard ; le montant sous ce nombre est le solde encore dû sur ces factures, pas leur total d’origine.",
                 "Les tuiles d’indicateurs clés sont les mêmes pour chaque rôle. « Activité récente » suit qui peut lire le journal d’activité : Propriétaires et Gestionnaires voient les actions de tout le monde, Commerciaux uniquement les leurs, et Observateurs n’ont pas du tout accès au fil."
             ],
@@ -560,7 +560,7 @@
         },
         "report-detail": {
             "title": "Détail du rapport",
-            "whatIsThis": "Un rapport : sa planification et ses destinataires, le résultat en direct s’il s’agit d’un rapport prédéfini, un bouton pour l’exécuter sur-le-champ, et toutes les exécutions qu’il a jamais eues, avec le fichier produit par chacune.",
+            "whatIsThis": "Un rapport : sa planification et ses destinataires, le résultat en direct s’il s’agit d’un rapport prédéfini, un bouton pour l’exécuter sur-le-champ, et ses vingt exécutions les plus récentes, avec le fichier produit par chacune. Un rapport quotidien garde ainsi trois semaines de fichiers accessibles depuis cette page ; les plus anciens sortent de la liste.",
             "whatCanYouDo": [
                 "Appuyez sur « Exécuter maintenant » pour mettre une exécution en file d’attente immédiatement au lieu d’attendre la planification — la zone de statut ci-dessous vous indique où elle en est, et se rafraîchit automatiquement toutes les 3 secondes jusqu’à la fin de l’exécution.",
                 "Consultez « Résultat actuel » pour un rapport prédéfini : les chiffres tels qu’ils sont à l’instant, recalculés à chaque visite, et non un instantané du dernier fichier.",

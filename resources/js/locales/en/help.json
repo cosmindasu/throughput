@@ -49,12 +49,12 @@
             "whatIsThis": "A tenant-wide record of who changed what and when — every create, update and delete on accounts, contacts, deals, products, variants, orders and invoices, plus bulk operations (one row per record touched) and membership changes: invitations sent, accepted or revoked, roles changed, members deactivated.",
             "whatCanYouDo": [
                 "Filter by action type (\"Created\", \"Updated\", \"Deleted\", \"Bulk Action\", \"Role Changed\"...), by \"Member\", and by a \"From\"/\"To\" date range.",
-                "Click the action name on a row to jump to the record it changed — variants are the exception, since they have no page of their own; their history is on the product.",
+                "Click a row's description to jump to the record it changed. Two kinds of row carry no link: a variant, which has no page of its own (its history lives on the product), and an invoice an Agent is not allowed to open — there the sentence stays, the name and the link do not.",
                 "Open a bulk operation's \"View in Activity Log\" link (from its progress page) to see every row it touched, filtered to just that operation.",
                 "See which fields a change touched in the \"Changes\" column — the old and new values themselves are shown side by side on the record's own \"History\" section, one click away."
             ],
             "rules": [
-                "Owner and Manager see every action in the tenant. An Agent sees only their own actions here — everyone can still see the full history on a record's own \"History\" tab, regardless of who made the change.",
+                "Owner and Manager see every action in the tenant. An Agent sees only their own actions here — and on a record's own \"History\" tab everyone sees the full history of any record they are allowed to open, whoever made the change. The exception is an invoice belonging to someone else's order, which an Agent cannot open at all.",
                 "Viewer has no access to this screen at all (§7.4) — the record-level \"History\" tab stays visible to them, since it's part of viewing the record itself.",
                 "Passwords, remember-me tokens and stored credentials never appear here, even partially — a changed field with one of those names is simply absent from the recorded change, not masked.",
                 "Rows older than 36 months have their old/new values replaced with \"[anonymized]\" for contacts and users — the row itself, and which field changed, stays for statistics; the value doesn't."
@@ -204,7 +204,7 @@
             "rules": [
                 "Every number on this page belongs to the workspace you're currently in — switch workspaces and all four tiles change, nothing carries over from the previous one.",
                 "\"Open pipeline value\" adds up the value of open deals only; won and lost deals are left out, and so are open deals with no value yet.",
-                "\"Low stock alerts\" counts stock levels — one variant at one location — where on hand minus reserved is 5 units or fewer, so a variant running low at two locations counts twice.",
+                "\"Low stock alerts\" counts active variants that have a low-stock threshold of their own, where on hand minus reserved — summed across every location — has fallen below that threshold. A variant counts once however many locations it sits in, and a variant with no threshold set never counts.",
                 "\"Overdue invoices\" shows how many invoices are overdue; the amount under the number is the balance still owed on them, not their original total.",
                 "The KPI tiles are the same for every role. \"Recent activity\" follows who may read the activity log: Owners and Managers see everyone's actions, Agents only their own, and Viewers don't get the feed at all."
             ],
@@ -560,7 +560,7 @@
         },
         "report-detail": {
             "title": "Report detail",
-            "whatIsThis": "One report: its schedule and recipients, the live result if it is a built-in, a button to run it on the spot, and every run it has ever had, with the file each one produced.",
+            "whatIsThis": "One report: its schedule and recipients, the live result if it is a built-in, a button to run it on the spot, and its twenty most recent runs, with the file each one produced. A report that runs daily keeps three weeks of files reachable from this page; older ones drop off the list.",
             "whatCanYouDo": [
                 "Press \"Run now\" to queue a run immediately instead of waiting for the schedule — the status region below tells you where it is, and refreshes itself every 3 seconds until the run finishes.",
                 "Read \"Current result\" for a built-in report: the numbers as they are right now, recomputed on every visit, not a snapshot of the last file.",
