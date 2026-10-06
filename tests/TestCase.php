@@ -34,8 +34,13 @@ abstract class TestCase extends BaseTestCase
      * Într-un worker de producție asta e exact ce trebuie: procesul se reciclează înainte
      * să crească necontrolat. În suită însă, „procesul" e PHPUnit, care acumulează memorie
      * de la toate testele de dinainte și trece de 128 MB pe la jumătatea rulării. Din acel
-     * punct, fiecare `queue:work --stop-when-empty` procesează UN SINGUR job și iese —
-     * tăcut, cu cod de ieșire 0, ca și cum coada s-ar fi golit.
+     * punct, fiecare `queue:work --stop-when-empty` procesează UN SINGUR job și iese.
+     *
+     * Corecție 2026-10-06: iese cu `Worker::EXIT_MEMORY_LIMIT` = **12**, nu cu 0 — exact ce
+     * spune tabelul de mai sus, pe care proza de aici îl contrazicea. Codul nu e însă citit
+     * de nimeni: `$this->artisan('queue:work', …)` nu verifică ieșirea. Tăcerea e a
+     * harness-ului de test, nu a worker-ului, iar asta contează la diagnostic — un
+     * `assertExitCode(0)` pe drenare ar fi arătat cauza din prima.
      *
      * Simptomul e derutant fiindcă depinde de ORDINE, nu de test: 15 teste din 5 fișiere
      * treceau în izolare și în oricare jumătate a suitei, și cădeau doar în suita întreagă,

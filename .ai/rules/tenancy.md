@@ -156,8 +156,13 @@ $options->stopWhenEmpty && is_null($job) => EXIT_SUCCESS
 Implicitul e `--memory=128`, iar măsurătoarea e `memory_get_usage(true)` — memoria **reală a
 procesului**, nu a jobului. Într-un worker de producție e exact ce trebuie. În suită, procesul
 e PHPUnit: acumulează memorie de la toate testele de dinainte și trece de 128 MB pe la
-jumătatea rulării. De acolo, orice drenare procesează **un singur job** și iese cu cod 0, ca și
-cum ar fi golit coada.
+jumătatea rulării. De acolo, orice drenare procesează **un singur job** și se oprește.
+
+Iese cu `EXIT_MEMORY_LIMIT` = **12**, nu cu 0 — exact ce arată tabelul de mai sus *(corectat
+2026-10-06; proza spunea „cod 0" și își contrazicea propriul bloc de cod)*. Numai că nimeni nu
+citește codul: `$this->artisan('queue:work', …)` nu-l verifică. **Tăcerea e a harness-ului, nu
+a worker-ului** — un `assertExitCode(0)` pe drenare ar fi arătat cauza din prima încercare, nu
+după șase minute pe iterație.
 
 Eșecul e dependent de **ordine**, nu de test, și nu seamănă cu cauza lui. În Faza 5 a dat 15
 teste roșii din 5 fișiere, cu mesaje aparent fără legătură — „un job în plus în coadă",
