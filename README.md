@@ -1,44 +1,44 @@
 # Throughput
 
-CRM operațional multi-tenant pentru distribuitori B2B: conturi și contacte, pipeline de vânzări, comenzi, stoc, facturare. E un demo de portofoliu cu date realiste și scriere reală — orice vizitator poate lucra în aplicație, iar datele se resetează zilnic.
+An operational multi-tenant CRM for B2B distributors: accounts and contacts, a sales pipeline, orders, stock, invoicing. It is a portfolio demo with realistic data and real writes — any visitor can work inside the application, and the data resets nightly.
 
-**Demo live:** [throughput.dbg.ro](https://throughput.dbg.ro) — intră cu un buton, fără cont și fără parolă.
+**Live demo:** [throughput.dbg.ro](https://throughput.dbg.ro) — one button to get in, no account and no password.
 
-![Dashboard-ul pe workspace-ul Marlin: venit pe 12 luni, pipeline pe etape, comenzi pe status și lista „Needs attention"](docs/media/dashboard.gif)
+![The dashboard on the Marlin workspace: twelve months of revenue, the pipeline by stage, orders by status, and the "needs attention" list](docs/media/dashboard.gif)
 
-*Opt secunde din demo-ul de 90 de secunde. Înregistrarea completă e mută, cu subtitrări arse în engleză: se filmează automat, cu o coregrafie Playwright pe o bază semănată la volum complet, nu cu mâna.*
+*Eight seconds out of the ninety-second demo. The full recording is silent, with burned-in English subtitles: it is filmed automatically, by a Playwright choreography against a database seeded at full volume, not by hand.*
 
-**Stare:** funcționalitatea e completă, acoperită de teste și verificată prin două audituri interne cod↔documentație (2026-09-23 și 2026-10-06), inclusiv interfața bilingvă EN + FR ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)). Demo-ul rulează live pe Coolify, cu reset zilnic. Rămâne tag-ul `v1.0` și trecerea repo-ului în public.
+**Status:** the functionality is complete, covered by tests and checked by two internal code-versus-documentation audits (2026-09-23 and 2026-10-06), including the bilingual EN + FR interface ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)). The demo runs live on Coolify, with a nightly reset, and `v1.0` is tagged. What remains is opening the repository to the public.
 
-## Ce demonstrează
+## What it demonstrates
 
-- **Multi-tenancy pe cale** (`/{workspace}/…`), cu izolare în două straturi: global scope Eloquent și Row-Level Security în PostgreSQL. O scurgere între tenanți cere ca ambele să greșească simultan ([ADR-002](docs/adr/ADR-002-tenancy-pe-cale.md), [ADR-003](docs/adr/ADR-003-izolare-tenant-doua-straturi.md), [ADR-014](docs/adr/ADR-014-context-de-tenant-o-singura-poarta.md)).
-- **RBAC pe patru roluri**, vizibil în interfață: fiecare pagină primește `can` calculat server-side, iar un buton fără drept lipsește, nu e dezactivat.
-- **Volum real**: 3 tenanți, 8.000 de conturi, 50.000 de comenzi, 390 de produse, cu liste paginate pe cursor.
-- **Scriere concurentă tratată explicit**: numere de comandă și de factură fără goluri, stoc rezervat sub blocare sortată, operații în masă idempotente per chunk, webhook-uri deduplicate pe `event_id`.
-- **Interacțiune accesibilă** (WCAG 2.2 AA): kanban cu drag & drop și alternativă completă de tastatură, căutare globală Cmd+K, temă închisă/deschisă randată fără licărire, manual contextual pe fiecare ecran.
+- **Path-based multi-tenancy** (`/{workspace}/…`), with isolation in two layers: an Eloquent global scope and Row-Level Security in PostgreSQL. A leak between tenants requires both to fail at the same time ([ADR-002](docs/adr/ADR-002-tenancy-pe-cale.md), [ADR-003](docs/adr/ADR-003-izolare-tenant-doua-straturi.md), [ADR-014](docs/adr/ADR-014-context-de-tenant-o-singura-poarta.md)).
+- **RBAC across four roles**, visible in the interface: every page receives a `can` computed server-side, and a button you have no right to is absent, not disabled.
+- **Real volume**: 3 tenants, 8,000 accounts, 50,000 orders, 390 products, with cursor-paginated lists.
+- **Concurrent writes handled explicitly**: order and invoice numbers without gaps, reserved stock under ordered locking, bulk operations idempotent per chunk, webhooks deduplicated on `event_id`.
+- **Accessible interaction** (WCAG 2.2 AA): a kanban with drag & drop and a complete keyboard alternative, global search on Cmd+K, a dark/light theme rendered without a flash, and a contextual manual on every screen.
 
-## Module
+## Modules
 
-| Modul | Ce acoperă |
+| Module | What it covers |
 |---|---|
-| **CRM** | Conturi, contacte, deals cu pipeline configurabil și kanban, vizualizări salvate, coloane reordonabile |
-| **Catalog & stoc** | Produse și variante, registru de stoc append-only ([ADR-004](docs/adr/ADR-004-stoc-registru-append-only.md)), recepție / ajustare / transfer, alertă de stoc minim |
-| **Comenzi** | Draft → confirmare → onorare parțială → expediere, cu rezervare de stoc și două curierate selectabile per tenant ([ADR-010](docs/adr/ADR-010-doi-furnizori-curierat-configurabili.md)) |
-| **Facturare** | Facturi din comenzi, plăți parțiale, anulare cu motiv, PDF generat în coadă ([ADR-019](docs/adr/ADR-019-export-pdf-liste-dompdf-nu-chromium.md)); separat de abonamentul Stripe ([ADR-005](docs/adr/ADR-005-facturare-separata-de-stripe.md)) |
-| **Import CSV** | Mapare de coloane cu sugestii, probă uscată, commit parțial cu savepoint per rând, raport de erori reimportabil |
-| **Rapoarte** | Definiții cu sursă din vizualizări salvate sau rapoarte built-in, programare orară, livrare pe email ([ADR-009](docs/adr/ADR-009-resend-email-tranzactional.md)) |
-| **Operații în masă** | Reatribuire de owner, schimbare de preț, anulare de draft-uri — în coadă, pe chunk-uri, anulabile din mers |
-| **Export & GDPR** | Export de listă (CSV / PDF / zip), export complet de workspace pentru portabilitate, anonimizare de contacte |
-| **Administrare** | Membri și invitații ([ADR-011](docs/adr/ADR-011-dezactivare-membru-fara-blocare.md)), jetoane API, abonament, jurnal de activitate ([ADR-007](docs/adr/ADR-007-audit-log-cod-propriu.md)), jurnal de email, sănătatea webhook-urilor |
-| **API public** | REST versionat pe cale ([ADR-008](docs/adr/ADR-008-versionare-api-pe-cale.md)), scopuri per jeton, `Idempotency-Key` obligatoriu la scriere, contract OpenAPI 3.1 |
-| **Internaționalizare** | Interfață completă EN/FR per utilizator (`users.locale`, ales din Settings → Preferences), fără locale în URL ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)); gate CI (`i18n:coverage`) verifică simetria celor două cataloage |
+| **CRM** | Accounts, contacts, deals with a configurable pipeline and a kanban, saved views, reorderable columns |
+| **Catalogue & stock** | Products and variants, an append-only stock ledger ([ADR-004](docs/adr/ADR-004-stoc-registru-append-only.md)), receipt / adjustment / transfer, low-stock alerts |
+| **Orders** | Draft → confirmation → partial fulfilment → shipment, with stock reservation and two carriers selectable per tenant ([ADR-010](docs/adr/ADR-010-doi-furnizori-curierat-configurabili.md)) |
+| **Invoicing** | Invoices out of orders, partial payments, voiding with a reason, PDFs generated on a queue ([ADR-019](docs/adr/ADR-019-export-pdf-liste-dompdf-nu-chromium.md)); separate from the Stripe subscription ([ADR-005](docs/adr/ADR-005-facturare-separata-de-stripe.md)) |
+| **CSV import** | Column mapping with suggestions, a dry run, a partial commit with a savepoint per row, and a re-importable error report |
+| **Reports** | Definitions sourced from saved views or from built-in reports, scheduling by the hour, delivery by email ([ADR-009](docs/adr/ADR-009-resend-email-tranzactional.md)) |
+| **Bulk operations** | Owner reassignment, price changes, discarding drafts — on a queue, in chunks, cancellable mid-run |
+| **Export & GDPR** | List export (CSV / PDF / zip), a full workspace export for portability, contact anonymisation |
+| **Administration** | Members and invitations ([ADR-011](docs/adr/ADR-011-dezactivare-membru-fara-blocare.md)), API tokens, subscription, the activity log ([ADR-007](docs/adr/ADR-007-audit-log-cod-propriu.md)), the email log, webhook health |
+| **Public API** | REST versioned on the path ([ADR-008](docs/adr/ADR-008-versionare-api-pe-cale.md)), per-token scopes, a mandatory `Idempotency-Key` on writes, an OpenAPI 3.1 contract |
+| **Internationalisation** | A complete EN/FR interface per user (`users.locale`, chosen from Settings → Preferences), with no locale in the URL ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)); a CI gate (`i18n:coverage`) checks that the two catalogues stay symmetrical |
 
 ## Stack
 
-Laravel 13 (PHP 8.3) · Inertia 3 · React 19 + TypeScript · Tailwind 4 · PostgreSQL 16 · Redis 7 + Horizon. Motivele fiecărei alegeri sunt în [`docs/adr/`](docs/adr/README.md).
+Laravel 13 (PHP 8.3) · Inertia 3 · React 19 + TypeScript · Tailwind 4 · PostgreSQL 16 · Redis 7 + Horizon. The reasoning behind each choice is in [`docs/adr/`](docs/adr/README.md).
 
-## Pornire locală
+## Running it locally
 
 ```sh
 cp .env.example .env
@@ -48,45 +48,45 @@ docker compose exec app php artisan migrate --database=pgsql_migrations
 docker compose exec app php artisan demo:seed-volume
 ```
 
-Aplicația răspunde pe `http://localhost:8000`, iar Vite pe `5173`. De ce migrațiile rulează pe o conexiune separată și de ce comenzile `artisan` rulează în container: [CONTRIBUTING.md](CONTRIBUTING.md).
+The application answers on `http://localhost:8000`, and Vite on `5173`. Why the migrations run on a separate connection, and why `artisan` commands run inside the container: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Conturi demo
+## Demo accounts
 
-Cu `DEMO_MODE=true` (implicit în `.env.example`), pagina de login are câte un buton „Log in as …" pentru fiecare rol. Nu se tastează nicio parolă.
+With `DEMO_MODE=true` (the default in `.env.example`), the login page carries a "Log in as …" button for each role. No password is ever typed.
 
-| Rol | Email | Ce vede |
+| Role | Email | What it sees |
 |---|---|---|
-| Owner | `demo.owner@throughput.dev` | Tot, inclusiv billing; comută între cele trei workspace-uri |
-| Manager | `demo.manager@throughput.dev` | Acces operațional complet, fără billing și fără setări de curierat |
-| Agent | `demo.agent@throughput.dev` | Implicit doar conturile și deals-urile proprii, cu comutare la tot workspace-ul |
-| Viewer | `demo.viewer@throughput.dev` | Doar citire, fără butoane de acțiune; exportul rămâne permis |
+| Owner | `demo.owner@throughput.dev` | Everything, billing included; switches between the three workspaces |
+| Manager | `demo.manager@throughput.dev` | Full operational access, without billing and without carrier settings |
+| Agent | `demo.agent@throughput.dev` | Their own accounts and deals by default, with a switch to the whole workspace |
+| Viewer | `demo.viewer@throughput.dev` | Read-only, no action buttons; export stays allowed |
 
-Workspace-ul vitrină e `marlin`; celelalte două, `cascade` și `northgate`, există ca să se vadă comutatorul și izolarea.
+The showcase workspace is `marlin`; the other two, `cascade` and `northgate`, exist so that the switcher and the isolation can be seen.
 
-În demo, acțiunile care ar strica sesiunea următorului vizitator sunt ascunse (dezactivarea unui membru, schimbarea de rol), iar emailurile sunt interceptate și vizibile în Settings → Sent Emails. Stripe rulează exclusiv în test mode.
+In the demo, actions that would spoil the next visitor's session are hidden (deactivating a member, changing a role), and emails are intercepted and visible under Settings → Sent Emails. Stripe runs exclusively in test mode.
 
-## Date demo
+## Demo data
 
-| Comandă | Ce face |
+| Command | What it does |
 |---|---|
-| `php artisan demo:seed-volume` | Setul complet (~60 s) |
-| `php artisan demo:seed-volume --scale=0.01` | Același set, cu aceleași reguli de realism, la ~1% din volum — pentru E2E și iterație rapidă |
-| `php artisan demo:reset` | `migrate:fresh` + setul complet. În producție rulează zilnic, la 03:00 UTC, ca job pe Horizon ([ADR-017](docs/adr/ADR-017-reset-demo-ca-job-pe-horizon.md)) |
-| `php artisan db:explain-critical` | `EXPLAIN ANALYZE` pe interogările critice. Pică dacă una face Seq Scan pe o tabelă mare; căutarea globală are în schimb un buget de timp ([ADR-018](docs/adr/ADR-018-cautare-sub-rls-fara-index-trigram.md)) |
+| `php artisan demo:seed-volume` | The full set (~60 s) |
+| `php artisan demo:seed-volume --scale=0.01` | The same set, under the same realism rules, at ~1% of the volume — for E2E and fast iteration |
+| `php artisan demo:reset` | `migrate:fresh` plus the full set. In production it runs nightly at 03:00 UTC, as a job on Horizon ([ADR-017](docs/adr/ADR-017-reset-demo-ca-job-pe-horizon.md)) |
+| `php artisan db:explain-critical` | `EXPLAIN ANALYZE` over the critical queries. It fails if one of them does a Seq Scan on a large table; global search has a time budget instead ([ADR-018](docs/adr/ADR-018-cautare-sub-rls-fara-index-trigram.md)) |
 
-## Teste
+## Tests
 
-- **Pest**, pe PostgreSQL real, rulat cu rolul aplicației (fără `BYPASSRLS`): `APP_ENV=testing ./vendor/bin/pest`. Niciodată SQLite — acolo RLS nu există, deci testele de izolare ar trece fără să testeze nimic. Baza de test e descrisă în [CONTRIBUTING.md](CONTRIBUTING.md).
-- Rulează `npm run build` înainte de Pest: layout-ul aplicației cere manifestul Vite.
-- **Playwright**, pe aplicația reală cu worker de coadă pornit: `npx playwright test -c e2e/playwright.config.ts`. Pe PR rulează subsetul `@smoke`; suita completă rulează pe `main` și pe tag-uri.
-- **k6**: `tests/Performance/reads.js`, rulat local, nu în CI.
+- **Pest**, against real PostgreSQL, run as the application role (without `BYPASSRLS`): `APP_ENV=testing ./vendor/bin/pest`. Never SQLite — there is no RLS there, so every isolation test would pass while testing nothing. The test database is described in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Run `npm run build` before Pest: the application layout requires the Vite manifest.
+- **Playwright**, against the real application with a queue worker running: `npx playwright test -c e2e/playwright.config.ts`. Pull requests run the `@smoke` subset; the full suite runs on `main` and on tags.
+- **k6**: `tests/Performance/reads.js`, run locally, not in CI.
 
 ## CI
 
-GitHub Actions, cu reguli stricte de consum de minute: build-ul Vite o singură dată, transmis ca artefact, joburile scumpe în spatele celor ieftine, doar `ubuntu-latest`. Motivele sunt scrise în [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+GitHub Actions, under strict rules about minute consumption: the Vite build runs once and is passed on as an artifact, expensive jobs sit behind cheap ones, and everything runs on `ubuntu-latest`. The reasoning is written into [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Documentație
+## Documentation
 
-- [`docs/adr/`](docs/adr/README.md) — deciziile arhitecturale; sursă unică, un ADR acceptat nu se rescrie.
-- [CONTRIBUTING.md](CONTRIBUTING.md) — cum se lucrează pe proiect.
-- [`.ai/rules/`](.ai/rules/index.md) — regulile pentru agenții de cod: capcanele deja plătite, pe zone de cod.
+- [`docs/adr/`](docs/adr/README.md) — the architecture decisions; a single source, and an accepted ADR is never rewritten.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how work is done on the project.
+- [`.ai/rules/`](.ai/rules/index.md) — the rules for coding agents: the traps already paid for, by area of the code.
