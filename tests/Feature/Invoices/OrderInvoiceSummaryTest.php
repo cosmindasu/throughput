@@ -154,4 +154,73 @@ class OrderInvoiceSummaryTest extends TestCase
 
         $this->actingAs($stranger)->getJson("/cascade/orders/{$order->getKey()}/invoice-summary")->assertNotFound();
     }
+
+    /**
+     * SCURGERE (audit 2026-10-06) — `forOrder()` autorizează pe COMANDĂ
+     * (`OrderPolicy::view()` = `orders.view` curat, fără îngustare pe proprietar, deliberat),
+     * apoi întorcea `invoiceNumber`, `status` și `balanceDue` fără să treacă vreodată prin
+     * `InvoicePolicy::view()`, care cere `invoices.view` ȘI `isWithinOwnRecords()`. Adică
+     * orice Agent care deschidea pagina comenzii unui coleg primea numărul facturii ei —
+     * canalul pe care lotul din 2026-10-05 îl închisese în jurnalul de activitate, redeschis
+     * un nivel mai jos. O mască pe un singur canal nu e mască.
+     *
+     * Testul are AMBELE controale în același corp, intenționat: fără cel pozitiv, un
+     * `forOrder()` care ar întoarce `invoice => null` necondiționat ar trece verde și ar
+     * „repara" scurgerea prin ștergerea funcționalității.
+     */
+    public function test_an_agent_does_not_receive_the_invoice_of_a_colleagues_order(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'leakowner@throughput.dev', Permissions::OWNER);
+        $agent = $this->makeMember($this->marlin, 'leakagent@throughput.dev', Permissions::AGENT);
+
+        [$foreignOrder, $ownOrder, $ownNumber] = TenantContext::run($this->marlin, function () use ($owner, $agent) {
+            $foreign = $this->confirmedOrder($this->account, $owner, 500);
+            $this->sentInvoice($foreign, 500);
+
+            $own = $this->confirmedOrder($this->account, $agent, 700);
+            $ownInvoice = $this->sentInvoice($own, 700);
+
+            return [$foreign, $own, $ownInvoice->invoice_number];
+        });
+        $this->clearDatabaseTenantContext();
+
+        // NEGATIV — factura colegului nu pleacă prin acest endpoint.
+        $this->actingAs($agent)
+            ->getJson("/marlin/orders/{$foreignOrder->getKey()}/invoice-summary")
+            ->assertOk()
+            ->assertJsonPath('invoice', null);
+
+        // POZITIV — pe comanda PROPRIE, Agentul primește în continuare numărul.
+        $this->actingAs($agent)
+            ->getJson("/marlin/orders/{$ownOrder->getKey()}/invoice-summary")
+            ->assertOk()
+            ->assertJsonPath('invoice.invoiceNumber', $ownNumber);
+    }
+
+    /**
+     * Contrapartea reparației: `restrictedToOwnRecords()` e adevărat DOAR pentru Agent, deci
+     * Owner, Manager și Viewer trebuie să vadă în continuare factura unei comenzi străine.
+     * Viewer-ul e cazul care contează — are `invoices.view` pe tot workspace-ul (persona
+     * „contabil extern", US-CRM-03), deci o reparație prea largă l-ar fi rupt în liniște.
+     */
+    public function test_owner_manager_and_viewer_still_receive_a_colleagues_invoice(): void
+    {
+        $owner = $this->makeMember($this->marlin, 'keepowner@throughput.dev', Permissions::OWNER);
+        $manager = $this->makeMember($this->marlin, 'keepmanager@throughput.dev', Permissions::MANAGER);
+        $viewer = $this->makeMember($this->marlin, 'keepviewer@throughput.dev', Permissions::VIEWER);
+
+        [$order, $number] = TenantContext::run($this->marlin, function () use ($owner) {
+            $order = $this->confirmedOrder($this->account, $owner, 900);
+
+            return [$order, $this->sentInvoice($order, 900)->invoice_number];
+        });
+        $this->clearDatabaseTenantContext();
+
+        foreach ([$owner, $manager, $viewer] as $user) {
+            $this->actingAs($user)
+                ->getJson("/marlin/orders/{$order->getKey()}/invoice-summary")
+                ->assertOk()
+                ->assertJsonPath('invoice.invoiceNumber', $number);
+        }
+    }
 }

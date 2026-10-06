@@ -162,6 +162,26 @@ final class InvoiceController extends Controller
         // (`latestOfMany(['created_at', 'id'])`) — nu o duplica aici.
         $invoice = $order->invoice;
 
+        // SCURGERE reparată (audit 2026-10-06, a doua trecere peste masca de la 2026-10-05).
+        // `Gate::authorize('view', $order)` de mai sus e autorizarea pe COMANDĂ, iar
+        // `OrderPolicy::view()` e `$user->can('orders.view')` CURAT — fără îngustare pe
+        // proprietar, deliberat (§7.4: un Agent poate deschide orice comandă din workspace).
+        // `InvoicePolicy::view()` NU e la fel: cere `invoices.view` ȘI `isWithinOwnRecords()`.
+        // Deci endpoint-ul ăsta întorcea `invoice_number`, `status` și `balance_due` ale
+        // facturii de pe comanda unui coleg oricărui Agent care deschidea pagina comenzii —
+        // un canal mai direct decât jurnalul de activitate, pe care lotul precedent îl
+        // închisese (`ActivityVisibility`). O mască pe un singur canal nu e mască.
+        //
+        // Se întoarce `null`, NU o formă mascată: Agentul n-are `invoices.create`
+        // (`Permissions.php`), deci `can.create` iese `false` și secțiunea de facturare nu se
+        // randează deloc — absență, nu un rând care spune „există o factură, dar nu ți-o
+        // arăt". E aceeași regulă pe care o enunță restul produsului: fără drept, fără buton,
+        // nu buton dezactivat. Owner/Manager/Viewer nu sunt atinși: `restrictedToOwnRecords`
+        // e adevărat doar pentru Agent, iar Viewer-ul are `invoices.view` pe tot workspace-ul.
+        if ($invoice !== null && ! Gate::allows('view', $invoice)) {
+            $invoice = null;
+        }
+
         return response()->json([
             'can' => [
                 'create' => Gate::allows('create', [Invoice::class, $order]),
