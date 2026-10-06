@@ -18,6 +18,9 @@ export type ActivityKind =
     | 'deleted'
     | 'stage_moved'
     | 'invoice_paid'
+    | 'invoice_sent'
+    | 'invoice_overdue'
+    | 'invoice_void'
     | 'order_shipped'
     | 'login'
     | 'login_failed'
@@ -38,6 +41,9 @@ export const KIND_VISUAL: Record<ActivityKind, KindVisual> = {
     deleted: { icon: 'deleted', tone: 'danger' },
     stage_moved: { icon: 'stageMoved', tone: 'accent' },
     invoice_paid: { icon: 'paid', tone: 'success' },
+    invoice_sent: { icon: 'arrowUpRight', tone: 'info' },
+    invoice_overdue: { icon: 'clock', tone: 'warning' },
+    invoice_void: { icon: 'close', tone: 'danger' },
     order_shipped: { icon: 'shipment', tone: 'info' },
     login: { icon: 'login', tone: 'neutral' },
     login_failed: { icon: 'loginFailed', tone: 'warning' },

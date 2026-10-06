@@ -70,6 +70,11 @@ return [
         // Formulation NATIVE, nominale, comme les autres entrées du flux.
         'stage_moved' => 'Changement d’étape : :subject',
         'invoice_paid' => 'Paiement enregistré : :subject',
+        // NATIF, comme les voisines : un substantif suivi du sujet, pour ne pas accorder
+        // un participe passé sur `:subject` (le genre du type traduit varie).
+        'invoice_sent' => 'Envoi au client : :subject',
+        'invoice_overdue' => 'Passage en retard : :subject',
+        'invoice_void' => 'Annulation : :subject',
         'order_shipped' => 'Expédition : :subject',
 
         'member_deactivated' => 'Membre désactivé',

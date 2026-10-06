@@ -35,7 +35,7 @@ use App\Models\Order;
 final class ActivityKind
 {
     /** Tipurile derivate — cele care NU există ca valoare în enum-ul coloanei. */
-    public const DERIVED = ['stage_moved', 'invoice_paid', 'order_shipped', 'member_deactivated'];
+    public const DERIVED = ['stage_moved', 'invoice_paid', 'invoice_sent', 'invoice_overdue', 'invoice_void', 'order_shipped', 'member_deactivated'];
 
     public static function of(ActivityLog $entry): string
     {
@@ -51,8 +51,18 @@ final class ActivityKind
                 && ($new['status'] ?? null) === Membership::STATUS_DEACTIVATED => 'member_deactivated',
             $entry->auditable_type === Deal::class
                 && (array_key_exists('stage_id', $new) || array_key_exists('stage', $new)) => 'stage_moved',
+            // Ciclul de viață al unei facturi, tot prin `{status: …}` — aceeași formă pe care
+            // o scriu `MarkInvoiceSentAction`, `MarkOverdueInvoicesJob` și `VoidInvoiceAction`.
+            // Fără tipurile astea, trei din cele patru tranziții reale ale unei facturi se
+            // citeau „Updated Invoice", adică exact ce lotul ăsta a plecat să repare.
             $entry->auditable_type === Invoice::class
                 && ($new['status'] ?? null) === Invoice::STATUS_PAID => 'invoice_paid',
+            $entry->auditable_type === Invoice::class
+                && ($new['status'] ?? null) === Invoice::STATUS_SENT => 'invoice_sent',
+            $entry->auditable_type === Invoice::class
+                && ($new['status'] ?? null) === Invoice::STATUS_OVERDUE => 'invoice_overdue',
+            $entry->auditable_type === Invoice::class
+                && ($new['status'] ?? null) === Invoice::STATUS_VOID => 'invoice_void',
             // Forma pe care o scrie EXPEDIEREA REALĂ: `MarkShipmentShippedAction` mută
             // comanda în `fulfilled`/`partially_fulfilled` prin `$order->save()`, deci
             // observerul înregistrează `{status: …}`. Prima versiune căuta o cheie

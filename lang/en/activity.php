@@ -82,6 +82,10 @@ return [
         // tradus; numele propriu al înregistrării vine separat, ca `subjectName`.
         'stage_moved' => 'Moved :subject to another stage',
         'invoice_paid' => 'Marked :subject as paid',
+        'invoice_sent' => 'Sent :subject to the customer',
+        // Scrisă de un job, nu de un om — actorul iese „System" (vezi `system_actor`).
+        'invoice_overdue' => 'Flagged :subject as overdue',
+        'invoice_void' => 'Voided :subject',
         'order_shipped' => 'Shipped :subject',
 
         'member_deactivated' => 'Deactivated a member',
