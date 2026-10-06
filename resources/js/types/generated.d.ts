@@ -178,6 +178,9 @@ export interface DashboardAttention {
 }
 
 export interface DashboardPageProps {
+    can: {
+        createDeal: boolean;
+    };
     kpis: DashboardKpis;
     // `null` când rolul nu citește jurnalul de activitate (Viewer, specs §7.4).
     activity: ActivityItem[] | null;

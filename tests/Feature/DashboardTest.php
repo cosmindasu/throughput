@@ -65,6 +65,28 @@ class DashboardTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Butonul „New deal” se randa necondiționat (audit 2026-10-06): Viewer-ul, care n-are
+     * `deals.create`, îl vedea și ajungea într-un 403 din `DealController::create()`. Afirmația
+     * pe care produsul o face peste tot — și pe care înregistrarea demo o spune cu voce tare în
+     * ultimul cadru — e că fără drept butonul LIPSEȘTE, nu e dezactivat.
+     *
+     * Controlul pozitiv e în același test, intenționat: o reparație prin ștergerea butonului
+     * pentru toată lumea ar fi trecut un test doar-negativ.
+     */
+    public function test_the_new_deal_button_is_gated_on_the_create_permission(): void
+    {
+        $viewer = $this->makeMember($this->marlin, 'dashviewer@throughput.dev', Permissions::VIEWER);
+
+        $this->actingAs($viewer)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('can.createDeal', false));
+
+        $this->actingAs($this->owner)->get('/marlin/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('can.createDeal', true));
+    }
+
     public function test_the_dashboard_shows_kpis_computed_from_the_current_workspace_only(): void
     {
         $response = $this->actingAs($this->owner)->get('/marlin/dashboard');

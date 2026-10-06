@@ -70,7 +70,7 @@ const statusKey = (status: string): string => status.replace(/_(.)/g, (_, char: 
  * (`Inertia::defer`), deci pagina se vede înainte ca agregările să se termine.
  */
 export default function Dashboard() {
-    const { workspace, kpis, activity, auth, charts } = usePage<DashboardPageProps>().props;
+    const { workspace, kpis, activity, auth, charts, can } = usePage<DashboardPageProps>().props;
     const { t } = useTranslation(['dashboard', 'orders']);
     const locale = useLocale();
     // Dashboard-ul rulează mereu într-un workspace rezolvat (ruta are `{workspace}`), dar
@@ -112,10 +112,16 @@ export default function Dashboard() {
                         */}
                         <p className="mt-1 text-sm text-text-2">{t('dashboard:greeting', { name: auth.user?.name.split(' ')[0] ?? '' })}</p>
                     </div>
-                    <ButtonLink href={`${base}/deals/create`} variant="primary">
-                        <Icon name="plus" size={16} />
-                        {t('dashboard:quickActions.newDeal')}
-                    </ButtonLink>
+                    {/*
+                        Fără `deals.create`, butonul LIPSEȘTE — nu e dezactivat (§7.4, aceeași
+                        regulă peste tot în produs). Viewer-ul îl vedea și ajungea într-un 403.
+                    */}
+                    {can.createDeal && (
+                        <ButtonLink href={`${base}/deals/create`} variant="primary">
+                            <Icon name="plus" size={16} />
+                            {t('dashboard:quickActions.newDeal')}
+                        </ButtonLink>
+                    )}
                 </div>
 
                 {/*

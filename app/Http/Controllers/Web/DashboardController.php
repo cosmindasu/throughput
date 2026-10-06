@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,6 +56,16 @@ class DashboardController extends Controller
     public function show(Request $request): Response
     {
         return Inertia::render('Dashboard', [
+            // Butonul „New deal” se randa NECONDIȚIONAT (găsit la auditul din 2026-10-06).
+            // Viewer-ul n-are `deals.create` (`Permissions::forRoles()`), deci vedea un buton
+            // care îl ducea direct într-un 403 din `DealController::create()`. Contrazicea
+            // regula pe care o enunță restul produsului — și pe care demo-ul o afirmă explicit
+            // în ultimul cadru al înregistrării: fără drept, butonul LIPSEȘTE, nu e dezactivat.
+            // Aceeași formă ca în `Deals\DealController::index()`, ca să nu existe două
+            // convenții de `can` pe același verb.
+            'can' => [
+                'createDeal' => Gate::allows('create', Deal::class),
+            ],
             // CLOSURE, nu array: `PropsResolver` filtrează după `only` ÎNAINTE de a apela
             // closure-urile, dar un array e deja calculat când ajunge aici. Cu valori gata
             // făcute, fiecare reîncărcare parțială (`charts`, `attention`) refăcea cele cinci
