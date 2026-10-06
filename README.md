@@ -4,7 +4,11 @@ CRM operațional multi-tenant pentru distribuitori B2B: conturi și contacte, pi
 
 **Demo live:** [throughput.dbg.ro](https://throughput.dbg.ro) — intră cu un buton, fără cont și fără parolă.
 
-**Stare:** funcționalitatea e completă, acoperită de teste și verificată printr-un audit intern cod↔documentație (2026-09-23), inclusiv interfața bilingvă EN + FR ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)). Rămâne publicarea live pe Coolify și tag-ul `v1.0`.
+![Dashboard-ul pe workspace-ul Marlin: venit pe 12 luni, pipeline pe etape, comenzi pe status și lista „Needs attention"](docs/media/dashboard.gif)
+
+*Opt secunde din demo-ul de 90 de secunde. Înregistrarea completă e mută, cu subtitrări arse în engleză: se filmează automat, cu o coregrafie Playwright pe o bază semănată la volum complet, nu cu mâna.*
+
+**Stare:** funcționalitatea e completă, acoperită de teste și verificată prin două audituri interne cod↔documentație (2026-09-23 și 2026-10-06), inclusiv interfața bilingvă EN + FR ([ADR-022](docs/adr/ADR-022-locale-en-fr-per-utilizator-nu-in-url.md)). Demo-ul rulează live pe Coolify, cu reset zilnic. Rămâne tag-ul `v1.0` și trecerea repo-ului în public.
 
 ## Ce demonstrează
 
