@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Orders;
 
 use App\Actions\Orders\CreateOrderAction;
 use App\Actions\Orders\UpdateOrderLinesAction;
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Orders\StoreOrderRequest;
 use App\Http\Requests\Orders\UpdateOrderRequest;
@@ -203,7 +204,15 @@ final class OrderController extends Controller
             'can' => [
                 'edit' => Gate::allows('update', $order),
                 'delete' => Gate::allows('delete', $order),
-                'confirm' => Gate::allows('confirm', $order),
+                // ȘI starea, nu doar dreptul. `OrderPolicy::confirm()` verifică DELIBERAT
+                // numai permisiunea — o tranziție e o regulă de stare, refuzată de
+                // `ConfirmOrderAction` cu un mesaj pe câmp, nu cu un 403 opac. Corect pentru
+                // autorizare, insuficient pentru randare: pagina unei comenzi deja livrate
+                // afișa insigna „Fulfilled" lângă un buton „Confirm order" activ, care la
+                // click producea o eroare de validare. Contractul din README e „un buton la
+                // care n-ai dreptul e ABSENT, nu dezactivat"; aici dreptul exista, dar
+                // acțiunea nu mai era posibilă — tot absent trebuie să fie.
+                'confirm' => $order->status === OrderStatus::Draft && Gate::allows('confirm', $order),
                 'cancel' => Gate::allows('cancel', $order),
                 // Faza 3, valul 2 — `Gate::authorize('create', [Shipment::class, $order])`,
                 // pattern Laravel pentru „create" cu context suplimentar (comanda).

@@ -104,6 +104,62 @@ class OrderShowContractTest extends TestCase
         );
     }
 
+    /**
+     * Regresie 2026-10-06, găsită cu ochii pe o captură de portofoliu: pagina unei comenzi
+     * livrate arăta insigna „Fulfilled" lângă un buton „Confirm order" ACTIV.
+     *
+     * `OrderPolicy::confirm()` verifică deliberat numai permisiunea — o tranziție e o regulă
+     * de stare, refuzată de `ConfirmOrderAction` cu mesaj pe câmp, nu cu un 403 opac. Corect
+     * pentru autorizare, insuficient pentru randare: `can.confirm` trebuie să spună „acțiunea
+     * asta e posibilă ACUM", fiindcă pe asta se decide dacă butonul există. Contractul din
+     * README e „un buton la care n-ai dreptul e absent, nu dezactivat".
+     */
+    public function test_can_confirm_is_false_once_the_order_has_left_draft(): void
+    {
+        $order = TenantContext::run($this->marlin, function (): Order {
+            $variant = $this->makeVariant();
+            $this->setInventory($variant, $this->location, onHand: 50);
+
+            $order = new Order([
+                'account_id' => $this->account->getKey(),
+                'owner_user_id' => $this->owner->getKey(),
+                'status' => 'draft',
+                'currency' => 'USD',
+            ]);
+            $order->created_by = $this->owner->getKey();
+            $order->save();
+            $order->orderLines()->save(new OrderLine([
+                'variant_id' => $variant->getKey(),
+                'description' => 'Test line',
+                'quantity' => 4,
+                'unit_price' => 10,
+                'discount' => 0,
+                'line_total' => 40,
+            ]));
+
+            return $order;
+        });
+        $this->clearDatabaseTenantContext();
+
+        // Cât e ciornă, butonul trebuie să existe — altfel testul ar trece și dacă cineva ar
+        // stinge `can.confirm` cu totul. Controlul pozitiv e jumătatea care contează.
+        $this->actingAs($this->owner)
+            ->get("/marlin/orders/{$order->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('can.confirm', true));
+
+        $confirmed = TenantContext::run(
+            $this->marlin,
+            fn (): Order => (new ConfirmOrderAction)->execute($order->fresh(), acknowledgeBackorder: false),
+        );
+        $this->clearDatabaseTenantContext();
+
+        $this->actingAs($this->owner)
+            ->get("/marlin/orders/{$confirmed->getKey()}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('can.confirm', false));
+    }
+
     public function test_a_shipment_from_another_tenant_never_leaks_into_the_page(): void
     {
         $cascade = $this->makeTenant('cascade', 'Cascade Hydraulic Components');
