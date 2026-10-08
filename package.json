@@ -7,6 +7,10 @@
         "dev": "vite",
         "e2e": "playwright test -c e2e/playwright.config.ts"
     },
+    "overrides": {
+        "shell-quote": ">=1.11.0",
+        "source-map-js": ">=1.2.2"
+    },
     "devDependencies": {
         "@axe-core/playwright": "4.13.0",
         "@eslint/js": "^10.0.1",
