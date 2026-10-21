@@ -66,6 +66,15 @@ RUN { \
         echo 'post_max_size=32M'; \
     } > /usr/local/etc/php/conf.d/uploads.ini
 
+# php2shell (CVE-2026-109619, 2026-10-21): `session.upload_progress` e o cale de exploatare,
+# activă implicit chiar fără `session_start()`. Laravel nu o folosește, iar php.net recomandă
+# să rămână oprită și după patch. `expose_php=0` scoate versiunea PHP din `X-Powered-By`, ca
+# un scanner să nu afle din prima cerere dacă imaginea e patch-uită.
+RUN { \
+        echo 'session.upload_progress.enabled=0'; \
+        echo 'expose_php=0'; \
+    } > /usr/local/etc/php/conf.d/security.ini
+
 # Plafon SEPARAT de memorie pentru containerul `horizon` (Faza 4, lot M — măsurat, nu
 # presupus). Aceeași imagine servește trei containere cu bugete diferite: `app` 256m cu
 # 4 copii FPM, `scheduler` 128m, `horizon` 384m. Un `memory_limit` în `conf.d` s-ar aplica
